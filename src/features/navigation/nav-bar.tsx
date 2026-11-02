@@ -15,9 +15,7 @@ import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/providers/profile-provider';
 
-import type { NavItem } from './nav-items';
-
-export const SIDEBAR_WIDTH = 248;
+import { SIDEBAR_WIDTH, type NavItem } from './nav-items';
 
 type NavBarProps = { wide: boolean; children?: ReactNode };
 
@@ -180,6 +178,7 @@ const styles = StyleSheet.create({
   sideList: { gap: 2, flex: 1 },
   sideFooter: { borderTopWidth: 1, borderTopColor: '#161618', paddingTop: Spacing.md },
   sideItem: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
@@ -206,7 +205,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   soonText: { color: Colors.textFaint, fontSize: 10.5, fontWeight: '600', letterSpacing: 0.3 },
-  userChip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.sm, borderRadius: Radius.md },
+  userChip: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.sm, borderRadius: Radius.md },
   avatar: {
     width: 34,
     height: 34,
