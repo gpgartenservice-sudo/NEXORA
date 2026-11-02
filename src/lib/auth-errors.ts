@@ -36,8 +36,15 @@ export function authErrorMessage(error: unknown): string {
   // Unerwartete Fehler: technische Details anhängen, damit sich die Ursache finden lässt
   console.warn('[Supabase]', error);
   const detail = `\n\nTechnische Details: ${error.name}${error.status ? ` (${error.status})` : ''}${error.code ? ` [${error.code}]` : ''} – ${error.message}`;
-  if (error.name === 'AuthRetryableFetchError' || error.status === 0) {
+  if (/error sending .*email/i.test(error.message)) {
+    return 'Die E-Mail mit dem Code konnte gerade nicht verschickt werden. Bitte versuch es später noch einmal.' + detail;
+  }
+  // Status 0 = der Server wurde gar nicht erreicht
+  if (!error.status) {
     return 'Keine Verbindung zum Server. Prüfe deine Internetverbindung.' + detail;
+  }
+  if (error.status >= 500) {
+    return 'Der Server hat gerade ein Problem. Bitte versuch es gleich noch einmal.' + detail;
   }
   return 'Etwas ist schiefgelaufen. Bitte versuch es gleich noch einmal.' + detail;
 }
