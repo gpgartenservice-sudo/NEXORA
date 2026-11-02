@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   error: { borderColor: 'rgba(255,107,107,0.35)', backgroundColor: 'rgba(255,107,107,0.08)' },
-  success: { borderColor: 'rgba(255,255,255,0.25)', boxShadow: '0 8px 30px rgba(255,255,255,0.06)' },
+  success: { borderColor: 'rgba(47,227,154,0.4)', backgroundColor: 'rgba(47,227,154,0.06)', boxShadow: '0 8px 30px rgba(47,227,154,0.08)' },
   text: { color: Colors.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   errorText: { color: Colors.danger },
   successText: { color: Colors.text },

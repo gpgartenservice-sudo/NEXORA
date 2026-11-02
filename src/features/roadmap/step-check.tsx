@@ -42,8 +42,8 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
   }, [checked, fill, pop, ring]);
 
   const circle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(fill.get(), [0, 1], ['rgba(255,255,255,0)', Colors.text]),
-    borderColor: interpolateColor(Math.max(fill.get(), hover.get()), [0, 1], [Colors.borderFocus, Colors.text]),
+    backgroundColor: interpolateColor(fill.get(), [0, 1], ['rgba(47,227,154,0)', Colors.accent]),
+    borderColor: interpolateColor(Math.max(fill.get(), hover.get()), [0, 1], [Colors.borderFocus, Colors.accent]),
     transform: [{ scale: 1 + 0.08 * hover.get() * (1 - fill.get()) }],
   }));
   const tick = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.get()), transform: [{ scale: pop.get() }] }));
@@ -66,7 +66,7 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
         <Animated.View style={[styles.ring, { borderRadius: size / 2 }, ripple]} />
         <Animated.View style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }, circle]}>
           <Animated.View style={tick}>
-            <Check size={size * 0.58} color={Colors.background} strokeWidth={3.2} />
+            <Check size={size * 0.58} color={Colors.onAccent} strokeWidth={3.2} />
           </Animated.View>
         </Animated.View>
       </View>
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderWidth: 2,
-    borderColor: Colors.text,
+    borderColor: Colors.accent,
   },
 });

@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     bottom: 10,
     width: 3,
     borderRadius: 2,
-    backgroundColor: Colors.text,
-    boxShadow: '0 0 10px rgba(255,255,255,0.6)',
+    backgroundColor: Colors.accent,
+    boxShadow: `0 0 10px ${Colors.accentGlow}`,
   },
   sideLabel: { flex: 1, fontSize: 14.5, fontWeight: '500' },
   soon: {
@@ -229,5 +229,5 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 4 },
   tabLabel: { color: Colors.textFaint, fontSize: 11, fontWeight: '500' },
   tabLabelActive: { color: Colors.text },
-  tabDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.text, marginTop: 1 },
+  tabDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.accent, marginTop: 1 },
 });

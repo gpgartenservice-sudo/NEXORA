@@ -40,7 +40,7 @@ export function ComingSoon({ name }: { name: string }) {
             {item.planned.map((p) => (
               <View key={p} style={styles.row}>
                 <View style={styles.check}>
-                  <Check size={13} color={Colors.background} strokeWidth={3} />
+                  <Check size={13} color={Colors.onAccent} strokeWidth={3} />
                 </View>
                 <Text style={styles.rowText}>{p}</Text>
               </View>
@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
   description: { color: Colors.textMuted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 460 },
   cardTitle: { color: Colors.text, fontSize: 16, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  check: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.text, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
   rowText: { color: Colors.text, fontSize: 14.5, flex: 1 },
 });

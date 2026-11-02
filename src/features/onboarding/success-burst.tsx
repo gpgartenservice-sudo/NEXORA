@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { LETTER_IMAGES, LETTER_LAYOUT, WORDMARK_ASPECT_RATIO } from '@/components/brand/letters';
+import { Colors } from '@/constants/theme';
 
 const GLOW = require('@/assets/images/glow.png');
 const SIZE = 168;
@@ -42,7 +43,7 @@ export function SuccessBurst() {
   return (
     <View style={styles.wrap} accessible={false}>
       <Animated.View style={[styles.glow, glowStyle]}>
-        <Image source={GLOW} style={styles.fill} contentFit="fill" />
+        <Image source={GLOW} style={styles.fill} contentFit="fill" tintColor={Colors.accent} />
       </Animated.View>
       {Array.from({ length: RINGS }, (_, i) => (
         <Ring key={i} wave={wave} offset={i / RINGS} />
@@ -75,6 +76,6 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: SIZE / 2,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderColor: 'rgba(47,227,154,0.8)',
   },
 });

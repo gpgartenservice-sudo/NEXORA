@@ -88,7 +88,7 @@ export function StepRow({ step, done, onToggle, userGoals, isNext }: Props) {
 
 const styles = StyleSheet.create({
   row: { borderRadius: Radius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.md },
-  rowNext: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', boxShadow: '0 0 30px rgba(255,255,255,0.05)' },
+  rowNext: { borderWidth: 1, borderColor: 'rgba(47,227,154,0.35)', boxShadow: '0 0 30px rgba(47,227,154,0.08)' },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
   titleArea: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, minHeight: 26 },
   titleTexts: { flex: 1, gap: 6, paddingTop: 2 },
@@ -106,8 +106,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { color: Colors.textMuted, fontSize: 11.5, fontWeight: '500' },
-  badgeNext: { backgroundColor: Colors.text, borderColor: Colors.text },
-  badgeNextText: { color: Colors.background, fontSize: 11.5, fontWeight: '700' },
+  badgeNext: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  badgeNextText: { color: Colors.onAccent, fontSize: 11.5, fontWeight: '700' },
   details: { marginLeft: 26 + Spacing.md, marginTop: Spacing.md, gap: Spacing.sm },
   why: { color: Colors.textMuted, fontSize: 14.5, lineHeight: 22 },
   howTitle: { color: Colors.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.3, marginTop: Spacing.xs },

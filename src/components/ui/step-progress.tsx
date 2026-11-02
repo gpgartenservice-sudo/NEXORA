@@ -38,5 +38,5 @@ function Segment({ filled }: { filled: boolean }) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6 },
   track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.border, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 2, backgroundColor: Colors.text, boxShadow: '0 0 12px rgba(255,255,255,0.5)' },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: Colors.accent, boxShadow: `0 0 12px ${Colors.accentGlow}` },
 });

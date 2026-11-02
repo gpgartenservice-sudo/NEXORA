@@ -41,7 +41,7 @@ export function OptionCard({ title, description, emoji, selected, onPress, multi
   }, [selected, active, check]);
 
   const cardStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(Math.max(active.get(), hover.get() * 0.5), [0, 1], [Colors.border, '#FFFFFF']),
+    borderColor: interpolateColor(Math.max(active.get(), hover.get() * 0.5), [0, 1], [Colors.border, Colors.accent]),
     backgroundColor: interpolateColor(active.get(), [0, 1], [Colors.surface, Colors.surfaceRaised]),
     transform: [{ translateY: -2 * hover.get() }, { scale: 1 - 0.025 * press.get() }],
   }));
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderRadius: Radius.lg,
-    boxShadow: '0 0 0 3px rgba(255,255,255,0.08), 0 12px 36px rgba(255,255,255,0.10)',
+    boxShadow: '0 0 0 3px rgba(47,227,154,0.12), 0 12px 36px rgba(47,227,154,0.14)',
   },
   emoji: { fontSize: 28 },
   emojiCompact: { fontSize: 22 },
@@ -131,12 +131,12 @@ const styles = StyleSheet.create({
     left: -1.5,
     width: 22,
     height: 22,
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   circleFill: { borderRadius: 11 },
   boxFill: { borderRadius: 6 },
-  checkmark: { color: Colors.background, fontSize: 13, fontWeight: '800', marginTop: -1 },
+  checkmark: { color: Colors.onAccent, fontSize: 13, fontWeight: '800', marginTop: -1 },
   disabled: { opacity: 0.45 },
 });

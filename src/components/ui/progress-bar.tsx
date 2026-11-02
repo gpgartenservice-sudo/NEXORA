@@ -32,5 +32,5 @@ export function ProgressBar({ value, height = 6, delay = 0 }: Props) {
 
 const styles = StyleSheet.create({
   track: { width: '100%', backgroundColor: Colors.border, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: Colors.text, boxShadow: '0 0 14px rgba(255,255,255,0.55)' },
+  fill: { height: '100%', backgroundColor: Colors.accent, boxShadow: `0 0 14px ${Colors.accentGlow}` },
 });

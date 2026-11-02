@@ -62,7 +62,7 @@ export default function DashboardScreen() {
         {/* Fokus nach Phase */}
         <Reveal delay={320} style={twoColumns ? styles.colWide : undefined}>
           <Card style={styles.fill}>
-            <Image source={GLOW} style={styles.focusGlow} contentFit="fill" pointerEvents="none" />
+            <Image source={GLOW} style={styles.focusGlow} contentFit="fill" tintColor={Colors.accent} pointerEvents="none" />
             <Text style={styles.eyebrow}>DEIN FOKUS</Text>
             <View style={styles.focusHead}>
               <Text style={styles.focusEmoji}>{focus.emoji}</Text>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   colNarrow: { flex: 1 },
   fill: { flex: 1 },
   eyebrow: { color: Colors.textFaint, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.2 },
-  focusGlow: { position: 'absolute', top: -220, right: -200, width: 520, height: 520, opacity: 0.09 },
+  focusGlow: { position: 'absolute', top: -220, right: -200, width: 520, height: 520, opacity: 0.14 },
   focusHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   focusEmoji: { fontSize: 30 },
   focusTitle: { color: Colors.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.4, flex: 1 },

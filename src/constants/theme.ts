@@ -3,8 +3,9 @@ import '@/global.css';
 /**
  * NEXORA – Farben & Abstände.
  *
- * Die Marke ist bewusst schwarz-weiß. Eine Akzentfarbe ist noch nicht
- * festgelegt – sobald sie steht, kommt sie hier als `accent` dazu.
+ * Logo und Grundlook sind schwarz-weiß. Die Akzentfarbe "Wachstums-Grün"
+ * kommt nur dort zum Einsatz, wo etwas passiert: Hauptbuttons, Fortschritt,
+ * Haken, Auswahl, Erfolgsmeldungen, aktiver Bereich in der Navigation.
  */
 export const Colors = {
   background: '#000000',
@@ -16,7 +17,13 @@ export const Colors = {
   textMuted: '#8E8E93',
   textFaint: '#55555A',
   danger: '#FF6B6B',
-  buttonPrimary: '#FFFFFF',
+  /** Wachstums-Grün – Kontrast auf Schwarz 12.6:1 */
+  accent: '#2FE39A',
+  /** Schrift auf grünen Flächen */
+  onAccent: '#000000',
+  accentGlow: 'rgba(47,227,154,0.45)',
+  accentSoft: 'rgba(47,227,154,0.12)',
+  buttonPrimary: '#2FE39A',
   buttonPrimaryText: '#000000',
 } as const;
 

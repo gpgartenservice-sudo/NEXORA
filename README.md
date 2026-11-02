@@ -108,7 +108,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Dashboard: Begrüßung, Fokus nach Phase, nächste Schritte, Impuls des Tages
 - ✅ Gründer-Fahrplan: 6 Phasen, 26 Schritte, Reihenfolge je nach Phase, Fortschritt gespeichert
 - ⏳ Kunden & Aufträge
-- ⏳ Akzentfarbe festlegen
+- ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 
 > Die Bundle-ID `de.nexora.app` in `app.json` ist ein Platzhalter und muss vor der ersten Veröffentlichung im App Store auf eine eigene Domain angepasst werden.
