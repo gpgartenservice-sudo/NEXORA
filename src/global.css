@@ -1,0 +1,17 @@
+/* Nur Web/Mac: Hintergrund schwarz, damit beim Laden nie ein weißer Blitz zu sehen ist. */
+html,
+body,
+#root {
+  background-color: #000000;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Kein blauer Rahmen um Eingabefelder – der Fokus wird im Design selbst gezeigt. */
+input:focus,
+textarea:focus {
+  outline: none;
+}
