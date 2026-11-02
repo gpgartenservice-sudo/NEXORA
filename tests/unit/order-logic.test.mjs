@@ -76,6 +76,10 @@ test('Beträge im deutschen Format lesen', () => {
   assert.equal(parseEuro('99'), 99);
   assert.equal(parseEuro('12,5 €'), 12.5);
   assert.equal(parseEuro('1234.5'), 1234.5);
+  assert.equal(parseEuro('1.500'), 1500);
+  assert.equal(parseEuro('12.000.000'), 12000000);
+  assert.equal(parseEuro('12.50'), 12.5);
+  assert.equal(parseEuro('1.500,5'), 1500.5);
   assert.equal(parseEuro(''), null);
   assert.equal(parseEuro('abc'), 'invalid');
 });

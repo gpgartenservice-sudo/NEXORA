@@ -82,6 +82,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
+| `src/features/documents/` | Firmendaten, Angebote & Rechnungen – **Beträge in `document-logic.ts`, PDF-Layout in `pdf.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
 | `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
@@ -111,7 +112,9 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Gründer-Fahrplan: 6 Phasen, 26 Schritte, Reihenfolge je nach Phase, Fortschritt gespeichert
 - ✅ Kunden: Liste mit Suche, Kundenakte, Anrufen/E-Mail, Umsatz pro Kunde
 - ✅ Aufträge: Status aktualisiert sich automatisch, einmalig oder monatlich, Rabatt, realisierter/anstehender Umsatz
-- ⏳ Angebote & Rechnungen als PDF
+- ✅ Firmendaten (Profil → Firmendaten): Absender, Kleinunternehmer/USt, Steuernummer, Bankverbindung, Fristen
+- ✅ Angebote & Rechnungen als PDF aus jedem Auftrag: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
+- ⏳ Angebote & Rechnungen per E-Mail verschicken, Angebot online annehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 

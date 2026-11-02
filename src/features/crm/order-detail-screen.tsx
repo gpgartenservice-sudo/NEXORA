@@ -16,6 +16,8 @@ import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 
+import { OrderDocumentsCard } from '@/features/documents/order-documents-card';
+
 import { useCrm, type Order } from './crm-provider';
 import {
   computeStatus,
@@ -260,7 +262,13 @@ function OrderEditor({ order }: { order: Order }) {
         </Reveal>
       </View>
 
-      <Reveal delay={420}>
+      {customer && (
+        <Reveal delay={400}>
+          <OrderDocumentsCard order={order} customer={customer} dirty={dirty} />
+        </Reveal>
+      )}
+
+      <Reveal delay={440}>
         <Card>
           <Text style={styles.cardTitle}>Details</Text>
           <TextField label="Leistung *" value={draft.title} onChangeText={(v) => set('title', v)} error={errors.title} maxLength={200} />

@@ -160,7 +160,13 @@ export function parseEuro(input: string): number | null | 'invalid' {
   const s = input.trim().replace(/\s|€/g, '');
   if (s === '') return null;
   let normalized = s;
-  if (s.includes(',')) normalized = s.replace(/\./g, '').replace(',', '.');
+  if (s.includes(',')) {
+    // deutsch: 1.234,56
+    normalized = s.replace(/\./g, '').replace(',', '.');
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+    // Punkte als Tausendertrennzeichen: 1.500 oder 12.000.000
+    normalized = s.replace(/\./g, '');
+  }
   if (!/^-?\d+(\.\d+)?$/.test(normalized)) return 'invalid';
   const n = Number(normalized);
   return Number.isFinite(n) ? round2(n) : 'invalid';

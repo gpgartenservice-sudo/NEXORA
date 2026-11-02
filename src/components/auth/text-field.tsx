@@ -85,13 +85,14 @@ export const TextField = forwardRef<TextInputInstance, Props>(function TextField
           pointerEvents="none"
           style={[styles.glow, hasError ? styles.glowError : styles.glowFocus, glowStyle]}
         />
-        <Animated.View style={[styles.field, fieldStyle]}>
+        <Animated.View style={[styles.field, inputProps.multiline && styles.fieldMultiline, fieldStyle]}>
           <TextInput
             ref={ref}
+            accessibilityLabel={label.replace(/\s*\*$/, '')}
             placeholderTextColor={Colors.textFaint}
             selectionColor={Colors.text}
             cursorColor={Colors.text}
-            style={[styles.input, style]}
+            style={[styles.input, inputProps.multiline && styles.inputMultiline, style]}
             onFocus={(e) => {
               setFocused(true);
               onFocus?.(e);
@@ -127,6 +128,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: Spacing.lg,
   },
+  /** Mehrzeilig: Feld wächst mit dem Inhalt statt fester Höhe. */
+  fieldMultiline: { height: 'auto', minHeight: 52, alignItems: 'stretch' },
   glow: {
     position: 'absolute',
     top: 0,
@@ -142,6 +145,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 0 0 4px rgba(255,107,107,0.10), 0 10px 32px rgba(255,107,107,0.08)',
   },
   input: { flex: 1, height: '100%', color: Colors.text, fontSize: 16 },
+  inputMultiline: { height: 'auto' },
   error: { color: Colors.danger, fontSize: 13 },
   hint: { color: Colors.textFaint, fontSize: 13 },
 });

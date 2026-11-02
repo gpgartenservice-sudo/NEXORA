@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
+import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
+import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, stageLabel } from '@/features/onboarding/options';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
@@ -18,6 +21,8 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { profile } = useProfile();
   const [signingOut, setSigningOut] = useState(false);
+  const { seller } = useDocuments();
+  const missing = missingSellerFields(seller, 'invoice');
   const name = profile?.display_name?.trim() || 'Dein Profil';
 
   const signOut = async () => {
@@ -66,6 +71,22 @@ export default function ProfileScreen() {
         </Card>
       </Reveal>
 
+      <Reveal delay={420}>
+        <Card onPress={() => router.push('/profil/firma')} accessibilityLabel="Firmendaten bearbeiten">
+          <View style={styles.firmRow}>
+            <View style={styles.flex}>
+              <Text style={styles.cardTitle}>Firmendaten</Text>
+              <Text style={styles.firmText}>
+                {missing.length === 0
+                  ? `${sellerName(seller)} · ${seller.small_business ? 'Kleinunternehmer' : `${seller.vat_rate} % USt`}`
+                  : `Für Angebote und Rechnungen fehlt noch: ${missing.join(', ')}`}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textFaint} />
+          </View>
+        </Card>
+      </Reveal>
+
       <Reveal delay={480}>
         <Button label="Abmelden" variant="secondary" onPress={signOut} loading={signingOut} />
       </Reveal>
@@ -93,4 +114,7 @@ const styles = StyleSheet.create({
   rowLabel: { color: Colors.textFaint, fontSize: 14 },
   rowValue: { color: Colors.text, fontSize: 14, flexShrink: 1, textAlign: 'right' },
   editRow: { alignItems: 'flex-end', marginTop: Spacing.xs },
+  firmRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  flex: { flex: 1, gap: 4 },
+  firmText: { color: Colors.textMuted, fontSize: 14, lineHeight: 20 },
 });
