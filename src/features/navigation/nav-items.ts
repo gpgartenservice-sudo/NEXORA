@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  Building2,
   Ellipsis,
   House,
   Megaphone,
@@ -14,7 +15,7 @@ import {
 export type NavItem = {
   /** Name der Route (Datei in src/app/(app)/(tabs)/) */
   name: string;
-  href: '/home' | '/fahrplan' | '/kunden' | '/auftraege' | '/finanzen' | '/social' | '/assistent' | '/profil' | '/mehr';
+  href: '/home' | '/fahrplan' | '/kunden' | '/auftraege' | '/firma' | '/finanzen' | '/social' | '/assistent' | '/profil' | '/mehr';
   label: string;
   icon: LucideIcon;
   /** Kurzbeschreibung (Platzhalter-Seiten, "Mehr"-Liste) */
@@ -59,6 +60,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Aufträge',
     icon: Briefcase,
     description: 'Vom ersten Kontakt bis zur bezahlten Rechnung: Angebote, Termine, Rechnungen.',
+  },
+  {
+    name: 'firma',
+    href: '/firma',
+    label: 'Firma',
+    icon: Building2,
+    description: 'Logo, Adresse, Steuern und Bankverbindung für deine Angebote und Rechnungen.',
   },
   {
     name: 'finanzen',

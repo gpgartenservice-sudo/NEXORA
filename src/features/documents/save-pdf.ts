@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import type { LogoImage } from './logo-logic';
 import type { IssuedDocument } from './pdf';
 
 /** Erzeugtes PDF: Inhalt + Dateiname (z. B. Rechnung_RE-2026-0001_Peter_Mueller.pdf) */
@@ -11,9 +12,9 @@ export const pdfSupported = Platform.OS === 'web' && typeof document !== 'undefi
 export const PDF_UNSUPPORTED = 'Das Speichern als PDF gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.';
 
 /** PDF erzeugen (pdf-lib wird erst geladen, wenn wirklich ein PDF gebraucht wird). */
-export async function preparePdf(doc: IssuedDocument): Promise<PreparedPdf> {
+export async function preparePdf(doc: IssuedDocument, logo?: LogoImage | null): Promise<PreparedPdf> {
   const { pdfFileName, renderDocumentPdf } = await import('./pdf');
-  return { bytes: await renderDocumentPdf(doc), fileName: pdfFileName(doc) };
+  return { bytes: await renderDocumentPdf(doc, logo), fileName: pdfFileName(doc) };
 }
 
 /** Als Datei herunterladen – im Mac-Fenster erscheint der Speichern-Dialog. */
@@ -30,10 +31,10 @@ export function downloadPdf(pdf: PreparedPdf) {
 }
 
 /** PDF erzeugen und speichern (Mac/Web: Speichern-Dialog bzw. Download). */
-export async function savePdf(doc: IssuedDocument): Promise<{ error?: string }> {
+export async function savePdf(doc: IssuedDocument, logo?: LogoImage | null): Promise<{ error?: string }> {
   if (!pdfSupported) return { error: PDF_UNSUPPORTED };
   try {
-    downloadPdf(await preparePdf(doc));
+    downloadPdf(await preparePdf(doc, logo));
     return {};
   } catch (e) {
     console.warn('[PDF]', e);

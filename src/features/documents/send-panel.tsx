@@ -10,7 +10,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import type { Customer } from '@/features/crm/crm-provider';
 
 import { documentMessage, mailtoUrl, whatsappNumber, whatsappUrl } from './document-logic';
-import type { StoredDocument } from './documents-provider';
+import { useDocuments, type StoredDocument } from './documents-provider';
 import { pdfSupported, preparePdf, type PreparedPdf } from './save-pdf';
 import { canShareFile, openWith, shareFile, type Delivery } from './send-document';
 
@@ -38,12 +38,15 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   const [pdf, setPdf] = useState<PreparedPdf | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [marking, setMarking] = useState(false);
+  const { logoFor } = useDocuments();
 
   // PDF vorab erzeugen, damit E-Mail/WhatsApp sofort beim Klick aufgehen
   useEffect(() => {
     if (!pdfSupported) return;
     let active = true;
-    preparePdf(doc).then(
+    logoFor(doc)
+      .then((logo) => preparePdf(doc, logo))
+      .then(
       (p) => active && setPdf(p),
       (e) =>
         active &&
@@ -52,7 +55,7 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
     return () => {
       active = false;
     };
-  }, [doc]);
+  }, [doc, logoFor]);
 
   if (!pdfSupported) {
     return <Notice>Verschicken gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.</Notice>;

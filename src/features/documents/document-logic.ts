@@ -28,6 +28,8 @@ export type Seller = {
   bic: string | null;
   payment_days: number;
   offer_validity_days: number;
+  /** Aktuelles Firmenlogo (Tabelle business_logos) */
+  logo_id: string | null;
 };
 
 export type Buyer = {
@@ -88,6 +90,7 @@ export const EMPTY_SELLER: Seller = {
   bic: null,
   payment_days: 14,
   offer_validity_days: 30,
+  logo_id: null,
 };
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -253,4 +256,27 @@ export function mailtoUrl(to: string | null | undefined, subject: string, body: 
 /** WhatsApp-Link mit fertigem Text (ohne Nummer wählt man den Kontakt selbst). */
 export function whatsappUrl(phone: string | null | undefined, text: string): string {
   return `https://wa.me/${whatsappNumber(phone) ?? ''}?text=${encodeURIComponent(text)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Muster-Rechnung (Vorschau im Bereich "Firma")
+// ---------------------------------------------------------------------------
+
+/** Beispiel-Rechnung mit den eigenen Firmendaten – nur zur Ansicht, wird nicht gespeichert. */
+export function sampleInvoice(seller: Seller, today: string = todayIso()) {
+  const items: LineItem[] = [
+    { description: 'Beispiel-Leistung', details: 'So sieht eine Position auf deinen Rechnungen aus', quantity: 1, unit: 'pauschal', unit_price: 100 },
+  ];
+  const data: DocumentData = {
+    kind: 'invoice',
+    seller,
+    buyer: { name: 'Max Mustermann', company: null, address: 'Musterstraße 1, 12345 Musterstadt', email: null },
+    items,
+    totals: computeTotals(items, 0, seller.small_business, seller.vat_rate),
+    small_business: seller.small_business,
+    service_date: today,
+    service_period: null,
+    monthly: false,
+  };
+  return { kind: 'invoice' as const, number: 'RE-MUSTER', issued_on: today, due_on: addDays(today, seller.payment_days || 0), data };
 }

@@ -72,10 +72,10 @@ export default function ProfileScreen() {
       </Reveal>
 
       <Reveal delay={420}>
-        <Card onPress={() => router.push('/profil/firma')} accessibilityLabel="Firmendaten bearbeiten">
+        <Card onPress={() => router.navigate('/firma')} accessibilityLabel="Firma bearbeiten">
           <View style={styles.firmRow}>
             <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Firmendaten</Text>
+              <Text style={styles.cardTitle}>Firma</Text>
               <Text style={styles.firmText}>
                 {missing.length === 0
                   ? `${sellerName(seller)} · ${seller.small_business ? 'Kleinunternehmer' : `${seller.vat_rate} % USt`}`

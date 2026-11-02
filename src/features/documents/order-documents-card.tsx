@@ -42,7 +42,7 @@ function monthRange(today = todayIso()) {
 
 /** Angebote und Rechnungen zu einem Auftrag: erstellen, als PDF speichern, verschicken, bezahlt markieren. */
 export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOfferSent }: Props) {
-  const { seller, error, issue, setPaid, documentsFor } = useDocuments();
+  const { seller, error, issue, setPaid, documentsFor, logoFor } = useDocuments();
   const docs = documentsFor(order.id);
   const monthly = order.billing === 'monthly';
   const [composing, setComposing] = useState<DocumentKind | null>(null);
@@ -79,7 +79,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
       setMessage({ tone: 'error', text: err ?? 'Das hat nicht geklappt.' });
       return;
     }
-    const pdf = await savePdf(data);
+    const pdf = await savePdf(data, await logoFor(data));
     setBusy(false);
     setComposing(null);
     // gleich die Versand-Möglichkeiten zeigen
@@ -120,7 +120,9 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
               doc={d}
               onSave={async () =>
                 setMessage(
-                  (await savePdf(d)).error ? { tone: 'error', text: 'Das PDF konnte nicht gespeichert werden.' } : null,
+                  (await savePdf(d, await logoFor(d))).error
+                    ? { tone: 'error', text: 'Das PDF konnte nicht gespeichert werden.' }
+                    : null,
                 )
               }
               onPaid={(paid) => setPaid(d.id, paid)}
@@ -188,7 +190,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
           </View>
           {composeBlockers.some(
             (b) => !['Preis im Auftrag', 'Anschrift des Kunden', 'Name des Kunden'].includes(b),
-          ) && <TextLink label="Firmendaten ergänzen →" emphasis onPress={() => router.push('/profil/firma')} />}
+          ) && <TextLink label="Firmendaten ergänzen →" emphasis onPress={() => router.push('/firma')} />}
           {composeBlockers.includes('Anschrift des Kunden') && (
             <TextLink
               label="Anschrift beim Kunden eintragen →"

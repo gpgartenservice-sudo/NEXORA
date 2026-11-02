@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -13,9 +12,11 @@ import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { validateEmail } from '@/lib/validation';
+import { useProfile } from '@/providers/profile-provider';
 
 import { missingSellerFields, type Seller } from './document-logic';
 import { useDocuments } from './documents-provider';
+import { LogoCard } from './logo-card';
 
 type Draft = Record<
   'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days',
@@ -44,10 +45,51 @@ const toDraft = (s: Seller): Draft => ({
 
 const clean = (v: string) => (v.trim() ? v.trim() : null);
 
-/** Firmendaten, die auf Angeboten und Rechnungen stehen. */
-export function BusinessSettingsScreen() {
-  const { seller, saveSeller, error } = useDocuments();
-  const [draft, setDraft] = useState<Draft>(() => toDraft(seller));
+/** Eingaben -> Firmendaten (ohne Logo; das wird direkt beim Hochladen gespeichert). */
+function toValues(draft: Draft): Omit<Seller, 'logo_id'> {
+  const iban = draft.iban.replace(/\s+/g, '').toUpperCase();
+  return {
+    company_name: clean(draft.company_name),
+    owner_name: clean(draft.owner_name),
+    street: clean(draft.street),
+    zip: clean(draft.zip),
+    city: clean(draft.city),
+    phone: clean(draft.phone),
+    email: clean(draft.email),
+    website: clean(draft.website),
+    tax_number: clean(draft.tax_number),
+    vat_id: clean(draft.vat_id),
+    bank_name: clean(draft.bank_name),
+    iban: iban ? iban.replace(/(.{4})/g, '$1 ').trim() : null,
+    bic: clean(draft.bic.toUpperCase()),
+    payment_days: Number(draft.payment_days),
+    offer_validity_days: Number(draft.offer_validity_days),
+    small_business: draft.small_business,
+    vat_rate: Number(draft.vat_rate),
+  };
+}
+
+/** Bereich "Firma": Logo, Firmendaten, Steuern und Bank – so stehen sie auf Angeboten und Rechnungen. */
+export function CompanyScreen() {
+  const { loading } = useDocuments();
+  return (
+    <Screen maxWidth={760}>
+      <PageHeader title="Firma" subtitle="Dein Logo und deine Firmendaten – so stehen sie auf deinen Angeboten und Rechnungen." />
+      {/* Formular erst zeigen, wenn die gespeicherten Daten da sind */}
+      {!loading && <CompanyForm />}
+    </Screen>
+  );
+}
+
+function CompanyForm() {
+  const { seller, hasSettings, saveSeller, error } = useDocuments();
+  const { profile } = useProfile();
+  const [draft, setDraft] = useState<Draft>(() => {
+    const d = toDraft(seller);
+    // Noch nichts gespeichert: Firmenname aus dem Onboarding vorschlagen
+    if (!hasSettings && !d.company_name && profile?.business_name) d.company_name = profile.business_name;
+    return d;
+  });
   const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -77,58 +119,28 @@ export function BusinessSettingsScreen() {
     setFailure(null);
     if (Object.values(next).some(Boolean)) return;
     setSaving(true);
-    const { error: err } = await saveSeller({
-      company_name: clean(draft.company_name),
-      owner_name: clean(draft.owner_name),
-      street: clean(draft.street),
-      zip: clean(draft.zip),
-      city: clean(draft.city),
-      phone: clean(draft.phone),
-      email: clean(draft.email),
-      website: clean(draft.website),
-      tax_number: clean(draft.tax_number),
-      vat_id: clean(draft.vat_id),
-      bank_name: clean(draft.bank_name),
-      iban: iban ? iban.replace(/(.{4})/g, '$1 ').trim() : null,
-      bic: clean(draft.bic.toUpperCase()),
-      payment_days: paymentDays,
-      offer_validity_days: validity,
-      small_business: draft.small_business,
-      vat_rate: Number(draft.vat_rate),
-    });
+    const { error: err } = await saveSeller(toValues(draft));
     setSaving(false);
     if (err) setFailure(err);
     else setSaved(true);
   };
 
-  const missingInvoice = missingSellerFields(
-    {
-      ...seller,
-      company_name: clean(draft.company_name),
-      owner_name: clean(draft.owner_name),
-      street: clean(draft.street),
-      zip: clean(draft.zip),
-      city: clean(draft.city),
-      tax_number: clean(draft.tax_number),
-      vat_id: clean(draft.vat_id),
-      iban: clean(draft.iban),
-    },
-    'invoice',
-  );
+  // Aktueller Stand der Eingaben (auch ungespeichert) – für Hinweise und Vorschau
+  const preview: Seller = { ...toValues(draft), logo_id: seller.logo_id };
+  const missingInvoice = missingSellerFields(preview, 'invoice');
 
   return (
-    <Screen maxWidth={760}>
-      <PageHeader
-        title="Firmendaten"
-        subtitle="Diese Angaben stehen auf deinen Angeboten und Rechnungen."
-        back={{ label: 'Profil', onPress: () => router.navigate('/profil') }}
-      />
+    <>
       {error === 'setup' && (
         <Notice tone="error">Firmendaten können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (siehe supabase/README.md).</Notice>
       )}
       {missingInvoice.length > 0 && <Notice>Für Rechnungen fehlt noch: {missingInvoice.join(', ')}.</Notice>}
 
-      <Reveal delay={200}>
+      <Reveal delay={160}>
+        <LogoCard preview={preview} />
+      </Reveal>
+
+      <Reveal delay={220}>
         <Card>
           <Text style={styles.cardTitle}>Absender</Text>
           {field('company_name', 'Firmenname', { placeholder: 'z. B. Lena Design Studio' })}
@@ -193,7 +205,7 @@ export function BusinessSettingsScreen() {
       {saved && <Notice tone="success">Firmendaten gespeichert.</Notice>}
       <Button label="Firmendaten speichern" onPress={save} loading={saving} />
       <Text style={styles.disclaimer}>Hinweise nach bestem Wissen (Stand 2026) – im Zweifel mit einer Steuerberatung abstimmen.</Text>
-    </Screen>
+    </>
   );
 }
 

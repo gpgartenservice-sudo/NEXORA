@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { Customer, Order } from '@/features/crm/crm-provider';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,7 @@ import {
   type LineItem,
   type Seller,
 } from './document-logic';
+import type { LogoImage } from './logo-logic';
 
 export type StoredDocument = {
   id: string;
@@ -30,6 +31,8 @@ export type StoredDocument = {
 
 export type ServiceInfo = { date: string | null; period: { from: string; to: string } | null };
 
+export type StoredLogo = LogoImage & { id: string };
+
 type State = {
   seller: Seller;
   /** true, sobald schon einmal Firmendaten gespeichert wurden */
@@ -41,6 +44,12 @@ type State = {
   issue: (kind: DocumentKind, order: Order, customer: Customer, service?: ServiceInfo) => Promise<{ data?: StoredDocument; error?: string }>;
   setPaid: (id: string, paid: boolean) => Promise<{ error?: string }>;
   documentsFor: (orderId: string) => StoredDocument[];
+  /** Aktuelles Firmenlogo */
+  logo: StoredLogo | null;
+  uploadLogo: (image: LogoImage) => Promise<{ error?: string }>;
+  removeLogo: () => Promise<{ error?: string }>;
+  /** Logo, das beim Erstellen eines Dokuments galt (für dessen PDF) */
+  logoFor: (doc: { data: DocumentData }) => Promise<LogoImage | null>;
 };
 
 const Ctx = createContext<State | null>(null);
@@ -58,6 +67,21 @@ function toSeller(row: Record<string, unknown> | null): Seller {
 
 function toDocument(row: Record<string, unknown>): StoredDocument {
   return { ...(row as unknown as StoredDocument), total: Number(row.total) };
+}
+
+const LOGO_MISSING = [...MISSING, 'PGRST204', '42703'];
+
+function logoErrorText(error: { code?: string; message?: string }, fallback: string): string {
+  if (error.code && LOGO_MISSING.includes(error.code)) {
+    return 'Das Logo kann noch nicht gespeichert werden: Das Datenbank-Skript fürs Firmenlogo fehlt (20261105090000_business_logo.sql, siehe supabase/README.md).';
+  }
+  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+}
+
+async function fetchLogo(id: string): Promise<LogoImage | null> {
+  const { data, error } = await supabase.from('business_logos').select('mime, data, width, height').eq('id', id).maybeSingle();
+  if (error) console.warn('[Logo]', error);
+  return (data as LogoImage | null) ?? null;
 }
 
 function errorText(error: { code?: string; message?: string }, fallback: string): string {
@@ -110,16 +134,24 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<State['error']>(null);
+  const [logo, setLogo] = useState<StoredLogo | null>(null);
+  /** Geladene Logos nach id (auch ältere Versionen für ältere Dokumente) */
+  const logoCache = useRef(new Map<string, LogoImage | null>());
 
   useEffect(() => {
     let active = true;
-    fetchAll().then((r) => {
+    fetchAll().then(async (r) => {
       if (!active) return;
       if (r.error) {
         console.warn('[Dokumente]', r.error);
         setError(MISSING.includes(r.error.code) ? 'setup' : 'failed');
       } else {
-        setSeller(toSeller(r.settings));
+        const s = toSeller(r.settings);
+        const current = s.logo_id ? await fetchLogo(s.logo_id) : null;
+        if (!active) return;
+        if (s.logo_id) logoCache.current.set(s.logo_id, current);
+        setLogo(s.logo_id && current ? { ...current, id: s.logo_id } : null);
+        setSeller(s);
         setHasSettings(!!r.settings);
         setDocuments(r.documents);
       }
@@ -179,6 +211,67 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
     return {};
   }, []);
 
+  const logoFor = useCallback(async (doc: { data: DocumentData }) => {
+    const id = doc.data.seller?.logo_id;
+    if (!id) return null;
+    const cache = logoCache.current;
+    if (cache.has(id)) return cache.get(id) ?? null;
+    const found = await fetchLogo(id);
+    cache.set(id, found);
+    return found;
+  }, []);
+
+  /** Alte Logo-Version löschen – aber nur, wenn kein Dokument sie noch braucht. */
+  const cleanupLogo = useCallback(
+    async (id: string | null) => {
+      if (!id || documents.some((d) => d.data.seller?.logo_id === id)) return;
+      const { error: err } = await supabase.from('business_logos').delete().eq('id', id);
+      if (!err) logoCache.current.delete(id);
+    },
+    [documents],
+  );
+
+  const setLogoId = useCallback(
+    async (logoId: string | null) =>
+      supabase.from('business_settings').upsert({ user_id: userId, logo_id: logoId }, { onConflict: 'user_id' }).select('*').single(),
+    [userId],
+  );
+
+  const uploadLogo = useCallback(
+    async (image: LogoImage) => {
+      const previous = seller.logo_id;
+      const { data: row, error: err } = await supabase
+        .from('business_logos')
+        .insert({ mime: image.mime, data: image.data, width: image.width, height: image.height })
+        .select('id')
+        .single();
+      if (err || !row) return { error: logoErrorText(err ?? {}, 'Das Logo konnte nicht gespeichert werden.') };
+      const id = (row as { id: string }).id;
+      const { data: settings, error: err2 } = await setLogoId(id);
+      if (err2) {
+        await supabase.from('business_logos').delete().eq('id', id);
+        return { error: logoErrorText(err2, 'Das Logo konnte nicht gespeichert werden.') };
+      }
+      logoCache.current.set(id, image);
+      setSeller(toSeller(settings as Record<string, unknown>));
+      setHasSettings(true);
+      setLogo({ ...image, id });
+      await cleanupLogo(previous);
+      return {};
+    },
+    [seller.logo_id, setLogoId, cleanupLogo],
+  );
+
+  const removeLogo = useCallback(async () => {
+    const previous = seller.logo_id;
+    const { data: settings, error: err } = await setLogoId(null);
+    if (err) return { error: logoErrorText(err, 'Das Logo konnte nicht entfernt werden.') };
+    setSeller(toSeller(settings as Record<string, unknown>));
+    setLogo(null);
+    await cleanupLogo(previous);
+    return {};
+  }, [seller.logo_id, setLogoId, cleanupLogo]);
+
   const value = useMemo<State>(
     () => ({
       seller,
@@ -190,8 +283,12 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
       issue,
       setPaid,
       documentsFor: (orderId) => documents.filter((d) => d.order_id === orderId),
+      logo,
+      uploadLogo,
+      removeLogo,
+      logoFor,
     }),
-    [seller, hasSettings, documents, loading, error, saveSeller, issue, setPaid],
+    [seller, hasSettings, documents, loading, error, saveSeller, issue, setPaid, logo, uploadLogo, removeLogo, logoFor],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

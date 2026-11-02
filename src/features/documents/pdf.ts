@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
 import { formatDay, formatMoney, sellerName, type DocumentData, type DocumentKind } from './document-logic';
+import { base64ToBytes, fitInto, type LogoImage } from './logo-logic';
 
 /**
  * Erzeugt das PDF für ein Angebot oder eine Rechnung (DIN-A4, Anschrift
@@ -64,7 +65,10 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
   return lines;
 }
 
-export async function renderDocumentPdf(doc: IssuedDocument): Promise<Uint8Array> {
+/** Platz fürs Logo oben links (in pt) */
+const LOGO_BOX = { top: 28, maxW: 180, maxH: 40 };
+
+export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -87,12 +91,20 @@ export async function renderDocumentPdf(doc: IssuedDocument): Promise<Uint8Array
   const textRight = (p: PDFPage, value: string, xRight: number, y: number, size = 10, font = regular, color = INK) =>
     text(p, value, xRight - font.widthOfTextAtSize(safe(value), size), y, size, font, color);
 
-  // --- Kopf: Absender links, Titel rechts
+  // --- Kopf: Logo + Absender links, Titel rechts
   page.drawRectangle({ x: 0, y: A4.h - 6, width: A4.w, height: 6, color: ACCENT });
-  text(page, name, M.left, A4.h - 62, 17, bold);
   const senderLines = [s.owner_name && s.company_name ? s.owner_name : null, s.street, [s.zip, s.city].filter(Boolean).join(' ')]
     .filter(Boolean) as string[];
-  senderLines.forEach((l, i) => text(page, l, M.left, A4.h - 80 - i * 12, 9, regular, MUTED));
+  const logoHeight = logo ? await drawLogo(pdf, page, logo, M.left, A4.h - LOGO_BOX.top) : 0;
+  if (logoHeight) {
+    // Mit Logo: Name kleiner darunter
+    const nameY = A4.h - LOGO_BOX.top - logoHeight - 15;
+    text(page, name, M.left, nameY, 12, bold);
+    senderLines.forEach((l, i) => text(page, l, M.left, nameY - 13 - i * 11, 9, regular, MUTED));
+  } else {
+    text(page, name, M.left, A4.h - 62, 17, bold);
+    senderLines.forEach((l, i) => text(page, l, M.left, A4.h - 80 - i * 12, 9, regular, MUTED));
+  }
 
   textRight(page, title, right, A4.h - 62, 18, bold);
   const meta: [string, string][] = [
@@ -248,6 +260,20 @@ export async function renderDocumentPdf(doc: IssuedDocument): Promise<Uint8Array
 }
 
 /** Dateiname, z. B. "Rechnung_RE-2026-0001_Peter_Mueller.pdf" */
+/** Logo oben links einzeichnen; gibt die Höhe zurück (0 = ging nicht, dann ohne Logo). */
+async function drawLogo(pdf: PDFDocument, page: PDFPage, logo: LogoImage, x: number, top: number): Promise<number> {
+  try {
+    const bytes = base64ToBytes(logo.data);
+    const image = logo.mime === 'image/png' ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+    const size = fitInto(image.width, image.height, LOGO_BOX.maxW, LOGO_BOX.maxH);
+    page.drawImage(image, { x, y: top - size.height, width: size.width, height: size.height });
+    return size.height;
+  } catch (e) {
+    console.warn('[PDF] Logo konnte nicht eingefügt werden', e);
+    return 0;
+  }
+}
+
 export function pdfFileName(doc: { kind: DocumentKind; number: string; data: DocumentData }): string {
   const who = (doc.data.buyer.company || doc.data.buyer.name || '')
     .replace(/ä/g, 'ae')

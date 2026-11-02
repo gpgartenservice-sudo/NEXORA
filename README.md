@@ -77,12 +77,12 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/app/index.tsx` | Start: Intro-Animation → Anmelde-Screen |
 | `src/app/register.tsx`, `verify.tsx`, `forgot-password.tsx`, `reset-password.tsx` | Registrierung, Code-Bestätigung, Passwort zurücksetzen |
 | `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx` + App-Rahmen in `(tabs)/`) |
-| `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, … |
+| `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, `auftraege`, `firma`, … |
 | `src/features/navigation/` | Seitenleiste (Mac) / Tab-Leiste (Handy), Liste aller Bereiche |
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
-| `src/features/documents/` | Firmendaten, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`** |
+| `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
 | `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
@@ -113,8 +113,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Gründer-Fahrplan: 6 Phasen, 26 Schritte, Reihenfolge je nach Phase, Fortschritt gespeichert
 - ✅ Kunden: Liste mit Suche, Kundenakte, Anrufen/E-Mail, Umsatz pro Kunde
 - ✅ Aufträge: Status aktualisiert sich automatisch, einmalig oder monatlich, Rabatt, realisierter/anstehender Umsatz
-- ✅ Firmendaten (Profil → Firmendaten): Absender, Kleinunternehmer/USt, Steuernummer, Bankverbindung, Fristen
-- ✅ Angebote & Rechnungen als PDF aus jedem Auftrag: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
+- ✅ Bereich „Firma“: Logo (wird automatisch zugeschnitten), Briefkopf-Vorschau, Absender, Kleinunternehmer/USt, Steuernummer, Bankverbindung, Fristen, Muster-Rechnung als PDF
+- ✅ Angebote & Rechnungen als PDF aus jedem Auftrag – mit eigenem Logo: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
 - ✅ Angebote & Rechnungen verschicken (von Hand): E-Mail oder WhatsApp mit fertigem Text, auf dem Mac auch über „Teilen …“ mit PDF im Anhang; Angebot als verschickt markieren
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
