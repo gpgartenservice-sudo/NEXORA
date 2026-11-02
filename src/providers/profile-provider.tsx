@@ -75,6 +75,11 @@ export function ProfileProvider({ userId, children }: { userId: string; children
         .single();
       if (saveError) {
         console.warn('[Profil]', saveError);
+        // 23503: das Konto zur gespeicherten Anmeldung existiert nicht mehr
+        if (saveError.code === '23503') {
+          await supabase.auth.signOut({ scope: 'local' });
+          return { error: 'Dein Konto wurde nicht gefunden. Bitte melde dich neu an oder registriere dich erneut.' };
+        }
         return {
           error: MISSING_TABLE.includes(saveError.code)
             ? 'Die Datenbank ist noch nicht eingerichtet (siehe supabase/README.md).'

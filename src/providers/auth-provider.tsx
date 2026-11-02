@@ -21,8 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     supabase.auth
       .getSession()
-      .then(({ data }) => {
-        if (active) setSession(data.session);
+      .then(async ({ data }) => {
+        let current = data.session;
+        // Gespeicherte Anmeldung beim Server prüfen: Gibt es das Konto noch?
+        // (z. B. wenn es in Supabase gelöscht wurde) – sonst lokal abmelden.
+        if (current) {
+          const { error } = await supabase.auth.getUser();
+          if (error && accountIsGone(error)) {
+            await supabase.auth.signOut({ scope: 'local' });
+            current = null;
+          }
+        }
+        if (active) setSession(current);
       })
       .finally(() => {
         if (active) setInitializing(false);
@@ -47,6 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthState {
   return useContext(AuthContext);
+}
+
+/**
+ * true, wenn der Server sagt, dass die gespeicherte Anmeldung nicht mehr
+ * gültig ist (Konto gelöscht, Sitzung widerrufen). Netzwerkfehler zählen
+ * nicht – offline bleibt man angemeldet.
+ */
+function accountIsGone(error: { status?: number; code?: string }): boolean {
+  return (
+    error.status === 401 ||
+    error.status === 403 ||
+    ['user_not_found', 'session_not_found', 'bad_jwt'].includes(error.code ?? '')
+  );
 }
 
 /** Vorname aus den Kontodaten (bei der Registrierung angegeben). */

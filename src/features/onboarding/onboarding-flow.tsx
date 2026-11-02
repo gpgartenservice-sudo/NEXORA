@@ -21,6 +21,7 @@ import { OptionCard } from '@/components/ui/option-card';
 import { StepProgress } from '@/components/ui/step-progress';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -154,7 +155,11 @@ export function OnboardingFlow() {
                   <Text style={styles.stepLabel}>
                     Schritt {stepIndex + 1} von {QUESTION_COUNT}
                   </Text>
-                  {stepIndex > 0 && <TextLink label="← Zurück" onPress={back} />}
+                  {stepIndex > 0 ? (
+                    <TextLink label="← Zurück" onPress={back} />
+                  ) : (
+                    <TextLink label="Abmelden" onPress={() => supabase.auth.signOut()} />
+                  )}
                 </View>
               </View>
             )}
