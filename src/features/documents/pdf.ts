@@ -1,6 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
-import { formatDay, formatMoney, sellerName, type DocumentData, type DocumentKind } from './document-logic';
+import { formatDay, formatMoney, sellerName, type DocumentData, type DocumentKind, type Seller } from './document-logic';
 import { base64ToBytes, fitInto, type LogoImage } from './logo-logic';
 
 /**
@@ -18,17 +18,17 @@ export type IssuedDocument = {
   data: DocumentData;
 };
 
-const A4 = { w: 595.28, h: 841.89 };
-const M = { left: 62, right: 57, bottom: 70 }; // Ränder in pt
-const INK = rgb(0.08, 0.08, 0.09);
-const MUTED = rgb(0.42, 0.42, 0.45);
-const LINE = rgb(0.85, 0.85, 0.87);
-const ACCENT = rgb(0.184, 0.89, 0.604); // Wachstums-Grün (#2FE39A)
+export const A4 = { w: 595.28, h: 841.89 };
+export const M = { left: 62, right: 57, bottom: 70 }; // Ränder in pt
+export const INK = rgb(0.08, 0.08, 0.09);
+export const MUTED = rgb(0.42, 0.42, 0.45);
+export const LINE = rgb(0.85, 0.85, 0.87);
+export const ACCENT = rgb(0.184, 0.89, 0.604); // Wachstums-Grün (#2FE39A)
 
 // Die Standardschrift kann nur Zeichen aus "WinAnsi" (Latin-1 + € „ “ – …).
 // Alles andere (z. B. Emojis) wird weggelassen, damit das PDF nie scheitert.
 const WIN_ANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
-function safe(text: string): string {
+export function safe(text: string): string {
   let out = '';
   for (const ch of text.replace(/\r/g, '').replace(/\t/g, ' ')) {
     const c = ch.codePointAt(0)!;
@@ -39,7 +39,7 @@ function safe(text: string): string {
   return out;
 }
 
-function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+export function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const lines: string[] = [];
   for (const paragraph of safe(text).split('\n')) {
     let line = '';
@@ -92,19 +92,7 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
     text(p, value, xRight - font.widthOfTextAtSize(safe(value), size), y, size, font, color);
 
   // --- Kopf: Logo + Absender links, Titel rechts
-  page.drawRectangle({ x: 0, y: A4.h - 6, width: A4.w, height: 6, color: ACCENT });
-  const senderLines = [s.owner_name && s.company_name ? s.owner_name : null, s.street, [s.zip, s.city].filter(Boolean).join(' ')]
-    .filter(Boolean) as string[];
-  const logoHeight = logo ? await drawLogo(pdf, page, logo, M.left, A4.h - LOGO_BOX.top) : 0;
-  if (logoHeight) {
-    // Mit Logo: Name kleiner darunter
-    const nameY = A4.h - LOGO_BOX.top - logoHeight - 15;
-    text(page, name, M.left, nameY, 12, bold);
-    senderLines.forEach((l, i) => text(page, l, M.left, nameY - 13 - i * 11, 9, regular, MUTED));
-  } else {
-    text(page, name, M.left, A4.h - 62, 17, bold);
-    senderLines.forEach((l, i) => text(page, l, M.left, A4.h - 80 - i * 12, 9, regular, MUTED));
-  }
+  await drawLetterhead(pdf, page, s, logo, regular, bold);
 
   textRight(page, title, right, A4.h - 62, 18, bold);
   const meta: [string, string][] = [
@@ -259,7 +247,36 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
   return pdf.save();
 }
 
-/** Dateiname, z. B. "Rechnung_RE-2026-0001_Peter_Mueller.pdf" */
+/**
+ * Briefkopf: grüner Streifen, Logo (falls vorhanden) und Absender oben links.
+ * Gleich auf Angeboten, Rechnungen und dem Einkommensnachweis.
+ */
+export async function drawLetterhead(
+  pdf: PDFDocument,
+  page: PDFPage,
+  s: Seller,
+  logo: LogoImage | null | undefined,
+  regular: PDFFont,
+  bold: PDFFont,
+) {
+  const text = (value: string, x: number, y: number, size: number, font: PDFFont, color = INK) =>
+    page.drawText(safe(value), { x, y, size, font, color });
+  const name = sellerName(s);
+  page.drawRectangle({ x: 0, y: A4.h - 6, width: A4.w, height: 6, color: ACCENT });
+  const senderLines = [s.owner_name && s.company_name ? s.owner_name : null, s.street, [s.zip, s.city].filter(Boolean).join(' ')]
+    .filter(Boolean) as string[];
+  const logoHeight = logo ? await drawLogo(pdf, page, logo, M.left, A4.h - LOGO_BOX.top) : 0;
+  if (logoHeight) {
+    // Mit Logo: Name kleiner darunter
+    const nameY = A4.h - LOGO_BOX.top - logoHeight - 15;
+    text(name, M.left, nameY, 12, bold);
+    senderLines.forEach((l, i) => text(l, M.left, nameY - 13 - i * 11, 9, regular, MUTED));
+  } else {
+    text(name, M.left, A4.h - 62, 17, bold);
+    senderLines.forEach((l, i) => text(l, M.left, A4.h - 80 - i * 12, 9, regular, MUTED));
+  }
+}
+
 /** Logo oben links einzeichnen; gibt die Höhe zurück (0 = ging nicht, dann ohne Logo). */
 async function drawLogo(pdf: PDFDocument, page: PDFPage, logo: LogoImage, x: number, top: number): Promise<number> {
   try {
@@ -274,6 +291,7 @@ async function drawLogo(pdf: PDFDocument, page: PDFPage, logo: LogoImage, x: num
   }
 }
 
+/** Dateiname, z. B. "Rechnung_RE-2026-0001_Peter_Mueller.pdf" */
 export function pdfFileName(doc: { kind: DocumentKind; number: string; data: DocumentData }): string {
   const who = (doc.data.buyer.company || doc.data.buyer.name || '')
     .replace(/ä/g, 'ae')

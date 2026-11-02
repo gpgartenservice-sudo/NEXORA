@@ -32,6 +32,8 @@ export type Order = {
   offer_accepted: boolean;
   execution_at: string | null;
   completed: boolean;
+  /** Tag des Abschlusses (setzt die Datenbank automatisch) */
+  completed_on?: string | null;
   cancelled: boolean;
   expenses: number | null;
   internal_notes: string | null;

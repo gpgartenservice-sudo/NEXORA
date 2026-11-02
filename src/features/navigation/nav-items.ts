@@ -75,7 +75,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Finanzen',
     icon: Wallet,
     description: 'Einnahmen, Ausgaben und Gewinn im Blick – inklusive offener Rechnungen.',
-    soon: true,
   },
   {
     name: 'social',
