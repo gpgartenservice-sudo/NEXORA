@@ -1,10 +1,20 @@
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { type AnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Wordmark } from '@/components/brand/wordmark';
+import { AnimatedTitle, Reveal, RevealProvider } from '@/components/motion/reveal';
 import { Colors, Spacing } from '@/constants/theme';
 
 export const AUTH_LOGO_WIDTH = 190;
@@ -21,6 +31,8 @@ type Props = {
   /** Für das Einblenden nach dem Intro */
   contentStyle?: StyleProp<AnimatedStyle<StyleProp<ViewStyle>>>;
   ambientStyle?: StyleProp<AnimatedStyle<StyleProp<ViewStyle>>>;
+  /** Ab wann Titel, Text und Formular nacheinander einblenden (Startseite: erst nach dem Intro) */
+  ready?: boolean;
 };
 
 /**
@@ -28,40 +40,53 @@ type Props = {
  * Logo und Spalte stehen auf jedem Screen exakt an derselben Stelle, so
  * wirken die Wechsel zwischen den Screens ruhig.
  */
-export function AuthShell({ title, subtitle, children, footer, logo, contentStyle, ambientStyle }: Props) {
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+  footer,
+  logo,
+  contentStyle,
+  ambientStyle,
+  ready = true,
+}: Props) {
   return (
-    <View style={styles.root}>
-      {/* sanfter Lichtschein oben hinter dem Logo */}
-      <Animated.View pointerEvents="none" style={[styles.ambient, ambientStyle]}>
-        <Image source={GLOW} style={styles.fill} contentFit="fill" />
-      </Animated.View>
+    <RevealProvider ready={ready}>
+      <View style={styles.root}>
+        {/* sanfter Lichtschein oben hinter dem Logo */}
+        <Animated.View pointerEvents="none" style={[styles.ambient, ambientStyle]}>
+          <Image source={GLOW} style={styles.fill} contentFit="fill" />
+        </Animated.View>
 
-      <SafeAreaView style={styles.root}>
-        <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
-            <View style={styles.column}>
-              <View style={styles.logo}>{logo ?? <Wordmark width={AUTH_LOGO_WIDTH} />}</View>
+        <SafeAreaView style={styles.root}>
+          <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView
+              contentContainerStyle={styles.scroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <View style={styles.column}>
+                <View style={styles.logo}>{logo ?? <Wordmark width={AUTH_LOGO_WIDTH} />}</View>
 
-              <Animated.View style={[styles.content, contentStyle]}>
-                <View style={styles.header}>
-                  <Text style={styles.title} accessibilityRole="header">
-                    {title}
-                  </Text>
-                  {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-                </View>
+                <Animated.View style={[styles.content, contentStyle]}>
+                  <View style={styles.header}>
+                    <AnimatedTitle text={title} style={styles.title} />
+                    {!!subtitle && (
+                      <Reveal delay={240}>
+                        <Text style={styles.subtitle}>{subtitle}</Text>
+                      </Reveal>
+                    )}
+                  </View>
 
-                {children}
+                  <Reveal delay={360}>{children}</Reveal>
 
-                {footer}
-              </Animated.View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+                  {!!footer && <Reveal delay={520}>{footer}</Reveal>}
+                </Animated.View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+    </RevealProvider>
   );
 }
 

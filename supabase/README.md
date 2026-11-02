@@ -22,7 +22,21 @@ Jeweils **Save changes** klicken.
 - **Confirm email:** an (Standard)
 - **Minimum password length:** `8` (die App verlangt ebenfalls mindestens 8 Zeichen)
 
-## 3. Wichtig zum Testen: E-Mail-Versand
+## 3. Datenbank-Tabellen (Pflicht, bei jedem neuen Skript)
+
+Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an. Jedes Skript einmal ausführen, in der Reihenfolge der Dateinamen:
+
+1. Im Dashboard links **SQL Editor** öffnen → **New query**
+2. Den kompletten Inhalt der Datei einfügen → **Run**
+3. Unten erscheint „Success. No rows returned“ – fertig.
+
+| Skript | Inhalt |
+|---|---|
+| `20261102120000_profiles.sql` | Profil & Onboarding-Antworten (jeder sieht nur sein eigenes) |
+
+Ein Skript versehentlich zweimal auszuführen schadet nicht.
+
+## 4. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

@@ -40,10 +40,12 @@ type Props = {
   target: SharedValue<LogoTarget | null>;
   /** Wird von 0 auf 1 gezählt, während der Schriftzug nach oben fliegt (für das Einblenden des Anmelde-Screens). */
   exitProgress: SharedValue<number>;
+  /** Wird aufgerufen, sobald der Schriftzug nach oben losfliegt */
+  onExitStart?: () => void;
   onFinished: () => void;
 };
 
-export function IntroAnimation({ target, exitProgress, onFinished }: Props) {
+export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }: Props) {
   const { width: screenW, height: screenH } = useWindowDimensions();
 
   // Größe des Schriftzugs während der Animation
@@ -92,6 +94,13 @@ export function IntroAnimation({ target, exitProgress, onFinished }: Props) {
     () => easeInOutCubic(progress(t.get(), EXIT_START, TOTAL)),
     (p) => {
       exitProgress.set(p);
+    },
+  );
+
+  useAnimatedReaction(
+    () => t.get() >= EXIT_START,
+    (started, wasStarted) => {
+      if (started && !wasStarted && onExitStart) scheduleOnRN(onExitStart);
     },
   );
 

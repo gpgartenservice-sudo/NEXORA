@@ -4,7 +4,7 @@ Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwalt
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ [Video: Vorschau der Start-Animation](docs/media/intro-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4)
 
 ---
 
@@ -76,7 +76,11 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/app/` | Bildschirme (jede Datei = ein Screen, Expo Router) |
 | `src/app/index.tsx` | Start: Intro-Animation → Anmelde-Screen |
 | `src/app/register.tsx`, `verify.tsx`, `forgot-password.tsx`, `reset-password.tsx` | Registrierung, Code-Bestätigung, Passwort zurücksetzen |
-| `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`home.tsx` = vorläufige Startseite) |
+| `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx`, `home.tsx` = vorläufige Startseite) |
+| `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
+| `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
+| `src/providers/profile-provider.tsx` | Profil des Nutzers laden & speichern |
+| `supabase/migrations/` | Datenbank-Skripte (im Supabase SQL Editor ausführen) |
 | `src/lib/supabase.ts` | Verbindung zu Supabase (Daten aus `.env`) |
 | `src/providers/auth-provider.tsx` | Wer ist angemeldet? (für die ganze App) |
 | `supabase/` | Einrichtung von Supabase, E-Mail-Vorlagen |
@@ -94,7 +98,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 
 - ✅ Start-Animation (N erscheint, gleitet nach links, Buchstaben fallen von oben, Schriftzug fliegt in den Anmelde-Screen)
 - ✅ Anmeldung mit Supabase: Registrierung, E-Mail-Bestätigung per Code, Login, angemeldet bleiben, Abmelden, Passwort vergessen
-- ⏳ Onboarding nach der Registrierung
+- ✅ Onboarding: Name, Phase, Business, Branche, Ziele – gespeichert in Supabase
+- ✅ Moderne Effekte: Titel blenden Wort für Wort ein, leuchtende Felder, federnde Buttons & Karten
 - ⏳ App-Grundgerüst & Dashboard
 - ⏳ Akzentfarbe festlegen
 - ⏳ Logo als SVG

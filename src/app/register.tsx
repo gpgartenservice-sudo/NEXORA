@@ -13,35 +13,28 @@ import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { MIN_PASSWORD_LENGTH, validateEmail, validateNewPassword } from '@/lib/validation';
 
-type Errors = { name?: string; email?: string; password?: string };
+type Errors = { email?: string; password?: string };
 
 export default function RegisterScreen() {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
 
   const submit = async () => {
     const next: Errors = {
-      name: name.trim().length < 2 ? 'Wie dürfen wir dich nennen?' : undefined,
       email: validateEmail(email),
       password: validateNewPassword(password),
     };
     setErrors(next);
     setFailure(null);
-    if (next.name || next.email || next.password) return;
+    if (next.email || next.password) return;
 
     setLoading(true);
     const address = email.trim();
-    const { data, error } = await supabase.auth.signUp({
-      email: address,
-      password,
-      options: { data: { full_name: name.trim() } },
-    });
+    const { data, error } = await supabase.auth.signUp({ email: address, password });
     setLoading(false);
 
     if (error) {
@@ -63,7 +56,7 @@ export default function RegisterScreen() {
   return (
     <AuthShell
       title="Konto erstellen"
-      subtitle="In einer Minute startklar – danach richten wir NEXORA auf dich ein."
+      subtitle="In einer Minute startklar – danach richten wir NEXORA gemeinsam auf dich ein."
       footer={
         <AuthFooter text="Schon ein Konto?">
           <TextLink label="Anmelden" emphasis onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
@@ -71,23 +64,6 @@ export default function RegisterScreen() {
       }>
       <View style={styles.form}>
         <TextField
-          label="Dein Name"
-          value={name}
-          onChangeText={(v) => {
-            setName(v);
-            clear('name');
-          }}
-          error={errors.name}
-          placeholder="Vor- und Nachname"
-          autoComplete="name"
-          textContentType="name"
-          autoCapitalize="words"
-          returnKeyType="next"
-          onSubmitEditing={() => emailRef.current?.focus()}
-          submitBehavior="submit"
-        />
-        <TextField
-          ref={emailRef}
           label="E-Mail"
           value={email}
           onChangeText={(v) => {
@@ -101,6 +77,7 @@ export default function RegisterScreen() {
           autoComplete="email"
           keyboardType="email-address"
           textContentType="emailAddress"
+          autoFocus
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
           submitBehavior="submit"

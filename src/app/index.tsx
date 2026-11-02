@@ -29,6 +29,8 @@ export default function WelcomeScreen() {
   const reduceMotion = useReducedMotion();
   const { session, initializing } = useAuth();
   const [introDone, setIntroDone] = useState(reduceMotion || introAlreadyPlayed);
+  // Inhalte blenden ein, sobald der Schriftzug nach oben fliegt
+  const [contentReady, setContentReady] = useState(introDone);
 
   // 0 = Intro läuft, 1 = Anmelde-Screen vollständig sichtbar
   const exitProgress = useSharedValue(introDone ? 1 : 0);
@@ -69,6 +71,7 @@ export default function WelcomeScreen() {
           subtitle="Melde dich an, um weiterzumachen."
           contentStyle={contentStyle}
           ambientStyle={ambientStyle}
+          ready={contentReady}
           logo={
             <View
               ref={logoSlot}
@@ -87,7 +90,12 @@ export default function WelcomeScreen() {
       )}
 
       {!introDone && (
-        <IntroAnimation target={logoTarget} exitProgress={exitProgress} onFinished={finishIntro} />
+        <IntroAnimation
+          target={logoTarget}
+          exitProgress={exitProgress}
+          onExitStart={() => setContentReady(true)}
+          onFinished={finishIntro}
+        />
       )}
     </View>
   );
