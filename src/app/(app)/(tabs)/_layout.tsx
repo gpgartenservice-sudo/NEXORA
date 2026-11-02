@@ -4,6 +4,7 @@ import { StyleSheet, useWindowDimensions } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { NavBar, NavButton } from '@/features/navigation/nav-bar';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
+import { CrmProvider } from '@/features/crm/crm-provider';
 import { RoadmapProvider } from '@/features/roadmap/roadmap-provider';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -20,18 +21,20 @@ export default function TabsLayout() {
 
   return (
     <RoadmapProvider userId={user?.id ?? ''}>
-      <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
-        <TabList asChild>
-          <NavBar wide={wide}>
-            {NAV_ITEMS.map((item) => (
-              <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                <NavButton item={item} wide={wide} />
-              </TabTrigger>
-            ))}
-          </NavBar>
-        </TabList>
-        <TabSlot style={styles.slot} />
-      </Tabs>
+      <CrmProvider userId={user?.id ?? ''}>
+        <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+          <TabList asChild>
+            <NavBar wide={wide}>
+              {NAV_ITEMS.map((item) => (
+                <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                  <NavButton item={item} wide={wide} />
+                </TabTrigger>
+              ))}
+            </NavBar>
+          </TabList>
+          <TabSlot style={styles.slot} />
+        </Tabs>
+      </CrmProvider>
     </RoadmapProvider>
   );
 }

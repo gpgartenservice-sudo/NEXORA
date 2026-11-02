@@ -51,7 +51,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     description: 'Alle Kunden an einem Ort – mit Kontaktdaten, Notizen und Umsatz pro Kunde.',
     mobileTab: true,
-    soon: true,
   },
   {
     name: 'auftraege',
@@ -60,7 +59,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Aufträge',
     icon: Briefcase,
     description: 'Vom ersten Kontakt bis zur bezahlten Rechnung: Angebote, Termine, Rechnungen.',
-    soon: true,
   },
   {
     name: 'finanzen',

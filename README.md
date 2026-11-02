@@ -4,7 +4,7 @@ Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwalt
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4)
 
 ---
 
@@ -81,6 +81,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/navigation/` | Seitenleiste (Mac) / Tab-Leiste (Handy), Liste aller Bereiche |
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
+| `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
+| `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
 | `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
 | `src/providers/profile-provider.tsx` | Profil des Nutzers laden & speichern |
@@ -107,7 +109,9 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ App-Rahmen: Seitenleiste (Mac) / Tab-Leiste (Handy), Profil-Seite
 - ✅ Dashboard: Begrüßung, Fokus nach Phase, nächste Schritte, Impuls des Tages
 - ✅ Gründer-Fahrplan: 6 Phasen, 26 Schritte, Reihenfolge je nach Phase, Fortschritt gespeichert
-- ⏳ Kunden & Aufträge
+- ✅ Kunden: Liste mit Suche, Kundenakte, Anrufen/E-Mail, Umsatz pro Kunde
+- ✅ Aufträge: Status aktualisiert sich automatisch, einmalig oder monatlich, Rabatt, realisierter/anstehender Umsatz
+- ⏳ Angebote & Rechnungen als PDF
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 
@@ -121,4 +125,8 @@ npm run typecheck
 
 ```bash
 npm run lint
+```
+
+```bash
+npm run test:unit
 ```

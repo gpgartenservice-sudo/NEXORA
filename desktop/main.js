@@ -18,6 +18,9 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 const DEV_URL = process.env.NEXORA_DEV_URL; // z. B. http://localhost:8081
 const APP_URL = 'app://nexora/';
 
+// App ist deutsch: Datums- und Zahlenformate (z. B. im Kalender) auf Deutsch
+app.commandLine.appendSwitch('lang', 'de-DE');
+
 // Eigene Adresse "app://" statt file://, damit die Web-App ihre Dateien
 // über normale Pfade (/_expo/...) laden kann.
 protocol.registerSchemesAsPrivileged([
