@@ -82,7 +82,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
-| `src/features/documents/` | Firmendaten, Angebote & Rechnungen – **Beträge in `document-logic.ts`, PDF-Layout in `pdf.ts`** |
+| `src/features/documents/` | Firmendaten, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
 | `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
@@ -100,6 +100,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `assets/images/logo/` | Einzelbuchstaben (erzeugt von `tools/build-logo-letters.py`) |
 | `assets/images/icon.png` | App-Icon (flach, quadratisch – die Rundung macht das System) |
 | `desktop/main.js` | Mac-Fenster (Electron) |
+| `desktop/preload.js` | Brücke App ↔ Mac (PDF in Downloads/NEXORA ablegen, Mail/WhatsApp öffnen, Teilen-Menü) |
 
 ## Stand
 
@@ -114,7 +115,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Aufträge: Status aktualisiert sich automatisch, einmalig oder monatlich, Rabatt, realisierter/anstehender Umsatz
 - ✅ Firmendaten (Profil → Firmendaten): Absender, Kleinunternehmer/USt, Steuernummer, Bankverbindung, Fristen
 - ✅ Angebote & Rechnungen als PDF aus jedem Auftrag: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
-- ⏳ Angebote & Rechnungen per E-Mail verschicken, Angebot online annehmen
+- ✅ Angebote & Rechnungen verschicken (von Hand): E-Mail oder WhatsApp mit fertigem Text, auf dem Mac auch über „Teilen …“ mit PDF im Anhang; Angebot als verschickt markieren
+- ⏳ Automatischer Versand aus der App, Angebot online annehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 

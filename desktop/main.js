@@ -9,7 +9,7 @@
  * Mit Live-Neuladen beim Entwickeln: erst `npm run web`, dann in einem
  * zweiten Terminal `npm run mac:dev`.
  */
-const { app, BrowserWindow, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net, protocol, shell, ShareMenu } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -41,6 +41,52 @@ function serveDist(request) {
   return net.fetch(pathToFileURL(filePath).toString());
 }
 
+// ---------------------------------------------------------------------------
+// Angebote/Rechnungen verschicken: PDF in Downloads/NEXORA ablegen, dann
+// E-Mail-Programm bzw. WhatsApp öffnen (PDF im Finder zeigen, zum
+// Reinziehen) oder das Teilen-Menü des Mac mit dem PDF als Anhang.
+// ---------------------------------------------------------------------------
+const MAX_PDF_BYTES = 20 * 1024 * 1024;
+
+function fromApp(event) {
+  const url = event.senderFrame?.url ?? '';
+  return url.startsWith(APP_URL) || (!!DEV_URL && url.startsWith(DEV_URL));
+}
+
+function safeFileName(name) {
+  const base = path.basename(String(name || 'Dokument')).replace(/[^\w.\-äöüÄÖÜß ]+/g, '_').slice(0, 120);
+  return base.toLowerCase().endsWith('.pdf') ? base : `${base}.pdf`;
+}
+
+const allowedUrl = (url) => typeof url === 'string' && (url.startsWith('mailto:') || url.startsWith('https://wa.me/'));
+
+ipcMain.handle('nexora:send-file', async (event, payload) => {
+  if (!fromApp(event)) throw new Error('Nicht erlaubt');
+  const { bytes, fileName, via, url, text } = payload ?? {};
+  if (!ArrayBuffer.isView(bytes) || bytes.byteLength === 0 || bytes.byteLength > MAX_PDF_BYTES) {
+    throw new Error('Ungültige Datei');
+  }
+  if (via === 'open' && !allowedUrl(url)) throw new Error('Ungültiger Link');
+  if (via !== 'open' && via !== 'share') throw new Error('Unbekannte Aktion');
+
+  const dir = path.join(app.getPath('downloads'), 'NEXORA');
+  await fs.promises.mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, safeFileName(fileName));
+  await fs.promises.writeFile(filePath, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+
+  if (via === 'share') {
+    if (process.platform !== 'darwin' || !ShareMenu) throw new Error('Teilen gibt es nur auf dem Mac');
+    const item = { filePaths: [filePath] };
+    if (text) item.texts = [String(text)];
+    const menu = new ShareMenu(item);
+    menu.popup({ window: BrowserWindow.fromWebContents(event.sender) ?? undefined });
+  } else {
+    await shell.openExternal(url);
+    shell.showItemInFolder(filePath);
+  }
+  return { filePath };
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -53,6 +99,7 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     show: false,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

@@ -172,6 +172,15 @@ function OrderEditor({ order }: { order: Order }) {
     setSaved(true);
   };
 
+  /** Aus "Angebot verschicken": nur dieses Häkchen speichern, andere offene Änderungen bleiben stehen. */
+  const markOfferSent = async () => {
+    const { data, error } = await updateOrder(order.id, { offer_sent: true });
+    if (error || !data) return { error: error ?? 'Speichern hat nicht geklappt.' };
+    setInitial((i) => ({ ...i, offer_sent: true }));
+    setDraft((d) => ({ ...d, offer_sent: true }));
+    return {};
+  };
+
   return (
     <Screen maxWidth={1000}>
       <PageHeader
@@ -264,7 +273,13 @@ function OrderEditor({ order }: { order: Order }) {
 
       {customer && (
         <Reveal delay={400}>
-          <OrderDocumentsCard order={order} customer={customer} dirty={dirty} />
+          <OrderDocumentsCard
+            order={order}
+            customer={customer}
+            dirty={dirty}
+            offerSent={initial.offer_sent}
+            onMarkOfferSent={markOfferSent}
+          />
         </Reveal>
       )}
 

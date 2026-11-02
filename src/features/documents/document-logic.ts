@@ -168,3 +168,89 @@ export function formatDay(isoDate: string | null | undefined): string {
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 }
+
+// ---------------------------------------------------------------------------
+// Texte zum Verschicken (E-Mail, WhatsApp)
+// ---------------------------------------------------------------------------
+
+export type MessageInput = {
+  kind: DocumentKind;
+  number: string;
+  due_on: string | null;
+  data: DocumentData;
+  /** Aktueller Name des Kunden – sonst der Name, der auf dem Dokument steht */
+  customerName?: string | null;
+};
+
+/** Betreff + Text für die E-Mail, kürzerer Text für WhatsApp & Co. */
+export type DocumentMessage = { subject: string; body: string; chat: string };
+
+/** Fertige Nachricht zu einem Angebot bzw. einer Rechnung (Sie-Form wie im PDF). */
+export function documentMessage(doc: MessageInput): DocumentMessage {
+  const { data } = doc;
+  const isInvoice = doc.kind === 'invoice';
+  const name = (doc.customerName || data.buyer.name || '').trim();
+  const greeting = name ? `Guten Tag ${name},` : 'Guten Tag,';
+  const what = data.items.length === 1 ? data.items[0].description.trim() : '';
+  const forWhat = what ? ` für „${what}“` : '';
+  const amount = formatMoney(data.totals.gross) + (!isInvoice && data.monthly ? ' pro Monat' : '');
+  const due = formatDay(doc.due_on);
+  const s = data.seller;
+  const company = sellerName(s);
+  const sender = (s.owner_name || company).trim();
+  const signature = [sender, company !== sender ? company : '', s.phone ? `Tel. ${s.phone}` : '', s.website ?? '']
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const subject = `${isInvoice ? 'Rechnung' : 'Angebot'} ${doc.number}${what ? ` – ${what}` : ''}`;
+
+  const paragraphs = isInvoice
+    ? [
+        greeting,
+        `vielen Dank für Ihren Auftrag. Im Anhang finden Sie die Rechnung ${doc.number}${forWhat} über ${amount}.`,
+        `Bitte überweisen Sie den Betrag${due ? ` bis zum ${due}` : ''} unter Angabe der Rechnungsnummer ${doc.number} auf das in der Rechnung genannte Konto.`,
+      ]
+    : [
+        greeting,
+        `vielen Dank für Ihre Anfrage. Im Anhang finden Sie mein Angebot ${doc.number}${forWhat} über ${amount}.${due ? ` Das Angebot ist gültig bis zum ${due}.` : ''}`,
+        'Bei Fragen melden Sie sich gern bei mir. Ich freue mich auf Ihre Rückmeldung!',
+      ];
+  const body = [...paragraphs, ['Mit freundlichen Grüßen', ...signature].join('\n')].join('\n\n');
+
+  const bye = sender ? ` Viele Grüße, ${sender}` : ' Viele Grüße';
+  const chat = isInvoice
+    ? `${greeting} anbei die Rechnung ${doc.number}${forWhat} über ${amount}${due ? `, zahlbar bis ${due}` : ''}. Vielen Dank für Ihren Auftrag!${bye}`
+    : `${greeting} anbei mein Angebot ${doc.number}${forWhat} über ${amount}${due ? ` (gültig bis ${due})` : ''}. Bei Fragen melden Sie sich gern!${bye}`;
+
+  return { subject, body, chat };
+}
+
+/**
+ * Telefonnummer für WhatsApp-Links: nur Ziffern mit Ländervorwahl,
+ * z. B. "0171 1234567" -> "491711234567". Ohne Vorwahl gilt Deutschland.
+ * null, wenn es keine brauchbare Nummer ist.
+ */
+export function whatsappNumber(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const trimmed = phone.trim().replace(/\(0\)/g, '');
+  let digits = trimmed.replace(/\D/g, '');
+  if (!trimmed.startsWith('+')) {
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    else if (digits.startsWith('0')) digits = `49${digits.slice(1)}`;
+  }
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
+}
+
+const encode = (s: string) => encodeURIComponent(s.replace(/\r?\n/g, '\r\n'));
+
+/** mailto:-Link mit Empfänger, Betreff und Text (ungültige Adresse = ohne Empfänger). */
+export function mailtoUrl(to: string | null | undefined, subject: string, body: string): string {
+  const address = to?.trim() ?? '';
+  const valid = /^[^\s@<>?&,;]+@[^\s@<>?&,;]+\.[^\s@<>?&,;]+$/.test(address);
+  return `mailto:${valid ? address : ''}?subject=${encode(subject)}&body=${encode(body)}`;
+}
+
+/** WhatsApp-Link mit fertigem Text (ohne Nummer wählt man den Kontakt selbst). */
+export function whatsappUrl(phone: string | null | undefined, text: string): string {
+  return `https://wa.me/${whatsappNumber(phone) ?? ''}?text=${encodeURIComponent(text)}`;
+}

@@ -2,28 +2,38 @@ import { Platform } from 'react-native';
 
 import type { IssuedDocument } from './pdf';
 
-/**
- * PDF erzeugen und speichern. Mac/Web: Speichern-Dialog bzw. Download.
- * Auf dem Handy folgt das Teilen (z. B. per Mail oder WhatsApp) in einem
- * späteren Schritt.
- */
+/** Erzeugtes PDF: Inhalt + Dateiname (z. B. Rechnung_RE-2026-0001_Peter_Mueller.pdf) */
+export type PreparedPdf = { bytes: Uint8Array; fileName: string };
+
+/** PDFs gibt es im Moment nur auf dem Mac bzw. im Browser – am Handy folgt das Teilen später. */
+export const pdfSupported = Platform.OS === 'web' && typeof document !== 'undefined';
+
+export const PDF_UNSUPPORTED = 'Das Speichern als PDF gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.';
+
+/** PDF erzeugen (pdf-lib wird erst geladen, wenn wirklich ein PDF gebraucht wird). */
+export async function preparePdf(doc: IssuedDocument): Promise<PreparedPdf> {
+  const { pdfFileName, renderDocumentPdf } = await import('./pdf');
+  return { bytes: await renderDocumentPdf(doc), fileName: pdfFileName(doc) };
+}
+
+/** Als Datei herunterladen – im Mac-Fenster erscheint der Speichern-Dialog. */
+export function downloadPdf(pdf: PreparedPdf) {
+  const blob = new Blob([pdf.bytes as BlobPart], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = pdf.fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** PDF erzeugen und speichern (Mac/Web: Speichern-Dialog bzw. Download). */
 export async function savePdf(doc: IssuedDocument): Promise<{ error?: string }> {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') {
-    return { error: 'Das Speichern als PDF gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.' };
-  }
+  if (!pdfSupported) return { error: PDF_UNSUPPORTED };
   try {
-    // pdf-lib erst laden, wenn wirklich ein PDF gebraucht wird
-    const { pdfFileName, renderDocumentPdf } = await import('./pdf');
-    const bytes = await renderDocumentPdf(doc);
-    const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = pdfFileName(doc);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    downloadPdf(await preparePdf(doc));
     return {};
   } catch (e) {
     console.warn('[PDF]', e);

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { Download, FileText, Receipt } from 'lucide-react-native';
-import { useState } from 'react';
+import { Download, FileText, Receipt, Send } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ActionChip } from '@/components/ui/action-chip';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
@@ -10,7 +11,6 @@ import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Customer, Order } from '@/features/crm/crm-provider';
-import { useHover } from '@/hooks/use-hover';
 
 import {
   formatDay,
@@ -22,8 +22,16 @@ import {
 } from './document-logic';
 import { invoiceState, useDocuments, type StoredDocument } from './documents-provider';
 import { savePdf } from './save-pdf';
+import { SendPanel } from './send-panel';
 
-type Props = { order: Order; customer: Customer; dirty: boolean };
+type Props = {
+  order: Order;
+  customer: Customer;
+  dirty: boolean;
+  /** Gespeicherter Stand: Steht der Auftrag schon auf "Angebot verschickt"? */
+  offerSent: boolean;
+  onMarkOfferSent: () => Promise<{ error?: string }>;
+};
 
 function monthRange(today = todayIso()) {
   const [y, m] = today.split('-').map(Number);
@@ -32,8 +40,8 @@ function monthRange(today = todayIso()) {
   return { from: `${y}-${p(m)}-01`, to: `${y}-${p(m)}-${p(last)}` };
 }
 
-/** Angebote und Rechnungen zu einem Auftrag: erstellen, als PDF speichern, bezahlt markieren. */
-export function OrderDocumentsCard({ order, customer, dirty }: Props) {
+/** Angebote und Rechnungen zu einem Auftrag: erstellen, als PDF speichern, verschicken, bezahlt markieren. */
+export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOfferSent }: Props) {
   const { seller, error, issue, setPaid, documentsFor } = useDocuments();
   const docs = documentsFor(order.id);
   const monthly = order.billing === 'monthly';
@@ -44,6 +52,8 @@ export function OrderDocumentsCard({ order, customer, dirty }: Props) {
   const [period, setPeriod] = useState(monthRange());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  /** Bei welchem Dokument ist "Senden" aufgeklappt? */
+  const [sending, setSending] = useState<string | null>(null);
 
   const blockers = (kind: DocumentKind): string[] => {
     const list: string[] = [];
@@ -72,15 +82,14 @@ export function OrderDocumentsCard({ order, customer, dirty }: Props) {
     const pdf = await savePdf(data);
     setBusy(false);
     setComposing(null);
+    // gleich die Versand-Möglichkeiten zeigen
+    setSending(data.id);
     setMessage(
       pdf.error
         ? { tone: 'error', text: `${data.number} wurde erstellt. ${pdf.error}` }
         : {
             tone: 'success',
-            text:
-              kind === 'offer'
-                ? `Angebot ${data.number} erstellt und als PDF gespeichert. Schick es deinem Kunden und setz dann oben „Angebot verschickt“.`
-                : `Rechnung ${data.number} erstellt und als PDF gespeichert.`,
+            text: `${kind === 'offer' ? 'Angebot' : 'Rechnung'} ${data.number} erstellt und als PDF gespeichert. Jetzt nur noch verschicken.`,
           },
     );
   };
@@ -115,7 +124,10 @@ export function OrderDocumentsCard({ order, customer, dirty }: Props) {
                 )
               }
               onPaid={(paid) => setPaid(d.id, paid)}
-            />
+              sendOpen={sending === d.id}
+              onToggleSend={() => setSending((id) => (id === d.id ? null : d.id))}>
+              <SendPanel doc={d} customer={customer} offerSent={offerSent} onMarkOfferSent={onMarkOfferSent} />
+            </DocumentRow>
           ))}
         </View>
       )}
@@ -201,59 +213,72 @@ function DocumentRow({
   doc,
   onSave,
   onPaid,
+  sendOpen,
+  onToggleSend,
+  children,
 }: {
   doc: StoredDocument;
   onSave: () => void;
   onPaid: (paid: boolean) => void;
+  sendOpen: boolean;
+  onToggleSend: () => void;
+  /** Versand-Feld, wird bei "Senden" aufgeklappt */
+  children: ReactNode;
 }) {
   const isInvoice = doc.kind === 'invoice';
   const state = isInvoice ? invoiceState(doc) : null;
-  const { hovered, hoverProps } = useHover();
   const Icon = isInvoice ? Receipt : FileText;
   return (
-    <View style={styles.doc}>
-      <View style={styles.docIcon}>
-        <Icon size={18} color={Colors.text} strokeWidth={1.8} />
-      </View>
-      <View style={styles.docTexts}>
-        <Text style={styles.docNumber}>
-          {isInvoice ? 'Rechnung' : 'Angebot'} {doc.number}
-        </Text>
-        <Text style={styles.docMeta}>
-          {formatDay(doc.issued_on)} · {formatMoney(doc.total)}
-          {isInvoice && doc.due_on && !doc.paid_at ? ` · fällig ${formatDay(doc.due_on)}` : ''}
-          {!isInvoice && doc.due_on ? ` · gültig bis ${formatDay(doc.due_on)}` : ''}
-        </Text>
-      </View>
-      {state && (
-        <Pressable
-          onPress={() => onPaid(state !== 'paid')}
-          accessibilityRole="button"
-          accessibilityLabel={
-            state === 'paid' ? `${doc.number} als offen markieren` : `${doc.number} als bezahlt markieren`
-          }
-          style={[
-            styles.state,
-            state === 'paid' ? styles.statePaid : state === 'overdue' ? styles.stateOverdue : styles.stateOpen,
-          ]}>
-          <Text
-            style={[
-              styles.stateText,
-              state === 'paid' ? styles.stateTextPaid : state === 'overdue' ? styles.stateTextOverdue : null,
-            ]}>
-            {state === 'paid' ? 'Bezahlt ✓' : state === 'overdue' ? 'Überfällig' : 'Offen'}
+    <View style={[styles.doc, sendOpen && styles.docOpen]}>
+      <View style={styles.docRow}>
+        <View style={styles.docIcon}>
+          <Icon size={18} color={Colors.text} strokeWidth={1.8} />
+        </View>
+        <View style={styles.docTexts}>
+          <Text style={styles.docNumber}>
+            {isInvoice ? 'Rechnung' : 'Angebot'} {doc.number}
           </Text>
-        </Pressable>
-      )}
-      <Pressable
-        onPress={onSave}
-        accessibilityRole="button"
-        accessibilityLabel={`${doc.number} als PDF speichern`}
-        {...hoverProps}
-        style={[styles.pdf, hovered && styles.pdfHover]}>
-        <Download size={15} color={Colors.text} />
-        <Text style={styles.pdfText}>PDF</Text>
-      </Pressable>
+          <Text style={styles.docMeta}>
+            {formatDay(doc.issued_on)} · {formatMoney(doc.total)}
+            {isInvoice && doc.due_on && !doc.paid_at ? ` · fällig ${formatDay(doc.due_on)}` : ''}
+            {!isInvoice && doc.due_on ? ` · gültig bis ${formatDay(doc.due_on)}` : ''}
+          </Text>
+        </View>
+        {state && (
+          <Pressable
+            onPress={() => onPaid(state !== 'paid')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              state === 'paid' ? `${doc.number} als offen markieren` : `${doc.number} als bezahlt markieren`
+            }
+            style={[
+              styles.state,
+              state === 'paid' ? styles.statePaid : state === 'overdue' ? styles.stateOverdue : styles.stateOpen,
+            ]}>
+            <Text
+              style={[
+                styles.stateText,
+                state === 'paid' ? styles.stateTextPaid : state === 'overdue' ? styles.stateTextOverdue : null,
+              ]}>
+              {state === 'paid' ? 'Bezahlt ✓' : state === 'overdue' ? 'Überfällig' : 'Offen'}
+            </Text>
+          </Pressable>
+        )}
+        <ActionChip
+          icon={Send}
+          label="Senden"
+          accessibilityLabel={`${doc.number} verschicken`}
+          onPress={onToggleSend}
+          active={sendOpen}
+        />
+        <ActionChip
+          icon={Download}
+          label="PDF"
+          accessibilityLabel={`${doc.number} als PDF speichern`}
+          onPress={onSave}
+        />
+      </View>
+      {sendOpen && children}
     </View>
   );
 }
@@ -268,14 +293,19 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.md, flexWrap: 'wrap' },
   flex: { flex: 1, minWidth: 150 },
   doc: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
     padding: Spacing.md,
+  },
+  docOpen: { borderColor: Colors.borderFocus },
+  docRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   docIcon: {
     width: 36,
@@ -285,7 +315,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  docTexts: { flex: 1, gap: 2 },
+  docTexts: { flex: 1, minWidth: 190, gap: 2 },
   docNumber: { color: Colors.text, fontSize: 14.5, fontWeight: '600' },
   docMeta: { color: Colors.textMuted, fontSize: 12.5 },
   state: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
@@ -295,16 +325,4 @@ const styles = StyleSheet.create({
   stateText: { color: '#F5B94A', fontSize: 12, fontWeight: '600' },
   stateTextPaid: { color: Colors.accent },
   stateTextOverdue: { color: Colors.danger },
-  pdf: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  pdfHover: { borderColor: Colors.borderFocus },
-  pdfText: { color: Colors.text, fontSize: 13, fontWeight: '600' },
 });
