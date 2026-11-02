@@ -42,7 +42,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Route,
     description: 'Schritt für Schritt zu deinem Business – mit Meilensteinen und Checklisten.',
     mobileTab: true,
-    soon: true,
   },
   {
     name: 'kunden',

@@ -4,7 +4,7 @@ Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwalt
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4)
 
 ---
 
@@ -76,7 +76,11 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/app/` | Bildschirme (jede Datei = ein Screen, Expo Router) |
 | `src/app/index.tsx` | Start: Intro-Animation → Anmelde-Screen |
 | `src/app/register.tsx`, `verify.tsx`, `forgot-password.tsx`, `reset-password.tsx` | Registrierung, Code-Bestätigung, Passwort zurücksetzen |
-| `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx`, `home.tsx` = vorläufige Startseite) |
+| `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx` + App-Rahmen in `(tabs)/`) |
+| `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, … |
+| `src/features/navigation/` | Seitenleiste (Mac) / Tab-Leiste (Handy), Liste aller Bereiche |
+| `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
+| `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
 | `src/components/motion/` | Animations-Bausteine (Wort-für-Wort-Titel, weiches Einblenden) |
 | `src/providers/profile-provider.tsx` | Profil des Nutzers laden & speichern |
@@ -100,7 +104,10 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Anmeldung mit Supabase: Registrierung, E-Mail-Bestätigung per Code, Login, angemeldet bleiben, Abmelden, Passwort vergessen
 - ✅ Onboarding: Name, Phase, Business, Branche, Ziele – gespeichert in Supabase
 - ✅ Moderne Effekte: Titel blenden Wort für Wort ein, leuchtende Felder, federnde Buttons & Karten
-- ⏳ App-Grundgerüst & Dashboard
+- ✅ App-Rahmen: Seitenleiste (Mac) / Tab-Leiste (Handy), Profil-Seite
+- ✅ Dashboard: Begrüßung, Fokus nach Phase, nächste Schritte, Impuls des Tages
+- ✅ Gründer-Fahrplan: 6 Phasen, 26 Schritte, Reihenfolge je nach Phase, Fortschritt gespeichert
+- ⏳ Kunden & Aufträge
 - ⏳ Akzentfarbe festlegen
 - ⏳ Logo als SVG
 

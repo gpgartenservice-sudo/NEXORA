@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
@@ -12,6 +12,9 @@ import { Colors, Spacing } from '@/constants/theme';
 import { FOCUS, formatToday, greeting, impulseOfTheDay } from '@/features/dashboard/content';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { GOALS } from '@/features/onboarding/options';
+import { nextSteps, stepsFor } from '@/features/roadmap/content';
+import { useRoadmap } from '@/features/roadmap/roadmap-provider';
+import { StepCheck } from '@/features/roadmap/step-check';
 import { useProfile } from '@/providers/profile-provider';
 
 const GLOW = require('@/assets/images/glow.png');
@@ -28,6 +31,10 @@ export default function DashboardScreen() {
 
   const name = profile?.display_name?.trim().split(/\s+/)[0] ?? '';
   const focus = FOCUS[profile?.stage ?? 'started'];
+  const { done, toggle } = useRoadmap();
+  const upcoming = nextSteps(profile?.stage, done, 3);
+  const totalSteps = stepsFor(profile?.stage).length;
+  const doneSteps = stepsFor(profile?.stage).filter((s) => done.has(s.key)).length;
   const goals = GOALS.filter((g) => profile?.goals?.includes(g.key));
   const tools = NAV_ITEMS.filter((i) => ['kunden', 'auftraege', 'finanzen', 'social', 'assistent'].includes(i.name));
 
@@ -81,16 +88,28 @@ export default function DashboardScreen() {
         {/* Nächste Schritte */}
         <Reveal delay={520} style={twoColumns ? styles.colWide : undefined}>
           <Card style={styles.fill}>
-            <Text style={styles.eyebrow}>DEINE NÄCHSTEN SCHRITTE</Text>
-            {focus.steps.map((step, i) => (
-              <View key={step} style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{i + 1}</Text>
+            <View style={styles.stepsHead}>
+              <Text style={styles.eyebrow}>DEINE NÄCHSTEN SCHRITTE</Text>
+              <Text style={styles.stepsCount}>
+                {doneSteps} von {totalSteps} erledigt
+              </Text>
+            </View>
+            {upcoming.length === 0 ? (
+              <Text style={styles.body}>Dein Fahrplan ist komplett erledigt. Stark! 🎉</Text>
+            ) : (
+              upcoming.map((step) => (
+                <View key={step.key} style={styles.step}>
+                  <StepCheck checked={done.has(step.key)} onToggle={() => toggle(step.key)} label={step.title} size={24} />
+                  <Pressable style={styles.stepPress} onPress={() => router.navigate('/fahrplan')} accessibilityRole="link">
+                    <Text style={styles.stepText}>{step.title}</Text>
+                  </Pressable>
                 </View>
-                <Text style={styles.stepText}>{step}</Text>
-              </View>
-            ))}
-            <Text style={styles.hint}>Im Fahrplan kannst du bald jeden Schritt abhaken.</Text>
+              ))
+            )}
+            <Pressable onPress={() => router.navigate('/fahrplan')} accessibilityRole="link" style={styles.allLink}>
+              <Text style={styles.allLinkText}>Ganzen Fahrplan ansehen</Text>
+              <ArrowRight size={14} color={Colors.textMuted} />
+            </Pressable>
           </Card>
         </Reveal>
 
@@ -166,6 +185,11 @@ const styles = StyleSheet.create({
   focusAction: { flexDirection: 'row', marginTop: Spacing.sm },
   impulse: { color: Colors.text, fontSize: 19, lineHeight: 28, fontWeight: '500', letterSpacing: -0.2 },
   step: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  stepPress: { flex: 1 },
+  stepsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stepsCount: { color: Colors.textFaint, fontSize: 12.5, fontWeight: '600' },
+  allLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs },
+  allLinkText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '600' },
   stepNumber: {
     width: 28,
     height: 28,

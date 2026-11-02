@@ -1,5 +1,5 @@
-import { ComingSoon } from '@/features/navigation/coming-soon';
+import { RoadmapScreen } from '@/features/roadmap/roadmap-screen';
 
-export default function Screen() {
-  return <ComingSoon name="fahrplan" />;
+export default function FahrplanScreen() {
+  return <RoadmapScreen />;
 }

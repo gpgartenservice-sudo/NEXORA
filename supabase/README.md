@@ -33,6 +33,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | Skript | Inhalt |
 |---|---|
 | `20261102120000_profiles.sql` | Profil & Onboarding-Antworten (jeder sieht nur sein eigenes) |
+| `20261103090000_roadmap_progress.sql` | Fortschritt im Gründer-Fahrplan (erledigte Schritte) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
