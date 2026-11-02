@@ -13,12 +13,14 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 type Props = TextInputProps & {
   label: string;
   error?: string;
+  /** Kleiner Hinweis unter dem Feld (wird durch einen Fehler ersetzt) */
+  hint?: string;
   /** Optionales Element rechts im Feld, z. B. "Anzeigen" beim Passwort. */
   trailing?: ReactNode;
 };
 
 export const TextField = forwardRef<TextInputInstance, Props>(function TextField(
-  { label, error, trailing, style, onFocus, onBlur, ...inputProps },
+  { label, error, hint, trailing, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -49,7 +51,13 @@ export const TextField = forwardRef<TextInputInstance, Props>(function TextField
         />
         {trailing}
       </View>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {error ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : (
+        !!hint && <Text style={styles.hint}>{hint}</Text>
+      )}
     </View>
   );
 });
@@ -71,4 +79,5 @@ const styles = StyleSheet.create({
   fieldError: { borderColor: Colors.danger },
   input: { flex: 1, height: '100%', color: Colors.text, fontSize: 16 },
   error: { color: Colors.danger, fontSize: 13 },
+  hint: { color: Colors.textFaint, fontSize: 13 },
 });

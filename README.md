@@ -65,12 +65,21 @@ Den angezeigten QR-Code mit der Kamera scannen und in der App **Expo Go** öffne
 
 ---
 
+## Supabase
+
+Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.md`](supabase/README.md).
+
 ## Projektstruktur
 
 | Ordner / Datei | Inhalt |
 |---|---|
 | `src/app/` | Bildschirme (jede Datei = ein Screen, Expo Router) |
 | `src/app/index.tsx` | Start: Intro-Animation → Anmelde-Screen |
+| `src/app/register.tsx`, `verify.tsx`, `forgot-password.tsx`, `reset-password.tsx` | Registrierung, Code-Bestätigung, Passwort zurücksetzen |
+| `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`home.tsx` = vorläufige Startseite) |
+| `src/lib/supabase.ts` | Verbindung zu Supabase (Daten aus `.env`) |
+| `src/providers/auth-provider.tsx` | Wer ist angemeldet? (für die ganze App) |
+| `supabase/` | Einrichtung von Supabase, E-Mail-Vorlagen |
 | `src/components/intro/` | Die Start-Animation |
 | `src/components/intro/timeline.ts` | **Ablauf & Zeiten der Animation** – hier wird feinjustiert |
 | `src/components/auth/` | Anmeldeformular und Eingabefelder |
@@ -84,8 +93,9 @@ Den angezeigten QR-Code mit der Kamera scannen und in der App **Expo Go** öffne
 ## Stand
 
 - ✅ Start-Animation (N erscheint, gleitet nach links, Buchstaben fallen von oben, Schriftzug fliegt in den Anmelde-Screen)
-- ✅ Anmelde-Screen (Oberfläche mit Eingabeprüfung)
-- ⏳ Echte Anmeldung & Registrierung (Supabase)
+- ✅ Anmeldung mit Supabase: Registrierung, E-Mail-Bestätigung per Code, Login, angemeldet bleiben, Abmelden, Passwort vergessen
+- ⏳ Onboarding nach der Registrierung
+- ⏳ App-Grundgerüst & Dashboard
 - ⏳ Akzentfarbe festlegen
 - ⏳ Logo als SVG
 

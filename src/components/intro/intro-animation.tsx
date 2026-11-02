@@ -108,14 +108,22 @@ export function IntroAnimation({ target, exitProgress, onFinished }: Props) {
   }));
 
   // --- Der ganze Schriftzug: kurzer Ruck beim Aufprall, am Ende Flug nach oben
+  // (ohne Ziel – z. B. wenn man schon angemeldet ist – blendet er stattdessen aus)
   const boxStyle = useAnimatedStyle(() => {
     const exit = easeInOutCubic(progress(t.get(), EXIT_START, TOTAL));
-    const goal = target.get() ?? { x: (screenW - 200) / 2, y: screenH * 0.16, width: 200 };
+    const thud = damped(t.get() - IMPACT, 5, 90, 160);
+    const goal = target.get();
+    if (!goal) {
+      return {
+        opacity: 1 - exit,
+        transform: [{ translateY: thud * (1 - exit) }, { scale: 1 + 0.06 * exit }],
+      };
+    }
     const scale = goal.width / wordW;
     const goalCenterX = goal.x + goal.width / 2;
     const goalCenterY = goal.y + (goal.width / wordW) * (wordH / 2);
-    const thud = damped(t.get() - IMPACT, 5, 90, 160);
     return {
+      opacity: 1,
       transform: [
         { translateX: exit * (goalCenterX - screenW / 2) },
         { translateY: exit * (goalCenterY - screenH / 2) + thud * (1 - exit) },

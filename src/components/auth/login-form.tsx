@@ -1,52 +1,61 @@
+import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type TextInputInstance,
-} from 'react-native';
+import { StyleSheet, View, type TextInputInstance } from 'react-native';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
-import { useHover } from '@/hooks/use-hover';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { TextLink } from '@/components/ui/text-link';
+import { Spacing } from '@/constants/theme';
+import { authErrorMessage } from '@/lib/auth-errors';
+import { supabase } from '@/lib/supabase';
+import { validateEmail } from '@/lib/validation';
 
+import { PasswordField } from './password-field';
 import { TextField } from './text-field';
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type Errors = { email?: string; password?: string };
 
-/**
- * Anmeldeformular. Noch ohne Backend: Die Eingaben werden geprüft, die
- * eigentliche Anmeldung wird im nächsten Schritt an Supabase angebunden.
- */
+/** Anmeldung mit E-Mail und Passwort. */
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const passwordRef = useRef<TextInputInstance>(null);
-  const toggleHover = useHover();
-  const forgotHover = useHover();
-  const buttonHover = useHover();
 
-  const submit = () => {
-    const next: Errors = {};
-    if (!EMAIL_PATTERN.test(email.trim())) next.email = 'Bitte gib eine gültige E-Mail-Adresse ein.';
-    if (password.length === 0) next.password = 'Bitte gib dein Passwort ein.';
+  const submit = async () => {
+    const next: Errors = {
+      email: validateEmail(email),
+      password: password.length === 0 ? 'Bitte gib dein Passwort ein.' : undefined,
+    };
     setErrors(next);
-    setNotice(null);
-    if (Object.keys(next).length > 0) return;
+    setFailure(null);
+    setUnconfirmed(false);
+    if (next.email || next.password) return;
 
     setLoading(true);
-    // Platzhalter, bis die Anmeldung mit Supabase verbunden ist
-    setTimeout(() => {
-      setLoading(false);
-      setNotice('Die Anmeldung wird im nächsten Schritt mit dem Server verbunden.');
-    }, 700);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setLoading(false);
+
+    if (error) {
+      setFailure(authErrorMessage(error));
+      setUnconfirmed(error.code === 'email_not_confirmed');
+      return;
+    }
+    router.replace('/home');
+  };
+
+  const confirmNow = async () => {
+    // Neuen Bestätigungscode schicken und zur Code-Eingabe wechseln
+    const address = email.trim();
+    const { error } = await supabase.auth.resend({ type: 'signup', email: address });
+    if (error && error.code !== 'over_email_send_rate_limit') {
+      setFailure(authErrorMessage(error));
+      return;
+    }
+    router.push({ pathname: '/verify', params: { email: address } });
   };
 
   return (
@@ -70,7 +79,7 @@ export function LoginForm() {
         submitBehavior="submit"
       />
 
-      <TextField
+      <PasswordField
         ref={passwordRef}
         label="Passwort"
         value={password}
@@ -79,58 +88,28 @@ export function LoginForm() {
           if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
         }}
         error={errors.password}
-        placeholder="••••••••"
-        secureTextEntry={!showPassword}
-        autoCapitalize="none"
         autoComplete="current-password"
         textContentType="password"
         returnKeyType="go"
         onSubmitEditing={submit}
-        trailing={
-          <Pressable
-            onPress={() => setShowPassword((s) => !s)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
-            {...toggleHover.hoverProps}>
-            <Text style={[styles.inlineAction, toggleHover.hovered && styles.linkHover]}>
-              {showPassword ? 'Verbergen' : 'Anzeigen'}
-            </Text>
-          </Pressable>
-        }
       />
 
       <View style={styles.forgotRow}>
-        <Pressable
-          onPress={() => setNotice('„Passwort vergessen“ folgt zusammen mit der Server-Anbindung.')}
-          accessibilityRole="link"
-          {...forgotHover.hoverProps}>
-          <Text style={[styles.link, forgotHover.hovered && styles.linkHover]}>Passwort vergessen?</Text>
-        </Pressable>
+        <TextLink
+          label="Passwort vergessen?"
+          onPress={() => router.push({ pathname: '/forgot-password', params: { email: email.trim() } })}
+        />
       </View>
 
-      <Pressable
-        onPress={submit}
-        disabled={loading}
-        accessibilityRole="button"
-        {...buttonHover.hoverProps}
-        style={({ pressed }) => [
-          styles.primaryButton,
-          buttonHover.hovered && styles.primaryButtonHover,
-          pressed && styles.primaryButtonPressed,
-        ]}>
-        {loading ? (
-          <ActivityIndicator color={Colors.buttonPrimaryText} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Anmelden</Text>
-        )}
-      </Pressable>
-
-      {notice && (
-        <View style={styles.notice}>
-          <Text style={styles.noticeText}>{notice}</Text>
-        </View>
+      {failure && (
+        <Notice
+          tone="error"
+          action={unconfirmed ? <Button label="Jetzt bestätigen" variant="secondary" onPress={confirmNow} /> : undefined}>
+          {failure}
+        </Notice>
       )}
+
+      <Button label="Anmelden" onPress={submit} loading={loading} style={styles.submit} />
     </View>
   );
 }
@@ -138,26 +117,5 @@ export function LoginForm() {
 const styles = StyleSheet.create({
   form: { gap: Spacing.lg },
   forgotRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: -Spacing.xs },
-  link: { color: Colors.textMuted, fontSize: 14, fontWeight: '500' },
-  linkHover: { color: Colors.text },
-  inlineAction: { color: Colors.textMuted, fontSize: 13, fontWeight: '600', paddingLeft: Spacing.md },
-  primaryButton: {
-    height: 52,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.buttonPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.sm,
-  },
-  primaryButtonHover: { opacity: 0.92 },
-  primaryButtonPressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
-  primaryButtonText: { color: Colors.buttonPrimaryText, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
-  notice: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-  },
-  noticeText: { color: Colors.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  submit: { marginTop: Spacing.sm },
 });
