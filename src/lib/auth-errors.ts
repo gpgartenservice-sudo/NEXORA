@@ -3,7 +3,8 @@ import { isAuthError } from '@supabase/supabase-js';
 /** Übersetzt Fehler von Supabase in verständliche deutsche Meldungen. */
 export function authErrorMessage(error: unknown): string {
   if (!isAuthError(error)) {
-    return 'Etwas ist schiefgelaufen. Bitte versuch es gleich noch einmal.';
+    console.warn('[Supabase]', error);
+    return `Etwas ist schiefgelaufen. Bitte versuch es gleich noch einmal.\n\nTechnische Details: ${String(error)}`;
   }
 
   switch (error.code) {
@@ -32,8 +33,11 @@ export function authErrorMessage(error: unknown): string {
       return 'Zu dieser E-Mail-Adresse gibt es kein Konto.';
   }
 
+  // Unerwartete Fehler: technische Details anhängen, damit sich die Ursache finden lässt
+  console.warn('[Supabase]', error);
+  const detail = `\n\nTechnische Details: ${error.name}${error.status ? ` (${error.status})` : ''}${error.code ? ` [${error.code}]` : ''} – ${error.message}`;
   if (error.name === 'AuthRetryableFetchError' || error.status === 0) {
-    return 'Keine Verbindung zum Server. Prüfe deine Internetverbindung.';
+    return 'Keine Verbindung zum Server. Prüfe deine Internetverbindung.' + detail;
   }
-  return 'Etwas ist schiefgelaufen. Bitte versuch es gleich noch einmal.';
+  return 'Etwas ist schiefgelaufen. Bitte versuch es gleich noch einmal.' + detail;
 }
