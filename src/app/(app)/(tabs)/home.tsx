@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
 import { UpcomingAppointments } from '@/features/appointments/upcoming-card';
 import { FOCUS, formatToday, greeting, impulseOfTheDay } from '@/features/dashboard/content';
+import { TodayCard } from '@/features/goals/today-card';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { GOALS } from '@/features/onboarding/options';
 import { nextSteps, stepsFor } from '@/features/roadmap/content';
@@ -38,7 +39,7 @@ export default function DashboardScreen() {
   const doneSteps = stepsFor(profile?.stage).filter((s) => done.has(s.key)).length;
   const goals = GOALS.filter((g) => profile?.goals?.includes(g.key));
   const tools = NAV_ITEMS.filter((i) =>
-    ['kunden', 'auftraege', 'termine', 'finanzen', 'social', 'assistent'].includes(i.name),
+    ['kunden', 'auftraege', 'termine', 'aufgaben', 'finanzen', 'social', 'assistent'].includes(i.name),
   );
 
   return (
@@ -64,6 +65,11 @@ export default function DashboardScreen() {
       {/* Termine heute & morgen (nur wenn es welche gibt) */}
       <Reveal delay={280}>
         <UpcomingAppointments />
+      </Reveal>
+
+      {/* To-dos für heute und Ziele */}
+      <Reveal delay={300}>
+        <TodayCard />
       </Reveal>
 
       <View style={[styles.grid, twoColumns && styles.gridRow]}>

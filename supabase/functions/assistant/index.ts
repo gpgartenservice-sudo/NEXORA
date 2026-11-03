@@ -5,7 +5,8 @@
  * eigenen Zahlen), fragt nach, wenn etwas fehlt, und schlägt Aktionen vor –
  * Kunden, Aufträge, Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF,
  * Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene
- * anlegen, in Aufträge eintragen, verschieben/ändern/absagen).
+ * anlegen, in Aufträge eintragen, verschieben/ändern/absagen), Preise in
+ * Aufträgen, To-dos und Ziele.
  *
  * Sprachmodus: Mit { mode: "transcribe", audio, mime } wandelt die Funktion
  * eine kurze Sprachaufnahme in Text um (Groq Whisper). Die Aufnahme wird
@@ -81,10 +82,14 @@ const ACTION_FIELDS: Record<string, string[]> = {
   appointment: ['title', 'starts_at', 'ends_at', 'all_day', 'location', 'customer_name', 'notes'],
   order_date: ['customer_name', 'order_title', 'kind', 'at'],
   appointment_change: ['ref', 'starts_at', 'ends_at', 'title', 'location', 'notes', 'done', 'remove'],
+  order_price: ['customer_name', 'order_title', 'price', 'billing'],
+  todo: ['title', 'due_on', 'notes', 'important', 'customer_name', 'order_title'],
+  todo_change: ['ref', 'title', 'due_on', 'notes', 'important', 'done', 'remove'],
+  goal: ['kind', 'period', 'target', 'title', 'due_on'],
 };
 const MAX_ACTIONS = 20;
 const MAX_ACTION_DATA = 20000;
-const BOOL_FIELDS = new Set(['all_day', 'remove']);
+const BOOL_FIELDS = new Set(['all_day', 'remove', 'important']);
 const CODE_FIELDS = new Set(['period', 'number']);
 
 /** JSON-Text eines Vorschlags -> Objekt (oder null, wenn kaputt) */
@@ -139,6 +144,10 @@ Was du kannst:
    - mark_paid – offene Rechnung als bezahlt markieren: number genau wie in <daten>.
    - appointment – neuer eigener Termin OHNE Auftrag (z. B. Steuerberatung, Bank, Material abholen, Netzwerk-Treffen): title kurz, starts_at = Beginn, ends_at nur, wenn Ende oder Dauer genannt ist, all_day true nur bei ganztägigen Terminen (dann starts_at ohne Uhrzeit), location und notes nur, wenn genannt, customer_name nur, wenn es um einen Kunden aus <daten> geht.
    - order_date – Termin in einem BESTEHENDEN Auftrag aus <daten> eintragen oder neu setzen: kind "meeting" = Erstgespräch/Besichtigung/Beratung vor dem Auftrag, "execution" = Ausführung der Arbeit; at = Datum mit Uhrzeit; customer_name und order_title so, dass der Auftrag eindeutig ist (bisherige Termine stehen bei den Aufträgen unter erstgespraech/ausfuehrung). Für einen Auftrag, der gerade erst neu angelegt wird, stattdessen meeting_at/execution_at im order.
+   - order_price – Preis in einem BESTEHENDEN Auftrag aus <daten> eintragen oder ändern: customer_name und order_title so, dass der Auftrag eindeutig ist, price in Euro (Zahl), billing nur, wenn sich die Abrechnung ändert ("once" oder "monthly"). Für einen Auftrag, der gerade erst neu angelegt wird, stattdessen price im order.
+   - todo – neues To-do: title kurz und konkret („Steuerberater anrufen“), due_on = Fälligkeit (nur Datum, nur wenn genannt oder klar, z. B. „Freitag“), important true nur, wenn der Nutzer es wichtig/dringend nennt, notes nur, wenn genannt, customer_name bzw. order_title nur, wenn es um einen Kunden/Auftrag aus <daten> geht. „Erinner mich …“ = To-do mit Fälligkeit.
+   - todo_change – offenes To-do aus <daten> (Liste aufgaben) ändern: ref genau wie dort (z. B. "A2"), dazu nur die geänderten Felder: title, due_on (neues Datum; "none" = ohne Datum), notes, important, done "done" = erledigt bzw. "open" = wieder offen, remove true = löschen.
+   - goal – neues Ziel: kind "revenue" (Umsatz in Euro; period "month" oder "year"), "customers" (neue Kunden), "orders" (abgeschlossene Aufträge) oder "posts" (veröffentlichte Posts) – jeweils period "week", "month" oder "year"; target = Zielwert (Zahl). Eigenes Ziel, das die App nicht selbst zählen kann (z. B. 10 Google-Bewertungen): kind "custom", period "once", title, target, due_on optional.
    - appointment_change – vorhandenen Termin aus <daten> (Liste termine) ändern: ref genau wie dort (z. B. "T3"), dazu nur die geänderten Felder: starts_at = neuer Beginn (Datum mit Uhrzeit; bleibt die Uhrzeit gleich, reicht das Datum), ends_at = neues Ende; title, location, notes nur bei eigenen Terminen (art "Termin") – Erstgespräch/Ausführung gehören zu einem Auftrag, dort geht nur Zeit, Status und Absagen. done "done" = erledigt (bei einer Ausführung heißt das: Auftrag abgeschlossen), "open" = doch nicht erledigt. remove true = absagen/löschen (bei Auftragsterminen wird nur der Termin aus dem Auftrag entfernt).
 
 Regeln:
@@ -146,6 +155,8 @@ Regeln:
 - Erfinde nichts: keine Preise, Kontaktdaten, Nummern oder Zahlen, die weder im Gespräch noch in <daten> stehen. Wenn <daten> etwas nicht enthält, sag das ehrlich.
 - Rechnungen bekommen eine feste Nummer und sind danach nicht mehr änderbar – schlage eine Rechnung nur vor, wenn der Nutzer das wirklich will.
 - Datumsangaben als "JJJJ-MM-TT", mit Uhrzeit als "JJJJ-MM-TTTHH:MM" (deutsche Ortszeit). Rechne "morgen", "gestern", "nächsten Dienstag" usw. vom heutigen Datum aus. Bei Ausgaben ohne Datum das heutige Datum.
+- To-dos und Ziele: Ändern, Abhaken oder Löschen eines To-dos aus der Liste aufgaben immer über todo_change (mit ref) – nie doppelt anlegen. Den Stand der Ziele (Liste ziele) kennst du; Fortschritt zählt die App selbst.
+- Preise: Ein Preis gehört in den Auftrag (order_price), nicht in ein To-do. Angebote und Rechnungen, die es schon gibt, ändern sich dadurch nicht – sag das, wenn zum Auftrag schon eines existiert (steht bei den Aufträgen unter dokumente).
 - Termine: Verschieben oder Ändern eines Termins aus der Liste termine immer über appointment_change (mit ref) – nie doppelt neu anlegen. Gehört ein neuer Termin eindeutig zu einem bestehenden Auftrag (z. B. der Kunde hat genau einen offenen Auftrag und es geht um diese Arbeit), nimm order_date; ist ein Termin ausdrücklich unabhängig, nimm appointment. Ist unklar, ob ein Termin zu einem Auftrag gehört oder welcher Termin gemeint ist, frag kurz nach (quick_replies z. B. „Zum Auftrag Website“, „Eigener Termin“). Fehlt bei einem Termin die Uhrzeit und er ist nicht ganztägig, frag nach der Uhrzeit. termine reicht nur von vor 3 Tagen bis etwa 6 Wochen voraus: Steht ein gemeinter Termin nicht darin, sag das ehrlich (Termine von Aufträgen lassen sich trotzdem über order_date neu setzen).
 - Lege für einen Auftrag nur dann zusätzlich einen Kunden (customer) an, wenn der Kunde nicht in <daten> steht und der Nutzer Kontaktdaten nennt oder ausdrücklich von einem neuen Kunden spricht. Die App ordnet Kunden über den Namen selbst zu.
 - actions bleibt leer, wenn es nichts vorzuschlagen gibt.

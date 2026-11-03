@@ -6,6 +6,7 @@
  *
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
+import { periodsFor, type GoalKind, type GoalPeriod } from '../goals/goals-logic';
 
 export const EXPENSE_CATEGORY_KEYS = [
   'material',
@@ -47,6 +48,10 @@ export type RawAction = {
   appointment?: Obj | null;
   order_date?: Obj | null;
   appointment_change?: Obj | null;
+  order_price?: Obj | null;
+  todo?: Obj | null;
+  todo_change?: Obj | null;
+  goal?: Obj | null;
 };
 export type RawResult = { actions?: unknown; reply?: unknown; quick_replies?: unknown };
 
@@ -105,6 +110,26 @@ export type KnownEvent = {
   appointmentId: string | null;
   done: boolean;
 };
+/** Neues To-do */
+export type TodoDraft = { title: string; due_on: string | null; notes: string | null; important: boolean };
+/** Vorhandenes To-do – so, wie Nexy es kennt */
+export type KnownTodo = { id: string; title: string; due_on: string | null; important: boolean; done: boolean };
+/** Änderung an einem To-do (null = bleibt; due_on "" = Datum entfernen) */
+export type TodoChange = {
+  title: string | null;
+  due_on: string | null;
+  notes: string | null;
+  important: boolean | null;
+  done: boolean | null;
+  remove: boolean;
+};
+export type GoalDraft = {
+  kind: GoalKind;
+  period: GoalPeriod;
+  target: number;
+  title: string | null;
+  due_on: string | null;
+};
 /** Änderung an einem vorhandenen Termin (null = bleibt) */
 export type AppointmentChange = {
   starts_at: string | null;
@@ -148,7 +173,25 @@ export type Proposal =
       customer: CustomerLink;
       order: OrderLink;
     }
-  | { id: string; kind: 'appointment_change'; include: boolean; data: AppointmentChange; event: KnownEvent };
+  | { id: string; kind: 'appointment_change'; include: boolean; data: AppointmentChange; event: KnownEvent }
+  | {
+      id: string;
+      kind: 'order_price';
+      include: boolean;
+      /** billing null = bleibt; before* = bisher; documents = vorhandene Angebote/Rechnungen zum Auftrag */
+      data: {
+        price: number;
+        billing: 'once' | 'monthly' | null;
+        before: number | null;
+        beforeBilling: 'once' | 'monthly' | null;
+        documents: string[];
+      };
+      customer: CustomerLink;
+      order: OrderLink;
+    }
+  | { id: string; kind: 'todo'; include: boolean; data: TodoDraft; customer: CustomerLink; order: OrderLink }
+  | { id: string; kind: 'todo_change'; include: boolean; data: TodoChange; todo: KnownTodo }
+  | { id: string; kind: 'goal'; include: boolean; data: GoalDraft };
 
 export type ExistingCustomer = { id: string; name: string; company?: string | null };
 export type ExistingOrder = {
@@ -158,8 +201,16 @@ export type ExistingOrder = {
   meeting_at?: string | null;
   execution_at?: string | null;
   cancelled?: boolean | null;
+  price?: number | null;
+  billing?: 'once' | 'monthly' | null;
 };
-export type ExistingDocument = { id: string; number: string; kind: 'offer' | 'invoice'; paid_at: string | null };
+export type ExistingDocument = {
+  id: string;
+  number: string;
+  kind: 'offer' | 'invoice';
+  paid_at: string | null;
+  order_id?: string | null;
+};
 export type Known = {
   customers: ExistingCustomer[];
   orders: ExistingOrder[];
@@ -169,6 +220,9 @@ export type Known = {
   refs?: Record<string, string>;
   /** eigene Termine (für das eingetragene Ende) */
   appointments?: { id: string; ends_at: string | null }[];
+  /** offene To-dos, die Nexy mitgeschickt bekam, und ihre Kurzzeichen (A1 -> To-do) */
+  todos?: KnownTodo[];
+  todoRefs?: Record<string, string>;
 };
 
 const str = (v: unknown, max = 500): string | null => {
@@ -176,8 +230,16 @@ const str = (v: unknown, max = 500): string | null => {
   const t = v.trim().replace(/\s+\n/g, '\n');
   return t ? t.slice(0, max) : null;
 };
+/** Zahl – auch als deutscher Text ("1.500,50", "3.000", "2,5 €") */
 const num = (v: unknown): number | null => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.replace(',', '.')) : NaN;
+  let n = NaN;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string') {
+    let t = v.trim().replace(/\s|€/g, '');
+    if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+    n = /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : NaN;
+  }
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 };
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T =>
@@ -316,6 +378,21 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
     }
     return fresh ? { existingId: null, newRef: fresh.id, name } : { existingId: null, newRef: null, name };
   };
+
+  /** Bestehender (nicht stornierter) Auftrag zu Kunde + Titel */
+  const existingOrder = (title: string | null, customer: CustomerLink) =>
+    customer.newRef
+      ? null
+      : matchOrder(
+          title,
+          customer.existingId,
+          known.orders.filter((o) => !o.cancelled),
+        );
+  const ownerLink = (o: ExistingOrder): CustomerLink => ({
+    existingId: o.customer_id,
+    newRef: null,
+    name: known.customers.find((c) => c.id === o.customer_id)?.name ?? null,
+  });
 
   const valid = actions.filter((a): a is RawAction => !!a && typeof a === 'object');
 
@@ -552,6 +629,121 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
         if (!changed) continue;
       }
       out.push({ id: id(), kind: 'appointment_change', include: true, data: change, event: ev });
+    } else if (a.type === 'order_price' && a.order_price) {
+      const d = a.order_price;
+      const price = num(d.price);
+      if (price === null || price < 0 || price >= 10_000_000) continue;
+      const billing = d.billing === 'monthly' ? 'monthly' : d.billing === 'once' ? 'once' : null;
+      const title = str(d.order_title, 200);
+      const customer = linkCustomer(str(d.customer_name, 200), false);
+      const existing = existingOrder(title, customer);
+      if (!existing) {
+        // Auftrag wird gerade erst angelegt -> Preis direkt dort eintragen
+        const fresh = ordersOut().find(
+          (p) =>
+            (title ? norm(p.data.title) === norm(title) : ordersOut().length === 1) &&
+            (!customer.existingId || p.customer.existingId === customer.existingId),
+        );
+        if (fresh) {
+          fresh.data = { ...fresh.data, price, ...(billing ? { billing } : {}) };
+          continue;
+        }
+      }
+      const before = existing ? (existing.price ?? null) : null;
+      const beforeBilling = existing ? (existing.billing ?? null) : null;
+      if (existing && before === price && (!billing || billing === beforeBilling)) continue;
+      if (existing && out.some((p) => p.kind === 'order_price' && p.order.existingId === existing.id)) continue;
+      out.push({
+        id: id(),
+        kind: 'order_price',
+        include: true,
+        data: {
+          price,
+          billing: billing && billing !== beforeBilling ? billing : null,
+          before,
+          beforeBilling,
+          documents: existing ? known.documents.filter((x) => x.order_id === existing.id).map((x) => x.number) : [],
+        },
+        customer: existing ? ownerLink(existing) : customer,
+        order: existing
+          ? { existingId: existing.id, newRef: null, title: existing.title }
+          : { existingId: null, newRef: null, title },
+      });
+    } else if (a.type === 'todo' && a.todo) {
+      const t = a.todo;
+      const title = str(t.title, 200);
+      if (!title) continue;
+      const due = validDay(typeof t.due_on === 'string' ? t.due_on.slice(0, 10) : null);
+      if (out.some((p) => p.kind === 'todo' && norm(p.data.title) === norm(title) && p.data.due_on === due)) continue;
+      const orderTitle = str(t.order_title, 200);
+      let customer = linkCustomer(str(t.customer_name, 200), false);
+      let order: OrderLink = { existingId: null, newRef: null, title: null };
+      if (orderTitle) {
+        const existing = existingOrder(orderTitle, customer);
+        const fresh = existing ? undefined : ordersOut().find((p) => norm(p.data.title) === norm(orderTitle));
+        if (existing) {
+          order = { existingId: existing.id, newRef: null, title: existing.title };
+          if (!customer.existingId) customer = ownerLink(existing);
+        } else if (fresh) {
+          order = { existingId: null, newRef: fresh.id, title: fresh.data.title };
+          customer = fresh.customer;
+        }
+      }
+      out.push({
+        id: id(),
+        kind: 'todo',
+        include: true,
+        data: { title, due_on: due, notes: str(t.notes, 2000), important: t.important === true },
+        customer,
+        order,
+      });
+    } else if (a.type === 'todo_change' && a.todo_change) {
+      const c = a.todo_change;
+      const ref = str(c.ref, 20)?.toUpperCase();
+      const todoId = ref ? known.todoRefs?.[ref] : undefined;
+      const todo = todoId ? known.todos?.find((t) => t.id === todoId) : undefined;
+      if (!todo || out.some((p) => p.kind === 'todo_change' && p.todo.id === todo.id)) continue;
+      const remove = c.remove === true;
+      const change: TodoChange = { title: null, due_on: null, notes: null, important: null, done: null, remove };
+      if (!remove) {
+        const title = str(c.title, 200);
+        if (title && title !== todo.title) change.title = title;
+        const dueRaw = typeof c.due_on === 'string' ? c.due_on.trim() : '';
+        if (/^(none|null|ohne)$/i.test(dueRaw)) {
+          if (todo.due_on) change.due_on = '';
+        } else {
+          const due = validDay(dueRaw.slice(0, 10));
+          if (due && due !== todo.due_on) change.due_on = due;
+        }
+        change.notes = str(c.notes, 2000);
+        if (typeof c.important === 'boolean' && c.important !== todo.important) change.important = c.important;
+        const done = c.done === 'done' ? true : c.done === 'open' ? false : null;
+        if (done !== null && done !== todo.done) change.done = done;
+        if (!Object.entries(change).some(([k, v]) => k !== 'remove' && v !== null)) continue;
+      }
+      out.push({ id: id(), kind: 'todo_change', include: true, data: change, todo });
+    } else if (a.type === 'goal' && a.goal) {
+      const g = a.goal;
+      const kind = oneOf(g.kind, ['revenue', 'customers', 'orders', 'posts', 'custom'] as const, 'custom');
+      if (g.kind !== kind) continue;
+      const allowed = periodsFor(kind);
+      const period = (allowed as readonly unknown[]).includes(g.period) ? (g.period as GoalPeriod) : allowed[0];
+      const target = num(g.target);
+      if (target === null || target <= 0 || target > 100_000_000) continue;
+      const title = str(g.title, 120);
+      if (kind === 'custom' && !title) continue;
+      out.push({
+        id: id(),
+        kind: 'goal',
+        include: true,
+        data: {
+          kind,
+          period,
+          target,
+          title: kind === 'custom' ? title : null,
+          due_on: kind === 'custom' ? validDay(g.due_on) : null,
+        },
+      });
     } else if (a.type === 'income_proof' && a.income_proof) {
       if (out.some((p) => p.kind === 'income_proof')) continue;
       out.push({
@@ -589,6 +781,14 @@ export function proposalProblem(p: Proposal, all: Proposal[]): string | null {
   }
   if (p.kind === 'order_date') {
     return p.order.existingId ? null : 'Wähle den Auftrag für diesen Termin.';
+  }
+  if (p.kind === 'order_price') {
+    return p.order.existingId ? null : 'Wähle den Auftrag für diesen Preis.';
+  }
+  if (p.kind === 'todo') {
+    if (p.customer.newRef && !included(p.customer.newRef)) return 'Der neue Kunde dafür ist abgewählt.';
+    if (p.order.newRef && !included(p.order.newRef)) return 'Der neue Auftrag dafür ist abgewählt.';
+    return null;
   }
   if (p.kind === 'document') {
     if (p.order.existingId) return null;
@@ -641,6 +841,18 @@ export function proposalLabel(p: Proposal): string {
       return `Termin „${p.data.title}“ (${whenLabel(p.data.starts_at, p.data.all_day)})`;
     case 'order_date':
       return `${p.data.field === 'meeting' ? 'Erstgespräch' : 'Ausführung'}${p.order.title ? ` „${p.order.title}“` : ''} am ${whenLabel(p.data.at)}`;
+    case 'order_price':
+      return `Preis ${formatPrice(p.data.price)}${p.data.billing === 'monthly' || (!p.data.billing && p.data.beforeBilling === 'monthly') ? ' pro Monat' : ''}${p.order.title ? ` für „${p.order.title}“` : ''}`;
+    case 'todo':
+      return `To-do „${p.data.title}“${p.data.due_on ? ` bis ${p.data.due_on.split('-').reverse().join('.')}` : ''}`;
+    case 'todo_change':
+      return p.data.remove
+        ? `To-do „${p.todo.title}“ löschen`
+        : p.data.done === true
+          ? `To-do „${p.todo.title}“ abhaken`
+          : `To-do „${p.todo.title}“ ändern`;
+    case 'goal':
+      return `Ziel: ${goalLabel(p.data)}`;
     case 'appointment_change': {
       const what = `${p.event.kind === 'meeting' ? 'Erstgespräch' : p.event.kind === 'execution' ? 'Ausführung' : 'Termin'} „${p.event.title}“`;
       if (p.data.remove) return `${what} ${p.event.kind === 'appointment' ? 'löschen' : 'absagen'}`;
@@ -653,14 +865,34 @@ export function proposalLabel(p: Proposal): string {
 
 export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
 
+const formatPrice = (n: number) =>
+  `${n.toLocaleString('de-DE', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} €`;
+
+const GOAL_PER: Record<GoalPeriod, string> = { week: ' pro Woche', month: ' pro Monat', year: ' pro Jahr', once: '' };
+/** "3.000 € Umsatz pro Monat", "5 neue Kunden pro Woche", eigener Titel */
+export function goalLabel(g: GoalDraft): string {
+  const n = g.target.toLocaleString('de-DE');
+  const per = GOAL_PER[g.period];
+  if (g.kind === 'revenue') return `${formatPrice(g.target)} Umsatz${per}`;
+  if (g.kind === 'customers') return `${n} ${g.target === 1 ? 'neuer Kunde' : 'neue Kunden'}${per}`;
+  if (g.kind === 'orders')
+    return `${n} ${g.target === 1 ? 'abgeschlossener Auftrag' : 'abgeschlossene Aufträge'}${per}`;
+  if (g.kind === 'posts') return `${n} ${g.target === 1 ? 'Post' : 'Posts'} veröffentlichen${per}`;
+  return `${g.title ?? 'Eigenes Ziel'} (${n})`;
+}
+
 /** Reihenfolge beim Ausführen: erst Kunden, dann Aufträge, dann Dokumente … */
 export const EXECUTION_ORDER: Proposal['kind'][] = [
   'customer',
   'order',
+  'order_price',
   'appointment',
   'order_date',
   'appointment_change',
   'document',
+  'todo',
+  'todo_change',
+  'goal',
   'expense',
   'post',
   'mark_paid',

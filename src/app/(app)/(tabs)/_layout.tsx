@@ -8,6 +8,7 @@ import { CrmProvider } from '@/features/crm/crm-provider';
 import { DocumentsProvider } from '@/features/documents/documents-provider';
 import { FollowupsProvider } from '@/features/dunning/followups-provider';
 import { FinanceProvider } from '@/features/finance/finance-provider';
+import { GoalsProvider } from '@/features/goals/goals-provider';
 import { RoadmapProvider } from '@/features/roadmap/roadmap-provider';
 import { SocialConnectProvider } from '@/features/social/connect-provider';
 import { SocialProvider } from '@/features/social/social-provider';
@@ -35,20 +36,22 @@ export default function TabsLayout() {
               <SocialProvider userId={user?.id ?? ''}>
                 <SocialConnectProvider userId={user?.id ?? ''}>
                   <AppointmentsProvider userId={user?.id ?? ''}>
-                    <NexyProvider key={user?.id ?? ''}>
-                      <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
-                        <TabList asChild>
-                          <NavBar wide={wide}>
-                            {NAV_ITEMS.map((item) => (
-                              <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                                <NavButton item={item} wide={wide} />
-                              </TabTrigger>
-                            ))}
-                          </NavBar>
-                        </TabList>
-                        <TabSlot style={styles.slot} />
-                      </Tabs>
-                    </NexyProvider>
+                    <GoalsProvider userId={user?.id ?? ''}>
+                      <NexyProvider key={user?.id ?? ''}>
+                        <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+                          <TabList asChild>
+                            <NavBar wide={wide}>
+                              {NAV_ITEMS.map((item) => (
+                                <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                                  <NavButton item={item} wide={wide} />
+                                </TabTrigger>
+                              ))}
+                            </NavBar>
+                          </TabList>
+                          <TabSlot style={styles.slot} />
+                        </Tabs>
+                      </NexyProvider>
+                    </GoalsProvider>
                   </AppointmentsProvider>
                 </SocialConnectProvider>
               </SocialProvider>

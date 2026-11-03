@@ -7,7 +7,10 @@ import {
   Check,
   CircleCheck,
   Download,
+  Euro,
   FileText,
+  Goal as GoalIcon,
+  ListChecks,
   Megaphone,
   Receipt,
   UserRound,
@@ -28,7 +31,7 @@ import { categoryLabel, incomeProofMonths, monthLabel } from '@/features/finance
 import { shortDateTime } from '@/features/social/post-card';
 import { FORMATS, platformLabel } from '@/features/social/social-logic';
 
-import { proposalLabel, whenLabel, type Proposal } from './assistant-logic';
+import { goalLabel, proposalLabel, whenLabel, type Proposal } from './assistant-logic';
 import { useNexy, type NexyMessage } from './nexy-provider';
 
 const REPEAT = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
@@ -63,6 +66,18 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
         kind: p.data.field === 'meeting' ? 'Erstgespräch im Auftrag' : 'Ausführung im Auftrag',
         title: p.order.title ?? 'Auftrag wählen',
       };
+    case 'order_price':
+      return { icon: Euro, kind: 'Preis im Auftrag', title: p.order.title ?? 'Auftrag wählen' };
+    case 'todo':
+      return { icon: ListChecks, kind: 'Neues To-do', title: p.data.title };
+    case 'todo_change':
+      return {
+        icon: ListChecks,
+        kind: p.data.remove ? 'To-do löschen' : p.data.done === true ? 'To-do abhaken' : 'To-do ändern',
+        title: p.todo.title,
+      };
+    case 'goal':
+      return { icon: GoalIcon, kind: 'Neues Ziel', title: goalLabel(p.data) };
     case 'appointment_change': {
       const what = p.event.kind === 'meeting' ? 'Erstgespräch' : p.event.kind === 'execution' ? 'Ausführung' : 'Termin';
       return p.data.remove
@@ -77,6 +92,13 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
 }
 
 const MIN = 60 * 1000;
+
+const GOAL_COUNTS = {
+  revenue: 'automatisch aus abgeschlossenen Aufträgen',
+  customers: 'automatisch: neu angelegte Kunden',
+  orders: 'automatisch: abgeschlossene Aufträge',
+  posts: 'automatisch: veröffentlichte Posts',
+} as const;
 
 /** Zeitraum eines Termin-Vorschlags (für Überschneidungen); null = keiner */
 function slotOf(p: Proposal): { start: string; end: string; allDay: boolean; ignore: string | null } | null {
@@ -164,6 +186,30 @@ function rows(p: Proposal): [string, string][] {
     if (p.customer.name) r.push(['Kunde', p.customer.name]);
     r.push([p.data.before ? 'Neu' : 'Wann', whenLabel(p.data.at)]);
     if (p.data.before) r.push(['Bisher', whenLabel(p.data.before)]);
+  } else if (p.kind === 'order_price') {
+    if (p.customer.name) r.push(['Kunde', p.customer.name]);
+    const monthly = (p.data.billing ?? p.data.beforeBilling) === 'monthly';
+    r.push([p.data.before !== null ? 'Neu' : 'Preis', `${formatEuro(p.data.price)}${monthly ? ' pro Monat' : ''}`]);
+    if (p.data.before !== null)
+      r.push(['Bisher', `${formatEuro(p.data.before)}${p.data.beforeBilling === 'monthly' ? ' pro Monat' : ''}`]);
+    if (p.data.billing) r.push(['Abrechnung', p.data.billing === 'monthly' ? 'monatlich' : 'einmalig']);
+  } else if (p.kind === 'todo') {
+    if (p.data.due_on) r.push(['Fällig', p.data.due_on.split('-').reverse().join('.')]);
+    if (p.data.important) r.push(['Wichtig', 'ja']);
+    if (p.order.title) r.push(['Auftrag', `${p.order.title}${p.order.newRef ? ' (neu)' : ''}`]);
+    else if (p.customer.existingId || p.customer.newRef)
+      r.push(['Kunde', `${p.customer.name}${p.customer.newRef ? ' (neu)' : ''}`]);
+    if (p.data.notes) r.push(['Notiz', p.data.notes]);
+  } else if (p.kind === 'todo_change') {
+    const c = p.data;
+    if (c.title) r.push(['Neuer Titel', c.title]);
+    if (c.due_on !== null) r.push(['Fällig', c.due_on ? c.due_on.split('-').reverse().join('.') : 'ohne Datum']);
+    if (c.important !== null) r.push(['Wichtig', c.important ? 'ja' : 'nein']);
+    if (c.notes) r.push(['Notiz', c.notes]);
+    if (c.done !== null) r.push(['Status', c.done ? 'erledigt' : 'wieder offen']);
+  } else if (p.kind === 'goal') {
+    if (p.data.kind !== 'custom') r.push(['Zählt', GOAL_COUNTS[p.data.kind]]);
+    if (p.data.due_on) r.push(['Bis', p.data.due_on.split('-').reverse().join('.')]);
   } else if (p.kind === 'appointment_change') {
     const e = p.event;
     const c = p.data;
@@ -212,7 +258,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
         const needsOrder =
           open &&
           p.include &&
-          (p.kind === 'document' || p.kind === 'order_date') &&
+          (p.kind === 'document' || p.kind === 'order_date' || p.kind === 'order_price') &&
           !p.order.existingId &&
           !p.order.newRef;
         const orderChoices = needsOrder
@@ -220,7 +266,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
               .filter(
                 (o) =>
                   (!p.customer.existingId || o.customer_id === p.customer.existingId) &&
-                  (p.kind !== 'order_date' || !o.cancelled),
+                  (p.kind === 'document' || !o.cancelled),
               )
               .slice(0, 10)
           : [];
@@ -294,17 +340,29 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
                           order: { existingId: o.id, newRef: null, title: o.title },
                           customer: { existingId: o.customer_id, newRef: null, name: c?.name ?? null },
                         }
-                      : x.kind === 'order_date'
+                      : x.kind === 'order_price'
                         ? {
                             ...x,
                             data: {
                               ...x.data,
-                              before: (x.data.field === 'meeting' ? o.meeting_at : o.execution_at) ?? null,
+                              before: o.price,
+                              beforeBilling: o.billing,
+                              billing: x.data.billing && x.data.billing !== o.billing ? x.data.billing : null,
                             },
                             order: { existingId: o.id, newRef: null, title: o.title },
                             customer: { existingId: o.customer_id, newRef: null, name: c?.name ?? null },
                           }
-                        : x,
+                        : x.kind === 'order_date'
+                          ? {
+                              ...x,
+                              data: {
+                                ...x.data,
+                                before: (x.data.field === 'meeting' ? o.meeting_at : o.execution_at) ?? null,
+                              },
+                              order: { existingId: o.id, newRef: null, title: o.title },
+                              customer: { existingId: o.customer_id, newRef: null, name: c?.name ?? null },
+                            }
+                          : x,
                   );
                 }}
               />
@@ -317,6 +375,12 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
               </Text>
             )}
             {clash.length > 0 && <Text style={styles.warn}>{clashText(clash)}</Text>}
+            {p.kind === 'order_price' && p.data.documents.length > 0 && !isDone && (
+              <Text style={styles.small}>
+                {p.data.documents.join(', ')} {p.data.documents.length === 1 ? 'bleibt' : 'bleiben'} unverändert – für
+                den neuen Preis ggf. ein neues Angebot erstellen.
+              </Text>
+            )}
             {problems.length > 0 && !needsCustomer && !needsOrder && (
               <View style={styles.problem}>
                 <Notice>Dafür fehlt noch: {problems.join(', ')}.</Notice>

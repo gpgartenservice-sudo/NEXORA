@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Ellipsis,
   House,
+  ListChecks,
   Megaphone,
   Route,
   UserRound,
@@ -23,6 +24,7 @@ export type NavItem = {
     | '/kunden'
     | '/auftraege'
     | '/termine'
+    | '/aufgaben'
     | '/firma'
     | '/finanzen'
     | '/social'
@@ -95,6 +97,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Termine',
     icon: CalendarDays,
     description: 'Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Kalender-Abo.',
+  },
+  {
+    name: 'aufgaben',
+    href: '/aufgaben',
+    label: 'To-dos & Ziele',
+    icon: ListChecks,
+    description: 'Was ansteht und wo du hinwillst – Ziele zählen automatisch aus deinen Zahlen mit.',
   },
   {
     name: 'firma',

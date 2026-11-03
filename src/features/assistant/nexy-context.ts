@@ -68,6 +68,10 @@ export type ContextInput = {
   upcoming?: Record<string, unknown>[];
   /** verschickte Zahlungserinnerungen/Mahnungen */
   followups?: { document_id: string; kind: string; sent_on: string; new_due_on: string | null }[];
+  /** offene To-dos (kurz, mit Kurzzeichen A1, A2 … zum Ändern) und ihre Gesamtzahl */
+  todos?: { entries: Record<string, unknown>[]; open: number };
+  /** aktive Ziele mit Stand */
+  goals?: Record<string, unknown>[];
   today?: Date;
 };
 
@@ -83,6 +87,8 @@ export function buildNexyContext({
   accounts = [],
   upcoming = [],
   followups = [],
+  todos = { entries: [], open: 0 },
+  goals = [],
   today = new Date(),
 }: ContextInput) {
   const customerName = new Map(customers.map((c) => [c.id, c.name]));
@@ -167,6 +173,9 @@ export function buildNexyContext({
       fixkosten_pro_monat: fixedCostsPerMonth(expenses, today),
     },
     termine: upcoming.slice(0, 40),
+    aufgaben: todos.entries.slice(0, 30),
+    aufgaben_offen_gesamt: todos.open,
+    ziele: goals.slice(0, 10),
     social: {
       ideen: statusCount('idea'),
       in_arbeit: statusCount('in_progress'),
@@ -193,7 +202,7 @@ export function buildNexyContext({
   };
 
   // Notbremse für sehr große Konten: Listen kürzen, bis es passt
-  for (const key of ['kunden', 'auftraege', 'offene_rechnungen'] as const) {
+  for (const key of ['kunden', 'auftraege', 'offene_rechnungen', 'aufgaben', 'termine'] as const) {
     while (JSON.stringify(context).length > MAX_CHARS && context[key].length > 10) {
       (context[key] as unknown[]).splice(Math.floor(context[key].length / 2));
     }

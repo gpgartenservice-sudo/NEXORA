@@ -10,6 +10,8 @@ import { nexyEvents } from '@/features/appointments/appointment-logic';
 import { useAppointments, type AppointmentInput } from '@/features/appointments/appointments-provider';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { useFollowups } from '@/features/dunning/followups-provider';
+import { nexyGoals, nexyTodos } from '@/features/goals/goals-logic';
+import { useGoals } from '@/features/goals/goals-provider';
 import { followerGrowth } from '@/features/social/connect-logic';
 import { useSocialConnect } from '@/features/social/connect-provider';
 import { useSocial } from '@/features/social/social-provider';
@@ -102,6 +104,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const connected = useSocialConnect();
   const calendar = useCalendarEvents();
   const appts = useAppointments();
+  const goals = useGoals();
   const { followups } = useFollowups();
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
@@ -129,6 +132,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       setThinking(true);
       // Termine mit Kurzzeichen (T1, T2 …): darüber kann Nexy sie ändern
       const events = nexyEvents(calendar, new Date());
+      // offene To-dos mit Kurzzeichen (A1, A2 …) und Ziele mit Stand
+      const todoCtx = nexyTodos(goals.todos, {
+        customer: (id) => crm.customers.find((c) => c.id === id)?.name ?? null,
+        order: (id) => crm.orders.find((o) => o.id === id)?.title ?? null,
+      });
       const context = buildNexyContext({
         seller: docs.seller,
         customers: crm.customers,
@@ -138,6 +146,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         posts: social.posts,
         upcoming: events.entries,
         followups,
+        todos: { entries: todoCtx.entries, open: todoCtx.open },
+        goals: nexyGoals(goals.goals, { orders: crm.orders, customers: crm.customers, posts: social.posts }),
         accounts: connected.accounts.map((a) => ({
           ...a,
           growth7:
@@ -171,6 +181,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           events: calendar,
           refs: events.refs,
           appointments: appts.appointments,
+          todos: goals.todos.filter((t) => !t.done),
+          todoRefs: todoCtx.refs,
         },
         todayIso(),
       );
@@ -197,6 +209,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       connected.stats,
       calendar,
       appts.appointments,
+      goals.todos,
+      goals.goals,
       followups,
     ],
   );
@@ -218,7 +232,10 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           ? crm.orders.find((o) => o.id === p.order.existingId)
           : all.find((x): x is Extract<Proposal, { kind: 'order' }> => x.id === p.order.newRef && x.kind === 'order')
               ?.data;
-        if (order && order.price === null) list.unshift('Preis im Auftrag');
+        const priceComing =
+          !!p.order.existingId &&
+          all.some((x) => x.kind === 'order_price' && x.include && x.order.existingId === p.order.existingId);
+        if (order && order.price === null && !priceComing) list.unshift('Preis im Auftrag');
         const existingCustomer = p.customer.existingId
           ? crm.customers.find((c) => c.id === p.customer.existingId)
           : undefined;
@@ -255,6 +272,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const doneIds = [...already];
       const newCustomers = new Map<string, Customer>();
       const newOrders = new Map<string, Order>();
+      // in diesem Durchgang geänderte Aufträge (z. B. neuer Preis vor der Rechnung)
+      const changedOrders = new Map<string, Order>();
 
       const finish = (error?: string): ExecuteOutcome => {
         setExecuting(null);
@@ -280,7 +299,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           results.push({ label: `Auftrag ${data.title}`, href: `/auftraege/${data.id}` });
         } else if (p.kind === 'document') {
           const order = p.order.existingId
-            ? crm.orders.find((o) => o.id === p.order.existingId)
+            ? (changedOrders.get(p.order.existingId) ?? crm.orders.find((o) => o.id === p.order.existingId))
             : newOrders.get(p.order.newRef ?? '');
           const customer = order
             ? (crm.customers.find((c) => c.id === order.customer_id) ??
@@ -316,8 +335,9 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           const orderId = p.order.existingId;
           if (!orderId) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
           const dates = p.data.field === 'meeting' ? { meeting_at: p.data.at } : { execution_at: p.data.at };
-          const { error } = await crm.updateOrder(orderId, dates);
+          const { data: changed, error } = await crm.updateOrder(orderId, dates);
           if (error) return finish(error);
+          if (changed) changedOrders.set(orderId, changed);
           results.push({
             label: `${p.data.field === 'meeting' ? 'Erstgespräch' : 'Ausführung'} ${p.order.title ?? ''}`.trim(),
             note: whenLabel(p.data.at),
@@ -366,6 +386,56 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             if (error) return finish(error);
             results.push({ label: what, note, href: `/auftraege/${ev.orderId}` });
           }
+        } else if (p.kind === 'order_price') {
+          const orderId = p.order.existingId;
+          if (!orderId) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
+          const { data: changed, error } = await crm.updateOrder(orderId, {
+            price: p.data.price,
+            ...(p.data.billing ? { billing: p.data.billing } : {}),
+          });
+          if (error) return finish(error);
+          if (changed) changedOrders.set(orderId, changed);
+          results.push({ label: proposalLabel(p), href: `/auftraege/${orderId}` });
+        } else if (p.kind === 'todo') {
+          const customerId =
+            p.customer.existingId ?? (p.customer.newRef ? (newCustomers.get(p.customer.newRef)?.id ?? null) : null);
+          const newOrder = p.order.newRef ? newOrders.get(p.order.newRef) : undefined;
+          const { data, error } = await goals.createTodo({
+            ...p.data,
+            customer_id: newOrder?.customer_id ?? customerId,
+            order_id: p.order.existingId ?? newOrder?.id ?? null,
+          });
+          if (error || !data) return finish(error ?? 'Das To-do konnte nicht gespeichert werden.');
+          results.push({
+            label: `To-do ${data.title}`,
+            note: data.due_on ? `fällig ${data.due_on.split('-').reverse().join('.')}` : undefined,
+            href: `/aufgaben/${data.id}`,
+          });
+        } else if (p.kind === 'todo_change') {
+          const c = p.data;
+          if (c.remove) {
+            const { error } = await goals.deleteTodo(p.todo.id);
+            if (error) return finish(error);
+            results.push({ label: `To-do ${p.todo.title}`, note: 'gelöscht', href: '/aufgaben' });
+          } else {
+            const { error } = await goals.updateTodo(p.todo.id, {
+              ...(c.title ? { title: c.title } : {}),
+              ...(c.due_on !== null ? { due_on: c.due_on || null } : {}),
+              ...(c.notes ? { notes: c.notes } : {}),
+              ...(c.important !== null ? { important: c.important } : {}),
+              ...(c.done !== null ? { done: c.done } : {}),
+            });
+            if (error) return finish(error);
+            results.push({
+              label: `To-do ${c.title ?? p.todo.title}`,
+              note: c.done === true ? 'erledigt' : c.done === false ? 'wieder offen' : 'geändert',
+              href: `/aufgaben/${p.todo.id}`,
+            });
+          }
+        } else if (p.kind === 'goal') {
+          const { data, error } = await goals.createGoal(p.data);
+          if (error || !data) return finish(error ?? 'Das Ziel konnte nicht gespeichert werden.');
+          results.push({ label: proposalLabel(p), href: `/aufgaben/ziele/${data.id}` });
         } else if (p.kind === 'expense') {
           const { data, error } = await finance.createExpense({ ...p.data, ends_on: null, notes: null });
           if (error || !data) return finish(error ?? 'Die Ausgabe konnte nicht gespeichert werden.');
@@ -406,7 +476,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       }
       return finish();
     },
-    [blockers, crm, docs, finance, social, appts, patch],
+    [blockers, crm, docs, finance, social, appts, goals, patch],
   );
 
   const dismiss = useCallback((messageId: string) => patch(messageId, { status: 'dismissed' }), [patch]);
