@@ -221,7 +221,14 @@ Einrichtung:
    4. Den **Inhalt** von `dist` (nicht den Ordner selbst) per FTP oder Dateimanager des Hosters in das Verzeichnis der Subdomain hochladen. Die Datei `.htaccess` gehört mit dazu (sie sorgt dafür, dass jede Adresse die App zeigt).
    5. Test: `https://app.deine-domain.de` im Browser öffnen – die NEXORA-Startseite erscheint.
 
-   **b) Mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg)**, im Projektordner:
+   **b) Ohne eigenen Webspace und ohne Befehle: Netlify (kostenlos)**
+   1. Web-Version bauen (`npx expo export --platform web`, ergibt den Ordner `dist`) – oder die fertige Web-Version nehmen, die du bekommen hast.
+   2. Auf [app.netlify.com](https://app.netlify.com) kostenlos registrieren.
+   3. **Add new site → Deploy manually** und den Ordner (der, in dem `index.html` liegt) ins Browserfenster ziehen.
+   4. Nach ein paar Sekunden steht die Adresse da (z. B. `https://zufallsname-123.netlify.app`). Unter den Einstellungen der Seite lässt sich der Name ändern, z. B. in `gp-nexora` → `https://gp-nexora.netlify.app`.
+   5. Bei neuen Versionen: in Netlify unter **Deploys** den neuen Ordner wieder hineinziehen.
+
+   **c) Mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg)**, im Projektordner:
    ```bash
    npx expo export --platform web
    npx eas-cli@latest deploy --prod
