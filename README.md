@@ -4,7 +4,7 @@ Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwalt
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4) · [Nexy](docs/media/nexy-preview.mp4)
 
 ---
 
@@ -123,7 +123,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Finanzen: Einnahmen, Ausgaben und Gewinn pro Monat/Jahr, Verlauf der letzten 12 Monate, offene Rechnungen, Ausgaben (auch wiederkehrend), Fixkosten, Einkommensnachweis als PDF
 - ✅ Social Media: Content-Board (Status aus erledigten Schritten je Format), Wochenplan, Zahlen pro Post mit Interaktionsrate, Hashtag-Sets, Caption-Zähler, Text kopieren
 - ⏳ TikTok & Instagram verbinden (Knopf zeigt „kommt bald“)
-- ✅ Nexy (KI-Assistent) mit animierter Figur: Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt – alles erst nach Bestätigung. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
+- ✅ Nexy (KI-Assistent) mit animierter Figur (schaut der Maus nach, freut sich bei Hover, Stupser mit Funken und Sprechblase, wird schläfrig): Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt – alles erst nach Bestätigung. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge

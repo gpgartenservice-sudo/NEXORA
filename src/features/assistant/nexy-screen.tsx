@@ -87,8 +87,8 @@ export function NexyScreen() {
         <View style={[styles.inner, { paddingHorizontal: pad }]}>
           {messages.length === 0 ? (
             <View style={styles.hero}>
-              <Reveal>
-                <NexyAvatar size={wide ? 132 : 108} mood={heroMood} />
+              <Reveal style={styles.heroFigure}>
+                <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk />
               </Reveal>
               <AnimatedTitle text="Hey, ich bin Nexy." style={styles.heroTitle} delay={150} />
               <Reveal delay={350}>
@@ -107,7 +107,7 @@ export function NexyScreen() {
             </View>
           ) : (
             <View style={styles.head}>
-              <NexyAvatar size={34} mood={thinking ? 'thinking' : 'idle'} />
+              <NexyAvatar size={34} mood={thinking ? 'thinking' : 'idle'} interactive />
               <View style={styles.headTexts}>
                 <Text style={styles.headTitle}>Nexy</Text>
                 <Text style={styles.headSub}>Dein KI-Assistent</Text>
@@ -201,7 +201,7 @@ function NexyRow({
   const mood: NexyMood = latest && m.status === 'done' ? 'happy' : 'idle';
   return (
     <Animated.View entering={FadeInDown.duration(280)} style={styles.nexyRow}>
-      <NexyAvatar size={30} mood={mood} animate={latest} />
+      <NexyAvatar size={30} mood={mood} animate={latest} interactive={latest} />
       <View style={styles.nexyColumn}>
         <View style={[styles.nexyBubble, !!m.error && !m.proposals && styles.errorBubble]}>
           <Text style={[styles.nexyText, !!m.error && !m.proposals && styles.errorText]}>{shown}</Text>
@@ -308,7 +308,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
   inner: { width: '100%', maxWidth: 860, alignSelf: 'center', gap: Spacing.lg },
-  hero: { alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.xl },
+  hero: { alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.xxl },
+  // Platz für Antenne oben und Schatten unten
+  heroFigure: { paddingTop: Spacing.lg, paddingBottom: Spacing.xl },
   heroTitle: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.6, textAlign: 'center' },
   heroText: { color: Colors.textMuted, fontSize: 15.5, lineHeight: 23, textAlign: 'center', maxWidth: 560 },
   starters: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center', maxWidth: 720 },
