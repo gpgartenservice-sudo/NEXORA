@@ -42,9 +42,9 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
-## 4. Assistent einrichten (KI, einmalig)
+## 4. Nexy (KI-Assistent) einrichten
 
-Der Assistent schickt deinen Text an **Claude** (Anthropic) und bekommt Vorschläge zurück – Kunden, Aufträge, Ausgaben, Post-Ideen. Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird erst, wenn du in der App bestätigst.
+Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden, Aufträge, Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren. Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird erst, wenn du in der App bestätigst.
 
 **1. API-Schlüssel holen**
 
@@ -66,7 +66,9 @@ Der Assistent schickt deinen Text an **Claude** (Anthropic) und bekommt Vorschl�
 1. In **Edge Functions** den Bereich **Secrets** öffnen.
 2. Neues Geheimnis: Name `ANTHROPIC_API_KEY`, Wert = dein Schlüssel → **Save**.
 
-Fertig – in der App unter **Assistent** einen Text eingeben und **Verstehen** klicken.
+Fertig – in der App links **Nexy** öffnen und losschreiben.
+
+**Neue Version der Funktion einspielen** (wenn sich `functions/assistant/index.ts` geändert hat): **Edge Functions → assistant → Code** öffnen, den Inhalt komplett durch die neue Datei ersetzen → **Deploy**. Die Geheimnisse bleiben erhalten.
 
 **Falls es nicht klappt**
 
@@ -74,9 +76,9 @@ Fertig – in der App unter **Assistent** einen Text eingeben und **Verstehen** 
 - Meldung „Anmeldung abgelaufen“ bzw. in den Logs `Invalid JWT`: In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) ausschalten. Die Funktion prüft selbst, ob ein angemeldeter NEXORA-Nutzer anfragt.
 - Fehler ansehen: **Edge Functions → assistant → Logs**.
 
-**Kosten:** Standardmäßig nutzt der Assistent **Claude Opus 5.5** – grob 1–2 Cent pro Anfrage. Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Texten etwas ungenauer).
+**Kosten:** Standardmäßig nutzt Nexy **Claude Opus 5.5** – grob 2–4 Cent pro Nachricht (Gespräch und Übersicht werden jedes Mal mitgeschickt). Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Gründlicher (langsamer, teurer) antwortet Nexy mit `ASSISTANT_EFFORT` = `medium`.
 
-**Datenschutz:** Der eingegebene Text wird zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
+**Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
 
 ## 5. Wichtig zum Testen: E-Mail-Versand
 

@@ -189,3 +189,13 @@ export function amountIn(byMonth: Map<MonthKey, number>, months: Set<MonthKey>):
   for (const [k, v] of byMonth) if (months.has(k)) sum += v;
   return round2(sum);
 }
+
+/** Zeitraum für den Einkommensnachweis: letzte volle Monate (ohne den laufenden) bzw. das letzte Jahr. */
+export function incomeProofMonths(preset: '3' | '6' | '12' | 'year' | 'last_year', today: Date = new Date()): MonthKey[] {
+  const last = addMonths(monthKey(today), -1);
+  if (preset === 'year' || preset === 'last_year') {
+    const y = today.getFullYear() - 1;
+    return monthRange(`${y}-01`, `${y}-12`);
+  }
+  return monthRange(addMonths(last, -(Number(preset) - 1)), last);
+}

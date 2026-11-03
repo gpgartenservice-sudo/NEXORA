@@ -14,20 +14,10 @@ import { sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { downloadPdf, PDF_UNSUPPORTED, pdfSupported } from '@/features/documents/save-pdf';
 
-import { addMonths, monthKey, monthLabel, monthRange, summarize, sumUp, type MonthKey } from './finance-logic';
+import { incomeProofMonths, monthLabel, summarize, sumUp } from './finance-logic';
 import { useFinance } from './finance-provider';
 
 type Preset = '3' | '6' | '12' | 'year';
-
-/** Zeitraum: abgeschlossene Monate (ohne den laufenden) bzw. das letzte volle Jahr. */
-function presetMonths(preset: Preset, today = new Date()): MonthKey[] {
-  const last = addMonths(monthKey(today), -1);
-  if (preset === 'year') {
-    const y = today.getFullYear() - 1;
-    return monthRange(`${y}-01`, `${y}-12`);
-  }
-  return monthRange(addMonths(last, -(Number(preset) - 1)), last);
-}
 
 /** Einkommensnachweis: Monatsübersicht als PDF, z. B. für Versicherung oder Vermieter. */
 export function IncomeProofCard() {
@@ -38,7 +28,7 @@ export function IncomeProofCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const months = presetMonths(preset);
+  const months = incomeProofMonths(preset);
   const rows = summarize(orders, expenses, months);
   const sum = sumUp(rows);
   const average = rows.length ? sum.profit / rows.length : 0;

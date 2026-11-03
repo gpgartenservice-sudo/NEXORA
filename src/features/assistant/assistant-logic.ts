@@ -1,10 +1,10 @@
 /**
- * Assistent: Die Server-Funktion (supabase/functions/assistant) liefert
- * Vorschläge, die Claude aus dem Text herausgelesen hat. Hier werden sie
- * geprüft, bereinigt und Kunden zugeordnet – gespeichert wird erst, wenn
- * der Nutzer bestätigt.
+ * Nexy (Assistent): Die Server-Funktion (supabase/functions/assistant)
+ * liefert eine Antwort und Vorschläge. Hier werden die Vorschläge geprüft,
+ * bereinigt und vorhandenen Kunden, Aufträgen und Dokumenten zugeordnet –
+ * ausgeführt wird erst, wenn der Nutzer bestätigt.
  *
- * Bewusst ohne App-Imports (tests/unit/assistant-logic.test.mjs).
+ * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
 
 export const EXPENSE_CATEGORY_KEYS = [
@@ -30,16 +30,22 @@ export const PLATFORM_KEYS = [
   'pinterest',
   'threads',
 ] as const;
+export const INCOME_PERIODS = ['3', '6', '12', 'last_year'] as const;
 
 // --- So kommt es von der Server-Funktion (kann unvollständig/fehlerhaft sein) ---
+type Obj = Record<string, unknown>;
 export type RawAction = {
   type?: unknown;
-  customer?: Record<string, unknown> | null;
-  order?: Record<string, unknown> | null;
-  expense?: Record<string, unknown> | null;
-  post?: Record<string, unknown> | null;
+  customer?: Obj | null;
+  order?: Obj | null;
+  expense?: Obj | null;
+  post?: Obj | null;
+  document?: Obj | null;
+  income_proof?: Obj | null;
+  existing_pdf?: Obj | null;
+  mark_paid?: Obj | null;
 };
-export type RawResult = { actions?: unknown; reply?: unknown };
+export type RawResult = { actions?: unknown; reply?: unknown; quick_replies?: unknown };
 
 // --- Bereinigte Vorschläge ---
 export type CustomerDraft = {
@@ -72,17 +78,34 @@ export type PostDraft = {
   script: string | null;
   planned_for: string | null;
 };
+export type IncomePeriod = (typeof INCOME_PERIODS)[number];
 
-/** Zu welchem Kunden gehört ein Auftrag? Vorhanden, neu aus diesem Vorschlag, oder noch offen. */
+/** Zu welchem Kunden gehört etwas? Vorhanden, neu aus diesem Gespräch, oder noch offen. */
 export type CustomerLink = { existingId: string | null; newRef: string | null; name: string | null };
+/** Zu welchem Auftrag gehört ein Angebot/eine Rechnung? */
+export type OrderLink = { existingId: string | null; newRef: string | null; title: string | null };
 
 export type Proposal =
   | { id: string; kind: 'customer'; include: boolean; data: CustomerDraft; duplicateOf: string | null }
   | { id: string; kind: 'order'; include: boolean; data: OrderDraft; customer: CustomerLink }
   | { id: string; kind: 'expense'; include: boolean; data: ExpenseDraft }
-  | { id: string; kind: 'post'; include: boolean; data: PostDraft };
+  | { id: string; kind: 'post'; include: boolean; data: PostDraft }
+  | {
+      id: string;
+      kind: 'document';
+      include: boolean;
+      data: { docKind: 'offer' | 'invoice'; service_date: string | null };
+      customer: CustomerLink;
+      order: OrderLink;
+    }
+  | { id: string; kind: 'income_proof'; include: boolean; data: { period: IncomePeriod } }
+  | { id: string; kind: 'existing_pdf'; include: boolean; data: { documentId: string; number: string } }
+  | { id: string; kind: 'mark_paid'; include: boolean; data: { documentId: string; number: string } };
 
 export type ExistingCustomer = { id: string; name: string; company?: string | null };
+export type ExistingOrder = { id: string; title: string; customer_id: string };
+export type ExistingDocument = { id: string; number: string; kind: 'offer' | 'invoice'; paid_at: string | null };
+export type Known = { customers: ExistingCustomer[]; orders: ExistingOrder[]; documents: ExistingDocument[] };
 
 const str = (v: unknown, max = 500): string | null => {
   if (typeof v !== 'string') return null;
@@ -144,7 +167,28 @@ export function matchCustomer(name: string | null, customers: ExistingCustomer[]
   return partial.length === 1 ? partial[0] : null;
 }
 
-function customerDraft(c: Record<string, unknown>): CustomerDraft | null {
+/** Passenden Auftrag finden (beim Kunden, wenn bekannt). Ohne Titel: nur wenn es genau einen gibt. */
+export function matchOrder(
+  title: string | null,
+  customerId: string | null,
+  orders: ExistingOrder[],
+): ExistingOrder | null {
+  const pool = customerId ? orders.filter((o) => o.customer_id === customerId) : orders;
+  if (!title) return customerId && pool.length === 1 ? pool[0] : null;
+  const n = norm(title);
+  const exact = pool.filter((o) => norm(o.title) === n);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+  const partial = pool.filter((o) => {
+    const t = norm(o.title);
+    return (t.includes(n) || n.includes(t)) && Math.min(t.length, n.length) >= 3;
+  });
+  return partial.length === 1 ? partial[0] : null;
+}
+
+const normNumber = (s: string) => s.toUpperCase().replace(/\s+/g, '');
+
+function customerDraft(c: Obj): CustomerDraft | null {
   const name = str(c.name, 200);
   if (!name) return null;
   const email = str(c.email, 160);
@@ -160,58 +204,103 @@ function customerDraft(c: Record<string, unknown>): CustomerDraft | null {
 
 /**
  * Antwort der Server-Funktion -> geprüfte Vorschläge.
- * Ungültiges fällt weg, Aufträge werden Kunden zugeordnet (vorhanden oder neu).
+ * Ungültiges fällt weg; Aufträge/Dokumente werden Kunden und Aufträgen
+ * zugeordnet (vorhanden oder neu aus demselben Gespräch).
  */
-export function buildProposals(raw: RawResult, customers: ExistingCustomer[], today: string): Proposal[] {
+export function buildProposals(raw: RawResult, known: Known, today: string): Proposal[] {
   const actions = Array.isArray(raw.actions) ? (raw.actions.slice(0, 20) as RawAction[]) : [];
   const out: Proposal[] = [];
   let n = 0;
   const id = () => `v${++n}`;
+  const customersOut = () => out.filter((p): p is Extract<Proposal, { kind: 'customer' }> => p.kind === 'customer');
+  const ordersOut = () => out.filter((p): p is Extract<Proposal, { kind: 'order' }> => p.kind === 'order');
 
-  // 1. Kunden zuerst (Aufträge verweisen darauf)
-  for (const a of actions) {
-    if (a?.type !== 'customer' || !a.customer) continue;
+  /** Kunde per Name: vorhanden, schon vorgeschlagen, oder (optional) neu mit anlegen */
+  const linkCustomer = (name: string | null, create: boolean): CustomerLink => {
+    const existing = matchCustomer(name, known.customers);
+    if (existing) return { existingId: existing.id, newRef: null, name: existing.name };
+    if (!name) return { existingId: null, newRef: null, name: null };
+    let fresh = customersOut().find((p) => !p.duplicateOf && norm(p.data.name) === norm(name));
+    if (!fresh && create) {
+      fresh = {
+        id: id(),
+        kind: 'customer',
+        include: true,
+        duplicateOf: null,
+        data: { name, company: null, phone: null, email: null, address: null, notes: null },
+      };
+      out.splice(customersOut().length, 0, fresh);
+    }
+    return fresh ? { existingId: null, newRef: fresh.id, name } : { existingId: null, newRef: null, name };
+  };
+
+  const valid = actions.filter((a): a is RawAction => !!a && typeof a === 'object');
+
+  // 1. Kunden
+  for (const a of valid) {
+    if (a.type !== 'customer' || !a.customer) continue;
     const data = customerDraft(a.customer);
-    if (!data) continue;
-    if (out.some((p) => p.kind === 'customer' && norm(p.data.name) === norm(data.name))) continue;
-    const existing = matchCustomer(data.name, customers);
+    if (!data || customersOut().some((p) => norm(p.data.name) === norm(data.name))) continue;
+    const existing = matchCustomer(data.name, known.customers);
     out.push({ id: id(), kind: 'customer', include: !existing, data, duplicateOf: existing?.id ?? null });
   }
 
-  for (const a of actions) {
-    if (!a || typeof a !== 'object') continue;
-    if (a.type === 'order' && a.order) {
-      const o = a.order;
-      const title = str(o.title, 200);
-      if (!title) continue;
-      const price = num(o.price);
-      const data: OrderDraft = {
-        title,
-        description: str(o.description, 5000),
-        price: price !== null && price >= 0 ? price : null,
-        billing: oneOf(o.billing, ['once', 'monthly'] as const, 'once'),
-        meeting_at: localDateTime(o.meeting_at),
-        execution_at: localDateTime(o.execution_at),
-      };
-      const name = str(o.customer_name, 200);
-      const existing = matchCustomer(name, customers);
-      let link: CustomerLink = { existingId: existing?.id ?? null, newRef: null, name: existing?.name ?? name };
-      if (!existing && name) {
-        // neuer Kunde aus diesem Text – oder automatisch mit anlegen
-        let fresh = out.find((p) => p.kind === 'customer' && !p.duplicateOf && norm(p.data.name) === norm(name));
-        if (!fresh) {
-          fresh = {
-            id: id(),
-            kind: 'customer',
-            include: true,
-            data: { name, company: null, phone: null, email: null, address: null, notes: null },
-            duplicateOf: null,
-          };
-          out.splice(out.filter((p) => p.kind === 'customer').length, 0, fresh);
+  // 2. Aufträge
+  for (const a of valid) {
+    if (a.type !== 'order' || !a.order) continue;
+    const o = a.order;
+    const title = str(o.title, 200);
+    if (!title) continue;
+    const price = num(o.price);
+    const data: OrderDraft = {
+      title,
+      description: str(o.description, 5000),
+      price: price !== null && price >= 0 ? price : null,
+      billing: oneOf(o.billing, ['once', 'monthly'] as const, 'once'),
+      meeting_at: localDateTime(o.meeting_at),
+      execution_at: localDateTime(o.execution_at),
+    };
+    out.push({ id: id(), kind: 'order', include: true, data, customer: linkCustomer(str(o.customer_name, 200), true) });
+  }
+
+  // 3. Alles andere
+  for (const a of valid) {
+    if (a.type === 'document' && a.document) {
+      const d = a.document;
+      const docKind = d.kind === 'offer' ? 'offer' : d.kind === 'invoice' ? 'invoice' : null;
+      if (!docKind) continue;
+      const title = str(d.order_title, 200);
+      let customer = linkCustomer(str(d.customer_name, 200), false);
+      let order: OrderLink = { existingId: null, newRef: null, title };
+      const existing = matchOrder(title, customer.existingId, known.orders);
+      if (existing && (customer.existingId || !customer.newRef)) {
+        order = { existingId: existing.id, newRef: null, title: existing.title };
+        if (!customer.existingId) {
+          const c = known.customers.find((x) => x.id === existing.customer_id);
+          customer = { existingId: existing.customer_id, newRef: null, name: c?.name ?? null };
         }
-        link = { existingId: null, newRef: fresh.id, name };
+      } else {
+        // neuer Auftrag aus demselben Gespräch?
+        const sameCustomer = (p: Extract<Proposal, { kind: 'order' }>) =>
+          (customer.existingId && p.customer.existingId === customer.existingId) ||
+          (customer.newRef && p.customer.newRef === customer.newRef) ||
+          (!customer.existingId && !customer.newRef);
+        const fresh =
+          ordersOut().find((p) => title && norm(p.data.title) === norm(title) && sameCustomer(p)) ??
+          (ordersOut().filter(sameCustomer).length === 1 ? ordersOut().find(sameCustomer) : undefined);
+        if (fresh) {
+          order = { existingId: null, newRef: fresh.id, title: fresh.data.title };
+          customer = fresh.customer;
+        }
       }
-      out.push({ id: id(), kind: 'order', include: true, data, customer: link });
+      out.push({
+        id: id(),
+        kind: 'document',
+        include: true,
+        data: { docKind, service_date: validDay(d.service_date) },
+        customer,
+        order,
+      });
     } else if (a.type === 'expense' && a.expense) {
       const e = a.expense;
       const title = str(e.title, 200);
@@ -254,23 +343,101 @@ export function buildProposals(raw: RawResult, customers: ExistingCustomer[], to
           planned_for: localDateTime(p.planned_for, 18),
         },
       });
+    } else if (a.type === 'income_proof' && a.income_proof) {
+      if (out.some((p) => p.kind === 'income_proof')) continue;
+      out.push({
+        id: id(),
+        kind: 'income_proof',
+        include: true,
+        data: { period: oneOf(a.income_proof.period, INCOME_PERIODS, '3') },
+      });
+    } else if ((a.type === 'existing_pdf' && a.existing_pdf) || (a.type === 'mark_paid' && a.mark_paid)) {
+      const ref = (a.type === 'existing_pdf' ? a.existing_pdf : a.mark_paid)!;
+      const number = str(ref.number, 40);
+      const doc = number ? known.documents.find((d) => normNumber(d.number) === normNumber(number)) : undefined;
+      if (!doc) continue;
+      if (a.type === 'mark_paid' && (doc.kind !== 'invoice' || doc.paid_at)) continue;
+      if (
+        out.some(
+          (p) =>
+            (p.kind === 'existing_pdf' || p.kind === 'mark_paid') && p.kind === a.type && p.data.documentId === doc.id,
+        )
+      )
+        continue;
+      out.push({ id: id(), kind: a.type, include: true, data: { documentId: doc.id, number: doc.number } } as Proposal);
     }
   }
   return out;
 }
 
-/** Kann der Vorschlag gespeichert werden? (Aufträge brauchen einen Kunden) */
+/** Kann der Vorschlag ausgeführt werden? (Zuordnung zu Kunde/Auftrag) */
 export function proposalProblem(p: Proposal, all: Proposal[]): string | null {
-  if (p.kind !== 'order') return null;
-  if (p.customer.existingId) return null;
-  if (p.customer.newRef) {
-    const c = all.find((x) => x.id === p.customer.newRef);
-    return c && c.include ? null : 'Der neue Kunde dafür ist abgewählt.';
+  const included = (ref: string | null) => !!ref && !!all.find((x) => x.id === ref)?.include;
+  if (p.kind === 'order') {
+    if (p.customer.existingId) return null;
+    if (p.customer.newRef) return included(p.customer.newRef) ? null : 'Der neue Kunde dafür ist abgewählt.';
+    return 'Wähle den Kunden für diesen Auftrag.';
   }
-  return 'Wähle den Kunden für diesen Auftrag.';
+  if (p.kind === 'document') {
+    if (p.order.existingId) return null;
+    if (p.order.newRef) return included(p.order.newRef) ? null : 'Der neue Auftrag dafür ist abgewählt.';
+    return p.data.docKind === 'invoice'
+      ? 'Wähle den Auftrag für diese Rechnung.'
+      : 'Wähle den Auftrag für dieses Angebot.';
+  }
+  return null;
 }
 
 /** Antworttext der KI (gekürzt, nur Text) */
 export function replyText(raw: RawResult): string | null {
-  return str(raw.reply, 1000);
+  return str(raw.reply, 3000);
 }
+
+/** Vorgeschlagene Schnellantworten (max. 3, kurz) */
+export function quickReplies(raw: RawResult): string[] {
+  if (!Array.isArray(raw.quick_replies)) return [];
+  return [...new Set(raw.quick_replies.map((q) => str(q, 80)).filter((q): q is string => !!q))].slice(0, 3);
+}
+
+const PERIOD_LABEL: Record<IncomePeriod, string> = {
+  '3': 'letzte 3 Monate',
+  '6': 'letzte 6 Monate',
+  '12': 'letzte 12 Monate',
+  last_year: 'letztes Jahr',
+};
+
+/** Kurzbezeichnung eines Vorschlags – für Karten und den Gesprächsverlauf */
+export function proposalLabel(p: Proposal): string {
+  switch (p.kind) {
+    case 'customer':
+      return `Kunde ${p.data.name}`;
+    case 'order':
+      return `Auftrag „${p.data.title}“${p.customer.name ? ` für ${p.customer.name}` : ''}`;
+    case 'expense':
+      return `Ausgabe „${p.data.title}“`;
+    case 'post':
+      return `Post-Idee „${p.data.title}“`;
+    case 'document':
+      return `${p.data.docKind === 'invoice' ? 'Rechnung' : 'Angebot'}${p.order.title ? ` zu „${p.order.title}“` : ''}${p.customer.name ? ` (${p.customer.name})` : ''}`;
+    case 'income_proof':
+      return `Einkommensnachweis (${PERIOD_LABEL[p.data.period]})`;
+    case 'existing_pdf':
+      return `PDF von ${p.data.number}`;
+    case 'mark_paid':
+      return `${p.data.number} als bezahlt markieren`;
+  }
+}
+
+export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
+
+/** Reihenfolge beim Ausführen: erst Kunden, dann Aufträge, dann Dokumente … */
+export const EXECUTION_ORDER: Proposal['kind'][] = [
+  'customer',
+  'order',
+  'document',
+  'expense',
+  'post',
+  'mark_paid',
+  'existing_pdf',
+  'income_proof',
+];
