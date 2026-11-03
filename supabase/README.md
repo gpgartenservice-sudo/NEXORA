@@ -230,17 +230,39 @@ Gut zu wissen: Wer den Link kennt, sieht nur dieses eine Angebot – nicht deine
 
 ## 10. E-Mails direkt verschicken
 
-Angebote, Rechnungen und Mahnungen gehen mit **Direkt senden** ohne Mail-Programm an den Kunden – mit PDF im Anhang. Absender ist dein Firmenname, Antworten landen bei der E-Mail-Adresse aus deinen Firmendaten. Das läuft über den E-Mail-Dienst **Resend** (kostenloser Einstieg; Limits auf resend.com).
+Angebote, Rechnungen und Mahnungen gehen mit **Direkt senden** ohne Mail-Programm an den Kunden – mit PDF im Anhang. Absender ist dein Firmenname, Antworten landen bei der E-Mail-Adresse aus deinen Firmendaten. Ohne diese Einrichtung funktioniert alles andere trotzdem (PDF, eigenes Mail-Programm, WhatsApp, Link zum Annehmen).
+
+Es gibt zwei Wege – **Weg A ist der einfachste, wenn du schon ein Postfach bei deinem Webhoster hast** (z. B. webgo, IONOS, Strato, All-Inkl).
+
+### Weg A: über dein eigenes Postfach (SMTP)
+
+1. Beim Webhoster ein Postfach nehmen oder neu anlegen, z. B. `angebote@deine-domain.de` (eigenes Postfach mit eigenem Passwort ist sicherer als dein Hauptpostfach).
+2. In den E-Mail-Einstellungen des Hosters nachsehen: **Postausgangsserver (SMTP)**, **Benutzername** und ob **Port 465 (SSL/TLS)** geht. Bei webgo: im Kundenbereich (WebCP) beim Postfach unter den Einstellungen für Mailprogramme.
+3. Supabase: **Edge Functions → Deploy a new function → Via Editor**, Name genau `mail`, Inhalt von [`functions/mail/index.ts`](functions/mail/index.ts) → **Deploy**. Falls „Invalid JWT“ kommt: **Verify JWT** ausschalten (die Funktion prüft die Anmeldung selbst).
+4. **Edge Functions → Secrets**:
+   - `SMTP_HOST` = Postausgangsserver, **genau so geschrieben wie beim Hoster** (sonst passt das Sicherheitszertifikat nicht)
+   - `SMTP_PORT` = `465`
+   - `SMTP_USER` = Benutzername des Postfachs
+   - `SMTP_PASS` = Passwort des Postfachs
+   - `MAIL_FROM` = die E-Mail-Adresse des Postfachs (nur nötig, wenn der Benutzername keine E-Mail-Adresse ist)
+   > Das Passwort **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
+5. In der App unter **Firma** deine E-Mail-Adresse eintragen – dorthin gehen die Antworten deiner Kunden.
+
+Gut zu wissen: Supabase erlaubt keine Verbindungen über die Ports 25 und 587 – deshalb Port 465. Die verschickten E-Mails stehen nicht im „Gesendet“-Ordner deines Webmailers, sondern im Versandprotokoll in NEXORA (am Dokument: „Direkt verschickt am … an …“).
+
+### Weg B: über Resend
 
 1. Auf [resend.com](https://resend.com) ein Konto anlegen.
-2. **Domains → Add Domain**: deine Domain eintragen (z. B. `gp-gartenservice.de`) und die angezeigten DNS-Einträge bei deinem Domain-Anbieter setzen → **Verify**. (Ohne eigene Domain geht es nicht – Resend verschickt nur von bestätigten Domains.)
+2. **Domains → Add Domain**: deine Domain eintragen (Region am besten Ireland/eu-west-1) und die angezeigten DNS-Einträge bei deinem Domain-Anbieter setzen → **Verify**.
 3. **API Keys → Create API Key** (Zugriff „Sending“) und kopieren – er beginnt mit `re_`.
    > Den Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
-4. Supabase: **Edge Functions → Deploy a new function → Via Editor**, Name genau `mail`, Inhalt von [`functions/mail/index.ts`](functions/mail/index.ts) → **Deploy**. Falls „Invalid JWT“ kommt: **Verify JWT** ausschalten (die Funktion prüft die Anmeldung selbst).
-5. **Edge Functions → Secrets**: `RESEND_API_KEY` = dein Schlüssel, `MAIL_FROM` = Absender-Adresse auf deiner Domain (z. B. `angebote@gp-gartenservice.de`).
-6. In der App unter **Firma** deine E-Mail-Adresse eintragen – dorthin gehen die Antworten deiner Kunden.
+4. Funktion `mail` einspielen wie in Weg A, Schritt 3.
+5. **Edge Functions → Secrets**: `RESEND_API_KEY` = dein Schlüssel, `MAIL_FROM` = Absender-Adresse auf deiner Domain (z. B. `angebote@deine-domain.de`).
+6. In der App unter **Firma** deine E-Mail-Adresse eintragen.
 
-Zum Schutz: höchstens 3 Empfänger pro E-Mail, nur PDFs als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag. Jede verschickte E-Mail steht im Versandprotokoll (am Dokument: „Direkt verschickt am … an …“).
+Ist `SMTP_HOST` gesetzt, nimmt NEXORA Weg A.
+
+Zum Schutz: höchstens 3 Empfänger pro E-Mail, nur PDFs als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag. Jede verschickte E-Mail steht im Versandprotokoll.
 
 ## 11. Steuern
 

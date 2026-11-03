@@ -54,10 +54,52 @@ export async function sendMail(input: MailInput): Promise<MailResult> {
       // keine JSON-Antwort
     }
     if (res.status === 404) return { error: SETUP, notSetUp: true };
-    if (code === 'missing_resend_key' || code === 'missing_mail_from')
+    const withDetail = (text: string) => `${text}${detail ? `\n\nTechnische Details: ${detail}` : ''}`;
+    if (code === 'missing_resend_key')
       return {
-        error: `Direkt verschicken ist fast eingerichtet: In Supabase fehlt noch das Geheimnis ${code === 'missing_resend_key' ? 'RESEND_API_KEY' : 'MAIL_FROM'} (supabase/README.md, Abschnitt 10).`,
+        error:
+          'Direkt verschicken ist fast eingerichtet: In Supabase fehlen noch die Zugangsdaten – entweder dein Postfach (SMTP_HOST, SMTP_USER, SMTP_PASS) oder RESEND_API_KEY (supabase/README.md, Abschnitt 10).',
         notSetUp: true,
+      };
+    if (code === 'missing_mail_from')
+      return {
+        error:
+          'Direkt verschicken ist fast eingerichtet: In Supabase fehlt noch MAIL_FROM – die E-Mail-Adresse, von der aus verschickt wird (supabase/README.md, Abschnitt 10).',
+        notSetUp: true,
+      };
+    if (code === 'missing_smtp_login')
+      return {
+        error:
+          'Direkt verschicken ist fast eingerichtet: In Supabase fehlen noch SMTP_USER oder SMTP_PASS – Benutzername und Passwort deines Postfachs.',
+        notSetUp: true,
+      };
+    if (code === 'smtp_port')
+      return {
+        error:
+          'Dieser Port geht nicht: Supabase erlaubt zum Mailserver nur verschlüsselte Verbindungen über Port 465. Bitte in Supabase SMTP_PORT = 465 eintragen.',
+        notSetUp: true,
+      };
+    if (code === 'smtp_auth_failed')
+      return {
+        error: withDetail(
+          'Dein Postfach hat die Anmeldung abgelehnt: Benutzername oder Passwort stimmen nicht. Bitte SMTP_USER und SMTP_PASS in Supabase prüfen.',
+        ),
+        notSetUp: true,
+      };
+    if (code === 'smtp_connect_failed')
+      return {
+        error: withDetail(
+          'Der Mailserver ist nicht erreichbar. Bitte SMTP_HOST genau so eintragen, wie er in den E-Mail-Einstellungen deines Anbieters steht, und SMTP_PORT = 465.',
+        ),
+        notSetUp: true,
+      };
+    if (code === 'smtp_timeout')
+      return { error: 'Der Mailserver antwortet gerade nicht. Versuch es gleich noch einmal.' };
+    if (code === 'smtp_rejected')
+      return {
+        error: withDetail(
+          'Der Mailserver hat die E-Mail abgelehnt – oft ist die Empfänger-Adresse falsch oder MAIL_FROM gehört nicht zu deinem Postfach.',
+        ),
       };
     if (code === 'invalid_resend_key')
       return {
