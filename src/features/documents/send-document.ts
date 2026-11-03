@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { desktop } from '@/lib/desktop';
 
 import { downloadPdf, type PreparedPdf } from './save-pdf';
 
@@ -11,28 +11,6 @@ import { downloadPdf, type PreparedPdf } from './save-pdf';
  * öffnet das Teilen-Menü des Mac mit dem PDF als Anhang.
  * Browser: Das PDF wird heruntergeladen.
  */
-
-type DesktopBridge = {
-  canShare: boolean;
-  sendFile: (payload: {
-    bytes: Uint8Array;
-    fileName: string;
-    via: 'open' | 'share';
-    url?: string;
-    text?: string;
-  }) => Promise<{ filePath: string }>;
-};
-
-declare global {
-  interface Window {
-    nexoraDesktop?: DesktopBridge;
-  }
-}
-
-function desktop(): DesktopBridge | null {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-  return window.nexoraDesktop ?? null;
-}
 
 /** Läuft die App im Mac-Fenster? */
 export function isDesktop(): boolean {

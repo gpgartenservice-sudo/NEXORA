@@ -1,5 +1,6 @@
-import { ArrowUp } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { ArrowUp, Mic, Volume2, VolumeX, X } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +23,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,8 +36,45 @@ import { useHover } from '@/hooks/use-hover';
 import { NexyAvatar, type NexyMood } from './nexy-avatar';
 import { NexyProposals } from './nexy-proposals';
 import { useNexy, type NexyMessage } from './nexy-provider';
+import { useVoiceMode, type VoiceMode, type VoicePhase } from './use-voice-mode';
+import { spokenReply } from './voice-logic';
 
 const MAX = 2000;
+const READ_ALOUD_KEY = 'nexora.nexy.readAloud';
+
+function loadReadAloud(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(READ_ALOUD_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveReadAloud(on: boolean) {
+  try {
+    localStorage.setItem(READ_ALOUD_KEY, on ? '1' : '0');
+  } catch {
+    // nicht schlimm – gilt dann nur bis zum Neuladen
+  }
+}
+
+/** Wie Nexy im Sprachmodus aussieht */
+function voiceMood(phase: VoicePhase): NexyMood | null {
+  if (phase === 'listening') return 'listening';
+  if (phase === 'speaking') return 'talking';
+  if (phase === 'off') return null;
+  return 'thinking';
+}
+
+const VOICE_STATUS: Record<VoicePhase, string> = {
+  off: '',
+  starting: 'Mikrofon startet …',
+  listening: 'Ich höre zu …',
+  transcribing: 'Ich höre genau hin …',
+  thinking: 'Ich denke nach …',
+  working: 'Ich erledige das …',
+  speaking: 'Nexy spricht …',
+};
 
 const STARTERS = [
   'Neuer Kunde Lisa Wagner, 0171 2345678 – will eine Website für 1.500 €. Erstgespräch Donnerstag 10 Uhr.',
@@ -49,6 +88,9 @@ const STARTERS = [
 /** Nexy – Chat mit dem KI-Assistenten. */
 export function NexyScreen() {
   const { messages, thinking, send, reset } = useNexy();
+  const voice = useVoiceMode();
+  const { stop: stopVoice, stopReading, read } = voice;
+  const [readAloud, setReadAloud] = useState(loadReadAloud);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const wide = width >= SIDEBAR_BREAKPOINT;
@@ -58,6 +100,18 @@ export function NexyScreen() {
   const [text, setText] = useState('');
   // Neue Nachrichten von Nexy tippen sich ein; ältere stehen sofort da
   const [seen] = useState(() => new Set(messages.map((m) => m.id)));
+  const [readIds] = useState(() => new Set(messages.map((m) => m.id)));
+
+  // Bereich verlassen: Zuhören und Vorlesen aus
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        stopVoice();
+        stopReading();
+      },
+      [stopVoice, stopReading],
+    ),
+  );
 
   const submit = (value = text) => {
     const v = value.trim();
@@ -75,7 +129,21 @@ export function NexyScreen() {
   };
 
   const lastNexy = [...messages].reverse().find((m) => m.role === 'nexy');
-  const heroMood: NexyMood = thinking ? 'thinking' : 'idle';
+  const heroMood: NexyMood = voiceMood(voice.phase) ?? (voice.reading ? 'talking' : thinking ? 'thinking' : 'idle');
+
+  // "Vorlesen" an: neue Antworten werden vorgelesen (im Sprachmodus übernimmt das der Sprachmodus)
+  useEffect(() => {
+    if (!lastNexy || readIds.has(lastNexy.id)) return;
+    readIds.add(lastNexy.id);
+    if (readAloud && !voice.active && voice.canSpeak) read(lastNexy.error ? spokenReply(lastNexy) : lastNexy.text);
+  }, [lastNexy, readIds, readAloud, voice.active, voice.canSpeak, read]);
+
+  const toggleReadAloud = () => {
+    const on = !readAloud;
+    setReadAloud(on);
+    saveReadAloud(on);
+    if (!on) stopReading();
+  };
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -83,18 +151,20 @@ export function NexyScreen() {
         ref={scroll}
         style={styles.scroll}
         contentContainerStyle={{ paddingTop: top, paddingBottom: Spacing.xl }}
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
+        // Begrüßung bleibt oben (Nexy im Blick), im Gespräch zur neuesten Nachricht
+        onContentSizeChange={() => messages.length > 0 && scroll.current?.scrollToEnd({ animated: true })}>
         <View style={[styles.inner, { paddingHorizontal: pad }]}>
           {messages.length === 0 ? (
             <View style={styles.hero}>
               <Reveal style={styles.heroFigure}>
-                <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk />
+                <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
               </Reveal>
               <AnimatedTitle text="Hey, ich bin Nexy." style={styles.heroTitle} delay={150} />
               <Reveal delay={350}>
                 <Text style={styles.heroText}>
-                  Erzähl mir, was ansteht. Ich lege Kunden, Aufträge und Ausgaben an, schreibe Angebote und Rechnungen
-                  als PDF und beantworte deine Fragen – du bestätigst, bevor etwas passiert.
+                  Erzähl mir, was ansteht – schreibend oder per Sprache. Ich lege Kunden, Aufträge und Ausgaben an,
+                  schreibe Angebote und Rechnungen als PDF und beantworte deine Fragen – du bestätigst, bevor etwas
+                  passiert.
                 </Text>
               </Reveal>
               <Reveal delay={480}>
@@ -107,12 +177,34 @@ export function NexyScreen() {
             </View>
           ) : (
             <View style={styles.head}>
-              <NexyAvatar size={34} mood={thinking ? 'thinking' : 'idle'} interactive />
+              <NexyAvatar size={34} mood={heroMood} interactive level={voice.level} />
               <View style={styles.headTexts}>
                 <Text style={styles.headTitle}>Nexy</Text>
                 <Text style={styles.headSub}>Dein KI-Assistent</Text>
               </View>
-              <Pressable onPress={reset} accessibilityRole="button" disabled={thinking}>
+              {voice.canSpeak && (
+                <Pressable
+                  onPress={toggleReadAloud}
+                  accessibilityRole="switch"
+                  aria-checked={readAloud}
+                  accessibilityLabel="Antworten vorlesen"
+                  style={[styles.readToggle, readAloud && styles.readToggleOn]}>
+                  {readAloud ? (
+                    <Volume2 size={15} color={Colors.accent} strokeWidth={2} />
+                  ) : (
+                    <VolumeX size={15} color={Colors.textMuted} strokeWidth={2} />
+                  )}
+                  <Text style={[styles.readText, readAloud && styles.readTextOn]}>Vorlesen</Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => {
+                  stopVoice();
+                  stopReading();
+                  reset();
+                }}
+                accessibilityRole="button"
+                disabled={thinking}>
                 <Text style={styles.reset}>Neues Gespräch</Text>
               </Pressable>
             </View>
@@ -122,6 +214,11 @@ export function NexyScreen() {
             m.role === 'user' ? (
               <Animated.View key={m.id} entering={FadeInDown.duration(260)} style={styles.userRow}>
                 <View style={styles.userBubble}>
+                  {m.voice && (
+                    <View style={styles.voiceTag} accessibilityLabel="per Sprache">
+                      <Mic size={12} color={Colors.textFaint} strokeWidth={2.2} />
+                    </View>
+                  )}
                   <Text style={styles.userText}>{m.text}</Text>
                 </View>
               </Animated.View>
@@ -153,30 +250,51 @@ export function NexyScreen() {
       </ScrollView>
 
       <View style={[styles.composerWrap, { paddingHorizontal: pad }]}>
-        <View style={styles.composer}>
-          <TextInput
-            value={text}
-            onChangeText={(v) => setText(v.slice(0, MAX))}
-            placeholder="Schreib Nexy …"
-            placeholderTextColor={Colors.textFaint}
-            multiline
-            onKeyPress={onKeyPress}
-            accessibilityLabel="Nachricht an Nexy"
-            style={styles.input}
-            selectionColor={Colors.text}
-          />
-          <Pressable
-            onPress={() => submit()}
-            disabled={!text.trim() || thinking}
-            accessibilityRole="button"
-            accessibilityLabel="Senden"
-            style={[styles.send, (!text.trim() || thinking) && styles.sendOff]}>
-            <ArrowUp size={18} color={Colors.onAccent} strokeWidth={2.6} />
-          </Pressable>
-        </View>
+        {voice.error && !voice.active && (
+          <Animated.View entering={FadeInDown.duration(220)} style={styles.voiceError} accessibilityRole="alert">
+            <Text style={styles.voiceErrorText}>{voice.error.text}</Text>
+            <Pressable
+              onPress={voice.clearError}
+              accessibilityRole="button"
+              accessibilityLabel="Hinweis schließen"
+              hitSlop={8}>
+              <X size={16} color={Colors.textMuted} strokeWidth={2} />
+            </Pressable>
+          </Animated.View>
+        )}
+        {voice.active ? (
+          <VoicePanel voice={voice} />
+        ) : (
+          <View style={styles.composer}>
+            <TextInput
+              value={text}
+              onChangeText={(v) => setText(v.slice(0, MAX))}
+              placeholder="Schreib Nexy …"
+              placeholderTextColor={Colors.textFaint}
+              multiline
+              onKeyPress={onKeyPress}
+              accessibilityLabel="Nachricht an Nexy"
+              style={styles.input}
+              selectionColor={Colors.text}
+            />
+            {voice.supported && !text.trim() ? (
+              <MicButton onPress={() => void voice.start()} disabled={thinking} />
+            ) : (
+              <Pressable
+                onPress={() => submit()}
+                disabled={!text.trim() || thinking}
+                accessibilityRole="button"
+                accessibilityLabel="Senden"
+                style={[styles.send, (!text.trim() || thinking) && styles.sendOff]}>
+                <ArrowUp size={18} color={Colors.onAccent} strokeWidth={2.6} />
+              </Pressable>
+            )}
+          </View>
+        )}
         <Text style={styles.foot}>
-          {Platform.OS === 'web' && wide ? 'Enter zum Senden · Shift + Enter für neue Zeile · ' : ''}Nexy nutzt Claude (Anthropic): Deine
-          Nachricht und eine Übersicht deiner Kunden, Aufträge und Zahlen werden dafür übertragen.
+          {voice.active
+            ? 'Sag „Ja“ oder „Nein“ zu Vorschlägen und „Stopp“ zum Beenden. Deine Aufnahme wird nur in Text umgewandelt (Groq) und nicht gespeichert.'
+            : `${Platform.OS === 'web' && wide ? 'Enter zum Senden · Shift + Enter für neue Zeile · ' : ''}Nexy nutzt Claude (Anthropic): Deine Nachricht und eine Übersicht deiner Kunden, Aufträge und Zahlen werden dafür übertragen.`}
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -248,6 +366,97 @@ function useTypewriter(text: string, enabled: boolean): string {
     return () => clearInterval(timer);
   }, [animate, text]);
   return animate ? text.slice(0, count) : text;
+}
+
+/** Mikrofon-Knopf im Eingabefeld: startet den Sprachmodus */
+function MicButton({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
+  const { hovered, hoverProps } = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel="Mit Nexy sprechen"
+      {...hoverProps}
+      style={[styles.send, styles.mic, hovered && styles.micHover, disabled && styles.sendOff]}>
+      <Mic size={18} color={Colors.onAccent} strokeWidth={2.4} />
+    </Pressable>
+  );
+}
+
+/** Sprachmodus: Nexy hört zu / denkt / spricht – ersetzt das Eingabefeld */
+function VoicePanel({ voice }: { voice: VoiceMode }) {
+  const { phase } = voice;
+  const mood = voiceMood(phase) ?? 'idle';
+  const canSkip = phase === 'listening' || phase === 'speaking';
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(240)}
+      style={styles.voicePanel}
+      accessibilityLabel="Sprachmodus"
+      testID="nexy-voice-panel">
+      {/* Platz für die Schallringe */}
+      <View style={styles.voiceFigure}>
+        <NexyAvatar size={50} mood={mood} level={voice.level} />
+      </View>
+      <View style={styles.voiceTexts}>
+        <View style={styles.voiceStatusRow}>
+          <Text style={styles.voiceStatus} accessibilityLiveRegion="polite" testID="nexy-voice-status">
+            {VOICE_STATUS[phase]}
+          </Text>
+          {phase === 'listening' && <LevelBars level={voice.level} />}
+          {(phase === 'transcribing' || phase === 'thinking' || phase === 'working' || phase === 'starting') && (
+            <Dots />
+          )}
+        </View>
+        {voice.heard ? (
+          <Text style={styles.voiceHeard} numberOfLines={2}>
+            „{voice.heard}“
+          </Text>
+        ) : (
+          <Text style={styles.voiceHint} numberOfLines={2}>
+            Sprich einfach los – ich merke, wenn du fertig bist.
+          </Text>
+        )}
+      </View>
+      <View style={styles.voiceButtons}>
+        {canSkip && (
+          <Pressable
+            onPress={voice.next}
+            accessibilityRole="button"
+            style={styles.voiceSkip}
+            accessibilityLabel={phase === 'listening' ? 'Fertig, jetzt senden' : 'Nexy unterbrechen'}>
+            <Text style={styles.voiceSkipText}>{phase === 'listening' ? 'Fertig' : 'Unterbrechen'}</Text>
+          </Pressable>
+        )}
+        <Pressable
+          onPress={voice.stop}
+          accessibilityRole="button"
+          accessibilityLabel="Sprachmodus beenden"
+          style={styles.voiceStop}>
+          <X size={18} color={Colors.text} strokeWidth={2.2} />
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+const BAR_WEIGHTS = [0.45, 0.8, 1, 0.7, 0.4];
+
+/** Kleine Pegelanzeige: zeigt, dass Nexy dich hört */
+function LevelBars({ level }: { level: SharedValue<number> }) {
+  return (
+    <View style={styles.bars} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {BAR_WEIGHTS.map((w, i) => (
+        <LevelBar key={i} weight={w} level={level} />
+      ))}
+    </View>
+  );
+}
+
+function LevelBar({ weight, level }: { weight: number; level: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({ height: 4 + Math.min(1, level.get() * weight * 1.4) * 14 }));
+  return <Animated.View style={[styles.bar, style]} />;
 }
 
 function Dots() {
@@ -416,5 +625,85 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendOff: { opacity: 0.35 },
+  mic: { boxShadow: '0 0 0 0 rgba(47,227,154,0)' },
+  micHover: { boxShadow: '0 0 0 5px rgba(47,227,154,0.18)' },
+  voiceTag: {
+    position: 'absolute',
+    top: -7,
+    left: -7,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  readToggleOn: { borderColor: 'rgba(47,227,154,0.45)', backgroundColor: Colors.accentSoft },
+  readText: { color: Colors.textMuted, fontSize: 12.5, fontWeight: '600' },
+  readTextOn: { color: Colors.text },
+  voicePanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(47,227,154,0.45)',
+    backgroundColor: Colors.surface,
+    paddingLeft: Spacing.sm,
+    paddingRight: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.45), 0 0 24px rgba(47,227,154,0.12)',
+  },
+  voiceFigure: { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
+  voiceTexts: { flex: 1, minWidth: 0, gap: 3 },
+  voiceStatusRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  voiceStatus: { color: Colors.text, fontSize: 15.5, fontWeight: '700' },
+  voiceHeard: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 19, fontStyle: 'italic' },
+  voiceHint: { color: Colors.textFaint, fontSize: 13, lineHeight: 18 },
+  voiceButtons: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  voiceSkip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.borderFocus,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  voiceSkipText: { color: Colors.text, fontSize: 13.5, fontWeight: '600' },
+  voiceStop: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bars: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 18 },
+  bar: { width: 3.5, borderRadius: 2, backgroundColor: Colors.accent },
+  voiceError: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.35)',
+    backgroundColor: 'rgba(255,107,107,0.08)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  voiceErrorText: { flex: 1, color: Colors.text, fontSize: 13.5, lineHeight: 19 },
   foot: { color: Colors.textFaint, fontSize: 11.5, lineHeight: 16, textAlign: 'center' },
 });

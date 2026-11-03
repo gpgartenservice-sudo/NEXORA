@@ -22,6 +22,9 @@ import { buildNexyContext } from './nexy-context';
 
 export type NexyResult = { label: string; href?: string; note?: string };
 
+/** Ergebnis von "Ausführen" (für den Sprachmodus) */
+export type ExecuteOutcome = { ok: boolean; results: NexyResult[]; error?: string };
+
 export type NexyMessage = {
   id: string;
   role: 'user' | 'nexy';
@@ -36,15 +39,18 @@ export type NexyMessage = {
   error?: string;
   /** Fehlermeldung, weil Nexy noch nicht eingerichtet ist */
   notSetUp?: boolean;
+  /** per Sprache gesagt */
+  voice?: boolean;
 };
 
 type State = {
   messages: NexyMessage[];
   thinking: boolean;
   executing: string | null;
-  send: (text: string) => Promise<void>;
+  /** Nachricht an Nexy; liefert Nexys Antwort (null bei leerem Text) */
+  send: (text: string, options?: { voice?: boolean }) => Promise<NexyMessage | null>;
   updateProposal: (messageId: string, proposalId: string, change: (p: Proposal) => Proposal) => void;
-  execute: (messageId: string) => Promise<void>;
+  execute: (messageId: string) => Promise<ExecuteOutcome>;
   dismiss: (messageId: string) => void;
   reset: () => void;
   /** Was fehlt, damit ein Vorschlag ausgeführt werden kann? (Zuordnung, Pflichtangaben) */
@@ -104,11 +110,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   );
 
   const send = useCallback(
-    async (raw: string) => {
+    async (raw: string, options?: { voice?: boolean }): Promise<NexyMessage | null> => {
       const text = raw.trim();
-      if (!text) return;
+      if (!text) return null;
       const before = latest.current;
-      setMessages((list) => [...list, { id: nextId(), role: 'user', text }]);
+      setMessages((list) => [...list, { id: nextId(), role: 'user', text, voice: options?.voice || undefined }]);
       setThinking(true);
       const context = buildNexyContext({
         seller: docs.seller,
@@ -121,30 +127,32 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const { data, error, notSetUp } = await askAssistant(text, historyOf(before).slice(-16), context);
       setThinking(false);
       if (error || !data) {
-        setMessages((list) => [
-          ...list,
-          { id: nextId(), role: 'nexy', text: error ?? 'Keine Antwort.', error: error ?? 'Keine Antwort.', notSetUp },
-        ]);
-        return;
+        const failed: NexyMessage = {
+          id: nextId(),
+          role: 'nexy',
+          text: error ?? 'Keine Antwort.',
+          error: error ?? 'Keine Antwort.',
+          notSetUp,
+        };
+        setMessages((list) => [...list, failed]);
+        return failed;
       }
       const proposals = buildProposals(
         data,
         { customers: crm.customers, orders: crm.orders, documents: docs.documents },
         todayIso(),
       );
-      setMessages((list) => [
-        ...list,
-        {
-          id: nextId(),
-          role: 'nexy',
-          text:
-            replyText(data) ??
-            (proposals.length ? 'Das habe ich vorbereitet:' : 'Dazu habe ich gerade nichts für dich.'),
-          proposals,
-          quickReplies: quickReplies(data),
-          status: proposals.length ? 'open' : undefined,
-        },
-      ]);
+      const reply: NexyMessage = {
+        id: nextId(),
+        role: 'nexy',
+        text:
+          replyText(data) ?? (proposals.length ? 'Das habe ich vorbereitet:' : 'Dazu habe ich gerade nichts für dich.'),
+        proposals,
+        quickReplies: quickReplies(data),
+        status: proposals.length ? 'open' : undefined,
+      };
+      setMessages((list) => [...list, reply]);
+      return reply;
     },
     [crm.customers, crm.orders, docs.seller, docs.documents, finance.expenses, social.posts],
   );
@@ -190,9 +198,9 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   );
 
   const execute = useCallback(
-    async (messageId: string) => {
+    async (messageId: string): Promise<ExecuteOutcome> => {
       const message = latest.current.find((m) => m.id === messageId);
-      if (!message?.proposals) return;
+      if (!message?.proposals) return { ok: false, results: [], error: 'Diese Vorschläge gibt es nicht mehr.' };
       setExecuting(messageId);
       const all = message.proposals;
       const already = new Set(message.doneIds ?? []);
@@ -204,9 +212,10 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const newCustomers = new Map<string, Customer>();
       const newOrders = new Map<string, Order>();
 
-      const finish = (error?: string) => {
+      const finish = (error?: string): ExecuteOutcome => {
         setExecuting(null);
         patch(messageId, { results, doneIds, error, status: error ? 'open' : 'done' });
+        return { ok: !error, results, error };
       };
 
       for (const p of chosen) {
@@ -287,7 +296,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         }
         doneIds.push(p.id);
       }
-      finish();
+      return finish();
     },
     [blockers, crm, docs, finance, social, patch],
   );

@@ -82,8 +82,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
-| `src/features/assistant/` | Nexy – **Vorschläge prüfen/zuordnen in `assistant-logic.ts`**, Übersicht für die KI in `nexy-context.ts`, Figur in `nexy-avatar.tsx` |
-| `supabase/functions/assistant/` | Server-Funktion von Nexy (Claude), läuft bei Supabase |
+| `src/features/assistant/` | Nexy – **Vorschläge prüfen/zuordnen in `assistant-logic.ts`**, Übersicht für die KI in `nexy-context.ts`, Figur in `nexy-avatar.tsx`, Sprachmodus in `use-voice-mode.ts` (Pausen-Erkennung, Sprachbefehle, Vorlesetext: `voice-logic.ts`; Mikrofon/Stimme: `voice.ts`) |
+| `supabase/functions/assistant/` | Server-Funktion von Nexy (Claude; Spracherkennung über Groq Whisper), läuft bei Supabase |
 | `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`** |
 | `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis |
 | `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
@@ -124,6 +124,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Social Media: Content-Board (Status aus erledigten Schritten je Format), Wochenplan, Zahlen pro Post mit Interaktionsrate, Hashtag-Sets, Caption-Zähler, Text kopieren
 - ⏳ TikTok & Instagram verbinden (Knopf zeigt „kommt bald“)
 - ✅ Nexy (KI-Assistent) mit animierter Figur (schaut der Maus nach, freut sich bei Hover, Stupser mit Funken und Sprechblase, wird schläfrig): Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt – alles erst nach Bestätigung. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
+- ✅ Nexy-Sprachmodus: Mikrofon-Knopf, Nexy hört zu (Schallringe + Pegel), merkt an der Pause, wann du fertig bist, antwortet laut mit deutscher Systemstimme (Mund bewegt sich) und hört wieder zu; „Ja“/„Nein“ bestätigt bzw. verwirft Vorschläge, „Stopp“ beendet; „Fertig“, „Unterbrechen“, Schalter „Vorlesen“ auch fürs Schreiben. Spracherkennung über Groq (Geheimnis `GROQ_API_KEY`, siehe `supabase/README.md`)
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge

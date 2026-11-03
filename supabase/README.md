@@ -80,6 +80,33 @@ Fertig – in der App links **Nexy** öffnen und losschreiben.
 
 **Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
 
+### Sprachmodus (mit Nexy sprechen)
+
+Im Eingabefeld von Nexy gibt es einen **Mikrofon-Knopf**. Dann hört Nexy zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge bestätigst du mit „Ja“ (oder verwirfst sie mit „Nein“), „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
+
+Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Vorgelesen wird mit den Stimmen deines Mac bzw. Browsers (kostenlos).
+
+**1. Groq-Schlüssel holen**
+
+1. Auf [console.groq.com](https://console.groq.com) registrieren bzw. anmelden.
+2. Links **API Keys** → **Create API Key** (Name z. B. `NEXORA`) und den Schlüssel kopieren – er beginnt mit `gsk_`.
+
+> Auch diesen Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
+
+**2. Als Geheimnis speichern:** **Edge Functions → Secrets** → Name `GROQ_API_KEY`, Wert = dein Schlüssel → **Save**.
+
+**3. Neue Version der Funktion einspielen:** **Edge Functions → assistant → Code** → Inhalt komplett durch [`functions/assistant/index.ts`](functions/assistant/index.ts) ersetzen → **Deploy** (der Sprachmodus ist erst in der neuen Version drin).
+
+**Mac-App:** Beim ersten Start des Sprachmodus fragt macOS, ob NEXORA das Mikrofon benutzen darf → **Erlauben**. Falls versehentlich abgelehnt: **Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon** → NEXORA einschalten (beim Start über `npm run mac` heißt der Eintrag „Terminal“ bzw. „Electron“) und die App neu starten.
+
+**Schönere Stimme (Mac):** **Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten …** → unter Deutsch z. B. **Anna (Premium)** oder **Petra (Premium)** laden. Nexy nimmt automatisch die beste deutsche Stimme.
+
+**Falls es nicht klappt:** Die App zeigt einen Hinweis, was fehlt („GROQ_API_KEY fehlt“, „alte Version der Server-Funktion“, „Mikrofon blockiert“). Details stehen unter **Edge Functions → assistant → Logs**. Optional: Geheimnis `TRANSCRIBE_MODEL` = `whisper-large-v3` (etwas genauer, etwas langsamer als der Standard `whisper-large-v3-turbo`).
+
+**Kosten:** Groq hat einen kostenlosen Einstieg mit Tageslimits; danach kostet die Spracherkennung nach Audio-Dauer nur einen Bruchteil eines Cents pro Nachricht (aktuelle Preise: groq.com/pricing). Dazu kommt wie beim Schreiben die Antwort von Claude.
+
+**Datenschutz:** Die Sprachaufnahme wird nur zur Umwandlung in Text an Groq (USA) übertragen; NEXORA speichert sie nicht. Auch das gehört in die Datenschutzerklärung.
+
 ## 5. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
@@ -89,4 +116,4 @@ Vor dem Start mit echten Nutzern braucht ihr einen eigenen Versand (**Authentica
 ## Sicherheit
 
 - In der App steht nur der **Publishable Key** (`.env`). Der ist öffentlich und darf in die App.
-- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`, nur als Supabase-Geheimnis).
+- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`) und Groq-Schlüssel (`gsk_…`) – die beiden Schlüssel nur als Supabase-Geheimnis.

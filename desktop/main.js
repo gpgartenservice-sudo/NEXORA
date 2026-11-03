@@ -9,7 +9,7 @@
  * Mit Live-Neuladen beim Entwickeln: erst `npm run web`, dann in einem
  * zweiten Terminal `npm run mac:dev`.
  */
-const { app, BrowserWindow, ipcMain, net, protocol, shell, ShareMenu } = require('electron');
+const { app, BrowserWindow, ipcMain, net, protocol, session, shell, ShareMenu, systemPreferences } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -87,6 +87,33 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
   return { filePath };
 });
 
+// ---------------------------------------------------------------------------
+// Mikrofon (Sprachmodus von Nexy): nur für die App selbst und nur Ton.
+// Auf dem Mac fragt das System beim ersten Mal nach der Erlaubnis.
+// ---------------------------------------------------------------------------
+function isAppUrl(url) {
+  return typeof url === 'string' && (url.startsWith(APP_URL) || (!!DEV_URL && url.startsWith(DEV_URL)));
+}
+
+ipcMain.handle('nexora:ask-microphone', async (event) => {
+  if (!fromApp(event)) throw new Error('Nicht erlaubt');
+  if (process.platform !== 'darwin') return true;
+  const status = systemPreferences.getMediaAccessStatus('microphone');
+  if (status === 'granted') return true;
+  if (status === 'denied' || status === 'restricted') return false;
+  return systemPreferences.askForMediaAccess('microphone');
+});
+
+function allowPermission(permission, url, details = {}) {
+  if (!isAppUrl(url)) return false;
+  if (permission === 'media') {
+    // nur Mikrofon, keine Kamera
+    if (Array.isArray(details.mediaTypes)) return details.mediaTypes.length > 0 && details.mediaTypes.every((t) => t === 'audio');
+    return details.mediaType !== 'video';
+  }
+  return true;
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -134,6 +161,12 @@ app.whenReady().then(() => {
     }
     protocol.handle('app', serveDist);
   }
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) =>
+    callback(allowPermission(permission, details?.requestingUrl, details)),
+  );
+  session.defaultSession.setPermissionCheckHandler((_wc, permission, origin, details) =>
+    allowPermission(permission, details?.requestingUrl || (origin ? `${origin}/` : ''), details),
+  );
   createWindow();
 
   // Mac: Klick aufs Dock-Symbol öffnet wieder ein Fenster

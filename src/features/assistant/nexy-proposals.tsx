@@ -202,7 +202,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
           <Button label="Verwerfen" variant="secondary" onPress={() => dismiss(message.id)} style={styles.flex} />
           <Button
             label={chosen.length ? `Ausführen (${chosen.length})` : 'Nichts ausgewählt'}
-            onPress={() => execute(message.id)}
+            onPress={() => void execute(message.id)}
             loading={executing === message.id}
             disabled={!chosen.length || blocked || (executing !== null && executing !== message.id)}
             style={styles.flex}

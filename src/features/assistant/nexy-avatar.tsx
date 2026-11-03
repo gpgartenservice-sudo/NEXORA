@@ -18,7 +18,7 @@ import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-na
 
 import { Colors } from '@/constants/theme';
 
-export type NexyMood = 'idle' | 'thinking' | 'happy';
+export type NexyMood = 'idle' | 'thinking' | 'happy' | 'listening' | 'talking';
 
 type Props = {
   size?: number;
@@ -29,6 +29,8 @@ type Props = {
   interactive?: boolean;
   /** Kleine Sprechblase beim Anstupsen (für die große Figur) */
   talk?: boolean;
+  /** Lautstärke am Mikrofon 0..1 (beim Zuhören) */
+  level?: SharedValue<number>;
 };
 
 const EYE = '#F2FFF9';
@@ -47,10 +49,19 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
  * - Hover: freut sich (^^), Klick: wird zusammengedrückt, Funken + Sprechblase
  * - Schwebt (mit Schatten), atmet, blinzelt, die Antenne wippt nach
  * - Nachdenken: Punkte kreisen, Mund "o"; erledigt: strahlt
+ * - Zuhören: große Augen, Schallringe und Antenne folgen der Stimme
+ * - Sprechen: der Mund bewegt sich
  * - Ohne Mausbewegung wird Nexy irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Nexy ruhig
  */
-export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, interactive = false, talk = false }: Props) {
+export function NexyAvatar({
+  size: S = 40,
+  mood = 'idle',
+  animate = true,
+  interactive = false,
+  talk = false,
+  level,
+}: Props) {
   const reduce = useReducedMotion();
   const moving = animate && !reduce;
   const tracking = moving && Platform.OS === 'web';
@@ -70,17 +81,25 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
   const jump = useSharedValue(0);
   const burst = useSharedValue(1);
   const sway = useSharedValue(0);
+  const mouthOpen = useSharedValue(0);
+  const attentive = useSharedValue(0);
+  const noLevel = useSharedValue(0);
+  const voice = level ?? noLevel;
 
   // Zustände, die das Aussehen umschalten
   const [hovered, setHovered] = useState(false);
   const [booped, setBooped] = useState(false);
-  const [sleepy, setSleepy] = useState(false);
+  const [drowsy, setDrowsy] = useState(false);
   const [speech, setSpeech] = useState<string | null>(null);
   const lastMove = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const happy = mood === 'happy' || hovered || booped;
   const thinking = mood === 'thinking';
+  const listening = mood === 'listening';
+  const talking = mood === 'talking';
+  // nur im Ruhezustand schläfrig (beim Zuhören/Sprechen bewegt niemand die Maus)
+  const sleepy = drowsy && mood === 'idle';
 
   // Grundbewegung: schweben, atmen, blinzeln, leuchten, Antenne
   useEffect(() => {
@@ -98,19 +117,31 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
     const d = S * 0.04;
     float.set(
       withRepeat(
-        withSequence(withTiming(-d, { duration: 1700 * slow, easing: ease }), withTiming(d, { duration: 1700 * slow, easing: ease })),
+        withSequence(
+          withTiming(-d, { duration: 1700 * slow, easing: ease }),
+          withTiming(d, { duration: 1700 * slow, easing: ease }),
+        ),
         -1,
         true,
       ),
     );
     breathe.set(
       withRepeat(
-        withSequence(withTiming(1, { duration: 1700 * slow, easing: ease }), withTiming(0, { duration: 1700 * slow, easing: ease })),
+        withSequence(
+          withTiming(1, { duration: 1700 * slow, easing: ease }),
+          withTiming(0, { duration: 1700 * slow, easing: ease }),
+        ),
         -1,
         true,
       ),
     );
-    sway.set(withRepeat(withSequence(withTiming(5, { duration: 1300, easing: ease }), withTiming(-5, { duration: 1300, easing: ease })), -1, true));
+    sway.set(
+      withRepeat(
+        withSequence(withTiming(5, { duration: 1300, easing: ease }), withTiming(-5, { duration: 1300, easing: ease })),
+        -1,
+        true,
+      ),
+    );
     blink.set(
       sleepy
         ? 1
@@ -127,7 +158,9 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
           ),
     );
     if (thinking) {
-      glow.set(withRepeat(withSequence(withTiming(1, { duration: 600 }), withTiming(0.6, { duration: 600 })), -1, true));
+      glow.set(
+        withRepeat(withSequence(withTiming(1, { duration: 600 }), withTiming(0.6, { duration: 600 })), -1, true),
+      );
       spin.set(0);
       spin.set(withRepeat(withTiming(360, { duration: 1400, easing: Easing.linear }), -1));
     } else {
@@ -147,10 +180,48 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
   // Freude bei "happy" (z. B. nach dem Ausführen)
   useEffect(() => {
     if (!moving || mood !== 'happy') return;
-    jump.set(withSequence(withTiming(-S * 0.14, { duration: 180, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 7, stiffness: 220 })));
+    jump.set(
+      withSequence(
+        withTiming(-S * 0.14, { duration: 180, easing: Easing.out(Easing.quad) }),
+        withSpring(0, { damping: 7, stiffness: 220 }),
+      ),
+    );
     burst.set(0);
     burst.set(withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
   }, [mood, moving, S, jump, burst]);
+
+  // Zuhören: aufmerksam (große Augen)
+  useEffect(() => {
+    attentive.set(moving ? withSpring(listening ? 1 : 0, SPRING) : listening ? 1 : 0);
+  }, [listening, moving, attentive]);
+
+  // Sprechen: Mund geht auf und zu
+  useEffect(() => {
+    cancelAnimation(mouthOpen);
+    if (!talking) {
+      mouthOpen.set(moving ? withTiming(0, { duration: 160 }) : 0);
+      return;
+    }
+    if (!moving) {
+      mouthOpen.set(0.5);
+      return;
+    }
+    mouthOpen.set(
+      withRepeat(
+        withSequence(
+          withTiming(0.95, { duration: 110 }),
+          withTiming(0.3, { duration: 90 }),
+          withTiming(0.75, { duration: 120 }),
+          withTiming(0.15, { duration: 140 }),
+          withTiming(1, { duration: 100 }),
+          withTiming(0.45, { duration: 110 }),
+          withTiming(0.8, { duration: 90 }),
+          withTiming(0.1, { duration: 180 }),
+        ),
+        -1,
+      ),
+    );
+  }, [talking, moving, mouthOpen]);
 
   // Blick: der Maus folgen (Mac/Web), sonst ab und zu umherschauen
   useEffect(() => {
@@ -199,12 +270,15 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
 
     const scheduleSleep = () => {
       clearTimeout(sleepTimer);
-      sleepTimer = setTimeout(() => setSleepy(true), 25000);
+      sleepTimer = setTimeout(() => setDrowsy(true), 25000);
     };
     const onMove = (e: PointerEvent) => {
       lastMove.current = Date.now();
-      setSleepy((was) => {
-        if (was) jump.set(withSequence(withTiming(-S * 0.12, { duration: 140 }), withSpring(0, { damping: 8, stiffness: 240 })));
+      setDrowsy((was) => {
+        if (was)
+          jump.set(
+            withSequence(withTiming(-S * 0.12, { duration: 140 }), withSpring(0, { damping: 8, stiffness: 240 })),
+          );
         return false;
       });
       scheduleSleep();
@@ -248,7 +322,7 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
 
   /** Stupser: zusammendrücken, hüpfen, Funken, kurz strahlen (+ Sprechblase) */
   const boop = useCallback(() => {
-    setSleepy(false);
+    setDrowsy(false);
     setBooped(true);
     if (talk) setSpeech(REACTIONS[Math.floor(Math.random() * REACTIONS.length)]);
     timers.current.push(
@@ -270,35 +344,51 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
 
   // --- Stile ---
   const bodyStyle = useAnimatedStyle(() => {
-    const tilt = lookX.get() * (3 + near.get() * 6);
+    const tilt = lookX.get() * (3 + near.get() * 6) + (mouthOpen.get() - 0.5) * (mouthOpen.get() > 0 ? 2 : 0);
+    const swell = 1 + voice.get() * 0.04 * attentive.get();
     return {
       transform: [
         { translateX: lookX.get() * S * 0.03 * (0.4 + near.get()) },
-        { translateY: float.get() + jump.get() },
+        { translateY: float.get() + jump.get() - mouthOpen.get() * S * 0.012 },
         { rotate: `${tilt}deg` },
-        { scaleX: squashX.get() * (1 - breathe.get() * 0.012) },
-        { scaleY: squashY.get() * (1 + breathe.get() * 0.022) },
+        { scaleX: squashX.get() * (1 - breathe.get() * 0.012) * swell },
+        { scaleY: squashY.get() * (1 + breathe.get() * 0.022) * swell },
       ],
     };
   });
   const shadowStyle = useAnimatedStyle(() => {
     const lift = (float.get() + jump.get()) / (S * 0.2); // negativ = höher
-    return { opacity: clamp(0.55 + lift * 0.9, 0.15, 0.75), transform: [{ scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) }] };
+    return {
+      opacity: clamp(0.55 + lift * 0.9, 0.15, 0.75),
+      transform: [{ scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) }],
+    };
   });
-  const glowStyle = useAnimatedStyle(() => ({ opacity: clamp(glow.get() + near.get() * 0.25, 0, 1) }));
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: clamp(glow.get() + near.get() * 0.25 + voice.get() * 0.5 * attentive.get() + mouthOpen.get() * 0.2, 0, 1),
+  }));
   const faceStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: lookX.get() * S * 0.07 }, { translateY: lookY.get() * S * 0.05 }],
   }));
   const eyeStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleY: blink.get() * (sleepy ? 0.42 : 1 + near.get() * 0.08) }, { scaleX: 1 + near.get() * 0.06 }],
+    transform: [
+      { scaleY: blink.get() * (sleepy ? 0.42 : 1 + near.get() * 0.08 + attentive.get() * 0.12) },
+      { scaleX: 1 + near.get() * 0.06 + attentive.get() * 0.06 },
+    ],
   }));
   const pupilStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: lookX.get() * S * 0.036 }, { translateY: lookY.get() * S * 0.042 }, { scale: 1 + near.get() * 0.12 }],
+    transform: [
+      { translateX: lookX.get() * S * 0.036 },
+      { translateY: lookY.get() * S * 0.042 },
+      { scale: 1 + near.get() * 0.12 + attentive.get() * 0.14 },
+    ],
   }));
   const antennaStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${sway.get() - lookX.get() * 14 + jump.get() * 0.6}deg` }],
   }));
   const orbitStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.get()}deg` }] }));
+  const tipStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + voice.get() * 0.8 * attentive.get() + attentive.get() * 0.12 + mouthOpen.get() * 0.15 }],
+  }));
 
   // --- Maße ---
   const eyeW = S * 0.19;
@@ -315,17 +405,29 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
       {S >= 80 && (
         <Animated.View
           pointerEvents="none"
-          style={[styles.shadow, { width: S * 0.62, height: S * 0.1, left: S * 0.19, top: S * 1.08, borderRadius: S }, shadowStyle]}
+          style={[
+            styles.shadow,
+            { width: S * 0.62, height: S * 0.1, left: S * 0.19, top: S * 1.08, borderRadius: S },
+            shadowStyle,
+          ]}
         />
       )}
+      {/* Zuhören: Schallringe, die der Stimme folgen */}
+      {listening &&
+        S >= 50 &&
+        [0, 1].map((i) => <SoundRing key={i} index={i} size={S} level={voice} breathe={breathe} />)}
       <Animated.View style={[StyleSheet.absoluteFill, bodyStyle]}>
         {/* Antenne */}
         {detail && (
           <Animated.View
             pointerEvents="none"
-            style={[styles.antenna, { left: S / 2 - S * 0.02, top: -S * 0.15, width: S * 0.04, height: S * 0.2 }, antennaStyle]}>
+            style={[
+              styles.antenna,
+              { left: S / 2 - S * 0.02, top: -S * 0.15, width: S * 0.04, height: S * 0.2 },
+              antennaStyle,
+            ]}>
             <View style={[styles.stem, { width: S * 0.04, borderRadius: S * 0.02 }]} />
-            <View
+            <Animated.View
               style={[
                 styles.tip,
                 {
@@ -336,6 +438,7 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
                   top: -S * 0.06,
                   boxShadow: `0 0 ${S * 0.12}px rgba(47,227,154,0.9)`,
                 },
+                tipStyle,
               ]}
             />
           </Animated.View>
@@ -343,7 +446,11 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
         {/* Leuchten */}
         <Animated.View
           pointerEvents="none"
-          style={[styles.glow, { borderRadius: S / 2, boxShadow: `0 0 ${S * 0.45}px ${S * 0.08}px rgba(47,227,154,0.45)` }, glowStyle]}
+          style={[
+            styles.glow,
+            { borderRadius: S / 2, boxShadow: `0 0 ${S * 0.45}px ${S * 0.08}px rgba(47,227,154,0.45)` },
+            glowStyle,
+          ]}
         />
         {/* Körper */}
         <Svg width={S} height={S} style={StyleSheet.absoluteFill}>
@@ -391,16 +498,31 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
                     key={i}
                     style={[
                       styles.eye,
-                      { width: eyeW, height: eyeH, borderRadius: eyeW / 2, boxShadow: `0 0 ${S * 0.09}px rgba(242,255,249,0.45)` },
+                      {
+                        width: eyeW,
+                        height: eyeH,
+                        borderRadius: eyeW / 2,
+                        boxShadow: `0 0 ${S * 0.09}px rgba(242,255,249,0.45)`,
+                      },
                       eyeStyle,
                     ]}>
                     <Animated.View
                       testID={i === 0 ? 'nexy-pupil' : undefined}
-                      style={[styles.pupil, { width: pupil, height: pupil * 1.15, borderRadius: pupil / 2 }, pupilStyle]}>
+                      style={[
+                        styles.pupil,
+                        { width: pupil, height: pupil * 1.15, borderRadius: pupil / 2 },
+                        pupilStyle,
+                      ]}>
                       <View
                         style={[
                           styles.shine,
-                          { width: pupil * 0.38, height: pupil * 0.38, borderRadius: pupil, top: pupil * 0.16, left: pupil * 0.16 },
+                          {
+                            width: pupil * 0.38,
+                            height: pupil * 0.38,
+                            borderRadius: pupil,
+                            top: pupil * 0.16,
+                            left: pupil * 0.16,
+                          },
                         ]}
                       />
                     </Animated.View>
@@ -428,15 +550,22 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
                 />
               ))}
               {/* Mund */}
-              <View style={[styles.mouth, { top: S * 0.6, left: S / 2 - mouthW / 2, width: mouthW, height: mouthW * 0.7 }]}>
-                <Mouth kind={sleepy ? 'line' : thinking ? 'o' : happy ? 'grin' : 'smile'} w={mouthW} s={S} />
+              <View
+                style={[styles.mouth, { top: S * 0.6, left: S / 2 - mouthW / 2, width: mouthW, height: mouthW * 0.7 }]}>
+                {talking ? (
+                  <TalkMouth open={mouthOpen} w={mouthW} s={S} />
+                ) : (
+                  <Mouth kind={sleepy ? 'line' : thinking ? 'o' : happy ? 'grin' : 'smile'} w={mouthW} s={S} />
+                )}
               </View>
             </>
           )}
         </Animated.View>
         {/* Schläfrig: kleines z */}
         {sleepy && S >= 60 && (
-          <Animated.Text entering={FadeIn.duration(600)} style={[styles.z, { right: -S * 0.05, top: -S * 0.08, fontSize: S * 0.16 }]}>
+          <Animated.Text
+            entering={FadeIn.duration(600)}
+            style={[styles.z, { right: -S * 0.05, top: -S * 0.08, fontSize: S * 0.16 }]}>
             z
           </Animated.Text>
         )}
@@ -464,7 +593,10 @@ export function NexyAvatar({ size: S = 40, mood = 'idle', animate = true, intera
       {moving && [0, 1, 2, 3, 4, 5].map((i) => <Sparkle key={i} index={i} size={S} burst={burst} />)}
       {/* Sprechblase */}
       {speech && (
-        <Animated.View entering={FadeIn.duration(180)} style={[styles.bubble, { left: S * 0.82, top: -S * 0.12 }]} pointerEvents="none">
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          style={[styles.bubble, { left: S * 0.82, top: -S * 0.12 }]}
+          pointerEvents="none">
           <Text style={styles.bubbleText} numberOfLines={1}>
             {speech}
           </Text>
@@ -508,10 +640,74 @@ function Mouth({ kind, w, s }: { kind: 'smile' | 'grin' | 'o' | 'line'; w: numbe
             <Ellipse cx={w / 2} cy={h * 0.55} rx={w * 0.17} ry={h * 0.13} fill={CHEEK} opacity={0.9} />
           </>
         )}
-        {kind === 'o' && <Ellipse cx={w / 2} cy={h * 0.45} rx={w * 0.16} ry={h * 0.2} stroke={EYE} strokeWidth={sw} fill="none" />}
-        {kind === 'line' && <Path d={`M ${w * 0.3} ${h * 0.4} L ${w * 0.7} ${h * 0.4}`} stroke={EYE} strokeWidth={sw} strokeLinecap="round" />}
+        {kind === 'o' && (
+          <Ellipse cx={w / 2} cy={h * 0.45} rx={w * 0.16} ry={h * 0.2} stroke={EYE} strokeWidth={sw} fill="none" />
+        )}
+        {kind === 'line' && (
+          <Path
+            d={`M ${w * 0.3} ${h * 0.4} L ${w * 0.7} ${h * 0.4}`}
+            stroke={EYE}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        )}
       </Svg>
     </View>
+  );
+}
+
+/** Offener Mund beim Sprechen – geht im Takt auf und zu */
+function TalkMouth({ open, w, s }: { open: SharedValue<number>; w: number; s: number }) {
+  const sw = Math.max(1, s * 0.022);
+  // offener Mund ist größer als das Lächeln, damit man ihn auch bei kleiner Figur sieht
+  const mw = w * 1.1;
+  const mh = w * 0.92;
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scaleY: 0.16 + open.get() * 0.84 }, { scaleX: 1 - open.get() * 0.14 }],
+  }));
+  return (
+    <View
+      testID="nexy-mouth-talk"
+      style={{ width: w, height: w * 0.7, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={[styles.talkMouth, { width: mw, height: mh, borderRadius: mw / 2, borderWidth: sw }, style]}>
+        <View
+          style={[
+            styles.tongue,
+            { width: mw * 0.62, height: mh * 0.42, borderTopLeftRadius: mw, borderTopRightRadius: mw },
+          ]}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Ring um Nexy beim Zuhören – wird mit der Stimme größer und heller */
+function SoundRing({
+  index,
+  size: S,
+  level,
+  breathe,
+}: {
+  index: number;
+  size: number;
+  level: SharedValue<number>;
+  breathe: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => {
+    const l = level.get();
+    return {
+      opacity: clamp(0.16 + l * 0.85 - index * 0.07, 0, 0.85),
+      // höchstens ~1,4-fach, damit die Ringe nichts in der Nähe überdecken
+      transform: [{ scale: 1.06 + index * 0.12 + breathe.get() * 0.02 + l * (0.14 + index * 0.08) }],
+    };
+  });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      testID={index === 0 ? 'nexy-sound-ring' : undefined}
+      style={[styles.ring, { width: S, height: S, borderRadius: S / 2, borderWidth: Math.max(1.5, S * 0.018) }, style]}
+    />
   );
 }
 
@@ -537,7 +733,13 @@ function Sparkle({ index, size: S, burst }: { index: number; size: number; burst
       pointerEvents="none"
       style={[
         styles.sparkle,
-        { width: d, height: d, left: S / 2 - d / 2, top: S / 2 - d / 2, backgroundColor: index % 3 === 0 ? CHEEK : Colors.accent },
+        {
+          width: d,
+          height: d,
+          left: S / 2 - d / 2,
+          top: S / 2 - d / 2,
+          backgroundColor: index % 3 === 0 ? CHEEK : Colors.accent,
+        },
         style,
       ]}
     />
@@ -545,7 +747,15 @@ function Sparkle({ index, size: S, burst }: { index: number; size: number; burst
 }
 
 /** Mini-Nexy als Symbol (z. B. in der Seitenleiste) – passt zu den übrigen Symbolen. */
-export function NexyGlyph({ size = 18, color = Colors.text, strokeWidth = 1.8 }: { size?: number; color?: string; strokeWidth?: number }) {
+export function NexyGlyph({
+  size = 18,
+  color = Colors.text,
+  strokeWidth = 1.8,
+}: {
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+}) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path d="M12 2.6 L12 4.4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
@@ -553,19 +763,36 @@ export function NexyGlyph({ size = 18, color = Colors.text, strokeWidth = 1.8 }:
       <Circle cx={12} cy={13} r={8.6} fill="none" stroke={color} strokeWidth={strokeWidth} />
       <Ellipse cx={9.2} cy={12} rx={1.5} ry={1.9} fill={color} />
       <Ellipse cx={14.8} cy={12} rx={1.5} ry={1.9} fill={color} />
-      <Path d="M10.4 15.6 Q12 16.9 13.6 15.6" stroke={color} strokeWidth={strokeWidth * 0.8} strokeLinecap="round" fill="none" />
+      <Path
+        d="M10.4 15.6 Q12 16.9 13.6 15.6"
+        stroke={color}
+        strokeWidth={strokeWidth * 0.8}
+        strokeLinecap="round"
+        fill="none"
+      />
     </Svg>
   );
 }
 
 const styles = StyleSheet.create({
   press: { alignSelf: 'center' },
-  shadow: { position: 'absolute', backgroundColor: 'rgba(47,227,154,0.22)', boxShadow: '0 0 18px rgba(47,227,154,0.35)' },
+  shadow: {
+    position: 'absolute',
+    backgroundColor: 'rgba(47,227,154,0.22)',
+    boxShadow: '0 0 18px rgba(47,227,154,0.35)',
+  },
   glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(47,227,154,0.08)' },
   antenna: { position: 'absolute', transformOrigin: 'bottom' },
   stem: { flex: 1, backgroundColor: Colors.accent, opacity: 0.85 },
   tip: { position: 'absolute', backgroundColor: Colors.accent },
-  eyes: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start' },
+  eyes: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
   eye: { backgroundColor: EYE, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   pupil: { backgroundColor: PUPIL },
   shine: { position: 'absolute', backgroundColor: '#FFFFFF' },
@@ -575,6 +802,15 @@ const styles = StyleSheet.create({
   orbit: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', borderRadius: 999, backgroundColor: Colors.accent },
   sparkle: { position: 'absolute', borderRadius: 2 },
+  talkMouth: {
+    backgroundColor: '#06140F',
+    borderColor: EYE,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  tongue: { backgroundColor: CHEEK, opacity: 0.9 },
+  ring: { position: 'absolute', top: 0, left: 0, borderColor: Colors.accent },
   bubble: {
     position: 'absolute',
     borderRadius: 14,
