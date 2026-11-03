@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Download, FileText, Receipt, Send } from 'lucide-react-native';
+import { BellRing, Download, FileText, Receipt, Send, Star } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -11,6 +11,8 @@ import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Customer, Order } from '@/features/crm/crm-provider';
+import { DunningPanel, ReviewPanel } from '@/features/dunning/dunning-panel';
+import { useFollowups } from '@/features/dunning/followups-provider';
 
 import {
   formatDay,
@@ -31,7 +33,11 @@ type Props = {
   /** Gespeicherter Stand: Steht der Auftrag schon auf "Angebot verschickt"? */
   offerSent: boolean;
   onMarkOfferSent: () => Promise<{ error?: string }>;
+  /** Mahnen für diese Rechnung gleich aufklappen (z. B. aus Finanzen) */
+  openDunningFor?: string;
 };
+
+type Panel = 'send' | 'dunning' | 'review';
 
 function monthRange(today = todayIso()) {
   const [y, m] = today.split('-').map(Number);
@@ -41,7 +47,7 @@ function monthRange(today = todayIso()) {
 }
 
 /** Angebote und Rechnungen zu einem Auftrag: erstellen, als PDF speichern, verschicken, bezahlt markieren. */
-export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOfferSent }: Props) {
+export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOfferSent, openDunningFor }: Props) {
   const { seller, error, issue, setPaid, documentsFor, logoFor } = useDocuments();
   const docs = documentsFor(order.id);
   const monthly = order.billing === 'monthly';
@@ -52,8 +58,12 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
   const [period, setPeriod] = useState(monthRange());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
-  /** Bei welchem Dokument ist "Senden" aufgeklappt? */
-  const [sending, setSending] = useState<string | null>(null);
+  /** Bei welchem Dokument ist was aufgeklappt (Senden, Mahnen, Bewertung)? */
+  const [open, setOpen] = useState<{ id: string; panel: Panel } | null>(
+    openDunningFor ? { id: openDunningFor, panel: 'dunning' } : null,
+  );
+  const toggle = (id: string, panel: Panel) =>
+    setOpen((o) => (o?.id === id && o.panel === panel ? null : { id, panel }));
 
   const blockers = (kind: DocumentKind): string[] => {
     const list: string[] = [];
@@ -83,7 +93,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
     setBusy(false);
     setComposing(null);
     // gleich die Versand-Möglichkeiten zeigen
-    setSending(data.id);
+    setOpen({ id: data.id, panel: 'send' });
     setMessage(
       pdf.error
         ? { tone: 'error', text: `${data.number} wurde erstellt. ${pdf.error}` }
@@ -126,9 +136,13 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
                 )
               }
               onPaid={(paid) => setPaid(d.id, paid)}
-              sendOpen={sending === d.id}
-              onToggleSend={() => setSending((id) => (id === d.id ? null : d.id))}>
-              <SendPanel doc={d} customer={customer} offerSent={offerSent} onMarkOfferSent={onMarkOfferSent} />
+              panel={open?.id === d.id ? open.panel : null}
+              onToggle={(panel) => toggle(d.id, panel)}>
+              {open?.id === d.id && open.panel === 'send' && (
+                <SendPanel doc={d} customer={customer} offerSent={offerSent} onMarkOfferSent={onMarkOfferSent} />
+              )}
+              {open?.id === d.id && open.panel === 'dunning' && <DunningPanel doc={d} customer={customer} />}
+              {open?.id === d.id && open.panel === 'review' && <ReviewPanel doc={d} customer={customer} />}
             </DocumentRow>
           ))}
         </View>
@@ -215,20 +229,26 @@ function DocumentRow({
   doc,
   onSave,
   onPaid,
-  sendOpen,
-  onToggleSend,
+  panel,
+  onToggle,
   children,
 }: {
   doc: StoredDocument;
   onSave: () => void;
   onPaid: (paid: boolean) => void;
-  sendOpen: boolean;
-  onToggleSend: () => void;
-  /** Versand-Feld, wird bei "Senden" aufgeklappt */
+  /** was gerade aufgeklappt ist */
+  panel: Panel | null;
+  onToggle: (panel: Panel) => void;
+  /** aufgeklapptes Feld (Senden, Mahnen, Bewertung) */
   children: ReactNode;
 }) {
+  const { followups } = useFollowups();
   const isInvoice = doc.kind === 'invoice';
   const state = isInvoice ? invoiceState(doc) : null;
+  const sendOpen = panel !== null;
+  // Mahnen: überfällig oder schon im Mahnablauf
+  const dunning =
+    state === 'overdue' || (state === 'open' && followups.some((f) => f.document_id === doc.id && f.kind !== 'review'));
   const Icon = isInvoice ? Receipt : FileText;
   return (
     <View style={[styles.doc, sendOpen && styles.docOpen]}>
@@ -270,9 +290,27 @@ function DocumentRow({
           icon={Send}
           label="Senden"
           accessibilityLabel={`${doc.number} verschicken`}
-          onPress={onToggleSend}
-          active={sendOpen}
+          onPress={() => onToggle('send')}
+          active={panel === 'send'}
         />
+        {dunning && (
+          <ActionChip
+            icon={BellRing}
+            label="Mahnen"
+            accessibilityLabel={`${doc.number} anmahnen`}
+            onPress={() => onToggle('dunning')}
+            active={panel === 'dunning'}
+          />
+        )}
+        {state === 'paid' && (
+          <ActionChip
+            icon={Star}
+            label="Bewertung"
+            accessibilityLabel={`Zu ${doc.number} um eine Bewertung bitten`}
+            onPress={() => onToggle('review')}
+            active={panel === 'review'}
+          />
+        )}
         <ActionChip
           icon={Download}
           label="PDF"

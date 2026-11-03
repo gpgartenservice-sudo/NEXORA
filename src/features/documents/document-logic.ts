@@ -30,6 +30,8 @@ export type Seller = {
   offer_validity_days: number;
   /** Aktuelles Firmenlogo (Tabelle business_logos) */
   logo_id: string | null;
+  /** Link, unter dem Kunden eine Bewertung abgeben können (z. B. Google) */
+  review_url?: string | null;
 };
 
 export type Buyer = {
@@ -91,6 +93,7 @@ export const EMPTY_SELLER: Seller = {
   payment_days: 14,
   offer_validity_days: 30,
   logo_id: null,
+  review_url: null,
 };
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

@@ -88,7 +88,7 @@ function toFacts(d: Draft): OrderFacts {
 
 /** Auftrag im Detail: Ablauf eintragen, Status aktualisiert sich von selbst. */
 export function OrderDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mahnen } = useLocalSearchParams<{ id: string; mahnen?: string }>();
   const { orders, loading } = useCrm();
   const order = orders.find((o) => o.id === id);
 
@@ -101,10 +101,10 @@ export function OrderDetailScreen() {
     );
   }
   // key: bei einem anderen Auftrag frisch mit dessen Daten starten
-  return <OrderEditor key={order.id} order={order} />;
+  return <OrderEditor key={order.id} order={order} mahnen={mahnen} />;
 }
 
-function OrderEditor({ order }: { order: Order }) {
+function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
   const { customerById, updateOrder, deleteOrder } = useCrm();
   const customer = customerById(order.customer_id);
   const [initial, setInitial] = useState(() => toDraft(order));
@@ -279,6 +279,7 @@ function OrderEditor({ order }: { order: Order }) {
             dirty={dirty}
             offerSent={initial.offer_sent}
             onMarkOfferSent={markOfferSent}
+            openDunningFor={mahnen}
           />
         </Reveal>
       )}

@@ -144,7 +144,7 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
   };
   const newPageIfNeeded = (needed: number) => {
     if (y - needed < M.bottom + 70) {
-      drawFooter(page);
+      drawFooter(page, s, regular);
       page = pdf.addPage([A4.w, A4.h]);
       y = A4.h - 70;
       header();
@@ -221,28 +221,7 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
   text(page, 'Mit freundlichen Grüßen', M.left, y, 10);
   text(page, s.owner_name || name, M.left, y - 16, 10, bold);
 
-  drawFooter(page);
-
-  function drawFooter(p: PDFPage) {
-    const top = M.bottom - 4;
-    p.drawLine({ start: { x: M.left, y: top + 10 }, end: { x: right, y: top + 10 }, thickness: 0.4, color: LINE });
-    const colW = contentWidth / 3;
-    const blocks: string[][] = [
-      [name, s.street ?? '', [s.zip, s.city].filter(Boolean).join(' ')],
-      [s.phone ? `Tel. ${s.phone}` : '', s.email ?? '', s.website ?? ''],
-      [
-        s.vat_id ? `USt-IdNr. ${s.vat_id}` : s.tax_number ? `Steuernr. ${s.tax_number}` : '',
-        s.bank_name ?? '',
-        s.iban ? `IBAN ${s.iban}` : '',
-        s.bic ? `BIC ${s.bic}` : '',
-      ],
-    ];
-    blocks.forEach((lines, i) => {
-      lines
-        .filter(Boolean)
-        .forEach((l, j) => text(p, l, M.left + i * colW, top - j * 10, 7.5, regular, MUTED));
-    });
-  }
+  drawFooter(page, s, regular);
 
   return pdf.save();
 }
@@ -275,6 +254,32 @@ export async function drawLetterhead(
     text(name, M.left, A4.h - 62, 17, bold);
     senderLines.forEach((l, i) => text(l, M.left, A4.h - 80 - i * 12, 9, regular, MUTED));
   }
+}
+
+/** Fußzeile: Absender, Kontakt, Steuernummer und Bankverbindung (gleich auf allen Schreiben) */
+export function drawFooter(p: PDFPage, s: Seller, regular: PDFFont) {
+  const right = A4.w - M.right;
+  const contentWidth = right - M.left;
+  const top = M.bottom - 4;
+  p.drawLine({ start: { x: M.left, y: top + 10 }, end: { x: right, y: top + 10 }, thickness: 0.4, color: LINE });
+  const colW = contentWidth / 3;
+  const blocks: string[][] = [
+    [sellerName(s), s.street ?? '', [s.zip, s.city].filter(Boolean).join(' ')],
+    [s.phone ? `Tel. ${s.phone}` : '', s.email ?? '', s.website ?? ''],
+    [
+      s.vat_id ? `USt-IdNr. ${s.vat_id}` : s.tax_number ? `Steuernr. ${s.tax_number}` : '',
+      s.bank_name ?? '',
+      s.iban ? `IBAN ${s.iban}` : '',
+      s.bic ? `BIC ${s.bic}` : '',
+    ],
+  ];
+  blocks.forEach((lines, i) => {
+    lines
+      .filter(Boolean)
+      .forEach((l, j) =>
+        p.drawText(safe(l), { x: M.left + i * colW, y: top - j * 10, size: 7.5, font: regular, color: MUTED }),
+      );
+  });
 }
 
 /** Logo oben links einzeichnen; gibt die Höhe zurück (0 = ging nicht, dann ohne Logo). */

@@ -41,6 +41,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261107090000_social.sql` | Social Media: Posts (Board, Wochenplan, Zahlen) und Hashtag-Sets |
 | `20261108090000_social_accounts.sql` | TikTok & Instagram verbinden: Konten (Zugangsdaten verschlüsselt), Follower-Verlauf, Videos/Beiträge mit Zahlen |
 | `20261109090000_appointments.sql` | Termine: eigene Termine und geheimer Link fürs Kalender-Abo |
+| `20261110090000_invoice_followups.sql` | Mahnwesen: verschickte Zahlungserinnerungen, Mahnungen und Bewertungsbitten; Link für Bewertungen in den Firmendaten |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -177,7 +178,16 @@ Gut zu wissen:
 - Wer den Link kennt, sieht deine Termine (mit Kunden und Adressen). Bei Bedarf in der App **Neuen Link erzeugen** – der alte funktioniert dann sofort nicht mehr.
 - Falls **Abo testen** „Schlüssel ungültig“ meldet: Geheimnis `NEXORA_PUBLISHABLE_KEY` = der Publishable Key aus der `.env` der App (der ist öffentlich und darf dort hin).
 
-## 7. Wichtig zum Testen: E-Mail-Versand
+## 7. Zahlungserinnerungen, Mahnungen & Bewertungen
+
+Dafür reicht das Datenbank-Skript `20261110090000_invoice_followups.sql` (Abschnitt 3) – keine Server-Funktion nötig.
+
+- **Mahnen:** Ist eine Rechnung überfällig, erscheint **Mahnen** in Finanzen (offene Rechnungen), unter Termine → *Zu erledigen* und an der Rechnung im Auftrag. Die Stufen: **Zahlungserinnerung** (freundlich, ohne Gebühr) → **1. Mahnung** → **Letzte Mahnung**, jeweils mit neuer Frist (Vorschlag: 7 Tage) und bei den Mahnungen optional einer Mahngebühr. Das Schreiben gibt es als PDF im Briefkopf der Rechnung, per E-Mail oder WhatsApp mit fertigem Text. NEXORA merkt sich Stufe, Datum und Frist; die nächste Stufe ist erst nach Ablauf der Frist dran. Ein versehentlicher Vermerk lässt sich mit **Rückgängig** zurücknehmen.
+- **Nach der letzten Mahnung** zeigt NEXORA den Weg zum gerichtlichen Mahnverfahren ([online-mahnantrag.de](https://www.online-mahnantrag.de)).
+- **Bewertung:** Bei bezahlten Rechnungen gibt es **Bewertung** – eine kurze Bitte per E-Mail oder WhatsApp mit deinem Link. Den Link trägst du unter **Firma → Bewertungen** ein (z. B. bei Google: im Google-Unternehmensprofil die Funktion zum Anfordern von Rezensionen öffnen und den Link kopieren).
+- Gebühren: Für eine Zahlungserinnerung keine, für Mahnungen nur die tatsächlichen Kosten (z. B. Porto – meist wenige Euro). Das ist kein Rechtsrat – bei größeren Beträgen lohnt eine kurze Beratung.
+
+## 8. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

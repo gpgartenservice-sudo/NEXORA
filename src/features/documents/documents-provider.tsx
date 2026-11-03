@@ -169,7 +169,14 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
         .upsert({ user_id: userId, ...values }, { onConflict: 'user_id' })
         .select('*')
         .single();
-      if (err) return { error: errorText(err, 'Die Firmendaten konnten nicht gespeichert werden.') };
+      if (err) {
+        if (['PGRST204', '42703'].includes(err.code) && /review_url/.test(err.message ?? ''))
+          return {
+            error:
+              'Für den Bewertungs-Link fehlt noch das Datenbank-Skript 20261110090000_invoice_followups.sql (siehe supabase/README.md). Lass das Feld leer, um den Rest zu speichern.',
+          };
+        return { error: errorText(err, 'Die Firmendaten konnten nicht gespeichert werden.') };
+      }
       setSeller(toSeller(data as Record<string, unknown>));
       setHasSettings(true);
       setError(null);

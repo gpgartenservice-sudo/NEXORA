@@ -64,3 +64,23 @@ test('Übersicht: nächste Termine', () => {
   assert.equal(c.termine_naechste_7_tage[0].was, 'Hecke schneiden');
   assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).termine_naechste_7_tage, []);
 });
+
+test('Übersicht: Mahnstand offener Rechnungen', () => {
+  const c = buildNexyContext({
+    seller,
+    customers,
+    orders,
+    documents: [doc({ id: 'd1', due_on: '2026-10-15' })],
+    expenses: [],
+    posts: [],
+    followups: [
+      { document_id: 'd1', kind: 'reminder', sent_on: '2026-10-20', new_due_on: '2026-10-27' },
+      { document_id: 'd1', kind: 'dunning1', sent_on: '2026-10-29', new_due_on: '2026-11-05' },
+      { document_id: 'd1', kind: 'review', sent_on: '2026-10-30', new_due_on: null },
+    ],
+    today: TODAY,
+  });
+  assert.equal(c.offene_rechnungen[0].mahnstufe, '1. Mahnung');
+  assert.equal(c.offene_rechnungen[0].neue_frist, '2026-11-05');
+  assert.equal(c.offene_rechnungen[0].gemahnt_am, '2026-10-29');
+});

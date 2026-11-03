@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { validReviewUrl } from '@/features/dunning/dunning-logic';
 import { validateEmail } from '@/lib/validation';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -19,7 +20,7 @@ import { useDocuments } from './documents-provider';
 import { LogoCard } from './logo-card';
 
 type Draft = Record<
-  'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days',
+  'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days' | 'review_url',
   string
 > & { small_business: boolean; vat_rate: '19' | '7' };
 
@@ -39,6 +40,7 @@ const toDraft = (s: Seller): Draft => ({
   bic: s.bic ?? '',
   payment_days: String(s.payment_days),
   offer_validity_days: String(s.offer_validity_days),
+  review_url: s.review_url ?? '',
   small_business: s.small_business,
   vat_rate: s.vat_rate === 7 ? '7' : '19',
 });
@@ -66,6 +68,7 @@ function toValues(draft: Draft): Omit<Seller, 'logo_id'> {
     offer_validity_days: Number(draft.offer_validity_days),
     small_business: draft.small_business,
     vat_rate: Number(draft.vat_rate),
+    review_url: clean(draft.review_url),
   };
 }
 
@@ -114,12 +117,20 @@ function CompanyForm() {
       iban: iban && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban) ? 'Bitte eine gültige IBAN eingeben (z. B. DE89 3704 …).' : undefined,
       payment_days: !Number.isInteger(paymentDays) || paymentDays < 0 || paymentDays > 120 ? 'Zwischen 0 und 120 Tagen.' : undefined,
       offer_validity_days: !Number.isInteger(validity) || validity < 1 || validity > 365 ? 'Zwischen 1 und 365 Tagen.' : undefined,
+      review_url:
+        draft.review_url.trim() && !validReviewUrl(draft.review_url)
+          ? 'Bitte den kompletten Link einfügen (beginnt mit https://).'
+          : undefined,
     };
     setErrors(next);
     setFailure(null);
     if (Object.values(next).some(Boolean)) return;
     setSaving(true);
-    const { error: err } = await saveSeller(toValues(draft));
+    const values: Partial<Seller> = toValues(draft);
+    // Bewertungs-Link nur mitschicken, wenn es einen gibt (oder gab) – dann klappt das Speichern
+    // auch, solange das Datenbank-Skript dafür noch fehlt
+    if (!values.review_url && !seller.review_url) delete values.review_url;
+    const { error: err } = await saveSeller(values);
     setSaving(false);
     if (err) setFailure(err);
     else setSaved(true);
@@ -198,6 +209,21 @@ function CompanyForm() {
             <View style={styles.flex}>{field('payment_days', 'Zahlungsziel (Tage)', { keyboardType: 'number-pad' })}</View>
             <View style={styles.flex}>{field('offer_validity_days', 'Angebote gültig (Tage)', { keyboardType: 'number-pad' })}</View>
           </View>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={420}>
+        <Card>
+          <Text style={styles.cardTitle}>Bewertungen</Text>
+          {field('review_url', 'Link für Bewertungen', {
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            placeholder: 'https://g.page/r/…/review',
+          })}
+          <Text style={styles.hint}>
+            Nach der Zahlung kannst du deine Kunden mit einem Klick um eine Bewertung bitten. Google: Unternehmensprofil
+            öffnen → „Nach Rezensionen fragen“ → Link kopieren.
+          </Text>
         </Card>
       </Reveal>
 

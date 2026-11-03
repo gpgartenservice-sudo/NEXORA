@@ -14,7 +14,10 @@ import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useCrm } from '@/features/crm/crm-provider';
 import { StatRow, StatTile } from '@/features/crm/ui';
+import { formatMoney, todayIso } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
+import { dunningState } from '@/features/dunning/dunning-logic';
+import { useFollowups } from '@/features/dunning/followups-provider';
 import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social-logic';
 import { useHover } from '@/hooks/use-hover';
@@ -46,7 +49,8 @@ const newOn = (day: string) => router.push({ pathname: '/termine/neu', params: {
 /** Bereich Termine: Woche, Liste, offene Punkte, Tagesroute, Kalender-Abo. */
 export function TermineScreen() {
   const crm = useCrm();
-  const { seller } = useDocuments();
+  const { seller, documents } = useDocuments();
+  const { followups } = useFollowups();
   const { error: setupError } = useAppointments();
   const events = useCalendarEvents();
   const { width } = useWindowDimensions();
@@ -61,6 +65,24 @@ export function TermineScreen() {
   const byDay = useMemo(() => eventsByDay(events), [events]);
   const overlaps = useMemo(() => overlapping(events), [events]);
   const open = useMemo(() => openItems(crm.orders, crm.customers, now), [crm.orders, crm.customers, now]);
+  // überfällige Rechnungen, bei denen die nächste Mahnstufe dran ist
+  const payments = useMemo(() => {
+    const today = todayIso(now);
+    return documents
+      .filter((d) => d.kind === 'invoice' && !d.paid_at && d.order_id)
+      .map((d) => ({ doc: d, state: dunningState(d, followups, today) }))
+      .filter((x) => x.state.step === 'due' || x.state.step === 'escalate')
+      .map(({ doc, state }) => ({
+        key: `pay-${doc.id}`,
+        orderId: doc.order_id!,
+        docId: doc.id,
+        label:
+          state.step === 'due'
+            ? `Rechnung überfällig – ${state.next.label} ist dran`
+            : 'Letzte Mahnung ohne Zahlung – Mahnverfahren?',
+        title: `${doc.number} · ${doc.data.buyer.name} · ${formatMoney(doc.total)}`,
+      }));
+  }, [documents, followups, now]);
   const origin = sellerAddress(seller);
   const thisMonday = startOfWeek(now);
   const monday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + offset * 7);
@@ -102,13 +124,17 @@ export function TermineScreen() {
         <StatRow>
           <StatTile label="Heute" value={String(todayCount)} tone={todayCount ? 'accent' : undefined} />
           <StatTile label="Diese Woche" value={String(thisWeek)} />
-          <StatTile label="Offene Punkte" value={String(open.length)} tone={open.length ? 'accent' : 'muted'} />
+          <StatTile
+            label="Offene Punkte"
+            value={String(open.length + payments.length)}
+            tone={open.length + payments.length ? 'accent' : 'muted'}
+          />
         </StatRow>
       </Reveal>
 
-      {open.length > 0 && (
+      {open.length + payments.length > 0 && (
         <Reveal delay={170}>
-          <OpenItems items={open} />
+          <OpenItems items={open} payments={payments} />
         </Reveal>
       )}
 
@@ -351,12 +377,16 @@ function ListView({
 }
 
 /** Offene Punkte: Erstgespräch bestätigen, Termin vereinbaren, Auftrag abschließen */
-function OpenItems({ items }: { items: OpenItem[] }) {
+type PaymentItem = { key: string; orderId: string; docId: string; label: string; title: string };
+
+function OpenItems({ items, payments }: { items: OpenItem[]; payments: PaymentItem[] }) {
   const { updateOrder } = useCrm();
   const [all, setAll] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const shown = all ? items : items.slice(0, 4);
+  const total = items.length + payments.length;
+  const shownPayments = all ? payments : payments.slice(0, 4);
+  const shown = all ? items : items.slice(0, Math.max(0, 4 - shownPayments.length));
   const act = async (item: OpenItem, patch: { meeting_done?: boolean; completed?: boolean }) => {
     setBusy(item.key);
     setError(null);
@@ -367,6 +397,19 @@ function OpenItems({ items }: { items: OpenItem[] }) {
   return (
     <Card>
       <Text style={styles.cardTitle}>Zu erledigen</Text>
+      {shownPayments.map((p) => (
+        <View key={p.key} style={styles.openRow} testID="open-item">
+          <View style={styles.openText}>
+            <Text style={[styles.openLabel, styles.openLabelMoney]}>{p.label}</Text>
+            <Text style={styles.openTitle} numberOfLines={1}>
+              {p.title}
+            </Text>
+          </View>
+          <View style={styles.openActions}>
+            <ActionChip label="Mahnen" onPress={() => router.push(`/auftraege/${p.orderId}?mahnen=${p.docId}`)} />
+          </View>
+        </View>
+      ))}
       {shown.map((item) => (
         <View key={item.key} style={styles.openRow} testID="open-item">
           <View style={styles.openText}>
@@ -401,9 +444,9 @@ function OpenItems({ items }: { items: OpenItem[] }) {
           </View>
         </View>
       ))}
-      {items.length > 4 && (
+      {total > 4 && (
         <Pressable onPress={() => setAll((v) => !v)} accessibilityRole="button" style={styles.more}>
-          <Text style={styles.moreText}>{all ? 'Weniger anzeigen' : `Alle ${items.length} anzeigen`}</Text>
+          <Text style={styles.moreText}>{all ? 'Weniger anzeigen' : `Alle ${total} anzeigen`}</Text>
         </Pressable>
       )}
       {error && <Notice tone="error">{error}</Notice>}
@@ -498,6 +541,7 @@ const styles = StyleSheet.create({
   },
   openText: { flex: 1, minWidth: 220, gap: 1 },
   openLabel: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  openLabelMoney: { color: Colors.danger },
   openTitle: { color: Colors.textMuted, fontSize: 13 },
   openActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   more: { alignSelf: 'flex-start' },

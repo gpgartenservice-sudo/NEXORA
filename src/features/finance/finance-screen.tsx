@@ -14,8 +14,10 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { StatRow, StatTile } from '@/features/crm/ui';
-import { formatDay } from '@/features/documents/document-logic';
+import { formatDay, todayIso } from '@/features/documents/document-logic';
 import { invoiceState, useDocuments } from '@/features/documents/documents-provider';
+import { dunningState, dunningSummary } from '@/features/dunning/dunning-logic';
+import { useFollowups } from '@/features/dunning/followups-provider';
 import { useHover } from '@/hooks/use-hover';
 
 import { BankComingSoon, BankConnectButton } from './bank-connect';
@@ -46,6 +48,8 @@ const REPEAT_LABEL = { once: '', monthly: 'monatlich', yearly: 'jährlich' } as 
 export function FinanceScreen() {
   const { orders, customerById, error: crmError } = useCrm();
   const { documents, setPaid } = useDocuments();
+  const { followups } = useFollowups();
+  const [today] = useState(() => todayIso());
   const { expenses, error } = useFinance();
   const current = monthKey(new Date());
   const [mode, setMode] = useState<Mode>('month');
@@ -194,25 +198,42 @@ export function FinanceScreen() {
             ) : (
               openInvoices.map((d) => {
                 const late = invoiceState(d) === 'overdue';
+                const dunning = dunningState(d, followups, today);
+                const summary = dunningSummary(dunning);
+                const canDun = !!d.order_id && (dunning.step === 'due' || dunning.step === 'escalate');
                 return (
                   <Row
                     key={d.id}
                     icon={<Receipt size={17} color={Colors.text} strokeWidth={1.8} />}
                     title={d.number}
-                    meta={[d.data.buyer.name, d.due_on ? `${late ? 'überfällig seit' : 'fällig'} ${formatDay(d.due_on)}` : null]
+                    meta={[
+                      d.data.buyer.name,
+                      summary ?? (d.due_on ? `${late ? 'überfällig seit' : 'fällig'} ${formatDay(d.due_on)}` : null),
+                    ]
                       .filter(Boolean)
                       .join(' · ')}
-                    metaDanger={late}
+                    metaDanger={late && dunning.step !== 'waiting'}
                     amount={formatEuro(d.total)}
                     onPress={d.order_id ? () => router.push(`/auftraege/${d.order_id}`) : undefined}
                     action={
-                      <Pressable
-                        onPress={() => setPaid(d.id, true)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${d.number} als bezahlt markieren`}
-                        style={styles.paidBtn}>
-                        <Text style={styles.paidText}>Bezahlt</Text>
-                      </Pressable>
+                      <View style={styles.rowActions}>
+                        {canDun && (
+                          <Pressable
+                            onPress={() => router.push(`/auftraege/${d.order_id}?mahnen=${d.id}`)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${d.number} anmahnen`}
+                            style={[styles.paidBtn, styles.dunBtn]}>
+                            <Text style={[styles.paidText, styles.dunText]}>Mahnen</Text>
+                          </Pressable>
+                        )}
+                        <Pressable
+                          onPress={() => setPaid(d.id, true)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${d.number} als bezahlt markieren`}
+                          style={styles.paidBtn}>
+                          <Text style={styles.paidText}>Bezahlt</Text>
+                        </Pressable>
+                      </View>
                     }
                   />
                 );
@@ -426,5 +447,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   paidText: { color: Colors.text, fontSize: 12.5, fontWeight: '600' },
+  rowActions: { flexDirection: 'row', gap: 6 },
+  dunBtn: { borderColor: 'rgba(255,107,107,0.45)', backgroundColor: 'rgba(255,107,107,0.08)' },
+  dunText: { color: Colors.danger },
   disclaimer: { color: Colors.textFaint, fontSize: 12.5, textAlign: 'center' },
 });

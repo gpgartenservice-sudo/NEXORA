@@ -65,6 +65,8 @@ export type ContextInput = {
   accounts?: AccountLike[];
   /** Termine der nächsten Tage (schon kurz aufbereitet) */
   upcoming?: Record<string, unknown>[];
+  /** verschickte Zahlungserinnerungen/Mahnungen */
+  followups?: { document_id: string; kind: string; sent_on: string; new_due_on: string | null }[];
   today?: Date;
 };
 
@@ -79,6 +81,7 @@ export function buildNexyContext({
   posts,
   accounts = [],
   upcoming = [],
+  followups = [],
   today = new Date(),
 }: ContextInput) {
   const customerName = new Map(customers.map((c) => [c.id, c.name]));
@@ -93,6 +96,22 @@ export function buildNexyContext({
   const weekEnd = dayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6));
   const weekStart = dayKey(monday);
   const statusCount = (s: string) => posts.filter((p) => computePostStatus(p) === s).length;
+
+  const STUFE: Record<string, string> = {
+    reminder: 'Zahlungserinnerung',
+    dunning1: '1. Mahnung',
+    dunning2: 'Letzte Mahnung',
+  };
+  /** letzte verschickte Erinnerung/Mahnung einer Rechnung */
+  const mahnstand = (id: string) => {
+    const last = followups
+      .filter((f) => f.document_id === id && f.kind !== 'review')
+      .sort((a, b) => a.sent_on.localeCompare(b.sent_on))
+      .pop();
+    return last
+      ? { mahnstufe: STUFE[last.kind] ?? last.kind, gemahnt_am: last.sent_on, neue_frist: last.new_due_on }
+      : {};
+  };
 
   const context = {
     firma: {
@@ -129,6 +148,7 @@ export function buildNexyContext({
         betrag: d.total,
         faellig: d.due_on,
         ueberfaellig: !!d.due_on && d.due_on < todayKey,
+        ...mahnstand(d.id),
       })),
     letzte_angebote: documents
       .filter((d) => d.kind === 'offer')
