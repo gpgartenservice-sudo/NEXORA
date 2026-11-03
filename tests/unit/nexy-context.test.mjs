@@ -61,8 +61,14 @@ test('Übersicht: verbundene Social-Konten mit Followern', () => {
 
 test('Übersicht: nächste Termine', () => {
   const c = buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], upcoming: [{ wann: 'Do., 05.11., 09:00', art: 'Erstgespräch', was: 'Hecke schneiden', kunde: 'Peter Müller' }], today: TODAY });
-  assert.equal(c.termine_naechste_7_tage[0].was, 'Hecke schneiden');
-  assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).termine_naechste_7_tage, []);
+  assert.equal(c.termine[0].was, 'Hecke schneiden');
+  assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).termine, []);
+});
+
+test('Übersicht: Termine der Aufträge (lokale Zeit) für order_dates', () => {
+  const c = buildNexyContext({ seller, customers, orders: [{ ...orders[1], meeting_at: '2026-11-05T09:30:00' }], documents: [], expenses: [], posts: [], today: TODAY });
+  assert.equal(c.auftraege[0].erstgespraech, '2026-11-05T09:30'); // lokale Zeit
+  assert.equal(c.auftraege[0].ausfuehrung, undefined);
 });
 
 test('Übersicht: Mahnstand offener Rechnungen', () => {

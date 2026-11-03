@@ -411,11 +411,46 @@ export function feedUrls(supabaseUrl: string, token: string) {
   };
 }
 
-/** Termine der nächsten Tage für Nexy (kurz) */
-export function contextEvents(events: CalendarEvent[], now: Date, days = 7) {
-  return upcoming(events, now, days)
-    .slice(0, 25)
-    .map((e) => ({
+/** Zeitpunkt in lokaler Zeit: "JJJJ-MM-TTTHH:MM" (bzw. nur "JJJJ-MM-TT") – so rechnet Nexy */
+export function localStamp(iso: string, dateOnly = false): string {
+  const d = new Date(iso);
+  const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return dateOnly ? day : `${day}T${hhmm(d)}`;
+}
+
+export type NexyEvent = {
+  ref: string;
+  wann: string;
+  beginn: string;
+  ende?: string;
+  art: string;
+  was: string;
+  kunde: string | null;
+  ort: string | null;
+  erledigt?: boolean;
+};
+
+/**
+ * Termine für Nexy: von vor 3 Tagen (nur noch nicht erledigte) bis in `days`
+ * Tagen. Jeder Termin bekommt ein Kurzzeichen (T1, T2 …), über das Nexy ihn
+ * ändern kann; `refs` übersetzt es zurück in den Termin.
+ */
+export function nexyEvents(
+  events: CalendarEvent[],
+  now: Date,
+  days = 45,
+  max = 40,
+): { entries: NexyEvent[]; refs: Record<string, string> } {
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3).toISOString();
+  const until = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days + 1).toISOString();
+  const nowIso = now.toISOString();
+  const list = events.filter((e) => e.start >= from && e.start < until && !(e.end <= nowIso && e.done)).slice(0, max);
+  const refs: Record<string, string> = {};
+  const entries = list.map((e, i) => {
+    const ref = `T${i + 1}`;
+    refs[ref] = e.key;
+    return {
+      ref,
       wann: e.allDay
         ? `${new Date(e.start).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} ganztägig`
         : new Date(e.start).toLocaleString('de-DE', {
@@ -425,10 +460,24 @@ export function contextEvents(events: CalendarEvent[], now: Date, days = 7) {
             hour: '2-digit',
             minute: '2-digit',
           }),
+      beginn: localStamp(e.start, e.allDay),
+      ...(e.kind === 'appointment' && !e.allDay ? { ende: localStamp(e.end) } : {}),
       art: KIND_LABEL[e.kind],
       was: e.title,
       kunde: e.customerName,
       ort: e.location,
-      erledigt: e.done || undefined,
-    }));
+      ...(e.done ? { erledigt: true } : {}),
+    };
+  });
+  return { entries, refs };
+}
+
+/** Andere Termine, die sich mit dem Zeitraum überschneiden (ohne ganztägige und erledigte) */
+export function clashes(
+  events: CalendarEvent[],
+  slot: { start: string; end: string; allDay?: boolean },
+  ignoreKey?: string | null,
+): CalendarEvent[] {
+  if (slot.allDay) return [];
+  return events.filter((e) => e.key !== ignoreKey && !e.allDay && !e.done && e.start < slot.end && slot.start < e.end);
 }

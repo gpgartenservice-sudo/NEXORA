@@ -3,6 +3,7 @@
  * die mit jeder Nachricht mitgeschickt wird. Bewusst sparsam – keine
  * Telefonnummern, E-Mails oder Anschriften von Kunden.
  */
+import { localStamp } from '../appointments/appointment-logic';
 import { computeStatus, STATUS_LABEL } from '../crm/order-logic';
 import { missingSellerFields, sellerName, type DocumentData, type Seller } from '../documents/document-logic';
 import {
@@ -63,7 +64,7 @@ export type ContextInput = {
   posts: PostLike[];
   /** verbundene TikTok-/Instagram-Konten */
   accounts?: AccountLike[];
-  /** Termine der nächsten Tage (schon kurz aufbereitet) */
+  /** Termine (schon kurz aufbereitet, mit Kurzzeichen T1, T2 … zum Ändern) */
   upcoming?: Record<string, unknown>[];
   /** verschickte Zahlungserinnerungen/Mahnungen */
   followups?: { document_id: string; kind: string; sent_on: string; new_due_on: string | null }[];
@@ -138,6 +139,8 @@ export function buildNexyContext({
         preis: o.price,
         abrechnung: o.billing === 'monthly' ? 'monatlich' : 'einmalig',
         status: STATUS_LABEL[computeStatus(o)],
+        ...(o.meeting_at ? { erstgespraech: localStamp(o.meeting_at) } : {}),
+        ...(o.execution_at ? { ausfuehrung: localStamp(o.execution_at) } : {}),
         dokumente: documents.filter((d) => d.order_id === o.id).map((d) => d.number),
       })),
     offene_rechnungen: documents
@@ -163,7 +166,7 @@ export function buildNexyContext({
       dieses_jahr: money(monthRange(`${year}-01`, thisMonth)),
       fixkosten_pro_monat: fixedCostsPerMonth(expenses, today),
     },
-    termine_naechste_7_tage: upcoming.slice(0, 25),
+    termine: upcoming.slice(0, 40),
     social: {
       ideen: statusCount('idea'),
       in_arbeit: statusCount('in_progress'),

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 import {
   buildEvents,
-  contextEvents,
+  clashes,
   dayLabel,
   eventsByDay,
   feedToken,
@@ -14,6 +14,8 @@ import {
   googleCalendarUrl,
   icsFileName,
   icsText,
+  localStamp,
+  nexyEvents,
   openItems,
   overlapping,
   routeUrl,
@@ -182,11 +184,37 @@ test('Abo-Link: zufällig, URL-sicher, lang genug', () => {
   assert.ok(urls.google.startsWith('https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2F'));
 });
 
-test('Für Nexy: nächste Termine kurz', () => {
+test('Für Nexy: Termine mit Kurzzeichen, lokale Zeit, ohne erledigte vergangene', () => {
+  const ev = buildEvents(
+    [
+      order({ meeting_at: '2026-11-05T08:00:00.000Z' }),
+      order({ id: 'o2', title: 'Alt erledigt', meeting_at: '2026-11-02T08:00:00.000Z', meeting_done: true }),
+      order({ id: 'o3', title: 'Alt offen', meeting_at: '2026-11-02T09:00:00.000Z' }),
+      order({ id: 'o4', title: 'Viel später', meeting_at: '2027-01-30T09:00:00.000Z' }),
+    ],
+    customers,
+    [{ id: 'a1', title: 'Steuerberatung', starts_at: '2026-11-06T13:00:00.000Z', ends_at: '2026-11-06T14:30:00.000Z', all_day: false, location: null, customer_id: null, notes: null, done: false, created_at: '', updated_at: '' }],
+  );
+  const { entries, refs } = nexyEvents(ev, new Date('2026-11-03T12:00:00Z'));
+  assert.deepEqual(entries.map((e) => e.was), ['Alt offen', 'Hecke schneiden', 'Steuerberatung']);
+  assert.equal(entries[1].ref, 'T2');
+  assert.equal(refs.T2, 'meeting-o1');
+  assert.equal(refs.T3, 'appointment-a1');
+  assert.equal(entries[1].art, 'Erstgespräch');
+  assert.equal(entries[1].kunde, 'Peter Müller');
+  assert.equal(entries[1].beginn, '2026-11-05T09:00');
+  assert.equal(entries[1].ende, undefined);
+  assert.equal(entries[2].ende, '2026-11-06T15:30');
+  assert.match(entries[1].wann, /^Do\.?, 05\.11\.?,? 09:00$/);
+});
+
+test('Lokale Zeit und Überschneidungen für neue Termine', () => {
+  assert.equal(localStamp('2026-11-05T08:00:00.000Z'), '2026-11-05T09:00');
+  assert.equal(localStamp('2026-11-05T23:30:00.000Z', true), '2026-11-06');
   const ev = buildEvents([order({ meeting_at: '2026-11-05T08:00:00.000Z' })], customers, []);
-  const list = contextEvents(ev, new Date('2026-11-03T12:00:00Z'));
-  assert.equal(list.length, 1);
-  assert.equal(list[0].art, 'Erstgespräch');
-  assert.equal(list[0].kunde, 'Peter Müller');
-  assert.match(list[0].wann, /^Do\.?, 05\.11\.?,? 09:00$/);
+  const hit = clashes(ev, { start: '2026-11-05T08:30:00.000Z', end: '2026-11-05T09:30:00.000Z' });
+  assert.deepEqual(hit.map((e) => e.key), ['meeting-o1']);
+  assert.equal(clashes(ev, { start: '2026-11-05T09:00:00.000Z', end: '2026-11-05T10:00:00.000Z' }).length, 0); // direkt danach
+  assert.equal(clashes(ev, { start: '2026-11-05T08:30:00.000Z', end: '2026-11-05T09:30:00.000Z' }, 'meeting-o1').length, 0); // sich selbst
+  assert.equal(clashes(ev, { start: '2026-11-04T23:00:00.000Z', end: '2026-11-05T23:00:00.000Z', allDay: true }).length, 0);
 });

@@ -82,6 +82,7 @@ const STARTERS = [
   'Welche Rechnungen sind noch offen?',
   'Erstell mir einen Einkommensnachweis für die letzten 3 Monate.',
   'Ich hab gestern 49,90 € für Flyer bezahlt.',
+  'Trag mir Freitag 14 Uhr Steuerberatung ein.',
   'Gib mir 3 TikTok-Ideen für mein Business.',
 ];
 

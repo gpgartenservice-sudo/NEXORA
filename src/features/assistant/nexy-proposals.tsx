@@ -1,6 +1,9 @@
 import { router } from 'expo-router';
 import {
   Briefcase,
+  CalendarClock,
+  CalendarPlus,
+  CalendarX,
   Check,
   CircleCheck,
   Download,
@@ -17,13 +20,15 @@ import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { clashes, DEFAULT_MINUTES, timeLabel, type CalendarEvent } from '@/features/appointments/appointment-logic';
+import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { categoryLabel, incomeProofMonths, monthLabel } from '@/features/finance/finance-logic';
 import { shortDateTime } from '@/features/social/post-card';
 import { FORMATS, platformLabel } from '@/features/social/social-logic';
 
-import { proposalLabel, type Proposal } from './assistant-logic';
+import { proposalLabel, whenLabel, type Proposal } from './assistant-logic';
 import { useNexy, type NexyMessage } from './nexy-provider';
 
 const REPEAT = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
@@ -50,8 +55,65 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
       return { icon: Download, kind: 'PDF erneut speichern', title: p.data.number };
     case 'mark_paid':
       return { icon: CircleCheck, kind: 'Rechnung bezahlt', title: p.data.number };
+    case 'appointment':
+      return { icon: CalendarPlus, kind: 'Neuer Termin', title: p.data.title };
+    case 'order_date':
+      return {
+        icon: CalendarClock,
+        kind: p.data.field === 'meeting' ? 'Erstgespräch im Auftrag' : 'Ausführung im Auftrag',
+        title: p.order.title ?? 'Auftrag wählen',
+      };
+    case 'appointment_change': {
+      const what = p.event.kind === 'meeting' ? 'Erstgespräch' : p.event.kind === 'execution' ? 'Ausführung' : 'Termin';
+      return p.data.remove
+        ? {
+            icon: CalendarX,
+            kind: `${what} ${p.event.kind === 'appointment' ? 'löschen' : 'absagen'}`,
+            title: p.event.title,
+          }
+        : { icon: CalendarClock, kind: `${what} ändern`, title: p.event.title };
+    }
   }
 }
+
+const MIN = 60 * 1000;
+
+/** Zeitraum eines Termin-Vorschlags (für Überschneidungen); null = keiner */
+function slotOf(p: Proposal): { start: string; end: string; allDay: boolean; ignore: string | null } | null {
+  const plus = (iso: string, minutes: number) => new Date(new Date(iso).getTime() + minutes * MIN).toISOString();
+  if (p.kind === 'appointment')
+    return {
+      start: p.data.starts_at,
+      end: p.data.ends_at ?? plus(p.data.starts_at, DEFAULT_MINUTES.appointment),
+      allDay: p.data.all_day,
+      ignore: null,
+    };
+  if (p.kind === 'order_date')
+    return {
+      start: p.data.at,
+      end: plus(p.data.at, DEFAULT_MINUTES[p.data.field]),
+      allDay: false,
+      ignore: p.order.existingId ? `${p.data.field}-${p.order.existingId}` : null,
+    };
+  if (p.kind === 'appointment_change' && !p.data.remove && (p.data.starts_at || p.data.ends_at)) {
+    const e = p.event;
+    const start = p.data.starts_at ?? e.start;
+    const length = new Date(e.end).getTime() - new Date(e.start).getTime();
+    return {
+      start,
+      end: p.data.ends_at ?? new Date(new Date(start).getTime() + length).toISOString(),
+      allDay: p.data.all_day ?? e.allDay,
+      ignore: e.key,
+    };
+  }
+  return null;
+}
+
+const clashText = (list: CalendarEvent[]) =>
+  `Gleichzeitig: ${list
+    .slice(0, 2)
+    .map((e) => `„${e.title}“ ${timeLabel(e)}`)
+    .join(', ')}${list.length > 2 ? ` und ${list.length - 2} weitere` : ''}`;
 
 function rows(p: Proposal): [string, string][] {
   const r: [string, string][] = [];
@@ -86,6 +148,44 @@ function rows(p: Proposal): [string, string][] {
     r.push(['Zeitraum', `${monthLabel(m[0])} bis ${monthLabel(m[m.length - 1])}`]);
   } else if (p.kind === 'mark_paid') {
     r.push(['Status', 'wird als bezahlt markiert']);
+  } else if (p.kind === 'appointment') {
+    r.push([
+      'Wann',
+      p.data.all_day
+        ? whenLabel(p.data.starts_at, true)
+        : `${whenLabel(p.data.starts_at)}${p.data.ends_at ? `–${new Date(p.data.ends_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : ''}`,
+    ]);
+    if (p.data.location) r.push(['Ort', p.data.location]);
+    if (p.customer.existingId || p.customer.newRef)
+      r.push(['Kunde', `${p.customer.name}${p.customer.newRef ? ' (neu)' : ''}`]);
+    else r.push(['Auftrag', 'keiner – eigener Termin']);
+    if (p.data.notes) r.push(['Notiz', p.data.notes]);
+  } else if (p.kind === 'order_date') {
+    if (p.customer.name) r.push(['Kunde', p.customer.name]);
+    r.push([p.data.before ? 'Neu' : 'Wann', whenLabel(p.data.at)]);
+    if (p.data.before) r.push(['Bisher', whenLabel(p.data.before)]);
+  } else if (p.kind === 'appointment_change') {
+    const e = p.event;
+    const c = p.data;
+    if (e.kind !== 'appointment') r.push(['Auftrag', e.kind === 'meeting' ? 'Erstgespräch' : 'Ausführung']);
+    r.push([c.remove ? 'Wann' : 'Bisher', whenLabel(e.start, e.allDay)]);
+    if (c.starts_at) r.push(['Neu', whenLabel(c.starts_at, c.all_day ?? e.allDay)]);
+    if (c.ends_at)
+      r.push(['Ende', new Date(c.ends_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })]);
+    if (c.title) r.push(['Neuer Titel', c.title]);
+    if (c.location) r.push(['Ort', c.location]);
+    if (c.notes) r.push(['Notiz', c.notes]);
+    if (c.done !== null)
+      r.push([
+        'Status',
+        e.kind === 'execution'
+          ? c.done
+            ? 'Auftrag wird abgeschlossen'
+            : 'Auftrag wieder offen'
+          : c.done
+            ? 'erledigt'
+            : 'wieder offen',
+      ]);
   }
   return r;
 }
@@ -94,6 +194,7 @@ function rows(p: Proposal): [string, string][] {
 export function NexyProposals({ message }: { message: NexyMessage }) {
   const { updateProposal, execute, dismiss, executing, blockers } = useNexy();
   const { customers, orders } = useCrm();
+  const events = useCalendarEvents();
   const all = message.proposals ?? [];
   const done = new Set(message.doneIds ?? []);
   const open = message.status === 'open';
@@ -108,10 +209,23 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
         const isDone = done.has(p.id) || (message.status === 'done' && p.include);
         const problems = open && p.include && !isDone ? blockers(p, all) : [];
         const needsCustomer = open && p.include && p.kind === 'order' && !p.customer.existingId && !p.customer.newRef;
-        const needsOrder = open && p.include && p.kind === 'document' && !p.order.existingId && !p.order.newRef;
+        const needsOrder =
+          open &&
+          p.include &&
+          (p.kind === 'document' || p.kind === 'order_date') &&
+          !p.order.existingId &&
+          !p.order.newRef;
         const orderChoices = needsOrder
-          ? orders.filter((o) => !p.customer.existingId || o.customer_id === p.customer.existingId).slice(0, 10)
+          ? orders
+              .filter(
+                (o) =>
+                  (!p.customer.existingId || o.customer_id === p.customer.existingId) &&
+                  (p.kind !== 'order_date' || !o.cancelled),
+              )
+              .slice(0, 10)
           : [];
+        const slot = open && p.include && !isDone ? slotOf(p) : null;
+        const clash = slot ? clashes(events, slot, slot.ignore) : [];
         const sellerIssue = problems.some((x) => !/Auftrag|Kunde|Preis|Anschrift des Kunden|Name des Kunden/.test(x));
         return (
           <View key={p.id} style={[styles.card, (!p.include || message.status === 'dismissed') && styles.off]}>
@@ -180,11 +294,29 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
                           order: { existingId: o.id, newRef: null, title: o.title },
                           customer: { existingId: o.customer_id, newRef: null, name: c?.name ?? null },
                         }
-                      : x,
+                      : x.kind === 'order_date'
+                        ? {
+                            ...x,
+                            data: {
+                              ...x.data,
+                              before: (x.data.field === 'meeting' ? o.meeting_at : o.execution_at) ?? null,
+                            },
+                            order: { existingId: o.id, newRef: null, title: o.title },
+                            customer: { existingId: o.customer_id, newRef: null, name: c?.name ?? null },
+                          }
+                        : x,
                   );
                 }}
               />
             )}
+            {p.kind === 'appointment_change' && p.data.remove && (
+              <Text style={styles.small}>
+                {p.event.kind === 'appointment'
+                  ? 'Der Termin wird gelöscht.'
+                  : 'Der Termin wird aus dem Auftrag entfernt – der Auftrag selbst bleibt.'}
+              </Text>
+            )}
+            {clash.length > 0 && <Text style={styles.warn}>{clashText(clash)}</Text>}
             {problems.length > 0 && !needsCustomer && !needsOrder && (
               <View style={styles.problem}>
                 <Notice>Dafür fehlt noch: {problems.join(', ')}.</Notice>
@@ -302,6 +434,7 @@ const styles = StyleSheet.create({
   rowKey: { color: Colors.textFaint, fontSize: 13, width: 104 },
   rowValue: { color: Colors.text, fontSize: 13, flex: 1, lineHeight: 18 },
   small: { color: Colors.textFaint, fontSize: 12.5, lineHeight: 18 },
+  warn: { color: Colors.danger, fontSize: 12.5, lineHeight: 18 },
   pick: { gap: Spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 6 },

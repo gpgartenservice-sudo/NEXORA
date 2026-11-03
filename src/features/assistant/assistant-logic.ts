@@ -44,6 +44,9 @@ export type RawAction = {
   income_proof?: Obj | null;
   existing_pdf?: Obj | null;
   mark_paid?: Obj | null;
+  appointment?: Obj | null;
+  order_date?: Obj | null;
+  appointment_change?: Obj | null;
 };
 export type RawResult = { actions?: unknown; reply?: unknown; quick_replies?: unknown };
 
@@ -79,6 +82,40 @@ export type PostDraft = {
   planned_for: string | null;
 };
 export type IncomePeriod = (typeof INCOME_PERIODS)[number];
+/** Eigener Termin (ohne Auftrag) */
+export type AppointmentDraft = {
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  location: string | null;
+  notes: string | null;
+};
+/** Termin im Auftrag: Erstgespräch oder Ausführung */
+export type DateField = 'meeting' | 'execution';
+/** Vorhandener Termin (aus Aufträgen oder eigener) – so, wie Nexy ihn kennt */
+export type KnownEvent = {
+  key: string;
+  kind: 'meeting' | 'execution' | 'appointment';
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  orderId: string | null;
+  appointmentId: string | null;
+  done: boolean;
+};
+/** Änderung an einem vorhandenen Termin (null = bleibt) */
+export type AppointmentChange = {
+  starts_at: string | null;
+  ends_at: string | null;
+  all_day: boolean | null;
+  title: string | null;
+  location: string | null;
+  notes: string | null;
+  done: boolean | null;
+  remove: boolean;
+};
 
 /** Zu welchem Kunden gehört etwas? Vorhanden, neu aus diesem Gespräch, oder noch offen. */
 export type CustomerLink = { existingId: string | null; newRef: string | null; name: string | null };
@@ -100,12 +137,39 @@ export type Proposal =
     }
   | { id: string; kind: 'income_proof'; include: boolean; data: { period: IncomePeriod } }
   | { id: string; kind: 'existing_pdf'; include: boolean; data: { documentId: string; number: string } }
-  | { id: string; kind: 'mark_paid'; include: boolean; data: { documentId: string; number: string } };
+  | { id: string; kind: 'mark_paid'; include: boolean; data: { documentId: string; number: string } }
+  | { id: string; kind: 'appointment'; include: boolean; data: AppointmentDraft; customer: CustomerLink }
+  | {
+      id: string;
+      kind: 'order_date';
+      include: boolean;
+      /** before = bisheriger Termin im Auftrag */
+      data: { field: DateField; at: string; before: string | null };
+      customer: CustomerLink;
+      order: OrderLink;
+    }
+  | { id: string; kind: 'appointment_change'; include: boolean; data: AppointmentChange; event: KnownEvent };
 
 export type ExistingCustomer = { id: string; name: string; company?: string | null };
-export type ExistingOrder = { id: string; title: string; customer_id: string };
+export type ExistingOrder = {
+  id: string;
+  title: string;
+  customer_id: string;
+  meeting_at?: string | null;
+  execution_at?: string | null;
+  cancelled?: boolean | null;
+};
 export type ExistingDocument = { id: string; number: string; kind: 'offer' | 'invoice'; paid_at: string | null };
-export type Known = { customers: ExistingCustomer[]; orders: ExistingOrder[]; documents: ExistingDocument[] };
+export type Known = {
+  customers: ExistingCustomer[];
+  orders: ExistingOrder[];
+  documents: ExistingDocument[];
+  /** Termine, die Nexy mitgeschickt bekam, und ihre Kurzzeichen (T1 -> Termin) */
+  events?: KnownEvent[];
+  refs?: Record<string, string>;
+  /** eigene Termine (für das eingetragene Ende) */
+  appointments?: { id: string; ends_at: string | null }[];
+};
 
 const str = (v: unknown, max = 500): string | null => {
   if (typeof v !== 'string') return null;
@@ -140,6 +204,25 @@ export function localDateTime(v: unknown, defaultHour = 9): string | null {
   const min = m[3] !== undefined ? Number(m[3]) : 0;
   if (h > 23 || min > 59) return null;
   return new Date(y, mo - 1, d, h, min).toISOString();
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const hasTime = (v: unknown): v is string =>
+  typeof v === 'string' && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v.trim());
+const sameInstant = (a: string, b: string) => new Date(a).getTime() === new Date(b).getTime();
+
+/** "Fr., 06.11., 14:00" bzw. "Fr., 06.11. ganztägig" */
+export function whenLabel(iso: string, allDay = false): string {
+  const d = new Date(iso);
+  return allDay
+    ? `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} ganztägig`
+    : d.toLocaleString('de-DE', {
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 }
 
 const norm = (s: string) =>
@@ -343,6 +426,132 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
           planned_for: localDateTime(p.planned_for, 18),
         },
       });
+    } else if (a.type === 'appointment' && a.appointment) {
+      const t = a.appointment;
+      const title = str(t.title, 200);
+      const rawStart = typeof t.starts_at === 'string' ? t.starts_at.trim() : '';
+      const day = validDay(rawStart.slice(0, 10));
+      if (!title || !day) continue;
+      const allDay = t.all_day === true || !hasTime(rawStart);
+      const starts_at = allDay ? localDateTime(day, 0) : localDateTime(rawStart);
+      if (!starts_at) continue;
+      let ends_at = !allDay && hasTime(t.ends_at) ? localDateTime(t.ends_at) : null;
+      if (ends_at && ends_at <= starts_at) ends_at = null;
+      if (
+        out.some(
+          (p) => p.kind === 'appointment' && norm(p.data.title) === norm(title) && p.data.starts_at === starts_at,
+        )
+      )
+        continue;
+      out.push({
+        id: id(),
+        kind: 'appointment',
+        include: true,
+        data: { title, starts_at, ends_at, all_day: allDay, location: str(t.location, 500), notes: str(t.notes, 5000) },
+        customer: linkCustomer(str(t.customer_name, 200), false),
+      });
+    } else if (a.type === 'order_date' && a.order_date) {
+      const d = a.order_date;
+      const field: DateField | null = d.kind === 'meeting' ? 'meeting' : d.kind === 'execution' ? 'execution' : null;
+      const at = localDateTime(d.at);
+      if (!field || !at) continue;
+      const title = str(d.order_title, 200);
+      const customer = linkCustomer(str(d.customer_name, 200), false);
+      const active = known.orders.filter((o) => !o.cancelled);
+      const existing = customer.newRef ? null : matchOrder(title, customer.existingId, active);
+      if (!existing) {
+        // Auftrag wird gerade erst angelegt -> Termin direkt dort eintragen
+        const fresh = ordersOut().find(
+          (p) =>
+            (title ? norm(p.data.title) === norm(title) : ordersOut().length === 1) &&
+            (!customer.existingId || p.customer.existingId === customer.existingId) &&
+            (!customer.newRef || p.customer.newRef === customer.newRef),
+        );
+        if (fresh) {
+          fresh.data = { ...fresh.data, [field === 'meeting' ? 'meeting_at' : 'execution_at']: at };
+          continue;
+        }
+      }
+      const before = existing ? ((field === 'meeting' ? existing.meeting_at : existing.execution_at) ?? null) : null;
+      if (before && sameInstant(before, at)) continue;
+      if (
+        existing &&
+        out.some((p) => p.kind === 'order_date' && p.order.existingId === existing.id && p.data.field === field)
+      )
+        continue;
+      const owner = existing ? known.customers.find((c) => c.id === existing.customer_id) : undefined;
+      out.push({
+        id: id(),
+        kind: 'order_date',
+        include: true,
+        data: { field, at, before },
+        customer: existing
+          ? { existingId: existing.customer_id, newRef: null, name: owner?.name ?? customer.name }
+          : customer,
+        order: existing
+          ? { existingId: existing.id, newRef: null, title: existing.title }
+          : { existingId: null, newRef: null, title },
+      });
+    } else if (a.type === 'appointment_change' && a.appointment_change) {
+      const c = a.appointment_change;
+      const ref = str(c.ref, 20)?.toUpperCase();
+      const key = ref ? known.refs?.[ref] : undefined;
+      const ev = key ? known.events?.find((e) => e.key === key) : undefined;
+      if (!ev || out.some((p) => p.kind === 'appointment_change' && p.event.key === ev.key)) continue;
+      const own = ev.kind === 'appointment';
+      const remove = c.remove === true;
+      const change: AppointmentChange = {
+        starts_at: null,
+        ends_at: null,
+        all_day: null,
+        title: null,
+        location: null,
+        notes: null,
+        done: null,
+        remove,
+      };
+      if (!remove) {
+        const rawStart = typeof c.starts_at === 'string' ? c.starts_at.trim() : '';
+        const day = validDay(rawStart.slice(0, 10));
+        if (day) {
+          if (hasTime(rawStart)) {
+            change.starts_at = localDateTime(rawStart);
+            if (own && ev.allDay) change.all_day = false;
+          } else if (ev.allDay) {
+            change.starts_at = localDateTime(day, 0);
+          } else {
+            // nur ein neuer Tag: gleiche Uhrzeit wie bisher
+            const s = new Date(ev.start);
+            change.starts_at = localDateTime(`${day}T${pad2(s.getHours())}:${pad2(s.getMinutes())}`);
+          }
+        }
+        if (change.starts_at && sameInstant(change.starts_at, ev.start) && change.all_day === null)
+          change.starts_at = null;
+        if (own) {
+          const start = change.starts_at ?? ev.start;
+          const allDay = change.all_day ?? ev.allDay;
+          if (!allDay) {
+            let end = hasTime(c.ends_at) ? localDateTime(c.ends_at) : null;
+            if (end && end <= start) end = null;
+            const fixedEnd = known.appointments?.find((x) => x.id === ev.appointmentId)?.ends_at ?? null;
+            // verschoben ohne (gültiges) neues Ende: Dauer bleibt gleich
+            if (!end && change.starts_at && fixedEnd)
+              end = new Date(
+                new Date(fixedEnd).getTime() + new Date(change.starts_at).getTime() - new Date(ev.start).getTime(),
+              ).toISOString();
+            if (end && !(fixedEnd && sameInstant(end, fixedEnd))) change.ends_at = end;
+          }
+          const title = str(c.title, 200);
+          if (title && title !== ev.title) change.title = title;
+          change.location = str(c.location, 500);
+          change.notes = str(c.notes, 5000);
+        }
+        const done = c.done === 'done' ? true : c.done === 'open' ? false : null;
+        if (done !== null && done !== ev.done) change.done = done;
+        const changed = Object.entries(change).some(([k, v]) => k !== 'remove' && v !== null);
+        if (!changed) continue;
+      }
+      out.push({ id: id(), kind: 'appointment_change', include: true, data: change, event: ev });
     } else if (a.type === 'income_proof' && a.income_proof) {
       if (out.some((p) => p.kind === 'income_proof')) continue;
       out.push({
@@ -377,6 +586,9 @@ export function proposalProblem(p: Proposal, all: Proposal[]): string | null {
     if (p.customer.existingId) return null;
     if (p.customer.newRef) return included(p.customer.newRef) ? null : 'Der neue Kunde dafür ist abgewählt.';
     return 'Wähle den Kunden für diesen Auftrag.';
+  }
+  if (p.kind === 'order_date') {
+    return p.order.existingId ? null : 'Wähle den Auftrag für diesen Termin.';
   }
   if (p.kind === 'document') {
     if (p.order.existingId) return null;
@@ -425,6 +637,17 @@ export function proposalLabel(p: Proposal): string {
       return `PDF von ${p.data.number}`;
     case 'mark_paid':
       return `${p.data.number} als bezahlt markieren`;
+    case 'appointment':
+      return `Termin „${p.data.title}“ (${whenLabel(p.data.starts_at, p.data.all_day)})`;
+    case 'order_date':
+      return `${p.data.field === 'meeting' ? 'Erstgespräch' : 'Ausführung'}${p.order.title ? ` „${p.order.title}“` : ''} am ${whenLabel(p.data.at)}`;
+    case 'appointment_change': {
+      const what = `${p.event.kind === 'meeting' ? 'Erstgespräch' : p.event.kind === 'execution' ? 'Ausführung' : 'Termin'} „${p.event.title}“`;
+      if (p.data.remove) return `${what} ${p.event.kind === 'appointment' ? 'löschen' : 'absagen'}`;
+      return p.data.starts_at
+        ? `${what} verschieben auf ${whenLabel(p.data.starts_at, p.data.all_day ?? p.event.allDay)}`
+        : `${what} ändern`;
+    }
   }
 }
 
@@ -434,6 +657,9 @@ export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
 export const EXECUTION_ORDER: Proposal['kind'][] = [
   'customer',
   'order',
+  'appointment',
+  'order_date',
+  'appointment_change',
   'document',
   'expense',
   'post',

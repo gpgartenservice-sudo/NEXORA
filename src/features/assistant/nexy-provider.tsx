@@ -6,7 +6,8 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { downloadPdf, PDF_UNSUPPORTED, pdfSupported, savePdf } from '@/features/documents/save-pdf';
 import { incomeProofMonths, summarize } from '@/features/finance/finance-logic';
 import { useFinance } from '@/features/finance/finance-provider';
-import { contextEvents } from '@/features/appointments/appointment-logic';
+import { nexyEvents } from '@/features/appointments/appointment-logic';
+import { useAppointments, type AppointmentInput } from '@/features/appointments/appointments-provider';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { useFollowups } from '@/features/dunning/followups-provider';
 import { followerGrowth } from '@/features/social/connect-logic';
@@ -21,6 +22,7 @@ import {
   proposalProblem,
   quickReplies,
   replyText,
+  whenLabel,
   type Proposal,
 } from './assistant-logic';
 import { buildNexyContext } from './nexy-context';
@@ -99,6 +101,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const social = useSocial();
   const connected = useSocialConnect();
   const calendar = useCalendarEvents();
+  const appts = useAppointments();
   const { followups } = useFollowups();
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
@@ -124,6 +127,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const before = latest.current;
       setMessages((list) => [...list, { id: nextId(), role: 'user', text, voice: options?.voice || undefined }]);
       setThinking(true);
+      // Termine mit Kurzzeichen (T1, T2 …): darüber kann Nexy sie ändern
+      const events = nexyEvents(calendar, new Date());
       const context = buildNexyContext({
         seller: docs.seller,
         customers: crm.customers,
@@ -131,7 +136,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         documents: docs.documents,
         expenses: finance.expenses,
         posts: social.posts,
-        upcoming: contextEvents(calendar, new Date(), 7),
+        upcoming: events.entries,
         followups,
         accounts: connected.accounts.map((a) => ({
           ...a,
@@ -159,7 +164,14 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       }
       const proposals = buildProposals(
         data,
-        { customers: crm.customers, orders: crm.orders, documents: docs.documents },
+        {
+          customers: crm.customers,
+          orders: crm.orders,
+          documents: docs.documents,
+          events: calendar,
+          refs: events.refs,
+          appointments: appts.appointments,
+        },
         todayIso(),
       );
       const reply: NexyMessage = {
@@ -184,6 +196,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       connected.accounts,
       connected.stats,
       calendar,
+      appts.appointments,
       followups,
     ],
   );
@@ -289,6 +302,70 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             href: `/auftraege/${order.id}`,
             note: pdf.error ? pdf.error : 'als PDF gespeichert',
           });
+        } else if (p.kind === 'appointment') {
+          const customerId =
+            p.customer.existingId ?? (p.customer.newRef ? (newCustomers.get(p.customer.newRef)?.id ?? null) : null);
+          const { data, error } = await appts.createAppointment({ ...p.data, customer_id: customerId });
+          if (error || !data) return finish(error ?? 'Der Termin konnte nicht gespeichert werden.');
+          results.push({
+            label: `Termin ${data.title}`,
+            note: whenLabel(data.starts_at, data.all_day),
+            href: `/termine/${data.id}`,
+          });
+        } else if (p.kind === 'order_date') {
+          const orderId = p.order.existingId;
+          if (!orderId) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
+          const dates = p.data.field === 'meeting' ? { meeting_at: p.data.at } : { execution_at: p.data.at };
+          const { error } = await crm.updateOrder(orderId, dates);
+          if (error) return finish(error);
+          results.push({
+            label: `${p.data.field === 'meeting' ? 'Erstgespräch' : 'Ausführung'} ${p.order.title ?? ''}`.trim(),
+            note: whenLabel(p.data.at),
+            href: `/auftraege/${orderId}`,
+          });
+        } else if (p.kind === 'appointment_change') {
+          const ev = p.event;
+          const c = p.data;
+          const what = `${ev.kind === 'meeting' ? 'Erstgespräch' : ev.kind === 'execution' ? 'Ausführung' : 'Termin'} ${ev.title}`;
+          const note = c.remove
+            ? ev.kind === 'appointment'
+              ? 'gelöscht'
+              : 'abgesagt'
+            : c.starts_at
+              ? `verschoben auf ${whenLabel(c.starts_at, c.all_day ?? ev.allDay)}`
+              : c.done !== null
+                ? c.done
+                  ? 'erledigt'
+                  : 'wieder offen'
+                : 'geändert';
+          if (ev.kind === 'appointment' && ev.appointmentId) {
+            if (c.remove) {
+              const { error } = await appts.deleteAppointment(ev.appointmentId);
+              if (error) return finish(error);
+              results.push({ label: what, note, href: '/termine' });
+            } else {
+              const input: Partial<AppointmentInput> = {};
+              if (c.starts_at) input.starts_at = c.starts_at;
+              if (c.all_day !== null) input.all_day = c.all_day;
+              if (c.ends_at) input.ends_at = c.ends_at;
+              if (c.title) input.title = c.title;
+              if (c.location) input.location = c.location;
+              if (c.notes) input.notes = c.notes;
+              if (c.done !== null) input.done = c.done;
+              const { error } = await appts.updateAppointment(ev.appointmentId, input);
+              if (error) return finish(error);
+              results.push({ label: what, note, href: `/termine/${ev.appointmentId}` });
+            }
+          } else if (ev.orderId) {
+            const meeting = ev.kind === 'meeting';
+            const change: Partial<Order> = {};
+            if (c.remove) change[meeting ? 'meeting_at' : 'execution_at'] = null;
+            if (c.starts_at) change[meeting ? 'meeting_at' : 'execution_at'] = c.starts_at;
+            if (c.done !== null) change[meeting ? 'meeting_done' : 'completed'] = c.done;
+            const { error } = await crm.updateOrder(ev.orderId, change);
+            if (error) return finish(error);
+            results.push({ label: what, note, href: `/auftraege/${ev.orderId}` });
+          }
         } else if (p.kind === 'expense') {
           const { data, error } = await finance.createExpense({ ...p.data, ends_on: null, notes: null });
           if (error || !data) return finish(error ?? 'Die Ausgabe konnte nicht gespeichert werden.');
@@ -329,7 +406,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       }
       return finish();
     },
-    [blockers, crm, docs, finance, social, patch],
+    [blockers, crm, docs, finance, social, appts, patch],
   );
 
   const dismiss = useCallback((messageId: string) => patch(messageId, { status: 'dismissed' }), [patch]);

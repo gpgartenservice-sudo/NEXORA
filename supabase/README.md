@@ -47,7 +47,7 @@ Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
 ## 4. Nexy (KI-Assistent) einrichten
 
-Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden, Aufträge, Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren. Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird erst, wenn du in der App bestätigst.
+Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden, Aufträge, Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene anlegen, in Aufträge eintragen, verschieben, ändern, absagen). Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird erst, wenn du in der App bestätigst.
 
 **1. API-Schlüssel holen**
 
@@ -81,7 +81,7 @@ Fertig – in der App links **Nexy** öffnen und losschreiben.
 
 **Kosten:** Standardmäßig nutzt Nexy **Claude Opus 5.5** – grob 2–4 Cent pro Nachricht (Gespräch und Übersicht werden jedes Mal mitgeschickt). Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Gründlicher (langsamer, teurer) antwortet Nexy mit `ASSISTANT_EFFORT` = `medium`.
 
-**Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
+**Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen, Termine der nächsten Wochen mit Ort) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
 
 ### Sprachmodus (mit Nexy sprechen)
 
