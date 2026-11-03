@@ -39,6 +39,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261105090000_business_logo.sql` | Firmenlogo für Angebote und Rechnungen (jede Version bleibt erhalten, damit alte Rechnungen ihr Logo behalten) |
 | `20261106090000_finances.sql` | Finanzen: Ausgaben (einmalig, monatlich, jährlich) und automatisches Abschlussdatum bei Aufträgen |
 | `20261107090000_social.sql` | Social Media: Posts (Board, Wochenplan, Zahlen) und Hashtag-Sets |
+| `20261108090000_social_accounts.sql` | TikTok & Instagram verbinden: Konten (Zugangsdaten verschlüsselt), Follower-Verlauf, Videos/Beiträge mit Zahlen |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -107,7 +108,57 @@ Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übern
 
 **Datenschutz:** Die Sprachaufnahme wird nur zur Umwandlung in Text an Groq (USA) übertragen; NEXORA speichert sie nicht. Auch das gehört in die Datenschutzerklärung.
 
-## 5. Wichtig zum Testen: E-Mail-Versand
+## 5. TikTok & Instagram verbinden
+
+Im Bereich **Social Media → Konten** verbindest du deine Konten. Danach holt NEXORA Follower, Likes und die Zahlen jedes Videos bzw. Beitrags (beim Öffnen automatisch, wenn der Stand älter als 6 Stunden ist), ordnet neue Videos der passenden Idee im Content-Board zu und überträgt Aufrufe, Likes, Kommentare, Geteilt und Gespeichert in den Post. NEXORA bekommt **nur Lese-Rechte** und postet nichts.
+
+Dafür brauchst du je Plattform eine (kostenlose) **Entwickler-App** – das ist der offizielle Weg, über den sich Nutzer bei TikTok bzw. Instagram anmelden. Die Zugangsdaten (Tokens) speichert die Server-Funktion **verschlüsselt** in der Datenbank.
+
+**1. Datenbank-Skript** `20261108090000_social_accounts.sql` ausführen (siehe Abschnitt 3).
+
+**2. Server-Funktion anlegen**
+
+1. **Edge Functions → Deploy a new function → Via Editor**, Name genau `social`.
+2. Den Beispiel-Code komplett durch den Inhalt von [`functions/social/index.ts`](functions/social/index.ts) ersetzen → **Deploy**.
+3. In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) **ausschalten**. Das ist hier Pflicht: Nach der Anmeldung leitet TikTok/Instagram den Browser zur Funktion zurück – ohne NEXORA-Anmeldung. Die Funktion prüft bei allen anderen Anfragen selbst, ob ein angemeldeter Nutzer fragt.
+
+Deine **Rückleitungs-Adresse** (brauchst du gleich bei TikTok und Instagram):
+
+```
+https://DEIN-PROJEKT.supabase.co/functions/v1/social/callback
+```
+
+`DEIN-PROJEKT` ist der Teil aus deiner Supabase-Adresse (`EXPO_PUBLIC_SUPABASE_URL` in `.env`).
+
+**3. TikTok**
+
+1. Auf [developers.tiktok.com](https://developers.tiktok.com) anmelden → **Manage apps** → vorhandene App öffnen oder **Connect an app** (neue App, z. B. „NEXORA“).
+2. Produkt **Login Kit** hinzufügen, dazu die Berechtigungen (Scopes) `user.info.basic`, `user.info.profile`, `user.info.stats` und `video.list` (die letzten drei gehören zur **Display API**).
+3. Bei Login Kit als Plattform **Web** wählen und als **Redirect URI** die Rückleitungs-Adresse von oben eintragen.
+4. Solange die App nicht von TikTok geprüft ist, läuft sie im **Sandbox**-Modus: Dort unter **Target users** dein eigenes TikTok-Konto hinzufügen – dann kannst du dich schon verbinden. Für andere Nutzer muss die App später zur Prüfung (**Submit for review**).
+5. **Client key** und **Client secret** kopieren und in Supabase unter **Edge Functions → Secrets** speichern: `TIKTOK_CLIENT_KEY` und `TIKTOK_CLIENT_SECRET`.
+
+Falls TikTok einzelne Berechtigungen (noch) nicht freigibt: Geheimnis `TIKTOK_SCOPES` = `user.info.basic,video.list` – dann fehlen nur die Follower-Zahlen.
+
+**4. Instagram** (geht nur mit **Business- oder Creator-Konto** – umstellen in der Instagram-App unter *Einstellungen → Kontotyp und Tools → Zu professionellem Konto wechseln*, kostenlos)
+
+1. Auf [developers.facebook.com](https://developers.facebook.com) → **Meine Apps → App erstellen**. Als Anwendungsfall den für **Instagram** wählen (Nachrichten und Inhalte auf Instagram verwalten).
+2. Im Anwendungsfall die **API-Einrichtung mit Instagram-Login** öffnen (Instagram API with Instagram Login).
+3. Bei **Business-Login einrichten** die Rückleitungs-Adresse von oben als **Weiterleitungs-URL** (OAuth redirect URI) eintragen.
+4. Unter **App-Rollen → Rollen → Instagram-Tester** dein Instagram-Konto hinzufügen und die Einladung in der Instagram-App annehmen (*Einstellungen → Apps und Websites → Tester-Einladungen*). Bis Meta die App geprüft hat, können sich nur Tester verbinden.
+5. **Instagram-App-ID** und **Instagram-App-Geheimcode** kopieren (Achtung: die von *Instagram*, nicht die Facebook-App-ID) und in Supabase speichern: `INSTAGRAM_APP_ID` und `INSTAGRAM_APP_SECRET`.
+
+Die Bezeichnungen in den Entwicklerportalen ändern sich ab und zu – sinngemäß sind es immer: App anlegen, Rückleitungs-Adresse eintragen, dich selbst als Test-Nutzer freischalten, Schlüssel kopieren.
+
+> Client secret und App-Geheimcode **niemals** in die App, ins Repository oder in einen Chat schreiben – nur als Supabase-Geheimnis.
+
+**Verbinden:** In der App **Social Media → Konten → Mit TikTok verbinden**. In der Mac-App öffnet sich ein eigenes Anmeldefenster, im Browser wechselt die Seite zur Anmeldung und kommt danach zurück. Für die **Web-Version** auf einer eigenen Adresse diese als Geheimnis `SOCIAL_APP_ORIGINS` eintragen (z. B. `https://app.deine-domain.de`; `localhost` ist immer erlaubt).
+
+**Falls es nicht klappt:** Die App zeigt, was fehlt („Server-Funktion fehlt“, „In Supabase fehlen die Geheimnisse …“, „Datenbank-Skript fehlt“) oder was TikTok/Instagram gemeldet hat. Häufig: Rückleitungs-Adresse nicht exakt gleich eingetragen, eigenes Konto nicht als Test-Nutzer freigeschaltet, Instagram-Konto ist privat statt Business/Creator. Details: **Edge Functions → social → Logs**.
+
+**Datenschutz:** Gespeichert werden Profilname, Profilbild, Follower-Zahlen, Beschreibungen, Links und Zahlen deiner Videos/Beiträge. Beim **Trennen** werden Zugang, Verlauf und Videoliste gelöscht (bei TikTok wird der Zugang auch dort zurückgezogen); deine Posts im Content-Board und ihre Zahlen bleiben.
+
+## 6. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 
@@ -116,4 +167,4 @@ Vor dem Start mit echten Nutzern braucht ihr einen eigenen Versand (**Authentica
 ## Sicherheit
 
 - In der App steht nur der **Publishable Key** (`.env`). Der ist öffentlich und darf in die App.
-- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`) und Groq-Schlüssel (`gsk_…`) – die beiden Schlüssel nur als Supabase-Geheimnis.
+- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`), Groq-Schlüssel (`gsk_…`), TikTok-Client-Secret und Instagram-App-Geheimcode – diese Schlüssel nur als Supabase-Geheimnis.

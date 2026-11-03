@@ -6,6 +6,8 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { downloadPdf, PDF_UNSUPPORTED, pdfSupported, savePdf } from '@/features/documents/save-pdf';
 import { incomeProofMonths, summarize } from '@/features/finance/finance-logic';
 import { useFinance } from '@/features/finance/finance-provider';
+import { followerGrowth } from '@/features/social/connect-logic';
+import { useSocialConnect } from '@/features/social/connect-provider';
 import { useSocial } from '@/features/social/social-provider';
 
 import { askAssistant, type HistoryEntry } from './assistant-api';
@@ -92,6 +94,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const docs = useDocuments();
   const finance = useFinance();
   const social = useSocial();
+  const connected = useSocialConnect();
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
@@ -123,6 +126,16 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         documents: docs.documents,
         expenses: finance.expenses,
         posts: social.posts,
+        accounts: connected.accounts.map((a) => ({
+          ...a,
+          growth7:
+            followerGrowth(
+              connected.stats,
+              a.id,
+              new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' }),
+              7,
+            )?.delta ?? null,
+        })),
       });
       const { data, error, notSetUp } = await askAssistant(text, historyOf(before).slice(-16), context);
       setThinking(false);
@@ -154,7 +167,16 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       setMessages((list) => [...list, reply]);
       return reply;
     },
-    [crm.customers, crm.orders, docs.seller, docs.documents, finance.expenses, social.posts],
+    [
+      crm.customers,
+      crm.orders,
+      docs.seller,
+      docs.documents,
+      finance.expenses,
+      social.posts,
+      connected.accounts,
+      connected.stats,
+    ],
   );
 
   const updateProposal = useCallback(

@@ -84,7 +84,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
 | `src/features/assistant/` | Nexy – **Vorschläge prüfen/zuordnen in `assistant-logic.ts`**, Übersicht für die KI in `nexy-context.ts`, Figur in `nexy-avatar.tsx`, Sprachmodus in `use-voice-mode.ts` (Pausen-Erkennung, Sprachbefehle, Vorlesetext: `voice-logic.ts`; Mikrofon/Stimme: `voice.ts`) |
 | `supabase/functions/assistant/` | Server-Funktion von Nexy (Claude; Spracherkennung über Groq Whisper), läuft bei Supabase |
-| `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`** |
+| `supabase/functions/social/` | Server-Funktion für TikTok & Instagram (Anmeldung, verschlüsselte Zugangsdaten, Zahlen abholen) |
+| `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`**; TikTok/Instagram verbinden: Zuordnung Videos ↔ Ideen, Zahlen übernehmen, Follower-Verlauf in `connect-logic.ts` |
 | `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis |
 | `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
@@ -122,7 +123,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Angebote & Rechnungen verschicken (von Hand): E-Mail oder WhatsApp mit fertigem Text, auf dem Mac auch über „Teilen …“ mit PDF im Anhang; Angebot als verschickt markieren
 - ✅ Finanzen: Einnahmen, Ausgaben und Gewinn pro Monat/Jahr, Verlauf der letzten 12 Monate, offene Rechnungen, Ausgaben (auch wiederkehrend), Fixkosten, Einkommensnachweis als PDF
 - ✅ Social Media: Content-Board (Status aus erledigten Schritten je Format), Wochenplan, Zahlen pro Post mit Interaktionsrate, Hashtag-Sets, Caption-Zähler, Text kopieren
-- ⏳ TikTok & Instagram verbinden (Knopf zeigt „kommt bald“)
+- ✅ TikTok & Instagram verbinden (Social Media → Konten): Anmeldung über TikTok/Instagram (Mac-App: eigenes Fenster), Follower und Follower-Verlauf, Videos/Beiträge mit Aufrufen, Likes, Kommentaren, Geteilt, Gespeichert; neue Videos werden automatisch der passenden Idee zugeordnet (sonst Vorschlag oder „Als Post übernehmen“) und ihre Zahlen landen im Post; Abgleich automatisch alle 6 Stunden beim Öffnen; Nexy kennt die Follower. Einrichtung: `supabase/README.md`, Abschnitt 5
 - ✅ Nexy (KI-Assistent) mit animierter Figur (schaut der Maus nach, freut sich bei Hover, Stupser mit Funken und Sprechblase, wird schläfrig): Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt – alles erst nach Bestätigung. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
 - ✅ Nexy-Sprachmodus: Mikrofon-Knopf, Nexy hört zu (Schallringe + Pegel), merkt an der Pause, wann du fertig bist, antwortet laut mit deutscher Systemstimme (Mund bewegt sich) und hört wieder zu; „Ja“/„Nein“ bestätigt bzw. verwirft Vorschläge, „Stopp“ beendet; „Fertig“, „Unterbrechen“, Schalter „Vorlesen“ auch fürs Schreiben. Spracherkennung über Groq (Geheimnis `GROQ_API_KEY`, siehe `supabase/README.md`)
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen

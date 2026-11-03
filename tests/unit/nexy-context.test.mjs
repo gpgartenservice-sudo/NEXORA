@@ -41,3 +41,20 @@ test('Übersicht bleibt bei vielen Einträgen unter der Größengrenze', () => {
   assert.ok(JSON.stringify(c).length <= 26000, String(JSON.stringify(c).length));
   assert.ok(c.kunden.length >= 10 && c.auftraege.length >= 10);
 });
+
+test('Übersicht: verbundene Social-Konten mit Followern', () => {
+  const c = buildNexyContext({
+    seller,
+    customers: [],
+    orders: [],
+    documents: [],
+    expenses: [],
+    posts: [],
+    accounts: [{ platform: 'tiktok', username: 'lena.design', followers: 1520, likes: 23400, media_count: 41, growth7: 34 }],
+    today: TODAY,
+  });
+  assert.deepEqual(c.social.verbundene_konten, [
+    { plattform: 'TikTok', name: 'lena.design', follower: 1520, follower_plus_7_tage: 34, likes_gesamt: 23400, beitraege: 41 },
+  ]);
+  assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).social.verbundene_konten, []);
+});

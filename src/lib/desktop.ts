@@ -15,6 +15,11 @@ export type DesktopBridge = {
   }) => Promise<{ filePath: string }>;
   /** Mikrofon-Freigabe des Mac anfragen (ältere Versionen der Mac-App haben das nicht) */
   askMicrophone?: () => Promise<boolean>;
+  /**
+   * Anmeldung bei TikTok/Instagram in einem eigenen Fenster. Endet, sobald die
+   * Anmeldeseite zu `callbackUrl` zurückleitet (url = komplette Rückleitung).
+   */
+  openAuthWindow?: (options: { url: string; callbackUrl: string }) => Promise<{ url?: string; cancelled?: boolean }>;
 };
 
 declare global {

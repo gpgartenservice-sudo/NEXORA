@@ -1,32 +1,64 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Music2 } from 'lucide-react-native';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
-import { ComingSoonPanel, SoonButton } from '@/components/ui/coming-soon';
+import { ActionChip } from '@/components/ui/action-chip';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Spacing } from '@/constants/theme';
 import { StatRow, StatTile } from '@/features/crm/ui';
 
+import { AccountsView } from './accounts-view';
 import { BoardView } from './board-view';
+import { useSocialConnect } from './connect-provider';
 import { HashtagSetsView } from './hashtag-sets-view';
 import { MetricsView } from './metrics-view';
 import { computePostStatus, dayKey, startOfWeek } from './social-logic';
 import { useSocial } from './social-provider';
+import type { ReturnParams } from './oauth';
 import { WeekView } from './week-view';
 
-type View_ = 'board' | 'week' | 'numbers' | 'tags';
+type View_ = 'board' | 'week' | 'numbers' | 'tags' | 'accounts';
 
-/** Bereich Social Media: Content-Board, Wochenplan, Zahlen, Hashtag-Sets. */
+/** Bereich Social Media: Content-Board, Wochenplan, Zahlen, Hashtag-Sets, verbundene Konten. */
 export function SocialScreen() {
   const { posts, loading, error } = useSocial();
-  const [view, setView] = useState<View_>('board');
-  const [connectInfo, setConnectInfo] = useState(false);
+  const connect = useSocialConnect();
+  const { finishReturn, autoSync, loading: accountsLoading } = connect;
+  const params = useLocalSearchParams<ReturnParams>();
+  const { width } = useWindowDimensions();
+  const returning = !!(params.social_state || params.social_error);
+  const [chosen, setView] = useState<View_>('board');
+  // Rückkehr von der Anmeldung: gleich die Konten zeigen
+  const view: View_ = returning ? 'accounts' : chosen;
+  const handled = useRef(false);
+
+  // Rückkehr von der Anmeldung bei TikTok/Instagram (Browser)
+  useEffect(() => {
+    if (handled.current || !returning) return;
+    handled.current = true;
+    void finishReturn(params).then(() => {
+      setView('accounts');
+      // Code & Co. aus der Adresse entfernen (ohne die Seite neu aufzubauen)
+      router.setParams({
+        social_platform: undefined,
+        social_code: undefined,
+        social_state: undefined,
+        social_error: undefined,
+        social_error_description: undefined,
+      });
+    });
+  }, [returning, params, finishReturn]);
+
+  // Zahlen der verbundenen Konten auffrischen, wenn sie älter als ein paar Stunden sind
+  useEffect(() => {
+    if (!accountsLoading) autoSync();
+  }, [accountsLoading, autoSync]);
 
   const count = (s: ReturnType<typeof computePostStatus>) => posts.filter((p) => computePostStatus(p) === s).length;
   const monday = startOfWeek(new Date());
@@ -46,32 +78,16 @@ export function SocialScreen() {
         subtitle="Von der Idee bis zum Post – plane deinen Content und behalte deine Zahlen im Blick."
         action={
           <View style={styles.actions}>
-            <SoonButton
+            <ActionChip
               icon={Music2}
-              label="TikTok & Instagram verbinden"
-              open={connectInfo}
-              onPress={() => setConnectInfo((v) => !v)}
+              label={connect.accounts.length ? 'TikTok & Instagram' : 'TikTok & Instagram verbinden'}
+              active={view === 'accounts'}
+              onPress={() => setView('accounts')}
             />
             <Button label="+ Idee" onPress={() => router.push('/social/neu')} style={styles.action} />
           </View>
         }
       />
-      {connectInfo && (
-        <Reveal>
-          <ComingSoonPanel
-            icon={Music2}
-            title="TikTok & Instagram verbinden"
-            intro="Verbinde deine Konten – dann musst du deine Zahlen nicht mehr abtippen:"
-            points={[
-              'Aufrufe, Likes und Kommentare kommen automatisch zu jedem Post',
-              'Follower-Wachstum Woche für Woche',
-              'Neue Videos werden automatisch der passenden Idee zugeordnet',
-            ]}
-            safety="Sicher: Du meldest dich direkt bei TikTok bzw. Instagram an. NEXORA liest nur deine Zahlen und postet nichts ohne dich."
-            onClose={() => setConnectInfo(false)}
-          />
-        </Reveal>
-      )}
       {error && (
         <Notice tone="error">
           {error === 'setup'
@@ -100,9 +116,10 @@ export function SocialScreen() {
             onChange={setView}
             options={[
               { value: 'board', label: 'Board' },
-              { value: 'week', label: 'Wochenplan' },
+              { value: 'week', label: width < 480 ? 'Woche' : 'Wochenplan' },
               { value: 'numbers', label: 'Zahlen' },
               { value: 'tags', label: 'Hashtags' },
+              { value: 'accounts', label: 'Konten' },
             ]}
           />
         </View>
@@ -114,6 +131,7 @@ export function SocialScreen() {
           {view === 'week' && <WeekView posts={posts} />}
           {view === 'numbers' && <MetricsView posts={posts} />}
           {view === 'tags' && <HashtagSetsView />}
+          {view === 'accounts' && <AccountsView />}
         </Reveal>
       )}
     </Screen>
@@ -123,5 +141,5 @@ export function SocialScreen() {
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   action: { minWidth: 120 },
-  tabs: { maxWidth: 560 },
+  tabs: { maxWidth: 640 },
 });

@@ -44,6 +44,16 @@ type PostLike = PostFacts & {
   views: number | null;
 };
 
+type AccountLike = {
+  platform: string;
+  username: string | null;
+  followers: number | null;
+  likes: number | null;
+  media_count: number | null;
+  /** Follower-Zuwachs der letzten 7 Tage (falls bekannt) */
+  growth7?: number | null;
+};
+
 export type ContextInput = {
   seller: Seller;
   customers: CustomerLike[];
@@ -51,6 +61,8 @@ export type ContextInput = {
   documents: DocLike[];
   expenses: ExpenseFacts[];
   posts: PostLike[];
+  /** verbundene TikTok-/Instagram-Konten */
+  accounts?: AccountLike[];
   today?: Date;
 };
 
@@ -63,6 +75,7 @@ export function buildNexyContext({
   documents,
   expenses,
   posts,
+  accounts = [],
   today = new Date(),
 }: ContextInput) {
   const customerName = new Map(customers.map((c) => [c.id, c.name]));
@@ -141,6 +154,14 @@ export function buildNexyContext({
         .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
         .slice(0, 5)
         .map((p) => ({ titel: p.title, aufrufe: p.views })),
+      verbundene_konten: accounts.map((a) => ({
+        plattform: a.platform === 'tiktok' ? 'TikTok' : a.platform === 'instagram' ? 'Instagram' : a.platform,
+        name: a.username,
+        follower: a.followers,
+        follower_plus_7_tage: a.growth7 ?? null,
+        likes_gesamt: a.likes,
+        beitraege: a.media_count,
+      })),
     },
   };
 

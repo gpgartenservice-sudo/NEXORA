@@ -8,6 +8,7 @@ import { CrmProvider } from '@/features/crm/crm-provider';
 import { DocumentsProvider } from '@/features/documents/documents-provider';
 import { FinanceProvider } from '@/features/finance/finance-provider';
 import { RoadmapProvider } from '@/features/roadmap/roadmap-provider';
+import { SocialConnectProvider } from '@/features/social/connect-provider';
 import { SocialProvider } from '@/features/social/social-provider';
 import { NexyProvider } from '@/features/assistant/nexy-provider';
 import { useAuth } from '@/providers/auth-provider';
@@ -29,20 +30,22 @@ export default function TabsLayout() {
         <DocumentsProvider userId={user?.id ?? ''}>
           <FinanceProvider userId={user?.id ?? ''}>
             <SocialProvider userId={user?.id ?? ''}>
-              <NexyProvider key={user?.id ?? ''}>
-                <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
-                  <TabList asChild>
-                    <NavBar wide={wide}>
-                      {NAV_ITEMS.map((item) => (
-                        <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                          <NavButton item={item} wide={wide} />
-                        </TabTrigger>
-                      ))}
-                    </NavBar>
-                  </TabList>
-                  <TabSlot style={styles.slot} />
-                </Tabs>
-              </NexyProvider>
+              <SocialConnectProvider userId={user?.id ?? ''}>
+                <NexyProvider key={user?.id ?? ''}>
+                  <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+                    <TabList asChild>
+                      <NavBar wide={wide}>
+                        {NAV_ITEMS.map((item) => (
+                          <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                            <NavButton item={item} wide={wide} />
+                          </TabTrigger>
+                        ))}
+                      </NavBar>
+                    </TabList>
+                    <TabSlot style={styles.slot} />
+                  </Tabs>
+                </NexyProvider>
+              </SocialConnectProvider>
             </SocialProvider>
           </FinanceProvider>
         </DocumentsProvider>

@@ -114,6 +114,96 @@ function allowPermission(permission, url, details = {}) {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// TikTok/Instagram verbinden: Anmeldung in einem eigenen Fenster (ohne Zugriff
+// auf die App). Sobald die Anmeldeseite zur Rückleitungs-Adresse der
+// Server-Funktion "social" weiterleitet, wird das Fenster geschlossen und die
+// Adresse (mit Code) an die App gegeben.
+// ---------------------------------------------------------------------------
+const AUTH_HOSTS = ['www.tiktok.com', 'www.instagram.com'];
+const AUTH_PARTITION = 'persist:nexora-social-login';
+let authWindow = null;
+
+function validAuthUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && AUTH_HOSTS.includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function validCallbackUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && !u.search && !u.hash && u.pathname === '/functions/v1/social/callback';
+  } catch {
+    return false;
+  }
+}
+
+ipcMain.handle('nexora:open-auth-window', async (event, options) => {
+  if (!fromApp(event)) throw new Error('Nicht erlaubt');
+  const { url, callbackUrl } = options ?? {};
+  if (!validAuthUrl(url)) throw new Error('Ungültige Anmeldeseite');
+  if (!validCallbackUrl(callbackUrl)) throw new Error('Ungültige Rückleitung');
+  if (authWindow && !authWindow.isDestroyed()) authWindow.close();
+
+  const ses = session.fromPartition(AUTH_PARTITION);
+  // Die Anmeldeseite braucht weder Mikrofon noch Kamera noch sonstige Rechte
+  ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+
+  return new Promise((resolve) => {
+    const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    const win = new BrowserWindow({
+      width: 520,
+      height: 760,
+      parent,
+      title: 'Anmelden',
+      backgroundColor: '#ffffff',
+      autoHideMenuBar: true,
+      webPreferences: { partition: AUTH_PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    authWindow = win;
+    let done = false;
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      ses.webRequest.onBeforeRequest(null);
+      if (authWindow === win) authWindow = null;
+      resolve(result);
+      if (!win.isDestroyed()) win.close();
+    };
+    const isCallback = (target) => typeof target === 'string' && target.startsWith(callbackUrl);
+    // Rückleitung abfangen – egal ob per Weiterleitung, Link oder Skript
+    ses.webRequest.onBeforeRequest({ urls: [`${callbackUrl}*`] }, (details, callback) => {
+      callback({ cancel: true });
+      finish({ url: details.url });
+    });
+    const onNavigate = (e, legacyUrl) => {
+      const target = e?.url ?? legacyUrl;
+      if (isCallback(target)) {
+        e.preventDefault();
+        finish({ url: target });
+      }
+    };
+    win.webContents.on('will-redirect', onNavigate);
+    win.webContents.on('will-navigate', onNavigate);
+    // z. B. "Mit Google anmelden" öffnet ein eigenes Fenster – ebenfalls ohne Zugriff auf die App
+    win.webContents.setWindowOpenHandler(() => ({
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        parent: win,
+        webPreferences: { partition: AUTH_PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false },
+      },
+    }));
+    win.on('closed', () => finish({ cancelled: true }));
+    win.loadURL(url).catch(() => {
+      // Laden abgebrochen (z. B. weil die Rückleitung abgefangen wurde) – nichts zu tun
+    });
+  });
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
