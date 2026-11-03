@@ -83,7 +83,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Social Media',
     icon: Megaphone,
     description: 'Content-Ideen sammeln, Posts planen und deine Zahlen verfolgen.',
-    soon: true,
   },
   {
     name: 'assistent',

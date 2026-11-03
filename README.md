@@ -77,11 +77,12 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/app/index.tsx` | Start: Intro-Animation → Anmelde-Screen |
 | `src/app/register.tsx`, `verify.tsx`, `forgot-password.tsx`, `reset-password.tsx` | Registrierung, Code-Bestätigung, Passwort zurücksetzen |
 | `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx` + App-Rahmen in `(tabs)/`) |
-| `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, `auftraege`, `firma`, `finanzen`, … |
+| `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, `auftraege`, `firma`, `finanzen`, `social`, … |
 | `src/features/navigation/` | Seitenleiste (Mac) / Tab-Leiste (Handy), Liste aller Bereiche |
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
+| `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`** |
 | `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis |
 | `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
@@ -118,6 +119,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Angebote & Rechnungen als PDF aus jedem Auftrag – mit eigenem Logo: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
 - ✅ Angebote & Rechnungen verschicken (von Hand): E-Mail oder WhatsApp mit fertigem Text, auf dem Mac auch über „Teilen …“ mit PDF im Anhang; Angebot als verschickt markieren
 - ✅ Finanzen: Einnahmen, Ausgaben und Gewinn pro Monat/Jahr, Verlauf der letzten 12 Monate, offene Rechnungen, Ausgaben (auch wiederkehrend), Fixkosten, Einkommensnachweis als PDF
+- ✅ Social Media: Content-Board (Status aus erledigten Schritten je Format), Wochenplan, Zahlen pro Post mit Interaktionsrate, Hashtag-Sets, Caption-Zähler, Text kopieren
+- ⏳ TikTok & Instagram verbinden (Knopf zeigt „kommt bald“)
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
