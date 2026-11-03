@@ -13,11 +13,23 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Colors, Spacing } from '@/constants/theme';
+import { readReceipt } from '@/features/assistant/assistant-api';
 import { formatEuro, parseEuro } from '@/features/crm/order-logic';
 import { todayIso } from '@/features/documents/document-logic';
+import { useAuth } from '@/providers/auth-provider';
 
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type ExpenseRepeat } from './finance-logic';
 import { useFinance, type Expense } from './finance-provider';
+import { ReceiptCard, type ReceiptState } from './receipt-card';
+import {
+  deleteReceipt,
+  openReceipt,
+  pickReceiptFile,
+  prepareReceipt,
+  receiptErrorText,
+  uploadReceipt,
+} from './receipt-file';
+import { possibleDuplicate, receiptToDraft } from './receipt-logic';
 
 /** Zurück zu Finanzen – mit dem dort gewählten Zeitraum (sonst neu öffnen). */
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/finanzen'));
@@ -25,6 +37,12 @@ const back = () => (router.canGoBack() ? router.back() : router.navigate('/finan
 /** Neue Ausgabe */
 export function ExpenseNewScreen() {
   return <ExpenseEditor />;
+}
+
+/** Beleg erfassen (Route /finanzen/beleg): Beleg wählen, Nexy füllt die Ausgabe aus */
+export function ReceiptNewScreen() {
+  const { n } = useLocalSearchParams<{ n?: string }>();
+  return <ExpenseEditor key={n ?? 'beleg'} receiptMode nextKey={String(Number(n ?? 0) + 1)} />;
 }
 
 /** Ausgabe bearbeiten (Route /finanzen/ausgabe/[id]) */
@@ -43,8 +61,18 @@ export function ExpenseEditScreen() {
   return <ExpenseEditor key={expense.id} expense={expense} />;
 }
 
-function ExpenseEditor({ expense }: { expense?: Expense }) {
-  const { createExpense, updateExpense, deleteExpense, error: setupError } = useFinance();
+function ExpenseEditor({
+  expense,
+  receiptMode,
+  nextKey,
+}: {
+  expense?: Expense;
+  receiptMode?: boolean;
+  /** Beleg-Modus: Schlüssel für den nächsten Beleg (frisches Formular) */
+  nextKey?: string;
+}) {
+  const { expenses, createExpense, updateExpense, deleteExpense, error: setupError } = useFinance();
+  const { user } = useAuth();
   const [title, setTitle] = useState(expense?.title ?? '');
   const [amount, setAmount] = useState(
     expense ? expense.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
@@ -57,12 +85,52 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
   const [errors, setErrors] = useState<{ title?: string; amount?: string }>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptState>(
+    expense?.receipt_path
+      ? { kind: 'saved', path: expense.receipt_path, mime: expense.receipt_mime ?? 'image/jpeg' }
+      : null,
+  );
+  const [reading, setReading] = useState(false);
+  const [hints, setHints] = useState<string[]>([]);
 
   const recurring = repeat !== 'once';
   const parsed = parseEuro(amount);
+  const duplicate = possibleDuplicate(expenses, typeof parsed === 'number' ? parsed : null, spentOn, expense?.id);
 
-  const save = async () => {
-    const next = {
+  /** Beleg wählen; bei einer neuen Ausgabe liest Nexy ihn gleich aus */
+  const pick = async (camera: boolean) => {
+    const file = await pickReceiptFile(camera);
+    if (!file) return;
+    setFailure(null);
+    let prepared;
+    try {
+      prepared = await prepareReceipt(file);
+    } catch (e) {
+      return setFailure(receiptErrorText(e));
+    }
+    setReceipt({ kind: 'new', file: prepared });
+    if (expense) return;
+    setReading(true);
+    setHints([]);
+    const { data, error } = await readReceipt(prepared.base64, prepared.mime);
+    setReading(false);
+    if (error) return setHints([error]);
+    const { draft, warnings } = receiptToDraft(data, todayIso());
+    setHints(warnings);
+    if (!draft) return;
+    // nur übernehmen, was noch leer bzw. unverändert ist
+    if (!title.trim()) setTitle(draft.title);
+    if (!amount.trim() && draft.amount !== null)
+      setAmount(draft.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    if (category === 'other') setCategory(draft.category);
+    if (repeat === 'once') setRepeat(draft.repeat);
+    if (draft.spent_on && (!spentOn || spentOn === todayIso())) setSpentOn(draft.spent_on);
+    if (!notes.trim() && draft.notes) setNotes(draft.notes);
+    setErrors({});
+  };
+
+  const save = async (next?: 'next') => {
+    const problems = {
       title: title.trim() ? undefined : 'Wofür war die Ausgabe?',
       amount:
         parsed === null
@@ -71,12 +139,35 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
             ? 'Bitte einen Betrag wie 49,90 eingeben.'
             : undefined,
     };
-    setErrors(next);
+    setErrors(problems);
     setFailure(null);
-    if (next.title || next.amount || typeof parsed !== 'number') return;
+    if (problems.title || problems.amount || typeof parsed !== 'number') return;
     if (!spentOn) return setFailure('Bitte ein Datum wählen.');
     if (recurring && endsOn && endsOn < spentOn) return setFailure('Das Ende liegt vor dem Start.');
     setSaving(true);
+    // neuer Beleg: erst sicher ablegen, dann die Ausgabe speichern
+    let uploaded: string | null = null;
+    if (receipt?.kind === 'new') {
+      if (!user) {
+        setSaving(false);
+        return setFailure('Bitte melde dich neu an.');
+      }
+      const up = await uploadReceipt(user.id, receipt.file);
+      if (up.error || !up.path) {
+        setSaving(false);
+        return setFailure(up.error ?? 'Der Beleg konnte nicht hochgeladen werden.');
+      }
+      uploaded = up.path;
+    }
+    const previous = expense?.receipt_path ?? null;
+    const receiptFields =
+      receipt?.kind === 'new'
+        ? { receipt_path: uploaded, receipt_mime: receipt.file.mime }
+        : receipt
+          ? {}
+          : previous
+            ? { receipt_path: null, receipt_mime: null }
+            : {};
     const input = {
       title: title.trim(),
       amount: parsed,
@@ -85,23 +176,51 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
       spent_on: spentOn,
       ends_on: recurring ? endsOn : null,
       notes: notes.trim() || null,
+      ...receiptFields,
     };
     const { error } = expense ? await updateExpense(expense.id, input) : await createExpense(input);
     setSaving(false);
-    if (error) return setFailure(error);
-    back();
+    if (error) {
+      if (uploaded) void deleteReceipt(uploaded);
+      return setFailure(error);
+    }
+    // ersetzter oder entfernter Beleg: alte Datei weg
+    if (previous && (receipt?.kind === 'new' || !receipt)) void deleteReceipt(previous);
+    if (next === 'next') router.replace({ pathname: '/finanzen/beleg', params: { n: nextKey ?? '1' } });
+    else back();
   };
 
   return (
     <Screen maxWidth={640}>
       <PageHeader
-        title={expense ? 'Ausgabe bearbeiten' : 'Neue Ausgabe'}
-        subtitle={expense ? undefined : 'Für alles, was dein Business kostet – einmalig oder regelmäßig.'}
+        title={expense ? 'Ausgabe bearbeiten' : receiptMode ? 'Beleg erfassen' : 'Neue Ausgabe'}
+        subtitle={
+          expense
+            ? undefined
+            : receiptMode
+              ? 'Kassenbon, Rechnung oder Quittung – als Foto oder PDF.'
+              : 'Für alles, was dein Business kostet – einmalig oder regelmäßig.'
+        }
         back={{ label: 'Finanzen', onPress: back }}
       />
       {setupError === 'setup' && (
         <Notice tone="error">Das Datenbank-Skript für Finanzen fehlt noch (siehe supabase/README.md).</Notice>
       )}
+      {receiptMode && (
+        <Reveal delay={120}>
+          <ReceiptCard
+            receipt={receipt}
+            reading={reading}
+            prominent
+            onPick={(camera) => void pick(camera)}
+            onRemove={() => setReceipt(null)}
+            onView={() => undefined}
+          />
+        </Reveal>
+      )}
+      {hints.map((h) => (
+        <Notice key={h}>{h}</Notice>
+      ))}
       <Reveal delay={160}>
         <Card>
           <TextField
@@ -168,6 +287,7 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
                   onPress={() => setCategory(c.key)}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: active }}
+                  aria-checked={active}
                   style={[styles.chip, active && styles.chipActive]}>
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
                 </Pressable>
@@ -186,8 +306,42 @@ function ExpenseEditor({ expense }: { expense?: Expense }) {
         </Card>
       </Reveal>
 
+      {!receiptMode && (
+        <Reveal delay={260}>
+          <ReceiptCard
+            receipt={receipt}
+            reading={reading}
+            onPick={(camera) => void pick(camera)}
+            onRemove={() => setReceipt(null)}
+            onView={async () => {
+              if (receipt?.kind !== 'saved') return;
+              const err = await openReceipt(receipt.path);
+              if (err) setFailure(err);
+            }}
+          />
+        </Reveal>
+      )}
+
+      {duplicate && (
+        <Notice>
+          {`Sieht aus wie „${duplicate.title}“ vom ${duplicate.spent_on.split('-').reverse().join('.')} (gleicher Betrag) – schon erfasst?`}
+        </Notice>
+      )}
       {failure && <Notice tone="error">{failure}</Notice>}
-      <Button label={expense ? 'Änderungen speichern' : 'Ausgabe speichern'} onPress={save} loading={saving} />
+      <Button
+        label={expense ? 'Änderungen speichern' : 'Ausgabe speichern'}
+        onPress={() => void save()}
+        loading={saving}
+        disabled={reading}
+      />
+      {receiptMode && (
+        <Button
+          label="Speichern & nächster Beleg"
+          variant="secondary"
+          onPress={() => void save('next')}
+          disabled={saving || reading}
+        />
+      )}
       {expense && (
         <ConfirmDelete
           label="Ausgabe löschen"

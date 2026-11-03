@@ -43,6 +43,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261109090000_appointments.sql` | Termine: eigene Termine und geheimer Link fürs Kalender-Abo |
 | `20261110090000_invoice_followups.sql` | Mahnwesen: verschickte Zahlungserinnerungen, Mahnungen und Bewertungsbitten; Link für Bewertungen in den Firmendaten |
 | `20261111090000_todos_goals.sql` | To-dos (mit Fälligkeit, optional zu Kunde/Auftrag) und Ziele (Umsatz, neue Kunden, Aufträge, Posts oder eigene) |
+| `20261112090000_receipts.sql` | Belege zu Ausgaben: privater Speicher „receipts“ (jeder Nutzer nur sein eigener Ordner) und Verknüpfung zur Ausgabe |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -190,7 +191,18 @@ Dafür reicht das Datenbank-Skript `20261110090000_invoice_followups.sql` (Absch
 - **Bewertung:** Bei bezahlten Rechnungen gibt es **Bewertung** – eine kurze Bitte per E-Mail oder WhatsApp mit deinem Link. Den Link trägst du unter **Firma → Bewertungen** ein (z. B. bei Google: im Google-Unternehmensprofil die Funktion zum Anfordern von Rezensionen öffnen und den Link kopieren).
 - Gebühren: Für eine Zahlungserinnerung keine, für Mahnungen nur die tatsächlichen Kosten (z. B. Porto – meist wenige Euro). Das ist kein Rechtsrat – bei größeren Beträgen lohnt eine kurze Beratung.
 
-## 8. Wichtig zum Testen: E-Mail-Versand
+## 8. Belege
+
+**Finanzen → Beleg erfassen**: Foto oder PDF wählen (am Handy-Browser auch direkt die Kamera) – Nexy liest Betrag, Datum, Händler, Kategorie und ausgewiesene Umsatzsteuer aus und füllt die Ausgabe vor. Du prüfst und speicherst; der Beleg liegt dann im privaten Speicher. An jeder Ausgabe kann man einen Beleg ansehen, ersetzen, entfernen oder nachträglich anhängen.
+
+Einrichtung:
+
+1. Datenbank-Skript `20261112090000_receipts.sql` ausführen (Abschnitt 3) – es legt auch den Speicher „receipts“ an.
+2. Die Server-Funktion `assistant` neu einspielen (Abschnitt 4, „Neue Version der Funktion einspielen“) – sie liest die Belege. Es gilt derselbe Schlüssel `ANTHROPIC_API_KEY`; ein Beleg kostet etwa 1–2 Cent.
+
+Gut zu wissen: Fotos werden vor dem Hochladen verkleinert (längste Seite 2000 px), PDFs bis 6 MB. iPhone-Fotos im HEIC-Format bitte als JPG speichern (*Einstellungen → Kamera → Formate → Maximale Kompatibilität*). Löschst du einen Nutzer im Dashboard, bleiben seine Belege unter **Storage → receipts → <Nutzer-ID>** liegen – dort bei Bedarf mit löschen.
+
+## 9. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

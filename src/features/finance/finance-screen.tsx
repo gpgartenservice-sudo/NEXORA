@@ -21,6 +21,7 @@ import { useFollowups } from '@/features/dunning/followups-provider';
 import { useHover } from '@/hooks/use-hover';
 
 import { BankComingSoon, BankConnectButton } from './bank-connect';
+import { receiptSupported } from './receipt-file';
 import { FinanceChart } from './finance-chart';
 import {
   addMonths,
@@ -103,6 +104,14 @@ export function FinanceScreen() {
         action={
           <View style={styles.actions}>
             <BankConnectButton open={bankInfo} onPress={() => setBankInfo((v) => !v)} />
+            {receiptSupported && (
+              <Button
+                label="Beleg erfassen"
+                variant="secondary"
+                onPress={() => router.push('/finanzen/beleg')}
+                style={styles.action}
+              />
+            )}
             <Button label="+ Ausgabe" onPress={() => router.push('/finanzen/ausgabe/neu')} style={styles.action} />
           </View>
         }
@@ -265,7 +274,13 @@ export function FinanceScreen() {
                       )
                     }
                     title={r.expense.title}
-                    meta={[categoryLabel(r.expense.category), REPEAT_LABEL[r.expense.repeat]].filter(Boolean).join(' · ')}
+                    meta={[
+                      categoryLabel(r.expense.category),
+                      REPEAT_LABEL[r.expense.repeat],
+                      r.expense.receipt_path ? '📎 Beleg' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                     amount={formatEuro(r.amount)}
                     onPress={() => router.push(`/finanzen/ausgabe/${r.expense.id}`)}
                   />

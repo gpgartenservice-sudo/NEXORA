@@ -13,11 +13,18 @@ export type Expense = {
   repeat: ExpenseRepeat;
   ends_on: string | null;
   notes: string | null;
+  /** Beleg im privaten Speicher (Foto/PDF) */
+  receipt_path?: string | null;
+  receipt_mime?: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export type ExpenseInput = Pick<Expense, 'title' | 'category' | 'amount' | 'spent_on' | 'repeat' | 'ends_on' | 'notes'>;
+export type ExpenseInput = Pick<
+  Expense,
+  'title' | 'category' | 'amount' | 'spent_on' | 'repeat' | 'ends_on' | 'notes'
+> &
+  Partial<Pick<Expense, 'receipt_path' | 'receipt_mime'>>;
 
 type Result<T = undefined> = { data?: T; error?: string };
 
@@ -39,6 +46,9 @@ const toExpense = (row: Record<string, unknown>): Expense => ({ ...(row as unkno
 function message(error: { code?: string; message?: string }, fallback: string): string {
   if (error.code && MISSING.includes(error.code)) {
     return 'Ausgaben können noch nicht gespeichert werden: Das Datenbank-Skript für Finanzen fehlt (siehe supabase/README.md).';
+  }
+  if ((error.code === 'PGRST204' || error.code === '42703') && /receipt/.test(error.message ?? '')) {
+    return 'Belege können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261112090000_receipts.sql, siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig. Bitte prüfe deine Eingaben.';
   return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
