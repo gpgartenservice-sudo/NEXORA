@@ -1,5 +1,5 @@
-import { ComingSoon } from '@/features/navigation/coming-soon';
+import { AssistantScreen } from '@/features/assistant/assistant-screen';
 
-export default function Screen() {
-  return <ComingSoon name="assistent" />;
+export default function AssistentScreen() {
+  return <AssistantScreen />;
 }
