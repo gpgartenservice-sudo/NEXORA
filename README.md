@@ -100,6 +100,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/goals/` | To-dos & Ziele – **Fälligkeit, Gruppen und Ziel-Fortschritt aus den echten Zahlen in `goals-logic.ts`** |
 | `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis; Belege: Auswerten in `receipt-logic.ts`, Datei/Speicher in `receipt-file.ts`; Steuern: Rechnen/CSV in `tax-logic.ts`, Jahresübersicht in `tax-pdf.ts` |
 | `src/features/tutorial/` | Einführungen – **Texte je Bereich in `tutorial-content.ts`**, Stellen markieren mit `<TourTarget id="bereich.stelle">`, Hervorhebung/Karte in `tutorial-overlay.tsx` |
+| `src/features/plan/` | Abo – **Preise, Grenzen, Vergleich in `plan-logic.ts`**, Stand/Verbrauch in `plan-provider.tsx` (`usePlan`, `useProGate`), Abo-Seite `plan-screen.tsx` |
 | `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
@@ -148,6 +149,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Steuern: Steuer-Topf (wie viel zurücklegen, Prozent wählbar), Kleinunternehmer-Grenze mit Warnung bzw. geschätzte Umsatzsteuer mit Vorsteuer aus Ausgaben, Export für die Steuerberatung (ZIP mit Jahresübersicht-PDF, CSV-Listen und Belegen); Nexy kennt die Zahlen. Einrichtung: `supabase/README.md`, Abschnitt 11
 - ✅ Einführungen: Nexy erklärt jeden Bereich beim ersten Besuch in 2–5 kurzen Schritten und hebt die wichtigen Stellen hervor; für neue Nutzer startet auf der Startseite ein Rundgang durch alle Bereiche nacheinander. Jederzeit über das „?“ neben der Überschrift wiederholbar, im Profil an-/abschaltbar und „Rundgang starten“. Ohne SQL-Skript `20261115090000_tutorials.sql` merkt sich der Browser/Mac den Stand
 - ✅ Handy-App (iPhone/Android): PDFs, Mahnungen, Steuer-Export und Einkommensnachweis über das Teilen-Menü, E-Mail mit PDF-Anhang aus der Mail-App, Belege mit der Kamera, Logo aus den Fotos, Kopieren, Kalender-Datei – ausprobieren mit Expo Go (siehe oben). Noch nicht am Handy: Sprachmodus, TikTok/Instagram verbinden
+- ✅ Abo Gratis/Pro: 14 Tage Pro-Test, danach Gratis (20 Nexy-Nachrichten, 5 Belege/Monat, PDFs mit „Erstellt mit NEXORA“) oder Pro (9,99 €/Monat: unbegrenzt*, Direkt senden, Online-Angebote, Mahnungen, Steuer-ZIP, TikTok/Instagram, Kalender-Abo); Grenzen und Pro-Funktionen prüft der Server; Abo-Seite unter Profil → Abo. Bezahlen folgt. Einrichtung: `supabase/README.md`, Abschnitt 12
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG

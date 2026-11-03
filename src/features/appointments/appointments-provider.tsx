@@ -1,6 +1,7 @@
 import { getRandomBytes } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 import { feedToken, type Appointment } from './appointment-logic';
@@ -38,6 +39,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'Termine können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig – z. B. endet der Termin vor dem Beginn.';
+  if (isProRequired(error)) return proRequiredText('calendar_feed');
   return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 

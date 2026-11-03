@@ -7,6 +7,7 @@ import { downloadPdf, PDF_UNSUPPORTED, pdfSupported, savePdf } from '@/features/
 import { incomeProofMonths, summarize } from '@/features/finance/finance-logic';
 import { useFinance } from '@/features/finance/finance-provider';
 import { useTaxReservePercent } from '@/features/finance/tax-settings';
+import { usePlan } from '@/features/plan/plan-provider';
 import { nexyEvents } from '@/features/appointments/appointment-logic';
 import { useAppointments, type AppointmentInput } from '@/features/appointments/appointments-provider';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
@@ -50,6 +51,8 @@ export type NexyMessage = {
   error?: string;
   /** Fehlermeldung, weil Nexy noch nicht eingerichtet ist */
   notSetUp?: boolean;
+  /** Gratis-Grenze erreicht (Hinweis auf Pro) */
+  quota?: boolean;
   /** per Sprache gesagt */
   voice?: boolean;
 };
@@ -108,6 +111,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const appts = useAppointments();
   const goals = useGoals();
   const { followups } = useFollowups();
+  const plan = usePlan();
   const { user } = useAuth();
   const { percent: taxPercent } = useTaxReservePercent(user?.id);
   const [messages, setMessages] = useState<NexyMessage[]>([]);
@@ -164,8 +168,9 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             )?.delta ?? null,
         })),
       });
-      const { data, error, notSetUp } = await askAssistant(text, historyOf(before).slice(-16), context);
+      const { data, error, notSetUp, quota } = await askAssistant(text, historyOf(before).slice(-16), context);
       setThinking(false);
+      void plan.refresh(); // Verbrauch aktualisieren
       if (error || !data) {
         const failed: NexyMessage = {
           id: nextId(),
@@ -173,6 +178,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           text: error ?? 'Keine Antwort.',
           error: error ?? 'Keine Antwort.',
           notSetUp,
+          quota,
         };
         setMessages((list) => [...list, failed]);
         return failed;
@@ -218,6 +224,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       goals.goals,
       followups,
       taxPercent,
+      plan,
     ],
   );
 

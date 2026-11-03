@@ -47,6 +47,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261113090000_offer_links_mail.sql` | Angebote online annehmen (geheimer Link, Annehmen/Ablehnen ohne Anmeldung) und Versandprotokoll für E-Mails aus der App |
 | `20261114090000_tax.sql` | Steuern: Prozentsatz für den Steuer-Topf (Firmendaten) und enthaltene Umsatzsteuer bei Ausgaben (Vorsteuer) |
 | `20261115090000_tutorials.sql` | Einführungen: welche Bereiche schon erklärt wurden und ob sie automatisch erscheinen sollen (im Profil, damit es auf Mac und Handy gleich ist) |
+| `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis mit 20 Nexy-Nachrichten und 5 Belegen im Monat; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -288,7 +289,28 @@ Einrichtung: Datenbank-Skript `20261114090000_tax.sql` ausführen (Abschnitt 3).
 
 Gut zu wissen: Alle Zahlen sind eine grobe Orientierung aus deinen Aufträgen und Ausgaben, keine Steuerberatung. Einnahmen zählen ab „Abgeschlossen“ (wie in Finanzen), nicht ab Zahlungseingang.
 
-## 12. Wichtig zum Testen: E-Mail-Versand
+## 12. Abo (Gratis / Pro)
+
+Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten Öffnen **14 Tage Pro gratis** (auch bestehende Nutzer). Danach gilt **Gratis**: 20 Nexy-Nachrichten und 5 ausgelesene Belege im Monat, PDFs mit dem kleinen Hinweis „Erstellt mit NEXORA“. **Pro** (9,99 €/Monat): bis 300 Nachrichten/Belege, E-Mails direkt aus NEXORA, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok/Instagram verbinden, Kalender-Abo. Übersicht in der App: **Profil → Abo**.
+
+Einrichtung:
+
+1. Datenbank-Skript `20261116090000_plans.sql` ausführen (Abschnitt 3).
+2. Die Server-Funktionen `assistant` und `mail` neu einspielen (Abschnitt 4 bzw. 10) – sie zählen bzw. prüfen das Abo. Ohne neue Version gilt dort einfach keine Grenze.
+
+**Dich selbst (oder Tester) dauerhaft auf Pro stellen** – im SQL Editor, E-Mail-Adresse anpassen:
+
+```sql
+insert into public.subscriptions (user_id, status, source)
+select id, 'active', 'manual' from auth.users where email = 'deine@mail.de'
+on conflict (user_id) do update set status = 'active', source = 'manual', current_period_end = null;
+```
+
+Zurück auf Gratis: `update public.subscriptions set status = 'expired' where user_id = (select id from auth.users where email = 'deine@mail.de');`
+
+Bezahlen in der App (App Store, Google Play, Karte) kommt als nächster Schritt – dann setzt der Bezahldienst diese Einträge automatisch.
+
+## 13. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

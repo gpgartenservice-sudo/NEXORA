@@ -16,6 +16,7 @@ import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { pdfSupported } from '@/features/documents/save-pdf';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 import { fetchBytes, saveFile, savesViaShareSheet } from '@/lib/files';
@@ -84,6 +85,8 @@ export function TaxScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'info' | 'success' | 'error'; text: string } | null>(null);
   const partial = year === thisYear;
+  const { pro } = usePlan();
+  const gate = useProGate();
   useAreaTutorial('steuern');
   const invoices = invoicesOfYear(t.documents, year);
   const withReceipt = t.expenses.filter((e) => e.receipt_path && expenseOccurrences(e, year, t.today).length > 0);
@@ -273,9 +276,9 @@ export function TaxScreen() {
               <View style={styles.chips}>
                 <ActionChip
                   icon={Archive}
-                  label={busy === 'zip' ? 'Wird erstellt …' : 'Alles als ZIP'}
+                  label={busy === 'zip' ? 'Wird erstellt …' : pro ? 'Alles als ZIP' : 'Alles als ZIP · Pro'}
                   accessibilityLabel={`Alles für ${year} als ZIP`}
-                  onPress={() => void zip()}
+                  onPress={() => gate('tax_zip') && void zip()}
                   disabled={!!busy}
                 />
                 <ActionChip

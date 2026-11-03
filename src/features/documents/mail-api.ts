@@ -1,5 +1,6 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
+import { proRequiredText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 import { splitRecipients } from './mail-logic';
@@ -117,6 +118,7 @@ export async function sendMail(input: MailInput): Promise<MailResult> {
           'Direkt verschicken braucht noch das Datenbank-Skript 20261113090000_offer_links_mail.sql (siehe supabase/README.md).',
         notSetUp: true,
       };
+    if (code === 'pro_required') return { error: proRequiredText('direct_mail') };
     if (code === 'too_many_this_hour')
       return { error: 'Du hast in der letzten Stunde schon 20 E-Mails verschickt. Bitte später noch einmal.' };
     if (code === 'too_many_today') return { error: 'Für heute ist die Grenze von 100 E-Mails erreicht.' };

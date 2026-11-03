@@ -8,6 +8,8 @@ import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Customer } from '@/features/crm/crm-provider';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
+import { copyText } from '@/features/social/copy-text';
 
 import { DirectMail } from './direct-mail';
 import { documentMessage, formatDay, mailtoUrl, whatsappNumber, whatsappUrl } from './document-logic';
@@ -46,6 +48,8 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   const [link, setLink] = useState<string | null>(null);
   const [log, setLog] = useState<MailLogEntry[]>([]);
   const { logoFor, shareOffer } = useDocuments();
+  const { pro } = usePlan();
+  const gate = useProGate();
 
   // bisher direkt verschickt?
   useEffect(() => {
@@ -138,13 +142,8 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   const copyLink = async () => {
     const { url, error } = await makeLink();
     if (error || !url) return setMessage({ tone: 'error', text: error ?? 'Der Link konnte nicht erstellt werden.' });
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(url);
-      copied = true;
-    } catch {
-      // Zwischenablage nicht erlaubt – Link steht trotzdem unten
-    }
+    // Zwischenablage nicht erlaubt? Der Link steht trotzdem unten.
+    const copied = await copyText(url);
     setMessage({
       tone: 'success',
       text: copied
@@ -188,14 +187,19 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
         {share && <ActionChip icon={Share} label="Teilen …" onPress={viaShare} />}
         <ActionChip
           icon={Send}
-          label="Direkt senden"
+          label={pro ? 'Direkt senden' : 'Direkt senden · Pro'}
           accessibilityLabel="Direkt aus NEXORA senden"
-          onPress={() => setDirect((v) => !v)}
+          onPress={() => gate('direct_mail') && setDirect((v) => !v)}
           active={direct}
           disabled={!pdf}
         />
         {isOffer && (
-          <ActionChip icon={Link2} label="Link zum Annehmen" accessibilityLabel="Link zum Online-Annehmen" onPress={copyLink} />
+          <ActionChip
+            icon={Link2}
+            label={pro ? 'Link zum Annehmen' : 'Link zum Annehmen · Pro'}
+            accessibilityLabel="Link zum Online-Annehmen"
+            onPress={() => gate('offer_link') && void copyLink()}
+          />
         )}
       </View>
       {direct && pdf && (

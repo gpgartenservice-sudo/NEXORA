@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
 
 import {
@@ -127,6 +128,8 @@ function AccountCard({
   const [confirm, setConfirm] = useState(false);
   const name = connectedLabel(platform);
   const busyHere = c.busy && (!c.busy.platform || c.busy.platform === platform) ? c.busy.action : null;
+  const { pro } = usePlan();
+  const gate = useProGate();
   const ready = c.setup ? c.setup[platform] : null;
   const supported = connectSupported();
 
@@ -152,8 +155,8 @@ function AccountCard({
         )}
         {!supported && <Text style={styles.hint}>Verbinden geht im Moment in der Mac-App oder im Browser.</Text>}
         <Button
-          label={`Mit ${name} verbinden`}
-          onPress={() => void c.connect(platform)}
+          label={pro ? `Mit ${name} verbinden` : `Mit ${name} verbinden · Pro`}
+          onPress={() => gate('social_connect') && void c.connect(platform)}
           loading={busyHere === 'connect'}
           disabled={!supported || ready === false || c.tablesMissing || (!!c.busy && busyHere !== 'connect')}
         />

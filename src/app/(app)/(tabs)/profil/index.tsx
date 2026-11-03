@@ -13,6 +13,8 @@ import { Colors, Spacing } from '@/constants/theme';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, stageLabel } from '@/features/onboarding/options';
+import { planLabel, quotaText } from '@/features/plan/plan-logic';
+import { usePlan } from '@/features/plan/plan-provider';
 import { TUTORIALS } from '@/features/tutorial/tutorial-content';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
 import { supabase } from '@/lib/supabase';
@@ -28,6 +30,9 @@ export default function ProfileScreen() {
   const missing = missingSellerFields(seller, 'invoice');
   const name = profile?.display_name?.trim() || 'Dein Profil';
   const tutorial = useTutorial();
+  const plan = usePlan();
+  const [now] = useState(() => new Date());
+  const quota = plan.info ? quotaText(plan.info, 'nexy') : null;
   const [resetDone, setResetDone] = useState(false);
   const seen = tutorial.done.length;
   const total = Object.keys(TUTORIALS).length;
@@ -87,6 +92,22 @@ export default function ProfileScreen() {
                 {missing.length === 0
                   ? `${sellerName(seller)} · ${seller.small_business ? 'Kleinunternehmer' : `${seller.vat_rate} % USt`}`
                   : `Für Angebote und Rechnungen fehlt noch: ${missing.join(', ')}`}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textFaint} />
+          </View>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={435}>
+        <Card onPress={() => router.push('/profil/abo')} accessibilityLabel="Abo ansehen">
+          <View style={styles.firmRow}>
+            <View style={styles.flex}>
+              <Text style={styles.cardTitle}>Abo</Text>
+              <Text style={styles.firmText} testID="profile-plan">
+                {plan.missing || !plan.info
+                  ? 'NEXORA Gratis und Pro im Vergleich'
+                  : `${planLabel(plan.info, now)}${quota ? ` · ${quota}` : ''}`}
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />

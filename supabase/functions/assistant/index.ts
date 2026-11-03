@@ -264,6 +264,49 @@ async function signedIn(req: Request, deps: Deps): Promise<boolean> {
   return res.ok;
 }
 
+/**
+ * Gratis-Grenze: eine Nexy-Nachricht bzw. einen Beleg verbrauchen (Datenbank-
+ * Funktion consume_quota, Skript 20261116090000_plans.sql). Fehlt das Skript
+ * oder ist die Datenbank kurz nicht erreichbar, geht es ohne Grenze weiter.
+ */
+async function consumeQuota(req: Request, deps: Deps, kind: 'nexy' | 'receipt'): Promise<Response | null> {
+  const url = deps.env('SUPABASE_URL');
+  const res = await deps
+    .fetch(`${url}/rest/v1/rpc/consume_quota`, {
+      method: 'POST',
+      headers: {
+        Authorization: req.headers.get('Authorization') ?? '',
+        apikey: req.headers.get('apikey') ?? '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_kind: kind }),
+    })
+    .catch(() => null);
+  if (!res || !res.ok) {
+    if (res && res.status !== 404) console.error('consume_quota', res.status, (await res.text().catch(() => '')).slice(0, 200));
+    return null;
+  }
+  const r = (await res.json().catch(() => null)) as { allowed?: boolean; limit?: number; used?: number; plan?: string } | null;
+  if (r?.allowed === false) return json(402, { error: 'quota_exceeded', kind, limit: r.limit, used: r.used, plan: r.plan });
+  return null;
+}
+
+/** Verbrauch zurückgeben, wenn die Anfrage nicht geklappt hat */
+async function refundQuota(req: Request, deps: Deps, kind: 'nexy' | 'receipt') {
+  const url = deps.env('SUPABASE_URL');
+  await deps
+    .fetch(`${url}/rest/v1/rpc/refund_quota`, {
+      method: 'POST',
+      headers: {
+        Authorization: req.headers.get('Authorization') ?? '',
+        apikey: req.headers.get('apikey') ?? '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_kind: kind }),
+    })
+    .catch(() => null);
+}
+
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 /** Bisheriges Gespräch als Text (nur Nutzer/Nexy, gekürzt) */
@@ -377,8 +420,18 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
   if (body.mode === 'transcribe') return transcribe(body, deps);
-  if (body.mode === 'receipt') return readReceipt(body, deps);
 
+  // Belege und Nachrichten zählen (Gratis: 5 bzw. 20 im Monat)
+  const kind = body.mode === 'receipt' ? 'receipt' : 'nexy';
+  const blocked = await consumeQuota(req, deps, kind);
+  if (blocked) return blocked;
+  const res = kind === 'receipt' ? await readReceipt(body, deps) : await chat(body, deps);
+  if (!res.ok) await refundQuota(req, deps, kind);
+  return res;
+}
+
+/** Gespräch mit Nexy: Antwort + Vorschläge */
+async function chat(body: Body, deps: Deps): Promise<Response> {
   const apiKey = deps.env('ANTHROPIC_API_KEY');
   if (!apiKey) return json(500, { error: 'missing_api_key' });
   const text = typeof body.text === 'string' ? body.text.trim() : '';

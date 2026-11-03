@@ -14,6 +14,7 @@ import { SocialConnectProvider } from '@/features/social/connect-provider';
 import { SocialProvider } from '@/features/social/social-provider';
 import { NexyProvider } from '@/features/assistant/nexy-provider';
 import { AppointmentsProvider } from '@/features/appointments/appointments-provider';
+import { PlanProvider } from '@/features/plan/plan-provider';
 import { TutorialProvider } from '@/features/tutorial/tutorial-provider';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -29,40 +30,42 @@ export default function TabsLayout() {
   const { user } = useAuth();
 
   return (
-    <RoadmapProvider userId={user?.id ?? ''}>
-      <CrmProvider userId={user?.id ?? ''}>
-        <DocumentsProvider userId={user?.id ?? ''}>
-          <FollowupsProvider userId={user?.id ?? ''}>
-            <FinanceProvider userId={user?.id ?? ''}>
-              <SocialProvider userId={user?.id ?? ''}>
-                <SocialConnectProvider userId={user?.id ?? ''}>
-                  <AppointmentsProvider userId={user?.id ?? ''}>
-                    <GoalsProvider userId={user?.id ?? ''}>
-                      <NexyProvider key={user?.id ?? ''}>
-                        <TutorialProvider>
-                          <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
-                            <TabList asChild>
-                              <NavBar wide={wide}>
-                                {NAV_ITEMS.map((item) => (
-                                  <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                                    <NavButton item={item} wide={wide} />
-                                  </TabTrigger>
-                                ))}
-                              </NavBar>
-                            </TabList>
-                            <TabSlot style={styles.slot} />
-                          </Tabs>
-                        </TutorialProvider>
-                      </NexyProvider>
-                    </GoalsProvider>
-                  </AppointmentsProvider>
-                </SocialConnectProvider>
-              </SocialProvider>
-            </FinanceProvider>
-          </FollowupsProvider>
-        </DocumentsProvider>
-      </CrmProvider>
-    </RoadmapProvider>
+    <PlanProvider userId={user?.id ?? ''}>
+      <RoadmapProvider userId={user?.id ?? ''}>
+        <CrmProvider userId={user?.id ?? ''}>
+          <DocumentsProvider userId={user?.id ?? ''}>
+            <FollowupsProvider userId={user?.id ?? ''}>
+              <FinanceProvider userId={user?.id ?? ''}>
+                <SocialProvider userId={user?.id ?? ''}>
+                  <SocialConnectProvider userId={user?.id ?? ''}>
+                    <AppointmentsProvider userId={user?.id ?? ''}>
+                      <GoalsProvider userId={user?.id ?? ''}>
+                        <NexyProvider key={user?.id ?? ''}>
+                          <TutorialProvider>
+                            <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+                              <TabList asChild>
+                                <NavBar wide={wide}>
+                                  {NAV_ITEMS.map((item) => (
+                                    <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                                      <NavButton item={item} wide={wide} />
+                                    </TabTrigger>
+                                  ))}
+                                </NavBar>
+                              </TabList>
+                              <TabSlot style={styles.slot} />
+                            </Tabs>
+                          </TutorialProvider>
+                        </NexyProvider>
+                      </GoalsProvider>
+                    </AppointmentsProvider>
+                  </SocialConnectProvider>
+                </SocialProvider>
+              </FinanceProvider>
+            </FollowupsProvider>
+          </DocumentsProvider>
+        </CrmProvider>
+      </RoadmapProvider>
+    </PlanProvider>
   );
 }
 

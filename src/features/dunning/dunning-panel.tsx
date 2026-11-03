@@ -14,6 +14,7 @@ import { DirectMail } from '@/features/documents/direct-mail';
 import { formatDay, mailtoUrl, todayIso, whatsappUrl } from '@/features/documents/document-logic';
 import { useDocuments, type StoredDocument } from '@/features/documents/documents-provider';
 import { downloadPdf, pdfSupported, type PreparedPdf } from '@/features/documents/save-pdf';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { savesViaShareSheet } from '@/lib/files';
 import { canShareFile, openWith, shareFile, type Delivery } from '@/features/documents/send-document';
 
@@ -56,6 +57,8 @@ function parseFee(text: string): number | null {
  */
 export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer: Customer }) {
   const { followups, record, remove, error: setupError } = useFollowups();
+  const { pro } = usePlan();
+  const gate = useProGate();
   const { seller, logo } = useDocuments();
   const [today] = useState(() => todayIso());
   /** in diesem Fenster schon vermerkte Stufe (weitere Wege verschicken nicht erneut vermerken) */
@@ -83,6 +86,8 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
 
   /** PDF erzeugen, verschicken, beim ersten Mal vermerken */
   const run = async (how: 'pdf' | 'mail' | 'whatsapp' | 'share') => {
+    // 1. und letzte Mahnung: nur mit Pro (Zahlungserinnerung bleibt gratis)
+    if (nextStage && nextStage.kind !== 'reminder' && !recorded && !gate('dunning')) return;
     if (!input || !text || !nextStage) {
       setMessage({
         tone: 'error',
@@ -203,6 +208,11 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
             {recorded ? `${nextStage.label} – verschickt` : `Als Nächstes: ${nextStage.label}`}
           </Text>
           <Text style={styles.text}>{ABOUT[nextStage.kind]}</Text>
+          {!pro && nextStage.kind !== 'reminder' && !recorded && (
+            <Text style={styles.hint} testID="dunning-pro">
+              Mahnungen gibt es mit NEXORA Pro – die Zahlungserinnerung bleibt kostenlos.
+            </Text>
+          )}
           {!recorded && (
             <View style={styles.row}>
               <View style={styles.flex}>

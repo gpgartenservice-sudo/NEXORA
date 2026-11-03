@@ -7,14 +7,19 @@ import type { ReceiptReading } from '@/features/finance/receipt-logic';
 
 import type { RawResult } from './assistant-logic';
 
-export type AskResult = { data?: RawResult; error?: string; notSetUp?: boolean };
+export type AskResult = {
+  data?: RawResult;
+  error?: string;
+  notSetUp?: boolean;
+  /** Gratis-Grenze erreicht */ quota?: boolean;
+};
 
 const SETUP =
   'Nexy ist noch nicht eingerichtet: Die Server-Funktion „assistant“ fehlt in Supabase (Anleitung: supabase/README.md, Abschnitt „Assistent“).';
 
 export type HistoryEntry = { role: 'user' | 'nexy'; text: string };
 
-type HttpFailure = { status: number; code?: string; detail?: string };
+type HttpFailure = { status: number; code?: string; detail?: string; limit?: number };
 
 /** Fehlerantwort der Server-Funktion auslesen (Status, Fehlercode, kurze Beschreibung) */
 async function httpFailure(error: unknown): Promise<HttpFailure | null> {
@@ -22,14 +27,16 @@ async function httpFailure(error: unknown): Promise<HttpFailure | null> {
   const res = error.context as Response;
   let code: string | undefined;
   let detail: string | undefined;
+  let limit: number | undefined;
   try {
     const body = await res.json();
     code = body?.error;
     detail = typeof body?.detail === 'string' ? body.detail : undefined;
+    limit = typeof body?.limit === 'number' ? body.limit : undefined;
   } catch {
     // keine JSON-Antwort
   }
-  return { status: res.status, code, detail };
+  return { status: res.status, code, detail, limit };
 }
 
 const technical = (f: HttpFailure) => `${f.status} ${f.code ?? ''}${f.detail ? ` – ${f.detail}` : ''}`.trim();
@@ -64,6 +71,11 @@ export async function askAssistant(
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'refused') return { error: 'Dabei kann Nexy nicht helfen. Formulier es bitte anders.' };
     if (http.code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
+    if (http.code === 'quota_exceeded')
+      return {
+        error: `Deine ${http.limit ?? 20} Gratis-Nachrichten an Nexy sind für diesen Monat aufgebraucht. Mit NEXORA Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
+        quota: true,
+      };
     return {
       error: `Nexy konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${technical(http)}`,
     };
@@ -128,7 +140,7 @@ export async function transcribe(audio: string, mime: string, hints: string[] = 
   };
 }
 
-export type ReceiptResult = { data?: ReceiptReading; error?: string; notSetUp?: boolean };
+export type ReceiptResult = { data?: ReceiptReading; error?: string; notSetUp?: boolean; quota?: boolean };
 
 /** Beleg (Foto/PDF als Base64) von Nexy lesen lassen (Server-Funktion, Modus "receipt"). */
 export async function readReceipt(file: string, mime: string): Promise<ReceiptResult> {
@@ -158,6 +170,11 @@ export async function readReceipt(file: string, mime: string): Promise<ReceiptRe
     if (http.status === 401) return { error: 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.' };
     if (http.status === 429)
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
+    if (http.code === 'quota_exceeded')
+      return {
+        error: `Deine ${http.limit ?? 5} Gratis-Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit NEXORA Pro liest Nexy weiter.`,
+        quota: true,
+      };
     if (http.code === 'file_too_large') return { error: 'Die Datei ist zu groß zum Lesen (höchstens 6 MB).' };
     if (http.code === 'unsupported_file' || http.code === 'invalid_file')
       return { error: 'Diese Datei kann Nexy nicht lesen. Bitte ein Foto (JPG/PNG) oder eine PDF nehmen.' };

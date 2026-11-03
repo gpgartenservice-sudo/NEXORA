@@ -351,6 +351,19 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const from = (deps.env('MAIL_FROM')?.trim() || (smtpHost && EMAIL.test(smtpUser) ? smtpUser : '')).trim();
   if (!from || !EMAIL.test(from)) return json(500, { error: 'missing_mail_from' });
 
+  // Nur mit Pro (Skript 20261116090000_plans.sql; fehlt es, gilt keine Einschränkung)
+  const planRes = await deps
+    .fetch(`${url}/rest/v1/rpc/my_plan`, {
+      method: 'POST',
+      headers: { Authorization: auth, apikey, 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    .catch(() => null);
+  if (planRes?.ok) {
+    const info = (await planRes.json().catch(() => null)) as { plan?: string } | null;
+    if (info?.plan === 'free') return json(402, { error: 'pro_required' });
+  }
+
   // Bremse: Wie viele E-Mails in der letzten Stunde / am letzten Tag?
   const db = { Authorization: auth, apikey, 'Content-Type': 'application/json' };
   const now = deps.now?.() ?? new Date();

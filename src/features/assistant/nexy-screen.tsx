@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { ArrowUp, Mic, Volume2, VolumeX, X } from 'lucide-react-native';
+import { ArrowUp, Mic, Sparkles, Volume2, VolumeX, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -28,9 +28,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
+import { ActionChip } from '@/components/ui/action-chip';
 import { Card } from '@/components/ui/card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
+import { quotaText } from '@/features/plan/plan-logic';
+import { openPlanScreen, usePlan } from '@/features/plan/plan-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
@@ -90,6 +93,10 @@ const STARTERS = [
 /** Nexy – Chat mit dem KI-Assistenten. */
 export function NexyScreen() {
   const { messages, thinking, send, reset } = useNexy();
+  const { info } = usePlan();
+  // Gratis: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
+  const left = info && info.plan === 'free' ? info.usage.nexy.limit - info.usage.nexy.used : null;
+  const quotaHint = left !== null && left <= 5 && info ? quotaText(info, 'nexy') : null;
   const voice = useVoiceMode();
   const { stop: stopVoice, stopReading, read } = voice;
   const [readAloud, setReadAloud] = useState(loadReadAloud);
@@ -300,6 +307,14 @@ export function NexyScreen() {
             )}
           </TourTarget>
         )}
+        {!!quotaHint && (
+          <Text style={styles.quota} testID="nexy-quota">
+            {quotaHint} ·{' '}
+            <Text style={styles.quotaLink} onPress={() => openPlanScreen()} accessibilityRole="link">
+              Pro ansehen
+            </Text>
+          </Text>
+        )}
         <Text style={styles.foot}>
           {voice.active
             ? 'Sag „Ja“ oder „Nein“ zu Vorschlägen und „Stopp“ zum Beenden. Deine Aufnahme wird nur in Text umgewandelt (Groq) und nicht gespeichert.'
@@ -333,6 +348,11 @@ function NexyRow({
         <View style={[styles.nexyBubble, !!m.error && !m.proposals && styles.errorBubble]}>
           <Text style={[styles.nexyText, !!m.error && !m.proposals && styles.errorText]}>{shown}</Text>
         </View>
+        {m.quota && (
+          <View style={styles.quotaAction}>
+            <ActionChip icon={Sparkles} label="NEXORA Pro ansehen" onPress={() => openPlanScreen()} />
+          </View>
+        )}
         {m.notSetUp && (
           <Card>
             <Text style={styles.setupTitle}>Nexy einrichten (einmalig)</Text>
@@ -593,6 +613,9 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 4, alignItems: 'center' },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.accent },
   quick: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  quotaAction: { flexDirection: 'row' },
+  quota: { color: Colors.textMuted, fontSize: 12.5, textAlign: 'center' },
+  quotaLink: { color: Colors.accent, fontWeight: '600' },
   quickChip: {
     borderRadius: 999,
     borderWidth: 1,

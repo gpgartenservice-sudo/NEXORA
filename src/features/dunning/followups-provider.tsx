@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 import type { Followup, FollowupKind } from './dunning-logic';
@@ -69,6 +70,7 @@ export function FollowupsProvider({ userId, children }: { userId: string; childr
       .single();
     if (err) {
       if (MISSING.includes(err.code)) return { error: SETUP_TEXT };
+      if (isProRequired(err)) return { error: proRequiredText('dunning') };
       return { error: `Das konnte nicht vermerkt werden.\n\nTechnische Details: ${err.message}` };
     }
     const row = toFollowup(data as Record<string, unknown>);

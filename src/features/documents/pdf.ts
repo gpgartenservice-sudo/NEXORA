@@ -2,6 +2,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf
 
 import { formatDay, formatMoney, sellerName, type DocumentData, type DocumentKind, type Seller } from './document-logic';
 import { base64ToBytes, fitInto, type LogoImage } from './logo-logic';
+import { BRANDING_TEXT, pdfBranding } from './pdf-branding';
 
 /**
  * Erzeugt das PDF für ein Angebot oder eine Rechnung (DIN-A4, Anschrift
@@ -280,6 +281,11 @@ export function drawFooter(p: PDFPage, s: Seller, regular: PDFFont) {
         p.drawText(safe(l), { x: M.left + i * colW, y: top - j * 10, size: 7.5, font: regular, color: MUTED }),
       );
   });
+  // Gratis-Abo: kleiner Hinweis ganz unten
+  if (pdfBranding()) {
+    const t = safe(BRANDING_TEXT);
+    p.drawText(t, { x: (A4.w - regular.widthOfTextAtSize(t, 6.5)) / 2, y: 14, size: 6.5, font: regular, color: MUTED });
+  }
 }
 
 /** Logo oben links einzeichnen; gibt die Höhe zurück (0 = ging nicht, dann ohne Logo). */

@@ -2,6 +2,7 @@ import { getRandomBytes } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { Customer, Order } from '@/features/crm/crm-provider';
+import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 import {
@@ -242,6 +243,7 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
         .select('*')
         .single();
       if (err) {
+        if (isProRequired(err)) return { error: proRequiredText('offer_link') };
         if (err.code === 'PGRST204' || err.code === '42703' || err.code === '42501')
           return {
             error:

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { copyText } from '@/features/social/copy-text';
 import { SUPABASE_URL } from '@/lib/supabase';
 
@@ -20,6 +21,8 @@ type Check = { tone: 'success' | 'error' | 'info'; text: string } | null;
  */
 export function CalendarSubscription({ onClose }: { onClose: () => void }) {
   const { feed, createFeed, renewFeed, deleteFeed, error: setupError } = useAppointments();
+  const { pro } = usePlan();
+  const gate = useProGate();
   const [busy, setBusy] = useState<string | null>(null);
   const [check, setCheck] = useState<Check>(null);
   const [confirm, setConfirm] = useState<'renew' | 'delete' | null>(null);
@@ -85,8 +88,8 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
 
       {!urls ? (
         <Button
-          label="Abo-Link erstellen"
-          onPress={() => void run('create', createFeed)}
+          label={pro ? 'Abo-Link erstellen' : 'Abo-Link erstellen · Pro'}
+          onPress={() => gate('calendar_feed') && void run('create', createFeed)}
           loading={busy === 'create'}
           disabled={setupError === 'setup'}
         />
