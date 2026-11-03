@@ -119,6 +119,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Angebote & Rechnungen verschicken (von Hand): E-Mail oder WhatsApp mit fertigem Text, auf dem Mac auch über „Teilen …“ mit PDF im Anhang; Angebot als verschickt markieren
 - ✅ Finanzen: Einnahmen, Ausgaben und Gewinn pro Monat/Jahr, Verlauf der letzten 12 Monate, offene Rechnungen, Ausgaben (auch wiederkehrend), Fixkosten, Einkommensnachweis als PDF
 - ⏳ Automatischer Versand aus der App, Angebot online annehmen
+- ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 

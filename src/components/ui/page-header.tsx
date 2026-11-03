@@ -38,7 +38,11 @@ export function PageHeader({ title, subtitle, back, action, meta }: Props) {
           )}
           {meta && <Reveal delay={220}>{meta}</Reveal>}
         </View>
-        {action && <Reveal delay={150}>{action}</Reveal>}
+        {action && (
+          <Reveal delay={150} style={styles.action}>
+            {action}
+          </Reveal>
+        )}
       </View>
     </View>
   );
@@ -51,6 +55,8 @@ const styles = StyleSheet.create({
   backHover: { color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.lg, flexWrap: 'wrap' },
   texts: { flex: 1, minWidth: 220, gap: Spacing.xs },
+  // schmaler Bildschirm: Knöpfe dürfen umbrechen statt über den Rand zu ragen
+  action: { maxWidth: '100%', flexShrink: 1 },
   title: { color: Colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.6, lineHeight: 40 },
   subtitle: { color: Colors.textMuted, fontSize: 15.5, lineHeight: 22 },
 });

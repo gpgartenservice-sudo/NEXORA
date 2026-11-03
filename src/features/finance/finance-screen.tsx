@@ -18,6 +18,7 @@ import { formatDay } from '@/features/documents/document-logic';
 import { invoiceState, useDocuments } from '@/features/documents/documents-provider';
 import { useHover } from '@/hooks/use-hover';
 
+import { BankComingSoon, BankConnectButton } from './bank-connect';
 import { FinanceChart } from './finance-chart';
 import {
   addMonths,
@@ -48,6 +49,7 @@ export function FinanceScreen() {
   const { expenses, error } = useFinance();
   const current = monthKey(new Date());
   const [mode, setMode] = useState<Mode>('month');
+  const [bankInfo, setBankInfo] = useState(false);
   const [anchor, setAnchor] = useState<MonthKey>(current);
 
   const year = anchor.slice(0, 4);
@@ -94,8 +96,18 @@ export function FinanceScreen() {
       <PageHeader
         title="Finanzen"
         subtitle="Einnahmen aus deinen Aufträgen, deine Ausgaben – und was übrig bleibt."
-        action={<Button label="+ Ausgabe" onPress={() => router.push('/finanzen/ausgabe/neu')} style={styles.action} />}
+        action={
+          <View style={styles.actions}>
+            <BankConnectButton open={bankInfo} onPress={() => setBankInfo((v) => !v)} />
+            <Button label="+ Ausgabe" onPress={() => router.push('/finanzen/ausgabe/neu')} style={styles.action} />
+          </View>
+        }
       />
+      {bankInfo && (
+        <Reveal>
+          <BankComingSoon onClose={() => setBankInfo(false)} />
+        </Reveal>
+      )}
       {error === 'setup' && (
         <Notice tone="error">
           Ausgaben können noch nicht gespeichert werden: Das Datenbank-Skript für Finanzen fehlt (siehe supabase/README.md).
@@ -347,7 +359,8 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  action: { paddingHorizontal: Spacing.xl },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  action: { minWidth: 150 },
   periodBar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
   modeWrap: { width: 220 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
