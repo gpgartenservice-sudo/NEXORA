@@ -1,15 +1,17 @@
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 
 import { desktop } from '@/lib/desktop';
+import { saveFile } from '@/lib/files';
 
 import { googleCalendarUrl, icsFileName, toIcs, type CalendarEvent } from './appointment-logic';
 
-/** Gibt es hier die Möglichkeit, eine Kalender-Datei zu öffnen/speichern? (Mac-App, Browser) */
-export const calendarFileSupported = Platform.OS === 'web';
+/** Gibt es hier die Möglichkeit, eine Kalender-Datei zu öffnen/speichern? (Mac-App, Browser, Handy) */
+export const calendarFileSupported = true;
 
 /**
  * Termin in den Kalender: Mac-App -> Kalender des Mac öffnet sich mit dem Termin,
- * Browser -> .ics-Datei wird heruntergeladen (Doppelklick übernimmt sie).
+ * Browser -> .ics-Datei wird heruntergeladen (Doppelklick übernimmt sie),
+ * Handy -> Teilen-Menü mit der Kalender-Datei (z. B. „In Kalender öffnen“).
  */
 export async function addToCalendar(event: CalendarEvent): Promise<{ error?: string; opened?: boolean }> {
   const text = toIcs([event]);
@@ -23,19 +25,12 @@ export async function addToCalendar(event: CalendarEvent): Promise<{ error?: str
       return { error: `Der Kalender ließ sich nicht öffnen.\n\nTechnische Details: ${String(e)}` };
     }
   }
-  if (Platform.OS !== 'web' || typeof document === 'undefined') {
-    return { error: 'Das geht im Moment in der Mac-App oder im Browser.' };
+  try {
+    await saveFile(text, fileName, 'text/calendar;charset=utf-8');
+    return {};
+  } catch (e) {
+    return { error: `Die Kalender-Datei ließ sich nicht öffnen.\n\nTechnische Details: ${String(e)}` };
   }
-  const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return {};
 }
 
 export function openGoogleCalendar(event: CalendarEvent) {

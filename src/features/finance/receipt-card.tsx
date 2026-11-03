@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { Camera, FileText, Paperclip, ScanLine } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { ActionChip } from '@/components/ui/action-chip';
 import { Card } from '@/components/ui/card';
@@ -26,7 +26,9 @@ type Props = {
   onView: () => void;
 };
 
-const touch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0;
+// Handy-App oder Gerät mit Touchscreen: Kamera-Knopf zeigen
+const app = Platform.OS !== 'web';
+const touch = app || (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0);
 
 /** Beleg auswählen, ansehen, ersetzen, entfernen. */
 export function ReceiptCard({ receipt, reading, prominent, onPick, onRemove, onView }: Props) {
@@ -48,9 +50,7 @@ export function ReceiptCard({ receipt, reading, prominent, onPick, onRemove, onV
   if (!receiptSupported) {
     return prominent ? (
       <Card>
-        <Text style={styles.body}>
-          Belege erfassen geht im Moment auf dem Mac und im Browser. Am Handy folgt es bald.
-        </Text>
+        <Text style={styles.body}>Belege erfassen geht hier gerade nicht.</Text>
       </Card>
     ) : null;
   }
@@ -118,7 +118,7 @@ export function ReceiptCard({ receipt, reading, prominent, onPick, onRemove, onV
           {touch && <ActionChip icon={Camera} label="Foto aufnehmen" onPress={() => onPick(true)} />}
           <ActionChip
             icon={Paperclip}
-            label={touch ? 'Datei wählen' : 'Foto oder PDF wählen'}
+            label={app ? 'Aus Fotos oder Dateien' : touch ? 'Datei wählen' : 'Foto oder PDF wählen'}
             onPress={() => onPick(false)}
           />
         </View>

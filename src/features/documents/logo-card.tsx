@@ -130,7 +130,7 @@ export function LogoCard({ preview }: { preview: Seller }) {
           {logo && <TextLink label={busy === 'remove' ? 'Wird entfernt …' : 'Logo entfernen'} onPress={remove} />}
         </>
       ) : (
-        <Notice>Logo hochladen geht im Moment nur auf dem Mac. Am Handy folgt es bald.</Notice>
+        <Notice>Logo hochladen geht hier gerade nicht.</Notice>
       )}
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
     </Card>

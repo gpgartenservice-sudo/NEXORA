@@ -55,13 +55,18 @@ npm run web
 
 Öffnet die App im Browser und lädt bei jeder Code-Änderung automatisch neu. Mit diesem Server läuft auch das Mac-Fenster im Live-Modus: in einem zweiten Terminal-Fenster `npm run mac:dev`.
 
-### Auf dem iPhone (optional)
+### Auf dem Handy (iPhone/Android)
 
-```bash
-npm start
-```
+1. Auf dem Handy die App **Expo Go** laden (App Store bzw. Google Play).
+2. Auf dem Mac im NEXORA-Ordner:
+   ```bash
+   npm start
+   ```
+3. Den angezeigten QR-Code scannen – iPhone: mit der Kamera-App, Android: in Expo Go. Handy und Mac müssen im selben WLAN sein.
 
-Den angezeigten QR-Code mit der Kamera scannen und in der App **Expo Go** öffnen (vorher aus dem App Store laden; iPhone und Mac müssen im selben WLAN sein).
+Am Handy funktionieren auch PDFs (Angebote, Rechnungen, Mahnungen, Einkommensnachweis, Steuer-Unterlagen) – sie gehen über das **Teilen-Menü** („In Dateien sichern“, WhatsApp, AirDrop …). **E-Mail** öffnet die Mail-App mit dem PDF schon im Anhang; bei **WhatsApp** wird der Text kopiert und das PDF geteilt. **Belege** direkt mit der Kamera fotografieren oder aus Fotos/Dateien wählen, **Logo** aus den Fotos, Termine als Kalender-Datei teilen.
+
+Noch nur auf dem Mac/im Browser: Sprachmodus von Nexy und TikTok/Instagram verbinden.
 
 ---
 
@@ -79,6 +84,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/app/(app)/` | Bereich nur für angemeldete Nutzer (`onboarding.tsx` + App-Rahmen in `(tabs)/`) |
 | `src/app/(app)/(tabs)/` | Alle Bereiche mit Navigation: `home` (Dashboard), `fahrplan`, `kunden`, `auftraege`, `termine`, `firma`, `finanzen`, `social`, … |
 | `src/features/navigation/` | Seitenleiste (Mac) / Tab-Leiste (Handy), Liste aller Bereiche |
+| `src/lib/files.ts` / `files.native.ts` | Dateien speichern: Mac/Browser als Download, Handy über das Teilen-Menü (Metro nimmt automatisch die `.native`-Datei fürs Handy; genauso bei `send-document`, `receipt-file`, `logo-image`, `copy-text`) |
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
@@ -141,6 +147,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Direkt senden: Angebote, Rechnungen und Mahnungen per E-Mail mit PDF direkt aus NEXORA (über das eigene Postfach per SMTP, z. B. webgo, oder Resend), Text anpassbar, Antworten an die eigene Adresse, Versandprotokoll; Speichern im Auftrag überschreibt nur noch geänderte Felder. Einrichtung: `supabase/README.md`, Abschnitt 10
 - ✅ Steuern: Steuer-Topf (wie viel zurücklegen, Prozent wählbar), Kleinunternehmer-Grenze mit Warnung bzw. geschätzte Umsatzsteuer mit Vorsteuer aus Ausgaben, Export für die Steuerberatung (ZIP mit Jahresübersicht-PDF, CSV-Listen und Belegen); Nexy kennt die Zahlen. Einrichtung: `supabase/README.md`, Abschnitt 11
 - ✅ Einführungen: Nexy erklärt jeden Bereich beim ersten Besuch in 2–5 kurzen Schritten und hebt die wichtigen Stellen hervor; für neue Nutzer startet auf der Startseite ein Rundgang durch alle Bereiche nacheinander. Jederzeit über das „?“ neben der Überschrift wiederholbar, im Profil an-/abschaltbar und „Rundgang starten“. Ohne SQL-Skript `20261115090000_tutorials.sql` merkt sich der Browser/Mac den Stand
+- ✅ Handy-App (iPhone/Android): PDFs, Mahnungen, Steuer-Export und Einkommensnachweis über das Teilen-Menü, E-Mail mit PDF-Anhang aus der Mail-App, Belege mit der Kamera, Logo aus den Fotos, Kopieren, Kalender-Datei – ausprobieren mit Expo Go (siehe oben). Noch nicht am Handy: Sprachmodus, TikTok/Instagram verbinden
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG

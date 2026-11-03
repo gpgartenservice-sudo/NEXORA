@@ -74,7 +74,7 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   }, [doc, logoFor]);
 
   if (!pdfSupported) {
-    return <Notice>Verschicken gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.</Notice>;
+    return <Notice>Verschicken geht hier gerade nicht.</Notice>;
   }
 
   const isOffer = doc.kind === 'offer';
@@ -86,6 +86,7 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
 
   const report = (result: Delivery, opened: string, attach: string) => {
     if (result.error) setMessage({ tone: 'error', text: result.error });
+    else if (result.message) setMessage({ tone: 'success', text: result.message });
     else if (result.pdf) setMessage({ tone: 'info', text: `${opened} ${WHERE[result.pdf]} – ${attach}` });
     else setMessage(null);
   };
@@ -110,8 +111,14 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
 
   const viaShare = async () => {
     if (!pdf) return;
-    const { error } = await shareFile(pdf, text.body, text.subject);
-    setMessage(error ? { tone: 'error', text: error } : null);
+    const result = await shareFile(pdf, text.body, text.subject);
+    setMessage(
+      result.error
+        ? { tone: 'error', text: result.error }
+        : result.message
+          ? { tone: 'success', text: result.message }
+          : null,
+    );
   };
 
   /** Angebots-Link anlegen (bleibt danach gleich) */

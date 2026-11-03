@@ -1,3 +1,4 @@
+import { getRandomBytes } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
@@ -41,7 +42,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
 }
 
 const byStart = (a: Appointment, b: Appointment) => a.starts_at.localeCompare(b.starts_at);
-const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
+const random = (n: number) => getRandomBytes(n);
 
 type Loaded = { appointments: Appointment[]; feed: string | null } | { missing: true } | { failed: true };
 

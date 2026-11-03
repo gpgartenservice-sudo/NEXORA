@@ -16,8 +16,11 @@ const WORK_SIZE = 1600; // Arbeitsgröße (SVGs werden scharf in dieser Größe 
 const OUT_W = 800;
 const OUT_H = 480;
 
+/** Ausgewähltes Bild (Browser: File; Handy-App: logo-image.native.ts) */
+export type PickedImage = File;
+
 /** Öffnet die Dateiauswahl. null = abgebrochen. */
-export function pickImageFile(): Promise<File | null> {
+export function pickImageFile(): Promise<PickedImage | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -64,7 +67,7 @@ function encode(c: HTMLCanvasElement, mime: LogoImage['mime']): string {
 }
 
 /** Bild in ein speicherfertiges Logo umwandeln. Fehler kommen als verständlicher Text. */
-export async function processLogo(file: File): Promise<LogoImage> {
+export async function processLogo(file: PickedImage): Promise<LogoImage> {
   if (file.size > MAX_FILE_BYTES) throw new LogoError('Das Bild ist zu groß (höchstens 15 MB).');
   const img = await loadImage(file);
   const isSvg = file.type === 'image/svg+xml';

@@ -14,6 +14,7 @@ import { DirectMail } from '@/features/documents/direct-mail';
 import { formatDay, mailtoUrl, todayIso, whatsappUrl } from '@/features/documents/document-logic';
 import { useDocuments, type StoredDocument } from '@/features/documents/documents-provider';
 import { downloadPdf, pdfSupported, type PreparedPdf } from '@/features/documents/save-pdf';
+import { savesViaShareSheet } from '@/lib/files';
 import { canShareFile, openWith, shareFile, type Delivery } from '@/features/documents/send-document';
 
 import {
@@ -72,7 +73,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
   const state = dunningState(doc, followups, today);
   const fee = nextStage?.kind === 'reminder' ? 0 : parseFee(feeText);
 
-  if (!pdfSupported) return <Notice>Mahnen gibt es im Moment nur auf dem Mac. Am Handy folgt es bald.</Notice>;
+  if (!pdfSupported) return <Notice>Mahnen geht hier gerade nicht.</Notice>;
 
   const input =
     nextStage && newDue && fee !== null
@@ -104,7 +105,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
       });
     }
     let delivery: Delivery = {};
-    if (how === 'pdf') downloadPdf(pdf);
+    if (how === 'pdf') await downloadPdf(pdf);
     else if (how === 'mail') delivery = await openWith(pdf, mailtoUrl(customer.email, text.subject, text.body));
     else if (how === 'whatsapp') delivery = await openWith(pdf, whatsappUrl(customer.phone, text.chat));
     else delivery = await shareFile(pdf, text.body, text.subject);
@@ -123,11 +124,14 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
       note = ` Vermerkt: ${nextStage.label} vom ${formatDay(today)}, neue Frist bis ${formatDay(newDue)}.`;
     }
     setBusy(false);
-    const where =
-      delivery.pdf === 'finder'
+    const where = delivery.message
+      ? ` ${delivery.message}`
+      : delivery.pdf === 'finder'
         ? ' Das PDF ist im Finder markiert (Downloads › NEXORA) – zieh es in die Nachricht.'
         : how === 'pdf' || delivery.pdf === 'download'
-          ? ' Das PDF wurde gespeichert.'
+          ? savesViaShareSheet
+            ? ' Im Teilen-Menü sichern oder verschicken.'
+            : ' Das PDF wurde gespeichert.'
           : '';
     setMessage({ tone: 'success', text: `${how === 'pdf' ? 'PDF erstellt.' : 'Geöffnet.'}${where}${note}` });
   };

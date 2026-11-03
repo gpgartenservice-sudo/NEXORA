@@ -125,7 +125,7 @@ function PostEditor({ post, planned = null }: { post?: SocialPost; planned?: str
   const copy = async () => {
     const ok = await copyText(postText(caption, hashtags));
     setCopied(ok);
-    if (!ok) setFailure('Kopieren geht im Moment nur auf dem Mac.');
+    if (!ok) setFailure('Kopieren hat nicht geklappt.');
     else setTimeout(() => setCopied(false), 2000);
   };
 

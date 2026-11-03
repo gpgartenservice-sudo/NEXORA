@@ -18,6 +18,7 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { pdfSupported } from '@/features/documents/save-pdf';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
+import { fetchBytes, saveFile, savesViaShareSheet } from '@/lib/files';
 import { useAuth } from '@/providers/auth-provider';
 
 import { useFinance } from './finance-provider';
@@ -41,18 +42,9 @@ import { useTaxReservePercent } from './tax-settings';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/finanzen'));
 
-/** Datei im Browser/auf dem Mac speichern */
-function download(bytes: Uint8Array | string, fileName: string, mime: string) {
-  const blob = new Blob([bytes as BlobPart], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
+/** Datei speichern (Mac/Browser: Download, Handy: Teilen-Menü) */
+const download = (bytes: Uint8Array | string, fileName: string, mime: string) => saveFile(bytes, fileName, mime);
+const SAVED = savesViaShareSheet ? 'ZIP erstellt' : 'ZIP gespeichert';
 
 /** Kategorien + Ausgaben, die direkt an Aufträgen eingetragen sind (Rest bis zur Summe) */
 function withOrderExpenses(categories: { label: string; amount: number }[], total: number) {
@@ -151,19 +143,19 @@ export function TaxScreen() {
         const e = withReceipt[i];
         setMessage({ tone: 'info', text: `Belege werden geladen … ${i + 1} von ${withReceipt.length}` });
         const { url } = await receiptUrl(e.receipt_path!);
-        const res = url ? await fetch(url).catch(() => null) : null;
-        if (!res || !res.ok) {
+        const bytes = url ? await fetchBytes(url) : null;
+        if (!bytes) {
           failed++;
           continue;
         }
-        files[`Belege/${receiptNames.get(e.id)}`] = new Uint8Array(await res.arrayBuffer());
+        files[`Belege/${receiptNames.get(e.id)}`] = bytes;
       }
-      download(zipSync(files, { level: 6 }), `NEXORA_Steuer_${year}.zip`, 'application/zip');
+      await download(zipSync(files, { level: 6 }), `NEXORA_Steuer_${year}.zip`, 'application/zip');
       setMessage({
         tone: failed ? 'error' : 'success',
         text: failed
-          ? `ZIP gespeichert – aber ${failed} ${failed === 1 ? 'Beleg konnte' : 'Belege konnten'} nicht geladen werden.`
-          : `ZIP gespeichert: Übersicht, Rechnungen, Ausgaben${withReceipt.length ? ` und ${withReceipt.length} ${withReceipt.length === 1 ? 'Beleg' : 'Belege'}` : ''}.`,
+          ? `${SAVED} – aber ${failed} ${failed === 1 ? 'Beleg konnte' : 'Belege konnten'} nicht geladen werden.`
+          : `${SAVED}: Übersicht, Rechnungen, Ausgaben${withReceipt.length ? ` und ${withReceipt.length} ${withReceipt.length === 1 ? 'Beleg' : 'Belege'}` : ''}.`,
       });
     });
 
@@ -299,18 +291,18 @@ export function TaxScreen() {
                 <ActionChip
                   icon={FileSpreadsheet}
                   label="Rechnungen (CSV)"
-                  onPress={() => download(csvIncome(), `Rechnungen_${year}.csv`, 'text/csv;charset=utf-8')}
+                  onPress={() => void download(csvIncome(), `Rechnungen_${year}.csv`, 'text/csv;charset=utf-8')}
                   disabled={!!busy}
                 />
                 <ActionChip
                   icon={Download}
                   label="Ausgaben (CSV)"
-                  onPress={() => download(csvExpenses(), `Ausgaben_${year}.csv`, 'text/csv;charset=utf-8')}
+                  onPress={() => void download(csvExpenses(), `Ausgaben_${year}.csv`, 'text/csv;charset=utf-8')}
                   disabled={!!busy}
                 />
               </View>
             ) : (
-              <Notice>Die Unterlagen gibt es im Moment auf dem Mac und im Browser.</Notice>
+              <Notice>Die Unterlagen gehen hier gerade nicht.</Notice>
             )}
             <Text style={styles.hint}>
               Das ZIP enthält die Jahresübersicht, Listen für Excel und alle Belege – zum Weiterleiten an deine

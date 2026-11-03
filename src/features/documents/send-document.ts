@@ -33,7 +33,7 @@ export function canShareFile(pdf: PreparedPdf): boolean {
   }
 }
 
-export type Delivery = { error?: string; pdf?: 'finder' | 'download' };
+export type Delivery = { error?: string; pdf?: 'finder' | 'download'; message?: string };
 
 const failed = (e: unknown): Delivery => {
   console.warn('[Verschicken]', e);

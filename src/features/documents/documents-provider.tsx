@@ -1,3 +1,4 @@
+import { getRandomBytes } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { Customer, Order } from '@/features/crm/crm-provider';
@@ -233,7 +234,7 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
     async (id: string) => {
       const doc = documents.find((d) => d.id === id);
       if (doc?.public_token) return { token: doc.public_token };
-      const token = offerToken((n) => crypto.getRandomValues(new Uint8Array(n)));
+      const token = offerToken((n) => getRandomBytes(n));
       const { data, error: err } = await supabase
         .from('documents')
         .update({ public_token: token })

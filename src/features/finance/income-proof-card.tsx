@@ -41,7 +41,10 @@ export function IncomeProofCard() {
     setError(null);
     try {
       const { renderIncomeProofPdf, incomeProofFileName } = await import('./income-pdf');
-      downloadPdf({ bytes: await renderIncomeProofPdf({ seller, logo, rows }), fileName: incomeProofFileName(rows) });
+      await downloadPdf({
+        bytes: await renderIncomeProofPdf({ seller, logo, rows }),
+        fileName: incomeProofFileName(rows),
+      });
     } catch (e) {
       console.warn('[Einkommensnachweis]', e);
       setError(`Das PDF konnte nicht erstellt werden.\n\nTechnische Details: ${String(e)}`);

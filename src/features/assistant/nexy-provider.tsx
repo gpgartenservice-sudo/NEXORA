@@ -469,7 +469,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           const rows = summarize([...crm.orders, ...newOrders.values()], finance.expenses, months);
           try {
             const { renderIncomeProofPdf, incomeProofFileName } = await import('@/features/finance/income-pdf');
-            downloadPdf({
+            await downloadPdf({
               bytes: await renderIncomeProofPdf({ seller: docs.seller, logo: docs.logo, rows }),
               fileName: incomeProofFileName(rows),
             });

@@ -37,6 +37,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
         }
+      ],
+      "expo-sharing",
+      "expo-mail-composer",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NEXORA öffnet deine Fotos, damit du Belege und dein Logo auswählen kannst.",
+          "cameraPermission": "NEXORA nutzt die Kamera, damit du Belege fotografieren kannst – Nexy liest sie dann aus.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
