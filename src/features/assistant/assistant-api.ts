@@ -26,8 +26,11 @@ export async function askAssistant(
   if (error instanceof FunctionsHttpError) {
     const res = error.context as Response;
     let code: string | undefined;
+    let detail: string | undefined;
     try {
-      code = (await res.json())?.error;
+      const body = await res.json();
+      code = body?.error;
+      detail = typeof body?.detail === 'string' ? body.detail : undefined;
     } catch {
       // keine JSON-Antwort
     }
@@ -50,7 +53,7 @@ export async function askAssistant(
     if (code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
     return {
       error:
-        `Nexy konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${res.status} ${code ?? ''}`.trim(),
+        `Nexy konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${res.status} ${code ?? ''}${detail ? ` – ${detail}` : ''}`.trim(),
     };
   }
   if (error instanceof FunctionsFetchError) {
