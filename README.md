@@ -4,7 +4,7 @@ Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwalt
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4) · [Nexy](docs/media/nexy-preview.mp4) · [Nexy-Sprachmodus](docs/media/nexy-sprache-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4) · [Nexy](docs/media/nexy-preview.mp4) · [Nexy-Sprachmodus](docs/media/nexy-sprache-preview.mp4) · [Termine](docs/media/termine-preview.mp4)
 
 ---
 
