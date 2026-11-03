@@ -9,3 +9,6 @@ export default function TermineLayout() {
     />
   );
 }
+
+/** Fehler in diesem Bereich: Fehlerseite statt Absturz */
+export { AppError as ErrorBoundary } from '@/components/app-error';

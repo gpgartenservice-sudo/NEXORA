@@ -24,6 +24,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
+import { toDate } from '@/lib/dates';
 
 import {
   CONNECTED_PLATFORMS,
@@ -50,7 +51,7 @@ const ABOUT: Record<ConnectedPlatform, string> = {
 const PAGE = 20;
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
 const shortDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  toDate(iso)?.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) ?? '';
 const dayLabel = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 

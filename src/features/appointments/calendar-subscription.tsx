@@ -5,7 +5,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, MonoFont, Radius, Spacing } from '@/constants/theme';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { copyText } from '@/features/social/copy-text';
 import { SUPABASE_URL } from '@/lib/supabase';
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   url: {
     color: Colors.text,
     fontSize: 12.5,
-    fontFamily: 'monospace',
+    fontFamily: MonoFont,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,

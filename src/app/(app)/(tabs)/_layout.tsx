@@ -75,3 +75,6 @@ const styles = StyleSheet.create({
   columnReverse: { flexDirection: 'column-reverse' },
   slot: { flex: 1 },
 });
+
+/** Fehler in diesem Bereich: Fehlerseite statt Absturz */
+export { AppError as ErrorBoundary } from '@/components/app-error';

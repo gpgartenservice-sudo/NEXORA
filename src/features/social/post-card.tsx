@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
+import { toDate } from '@/lib/dates';
 
 import { compactNumber, computePostStatus, FORMATS, PLATFORMS, stepProgress } from './social-logic';
 import type { SocialPost } from './social-provider';
@@ -12,7 +13,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 /** "Do, 05.11. · 18:00" */
 export function shortDateTime(value: string, withDay = true): string {
-  const d = new Date(value);
+  const d = toDate(value);
+  if (!d) return '–';
   const date = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.`;
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return withDay ? `${WEEKDAYS[d.getDay()]}, ${date} · ${time}` : time;

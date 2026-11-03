@@ -17,6 +17,7 @@ import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { useCrm } from '@/features/crm/crm-provider';
+import { toDate, toIso, toMs } from '@/lib/dates';
 
 import { buildEvents, type Appointment } from './appointment-logic';
 import { useAppointments, type AppointmentInput } from './appointments-provider';
@@ -71,9 +72,10 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
   const { customers, customerById } = useCrm();
   const [title, setTitle] = useState(appointment?.title ?? '');
   const [allDay, setAllDay] = useState(appointment?.all_day ?? false);
-  const [start, setStart] = useState<string | null>(appointment?.starts_at ?? initialStart(datum));
+  const [start, setStart] = useState<string | null>(appointment ? toIso(appointment.starts_at) : initialStart(datum));
+  // Dauer des gespeicherten Termins (ungültige Werte: 1 Std.)
   const existingMinutes = appointment?.ends_at
-    ? Math.round((Date.parse(appointment.ends_at) - Date.parse(appointment.starts_at)) / 60000)
+    ? Math.round((toMs(appointment.ends_at) - toMs(appointment.starts_at)) / 60000) || 60
     : 60;
   const [minutes, setMinutes] = useState(existingMinutes);
   const [location, setLocation] = useState(appointment?.location ?? '');
@@ -91,7 +93,8 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
   const matches = q
     ? customers.filter((c) => [c.name, c.company].some((v) => v?.toLowerCase().includes(q))).slice(0, 5)
     : [];
-  const end = start && !allDay ? new Date(Date.parse(start) + minutes * 60000) : null;
+  const startDate = toDate(start);
+  const end = startDate && !allDay ? new Date(startDate.getTime() + minutes * 60000) : null;
   const custom = !DURATIONS.some((d) => d.minutes === minutes);
 
   /** gespeicherter Stand als Kalender-Termin (für "In Kalender") */
@@ -105,12 +108,12 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
       setTitleError('Worum geht es?');
       return null;
     }
-    if (!start) {
+    const begin = toDate(start);
+    if (!begin) {
       setFailure('Bitte wähle Datum und Uhrzeit.');
       return null;
     }
     // ganztägig: Beginn auf 0 Uhr (lokal)
-    const begin = new Date(start);
     if (allDay) begin.setHours(0, 0, 0, 0);
     return {
       title: title.trim(),

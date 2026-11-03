@@ -7,6 +7,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { StatRow, StatTile } from '@/features/crm/ui';
 import { useHover } from '@/hooks/use-hover';
+import { toMs } from '@/lib/dates';
 
 import { PlatformBadges } from './post-card';
 import { compactNumber, computePostStatus, engagementRate, PLATFORMS, summarizeMetrics } from './social-logic';
@@ -21,7 +22,7 @@ export function MetricsView({ posts }: { posts: SocialPost[] }) {
   const [now] = useState(() => Date.now());
   const since = range === 'all' ? null : now - Number(range) * 86400000;
   const published = posts.filter(
-    (p) => computePostStatus(p) === 'published' && (!since || new Date(p.published_at!).getTime() >= since),
+    (p) => computePostStatus(p) === 'published' && (!since || toMs(p.published_at) >= since),
   );
   const s = summarizeMetrics(published);
   const top = [...published]

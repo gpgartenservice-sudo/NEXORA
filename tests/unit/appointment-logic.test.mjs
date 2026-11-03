@@ -218,3 +218,22 @@ test('Lokale Zeit und Überschneidungen für neue Termine', () => {
   assert.equal(clashes(ev, { start: '2026-11-05T08:30:00.000Z', end: '2026-11-05T09:30:00.000Z' }, 'meeting-o1').length, 0); // sich selbst
   assert.equal(clashes(ev, { start: '2026-11-04T23:00:00.000Z', end: '2026-11-05T23:00:00.000Z', allDay: true }).length, 0);
 });
+
+test('Ungültige oder Postgres-Zeitstempel: kein Absturz, Termine bleiben lesbar', () => {
+  const now = new Date('2026-11-04T08:00:00.000Z');
+  const orders = [
+    order({ meeting_at: 'kaputt', execution_at: '2026-11-06 09:00:00.123456+00' }),
+    order({ id: 'o2', meeting_at: '2026-11-05T08:00:00.5+00:00' }),
+  ];
+  const appointments = [appt({ starts_at: '' }), appt({ id: 'a2', starts_at: '2026-11-07T10:00:00+01', ends_at: 'quatsch' })];
+  const ev = buildEvents(orders, customers, appointments);
+  assert.deepEqual(
+    ev.map((e) => [e.key, e.start, e.end]),
+    [
+      ['meeting-o2', '2026-11-05T08:00:00.500Z', '2026-11-05T09:00:00.500Z'],
+      ['execution-o1', '2026-11-06T09:00:00.123Z', '2026-11-06T11:00:00.123Z'],
+      ['appointment-a2', '2026-11-07T09:00:00.000Z', '2026-11-07T10:00:00.000Z'],
+    ],
+  );
+  assert.doesNotThrow(() => openItems(orders, customers, now));
+});

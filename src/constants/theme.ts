@@ -1,4 +1,5 @@
 import '@/global.css';
+import { Platform } from 'react-native';
 
 /**
  * NEXORA – Farben & Abstände.
@@ -41,3 +42,6 @@ export const Radius = {
   md: 12,
   lg: 16,
 } as const;
+
+/** Schrift mit fester Breite (iOS kennt „monospace“ nicht → Menlo) */
+export const MonoFont = Platform.select({ ios: 'Menlo', default: 'monospace' });

@@ -3,6 +3,8 @@
  * Videos den Ideen im Content-Board zuordnen, Zahlen übernehmen,
  * Video als neuen Post übernehmen, Follower-Verlauf.
  */
+import { toDate, toMs } from '../../lib/dates';
+
 import { stepsFor, type Platform, type PostFormat } from './social-logic';
 
 export type ConnectedPlatform = 'tiktok' | 'instagram';
@@ -142,7 +144,8 @@ function usedPlatforms(videos: SocialVideo[]): Map<string, Set<ConnectedPlatform
 
 function dateOf(p: LinkablePost): number | null {
   const d = p.published_at ?? p.planned_for;
-  return d ? new Date(d).getTime() : null;
+  const ms = toMs(d);
+  return Number.isNaN(ms) ? null : ms;
 }
 
 type Scored = { post: LinkablePost; shared: number; score: number };
@@ -183,7 +186,8 @@ export function matchVideos(videos: SocialVideo[], posts: LinkablePost[]): Match
       take(video, byUrl, 'url');
       continue;
     }
-    const when = video.published_at ? new Date(video.published_at).getTime() : null;
+    const ms = toMs(video.published_at);
+    const when = Number.isNaN(ms) ? null : ms;
     const list = candidates(video, posts, used).filter((c) => {
       if (c.shared < 2 || c.score < 0.6) return false;
       const d = dateOf(c.post);
@@ -269,9 +273,8 @@ export function captionTitle(
       )
       .find((l) => l.length > 0) ?? '';
   if (line) return line.length > 80 ? `${line.slice(0, 77).trimEnd()} …` : line;
-  const date = publishedAt
-    ? new Date(publishedAt).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null;
+  const date =
+    toDate(publishedAt)?.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' }) ?? null;
   return `${connectedLabel(platform)}-${platform === 'tiktok' ? 'Video' : 'Post'}${date ? ` vom ${date}` : ''}`;
 }
 
@@ -355,7 +358,9 @@ export function followerGrowth(
 /** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 Tagen" */
 export function syncAge(iso: string | null, now: number): string {
   if (!iso) return 'noch nie';
-  const mins = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  const at = toMs(iso);
+  if (Number.isNaN(at)) return 'noch nie';
+  const mins = Math.max(0, Math.round((now - at) / 60000));
   if (mins < 1) return 'gerade eben';
   if (mins < 60) return `vor ${mins} Min.`;
   const hours = Math.round(mins / 60);
@@ -366,8 +371,5 @@ export function syncAge(iso: string | null, now: number): string {
 
 /** Sollten die Zahlen neu geholt werden? (ältester Stand älter als `hours`) */
 export function needsSync(accounts: SocialAccount[], now: number, hours = 6): boolean {
-  return accounts.some(
-    (a) =>
-      a.status === 'ok' && (!a.last_synced_at || now - new Date(a.last_synced_at).getTime() > hours * 60 * 60 * 1000),
-  );
+  return accounts.some((a) => a.status === 'ok' && !(now - toMs(a.last_synced_at) <= hours * 60 * 60 * 1000));
 }

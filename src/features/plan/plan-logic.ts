@@ -3,6 +3,7 @@
  * Die verbindlichen Grenzen prüft der Server (Skript 20261116090000_plans.sql,
  * Funktionen "assistant" und "mail"); die App zeigt sie nur an.
  */
+import { toIso, toMs } from '../../lib/dates';
 
 export type PlanKind = 'free' | 'trial' | 'pro';
 export type QuotaKind = 'nexy' | 'receipt';
@@ -76,7 +77,7 @@ export function proRequiredText(feature: ProFeature): string {
 export const isPro = (plan: PlanKind) => plan !== 'free';
 
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
-const date = (v: unknown) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? v : null);
+const date = (v: unknown) => (typeof v === 'string' ? toIso(v) : null);
 
 /** Antwort der Datenbank (my_plan) prüfen; null = unbrauchbar */
 export function parsePlan(raw: unknown): PlanInfo | null {
@@ -101,7 +102,7 @@ export function parsePlan(raw: unknown): PlanInfo | null {
 /** Restliche Tage der Testphase (aufgerundet), sonst null */
 export function trialDaysLeft(info: PlanInfo, now: Date): number | null {
   if (info.plan !== 'trial' || !info.trial_ends_at) return null;
-  const ms = Date.parse(info.trial_ends_at) - now.getTime();
+  const ms = toMs(info.trial_ends_at) - now.getTime();
   return ms > 0 ? Math.ceil(ms / 86_400_000) : 0;
 }
 

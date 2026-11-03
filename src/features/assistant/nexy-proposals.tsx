@@ -30,6 +30,7 @@ import { formatEuro } from '@/features/crm/order-logic';
 import { categoryLabel, incomeProofMonths, monthLabel } from '@/features/finance/finance-logic';
 import { shortDateTime } from '@/features/social/post-card';
 import { FORMATS, platformLabel } from '@/features/social/social-logic';
+import { toDate, toMs } from '@/lib/dates';
 
 import { goalLabel, proposalLabel, whenLabel, type Proposal } from './assistant-logic';
 import { useNexy, type NexyMessage } from './nexy-provider';
@@ -100,9 +101,16 @@ const GOAL_COUNTS = {
   posts: 'automatisch: veröffentlichte Posts',
 } as const;
 
+/** "14:30" (leer bei ungültigem Zeitpunkt) */
+const clock = (iso: string) => toDate(iso)?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) ?? '';
+
 /** Zeitraum eines Termin-Vorschlags (für Überschneidungen); null = keiner */
 function slotOf(p: Proposal): { start: string; end: string; allDay: boolean; ignore: string | null } | null {
-  const plus = (iso: string, minutes: number) => new Date(new Date(iso).getTime() + minutes * MIN).toISOString();
+  // ungültiger Zeitpunkt: unverändert lassen statt abzustürzen
+  const plus = (iso: string, minutes: number) => {
+    const ms = toMs(iso);
+    return Number.isNaN(ms) ? iso : new Date(ms + minutes * MIN).toISOString();
+  };
   if (p.kind === 'appointment')
     return {
       start: p.data.starts_at,
@@ -120,10 +128,10 @@ function slotOf(p: Proposal): { start: string; end: string; allDay: boolean; ign
   if (p.kind === 'appointment_change' && !p.data.remove && (p.data.starts_at || p.data.ends_at)) {
     const e = p.event;
     const start = p.data.starts_at ?? e.start;
-    const length = new Date(e.end).getTime() - new Date(e.start).getTime();
+    const length = (toMs(e.end) - toMs(e.start)) / MIN || 0;
     return {
       start,
-      end: p.data.ends_at ?? new Date(new Date(start).getTime() + length).toISOString(),
+      end: p.data.ends_at ?? plus(start, length),
       allDay: p.data.all_day ?? e.allDay,
       ignore: e.key,
     };
@@ -175,7 +183,7 @@ function rows(p: Proposal): [string, string][] {
       'Wann',
       p.data.all_day
         ? whenLabel(p.data.starts_at, true)
-        : `${whenLabel(p.data.starts_at)}${p.data.ends_at ? `–${new Date(p.data.ends_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : ''}`,
+        : `${whenLabel(p.data.starts_at)}${p.data.ends_at ? `–${clock(p.data.ends_at)}` : ''}`,
     ]);
     if (p.data.location) r.push(['Ort', p.data.location]);
     if (p.customer.existingId || p.customer.newRef)
@@ -216,8 +224,7 @@ function rows(p: Proposal): [string, string][] {
     if (e.kind !== 'appointment') r.push(['Auftrag', e.kind === 'meeting' ? 'Erstgespräch' : 'Ausführung']);
     r.push([c.remove ? 'Wann' : 'Bisher', whenLabel(e.start, e.allDay)]);
     if (c.starts_at) r.push(['Neu', whenLabel(c.starts_at, c.all_day ?? e.allDay)]);
-    if (c.ends_at)
-      r.push(['Ende', new Date(c.ends_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })]);
+    if (c.ends_at) r.push(['Ende', clock(c.ends_at)]);
     if (c.title) r.push(['Neuer Titel', c.title]);
     if (c.location) r.push(['Ort', c.location]);
     if (c.notes) r.push(['Notiz', c.notes]);

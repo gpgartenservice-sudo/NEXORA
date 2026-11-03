@@ -22,6 +22,7 @@ import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-ite
 import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
+import { toDate } from '@/lib/dates';
 
 import {
   dayLabel,
@@ -425,7 +426,7 @@ function OpenItems({ items, payments }: { items: OpenItem[]; payments: PaymentIt
               {item.title}
               {item.customerName ? ` · ${item.customerName}` : ''}
               {item.when && item.kind !== 'schedule_meeting'
-                ? ` · ${new Date(item.when).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}`
+                ? ` · ${toDate(item.when)?.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) ?? ''}`
                 : ''}
             </Text>
           </View>

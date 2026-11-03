@@ -11,6 +11,7 @@
  *
  * Vereinfachte Übersicht – ersetzt keine Buchhaltung.
  */
+import { toDate } from '../../lib/dates';
 import { elapsedMonths, finalPrice, isMonthly, totalMonths, type OrderFacts } from '../crm/order-logic';
 
 /** Monat als "JJJJ-MM" */
@@ -56,7 +57,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /** Datum (JJJJ-MM-TT oder Zeitstempel) -> "JJJJ-MM" in lokaler Zeit */
 export function monthKey(value: string | Date): MonthKey {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value.slice(0, 7);
-  const d = typeof value === 'string' ? new Date(value) : value;
+  const d = typeof value === 'string' ? (toDate(value) ?? new Date(Number.NaN)) : value;
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
 

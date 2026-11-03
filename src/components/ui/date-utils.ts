@@ -1,3 +1,5 @@
+import { toDate } from '../../lib/dates';
+
 export type DateFieldProps = {
   label: string;
   /** ISO-Zeitpunkt (mit Uhrzeit) bzw. "JJJJ-MM-TT" (nur Datum) – oder null */
@@ -13,8 +15,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function toLocalInput(value: string | null, withTime?: boolean): string {
   if (!value) return '';
   if (!withTime) return value.slice(0, 10);
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
+  const d = toDate(value);
+  if (!d) return '';
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
@@ -51,8 +53,8 @@ export function fromGermanInput(text: string, withTime?: boolean): string | null
 /** Anzeige: "Mo., 3. Nov. 2026, 14:30" bzw. "3. Nov. 2026" */
 export function formatDate(value: string | null, withTime?: boolean): string {
   if (!value) return '–';
-  const d = withTime ? new Date(value) : new Date(`${value.slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '–';
+  const d = withTime ? toDate(value) : toDate(`${value.slice(0, 10)}T00:00:00`);
+  if (!d) return '–';
   return new Intl.DateTimeFormat('de-DE', {
     ...(withTime ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : {}),
     day: 'numeric',

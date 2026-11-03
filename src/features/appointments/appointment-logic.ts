@@ -5,6 +5,7 @@
  * finden, Tagesroute, Kalender-Datei (.ics) und Google-Kalender-Link.
  */
 import { computeStatus, type OrderFacts } from '../crm/order-logic';
+import { toIso, toMs } from '../../lib/dates';
 import { dayKey } from '../social/social-logic';
 
 export type Appointment = {
@@ -57,7 +58,7 @@ export const KIND_LABEL: Record<EventKind, string> = {
 };
 
 const MIN = 60 * 1000;
-const addMinutes = (iso: string, minutes: number) => new Date(new Date(iso).getTime() + minutes * MIN).toISOString();
+const addMinutes = (iso: string, minutes: number) => new Date(toMs(iso) + minutes * MIN).toISOString();
 
 /** Alle Termine: aus Aufträgen (ohne stornierte) und eigene – nach Beginn sortiert */
 export function buildEvents(
@@ -79,30 +80,35 @@ export function buildEvents(
       appointmentId: null,
       notes: null,
     };
-    if (o.meeting_at)
+    // ungültige Zeitstempel überspringen statt abzustürzen
+    const meetingStart = toIso(o.meeting_at);
+    const executionStart = toIso(o.execution_at);
+    if (meetingStart)
       events.push({
         ...base,
         key: `meeting-${o.id}`,
         kind: 'meeting',
         title: o.title,
-        start: new Date(o.meeting_at).toISOString(),
-        end: addMinutes(o.meeting_at, DEFAULT_MINUTES.meeting),
+        start: meetingStart,
+        end: addMinutes(meetingStart, DEFAULT_MINUTES.meeting),
         done: !!o.meeting_done,
       });
-    if (o.execution_at)
+    if (executionStart)
       events.push({
         ...base,
         key: `execution-${o.id}`,
         kind: 'execution',
         title: o.title,
-        start: new Date(o.execution_at).toISOString(),
-        end: addMinutes(o.execution_at, DEFAULT_MINUTES.execution),
+        start: executionStart,
+        end: addMinutes(executionStart, DEFAULT_MINUTES.execution),
         done: !!o.completed,
       });
   }
   for (const a of appointments) {
     const c = a.customer_id ? byId.get(a.customer_id) : undefined;
-    const start = new Date(a.starts_at);
+    const startIso = toIso(a.starts_at);
+    if (!startIso) continue;
+    const start = new Date(startIso);
     const allDayEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).toISOString();
     events.push({
       key: `appointment-${a.id}`,
@@ -112,8 +118,8 @@ export function buildEvents(
       end: a.all_day
         ? allDayEnd
         : a.ends_at
-          ? new Date(a.ends_at).toISOString()
-          : addMinutes(a.starts_at, DEFAULT_MINUTES.appointment),
+          ? (toIso(a.ends_at) ?? addMinutes(startIso, DEFAULT_MINUTES.appointment))
+          : addMinutes(startIso, DEFAULT_MINUTES.appointment),
       allDay: a.all_day,
       location: a.location?.trim() || c?.address?.trim() || null,
       customerName: c?.name ?? null,
@@ -193,19 +199,14 @@ export function openItems(
     if (o.cancelled || o.completed) continue;
     const base = { orderId: o.id, title: o.title, customerName: nameOf.get(o.customer_id) ?? null };
     const status = computeStatus(o);
-    if (
-      o.meeting_at &&
-      !o.meeting_done &&
-      new Date(o.meeting_at).toISOString() < nowIso &&
-      status === 'meeting_planned'
-    )
+    if (o.meeting_at && !o.meeting_done && (toIso(o.meeting_at) ?? '9999') < nowIso && status === 'meeting_planned')
       items.push({ ...base, key: `confirm-${o.id}`, kind: 'confirm_meeting', when: o.meeting_at });
     else if (status === 'new')
       items.push({ ...base, key: `meet-${o.id}`, kind: 'schedule_meeting', when: o.created_at ?? null });
     else if (status === 'accepted')
       items.push({ ...base, key: `exec-${o.id}`, kind: 'schedule_execution', when: null });
     // einmalige Aufträge: einen Tag nach der Ausführung ans Abschließen erinnern
-    if (o.execution_at && o.billing !== 'monthly' && new Date(o.execution_at).getTime() + 24 * 60 * MIN < now.getTime())
+    if (o.execution_at && o.billing !== 'monthly' && toMs(o.execution_at) + 24 * 60 * MIN < now.getTime())
       items.push({ ...base, key: `finish-${o.id}`, kind: 'finish_order', when: o.execution_at });
   }
   return items;

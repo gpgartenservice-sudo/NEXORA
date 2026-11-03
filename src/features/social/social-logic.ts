@@ -4,8 +4,9 @@
  * erledigten Schritten berechnet (Idee -> In Arbeit -> Bereit ->
  * Veröffentlicht).
  *
- * Bewusst ohne Imports (tests/unit/social-logic.test.mjs).
+ * Ohne App-Imports (tests/unit/social-logic.test.mjs).
  */
+import { toDate } from '../../lib/dates';
 
 export type Platform = 'tiktok' | 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'x' | 'pinterest' | 'threads';
 export type PostFormat = 'video' | 'carousel' | 'image' | 'story' | 'text';
@@ -196,7 +197,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 /** Datum als "JJJJ-MM-TT" (lokale Zeit) */
 export function dayKey(value: Date | string): string {
-  const d = typeof value === 'string' ? new Date(value) : value;
+  const d = typeof value === 'string' ? (toDate(value) ?? new Date(Number.NaN)) : value;
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 

@@ -7,6 +7,7 @@
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
 import { periodsFor, type GoalKind, type GoalPeriod } from '../goals/goals-logic';
+import { toDate, toMs } from '../../lib/dates';
 
 export const EXPENSE_CATEGORY_KEYS = [
   'material',
@@ -271,11 +272,12 @@ export function localDateTime(v: unknown, defaultHour = 9): string | null {
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const hasTime = (v: unknown): v is string =>
   typeof v === 'string' && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v.trim());
-const sameInstant = (a: string, b: string) => new Date(a).getTime() === new Date(b).getTime();
+const sameInstant = (a: string, b: string) => toMs(a) === toMs(b);
 
 /** "Fr., 06.11., 14:00" bzw. "Fr., 06.11. ganztägig" */
 export function whenLabel(iso: string, allDay = false): string {
-  const d = new Date(iso);
+  const d = toDate(iso);
+  if (!d) return '–';
   return allDay
     ? `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} ganztägig`
     : d.toLocaleString('de-DE', {
@@ -598,7 +600,7 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
             change.starts_at = localDateTime(day, 0);
           } else {
             // nur ein neuer Tag: gleiche Uhrzeit wie bisher
-            const s = new Date(ev.start);
+            const s = toDate(ev.start) ?? new Date(Number.NaN);
             change.starts_at = localDateTime(`${day}T${pad2(s.getHours())}:${pad2(s.getMinutes())}`);
           }
         }
@@ -612,10 +614,10 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
             if (end && end <= start) end = null;
             const fixedEnd = known.appointments?.find((x) => x.id === ev.appointmentId)?.ends_at ?? null;
             // verschoben ohne (gültiges) neues Ende: Dauer bleibt gleich
-            if (!end && change.starts_at && fixedEnd)
-              end = new Date(
-                new Date(fixedEnd).getTime() + new Date(change.starts_at).getTime() - new Date(ev.start).getTime(),
-              ).toISOString();
+            if (!end && change.starts_at && fixedEnd) {
+              const ms = toMs(fixedEnd) + toMs(change.starts_at) - toMs(ev.start);
+              end = Number.isNaN(ms) ? null : new Date(ms).toISOString();
+            }
             if (end && !(fixedEnd && sameInstant(end, fixedEnd))) change.ends_at = end;
           }
           const title = str(c.title, 200);
