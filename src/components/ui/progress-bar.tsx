@@ -24,7 +24,10 @@ export function ProgressBar({ value, height = 6, delay = 0 }: Props) {
     <View
       style={[styles.track, { height, borderRadius: height / 2 }]}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}>
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(Math.max(0, Math.min(1, value)) * 100)}>
       <Animated.View style={[styles.fill, { borderRadius: height / 2 }, fill]} />
     </View>
   );

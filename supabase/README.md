@@ -45,6 +45,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261111090000_todos_goals.sql` | To-dos (mit Fälligkeit, optional zu Kunde/Auftrag) und Ziele (Umsatz, neue Kunden, Aufträge, Posts oder eigene) |
 | `20261112090000_receipts.sql` | Belege zu Ausgaben: privater Speicher „receipts“ (jeder Nutzer nur sein eigener Ordner) und Verknüpfung zur Ausgabe |
 | `20261113090000_offer_links_mail.sql` | Angebote online annehmen (geheimer Link, Annehmen/Ablehnen ohne Anmeldung) und Versandprotokoll für E-Mails aus der App |
+| `20261114090000_tax.sql` | Steuern: Prozentsatz für den Steuer-Topf (Firmendaten) und enthaltene Umsatzsteuer bei Ausgaben (Vorsteuer) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -240,7 +241,15 @@ Angebote, Rechnungen und Mahnungen gehen mit **Direkt senden** ohne Mail-Program
 
 Zum Schutz: höchstens 3 Empfänger pro E-Mail, nur PDFs als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag. Jede verschickte E-Mail steht im Versandprotokoll (am Dokument: „Direkt verschickt am … an …“).
 
-## 11. Wichtig zum Testen: E-Mail-Versand
+## 11. Steuern
+
+**Finanzen → Steuer-Topf** (bzw. `/finanzen/steuern`): wie viel du ungefähr zurücklegen solltest (Prozent vom Gewinn, wählbar 15–35 %), wo du bei der Kleinunternehmer-Grenze stehst (25.000 € Vorjahr / 100.000 € laufendes Jahr) bzw. – ohne Kleinunternehmerregelung – die geschätzte Umsatzsteuer. Für die Steuerberatung gibt es alles als ZIP: Jahresübersicht (PDF), Rechnungen und Ausgaben als Excel-taugliche CSV-Listen und alle Belege.
+
+Einrichtung: Datenbank-Skript `20261114090000_tax.sql` ausführen (Abschnitt 3). Ohne das Skript funktioniert die Seite trotzdem – nur der gewählte Prozentsatz und die Umsatzsteuer bei Ausgaben werden nicht gespeichert.
+
+Gut zu wissen: Alle Zahlen sind eine grobe Orientierung aus deinen Aufträgen und Ausgaben, keine Steuerberatung. Einnahmen zählen ab „Abgeschlossen“ (wie in Finanzen), nicht ab Zahlungseingang.
+
+## 12. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

@@ -17,6 +17,14 @@ import {
   type OrderMoney,
 } from '../finance/finance-logic';
 import { computePostStatus, dayKey, startOfWeek, type PostFacts } from '../social/social-logic';
+import {
+  DEFAULT_RESERVE_PERCENT,
+  SMALL_BUSINESS_LIMIT,
+  smallBusinessCheck,
+  taxReserve,
+  vatSummary,
+  yearTotals,
+} from '../finance/tax-logic';
 
 type CustomerLike = { id: string; name: string; company: string | null };
 type OrderLike = OrderMoney & {
@@ -60,7 +68,7 @@ export type ContextInput = {
   customers: CustomerLike[];
   orders: OrderLike[];
   documents: DocLike[];
-  expenses: ExpenseFacts[];
+  expenses: (ExpenseFacts & { vat_amount?: number | null })[];
   posts: PostLike[];
   /** verbundene TikTok-/Instagram-Konten */
   accounts?: AccountLike[];
@@ -72,6 +80,8 @@ export type ContextInput = {
   todos?: { entries: Record<string, unknown>[]; open: number };
   /** aktive Ziele mit Stand */
   goals?: Record<string, unknown>[];
+  /** Steuer-Topf: % vom Gewinn (Firmendaten) */
+  taxPercent?: number;
   today?: Date;
 };
 
@@ -89,6 +99,7 @@ export function buildNexyContext({
   followups = [],
   todos = { entries: [], open: 0 },
   goals = [],
+  taxPercent = DEFAULT_RESERVE_PERCENT,
   today = new Date(),
 }: ContextInput) {
   const customerName = new Map(customers.map((c) => [c.id, c.name]));
@@ -98,6 +109,38 @@ export function buildNexyContext({
   const year = thisMonth.slice(0, 4);
   const money = (months: string[]) => sumUp(summarize(orders, expenses, months, today));
   const missing = missingSellerFields(seller, 'invoice');
+
+  /** grobe Steuer-Orientierung (wie Seite Finanzen → Steuern) */
+  const steuern = () => {
+    const y = today.getFullYear();
+    const totals = yearTotals(orders, expenses, y, today);
+    const vat = vatSummary(documents, expenses, y, today);
+    const reserve = taxReserve({
+      profit: totals.profit,
+      percent: taxPercent,
+      smallBusiness: seller.small_business,
+      vatPayable: vat.payable,
+    });
+    const limit = smallBusinessCheck(totals.income, yearTotals(orders, expenses, y - 1, today).income, y);
+    return {
+      hinweis:
+        'grobe Schätzung zur Orientierung, keine Steuerberatung; Details und Export für die Steuerberatung unter Finanzen → Steuern',
+      kleinunternehmer: seller.small_business,
+      ruecklage_prozent_vom_gewinn: reserve.percent,
+      ruecklage_empfohlen_dieses_jahr: reserve.total,
+      ...(seller.small_business
+        ? {
+            umsatz_dieses_jahr: totals.income,
+            kleinunternehmer_grenze: SMALL_BUSINESS_LIMIT,
+            grenze_stand: limit.message,
+          }
+        : {
+            umsatzsteuer_ausgewiesen: vat.collected,
+            vorsteuer_erfasst: vat.input,
+            umsatzsteuer_zahllast_geschaetzt: vat.payable,
+          }),
+    };
+  };
 
   const monday = startOfWeek(today);
   const weekEnd = dayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6));
@@ -172,6 +215,7 @@ export function buildNexyContext({
       dieses_jahr: money(monthRange(`${year}-01`, thisMonth)),
       fixkosten_pro_monat: fixedCostsPerMonth(expenses, today),
     },
+    steuern: steuern(),
     termine: upcoming.slice(0, 40),
     aufgaben: todos.entries.slice(0, 30),
     aufgaben_offen_gesamt: todos.open,

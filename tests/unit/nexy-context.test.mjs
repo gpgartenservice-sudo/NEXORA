@@ -90,3 +90,24 @@ test('Übersicht: Mahnstand offener Rechnungen', () => {
   assert.equal(c.offene_rechnungen[0].neue_frist, '2026-11-05');
   assert.equal(c.offene_rechnungen[0].gemahnt_am, '2026-10-29');
 });
+
+test('Übersicht: Steuer-Orientierung (Rücklage, Kleinunternehmer-Grenze bzw. Umsatzsteuer)', () => {
+  const expenses = [{ amount: 12, spent_on: '2026-01-01', repeat: 'monthly', ends_on: null }];
+  const klein = buildNexyContext({ seller: { ...seller, small_business: true }, customers, orders, documents: [doc()], expenses, posts: [], taxPercent: 30, today: TODAY });
+  const jahr = klein.finanzen.dieses_jahr;
+  assert.equal(klein.steuern.kleinunternehmer, true);
+  assert.equal(klein.steuern.ruecklage_prozent_vom_gewinn, 30);
+  assert.equal(klein.steuern.ruecklage_empfohlen_dieses_jahr, Math.round(jahr.profit * 30) / 100);
+  assert.equal(klein.steuern.umsatz_dieses_jahr, jahr.income);
+  assert.equal(klein.steuern.kleinunternehmer_grenze, 25000);
+  assert.match(klein.steuern.grenze_stand, /grünen Bereich/);
+  assert.equal(klein.steuern.umsatzsteuer_zahllast_geschaetzt, undefined);
+
+  const invoice = doc({ data: { buyer: { name: 'Peter Müller' }, totals: { net: 1260.5, vat_rate: 19, vat_amount: 239.5, gross: 1500 }, small_business: false } });
+  const regel = buildNexyContext({ seller: { ...seller, small_business: false }, customers, orders, documents: [invoice], expenses: [{ ...expenses[0], vat_amount: 2 }], posts: [], today: TODAY });
+  assert.equal(regel.steuern.ruecklage_prozent_vom_gewinn, 25);
+  assert.equal(regel.steuern.umsatzsteuer_ausgewiesen, 239.5);
+  assert.equal(regel.steuern.vorsteuer_erfasst, 22); // 11 Monate × 2 €
+  assert.equal(regel.steuern.umsatzsteuer_zahllast_geschaetzt, 217.5);
+  assert.equal(regel.steuern.kleinunternehmer_grenze, undefined);
+});

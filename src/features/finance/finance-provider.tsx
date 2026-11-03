@@ -16,6 +16,8 @@ export type Expense = {
   /** Beleg im privaten Speicher (Foto/PDF) */
   receipt_path?: string | null;
   receipt_mime?: string | null;
+  /** enthaltene Umsatzsteuer (Vorsteuer), nur bei Regelbesteuerung */
+  vat_amount?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -24,7 +26,7 @@ export type ExpenseInput = Pick<
   Expense,
   'title' | 'category' | 'amount' | 'spent_on' | 'repeat' | 'ends_on' | 'notes'
 > &
-  Partial<Pick<Expense, 'receipt_path' | 'receipt_mime'>>;
+  Partial<Pick<Expense, 'receipt_path' | 'receipt_mime' | 'vat_amount'>>;
 
 type Result<T = undefined> = { data?: T; error?: string };
 
@@ -41,7 +43,11 @@ type State = {
 const Ctx = createContext<State | null>(null);
 const MISSING = ['PGRST205', '42P01', 'PGRST106'];
 
-const toExpense = (row: Record<string, unknown>): Expense => ({ ...(row as unknown as Expense), amount: Number(row.amount) });
+const toExpense = (row: Record<string, unknown>): Expense => ({
+  ...(row as unknown as Expense),
+  amount: Number(row.amount),
+  vat_amount: row.vat_amount === null || row.vat_amount === undefined ? null : Number(row.vat_amount),
+});
 
 function message(error: { code?: string; message?: string }, fallback: string): string {
   if (error.code && MISSING.includes(error.code)) {
@@ -49,6 +55,9 @@ function message(error: { code?: string; message?: string }, fallback: string): 
   }
   if ((error.code === 'PGRST204' || error.code === '42703') && /receipt/.test(error.message ?? '')) {
     return 'Belege können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261112090000_receipts.sql, siehe supabase/README.md).';
+  }
+  if ((error.code === 'PGRST204' || error.code === '42703') && /vat_amount/.test(error.message ?? '')) {
+    return 'Die enthaltene Umsatzsteuer kann noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261114090000_tax.sql, siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig. Bitte prüfe deine Eingaben.';
   return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;

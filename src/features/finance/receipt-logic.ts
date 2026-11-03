@@ -34,6 +34,8 @@ export type ReceiptDraft = {
   spent_on: string | null;
   /** Vorschlag für die Notiz (Händler, ausgewiesene Umsatzsteuer) */
   notes: string | null;
+  /** ausgewiesene Umsatzsteuer (für die Vorsteuer), wenn plausibel */
+  vat_amount: number | null;
 };
 
 const text = (v: unknown, max = 200) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
@@ -95,6 +97,7 @@ export function receiptToDraft(
       repeat,
       spent_on: spentOn,
       notes: noteParts.length ? noteParts.join(' · ') : null,
+      vat_amount: vatAmount !== null && (amount === null || vatAmount < amount) ? vatAmount : null,
     },
     warnings,
   };

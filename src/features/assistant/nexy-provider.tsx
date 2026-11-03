@@ -6,6 +6,7 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { downloadPdf, PDF_UNSUPPORTED, pdfSupported, savePdf } from '@/features/documents/save-pdf';
 import { incomeProofMonths, summarize } from '@/features/finance/finance-logic';
 import { useFinance } from '@/features/finance/finance-provider';
+import { useTaxReservePercent } from '@/features/finance/tax-settings';
 import { nexyEvents } from '@/features/appointments/appointment-logic';
 import { useAppointments, type AppointmentInput } from '@/features/appointments/appointments-provider';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
@@ -15,6 +16,7 @@ import { useGoals } from '@/features/goals/goals-provider';
 import { followerGrowth } from '@/features/social/connect-logic';
 import { useSocialConnect } from '@/features/social/connect-provider';
 import { useSocial } from '@/features/social/social-provider';
+import { useAuth } from '@/providers/auth-provider';
 
 import { askAssistant, type HistoryEntry } from './assistant-api';
 import {
@@ -106,6 +108,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const appts = useAppointments();
   const goals = useGoals();
   const { followups } = useFollowups();
+  const { user } = useAuth();
+  const { percent: taxPercent } = useTaxReservePercent(user?.id);
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
@@ -148,6 +152,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         followups,
         todos: { entries: todoCtx.entries, open: todoCtx.open },
         goals: nexyGoals(goals.goals, { orders: crm.orders, customers: crm.customers, posts: social.posts }),
+        taxPercent,
         accounts: connected.accounts.map((a) => ({
           ...a,
           growth7:
@@ -212,6 +217,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       goals.todos,
       goals.goals,
       followups,
+      taxPercent,
     ],
   );
 

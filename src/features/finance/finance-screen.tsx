@@ -40,6 +40,7 @@ import {
 } from './finance-logic';
 import { useFinance } from './finance-provider';
 import { IncomeProofCard } from './income-proof-card';
+import { TaxSummaryCard } from './tax-screen';
 
 type Mode = 'month' | 'year';
 
@@ -174,6 +175,10 @@ export function FinanceScreen() {
             tone={openInvoices.length ? undefined : 'muted'}
           />
         </StatRow>
+      </Reveal>
+
+      <Reveal delay={210}>
+        <TaxSummaryCard />
       </Reveal>
 
       <Reveal delay={240}>

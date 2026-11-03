@@ -92,7 +92,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`**; TikTok/Instagram verbinden: Zuordnung Videos ↔ Ideen, Zahlen übernehmen, Follower-Verlauf in `connect-logic.ts` |
 | `src/features/dunning/` | Zahlungserinnerungen, Mahnungen, Bewertungsbitten – **Stufen, Fristen, Texte in `dunning-logic.ts`**, PDF in `dunning-pdf.ts` |
 | `src/features/goals/` | To-dos & Ziele – **Fälligkeit, Gruppen und Ziel-Fortschritt aus den echten Zahlen in `goals-logic.ts`** |
-| `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis; Belege: Auswerten in `receipt-logic.ts`, Datei/Speicher in `receipt-file.ts` |
+| `src/features/finance/` | Finanzen – **Monatszuordnung von Einnahmen/Ausgaben in `finance-logic.ts`**, Diagramm, Einkommensnachweis; Belege: Auswerten in `receipt-logic.ts`, Datei/Speicher in `receipt-file.ts`; Steuern: Rechnen/CSV in `tax-logic.ts`, Jahresübersicht in `tax-pdf.ts` |
 | `src/features/documents/` | Bereich „Firma“, Angebote & Rechnungen – **Beträge und Versand-Texte in `document-logic.ts`, PDF-Layout in `pdf.ts`, Logo in `logo-image.ts`** |
 | `tests/unit/` | Automatische Tests der Rechenlogik (`npm run test:unit`) |
 | `src/features/onboarding/` | Onboarding: Fragen, Antwortmöglichkeiten, Abschluss-Animation |
@@ -138,6 +138,7 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Belege: Foto oder PDF – Nexy liest Betrag, Datum, Händler, Kategorie und Umsatzsteuer aus und füllt die Ausgabe vor; Beleg sicher im privaten Speicher, an jeder Ausgabe ansehen/ersetzen/entfernen; Hinweis auf doppelt erfasste Belege; „Speichern & nächster Beleg“. Einrichtung: `supabase/README.md`, Abschnitt 8
 - ✅ Angebot online annehmen: geheimer Link pro Angebot – Kunde sieht das Angebot im Browser (mit Logo), lädt das PDF, nimmt verbindlich an (Name + Bestätigung) oder lehnt mit Nachricht ab; Auftrag springt automatisch weiter, im Auftrag „Online angenommen am … von …“. Einrichtung: `supabase/README.md`, Abschnitt 9
 - ✅ Direkt senden: Angebote, Rechnungen und Mahnungen per E-Mail mit PDF direkt aus NEXORA (Resend), Text anpassbar, Antworten an die eigene Adresse, Versandprotokoll; Speichern im Auftrag überschreibt nur noch geänderte Felder. Einrichtung: `supabase/README.md`, Abschnitt 10
+- ✅ Steuern: Steuer-Topf (wie viel zurücklegen, Prozent wählbar), Kleinunternehmer-Grenze mit Warnung bzw. geschätzte Umsatzsteuer mit Vorsteuer aus Ausgaben, Export für die Steuerberatung (ZIP mit Jahresübersicht-PDF, CSV-Listen und Belegen); Nexy kennt die Zahlen. Einrichtung: `supabase/README.md`, Abschnitt 11
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG

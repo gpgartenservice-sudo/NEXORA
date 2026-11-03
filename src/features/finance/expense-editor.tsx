@@ -16,6 +16,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { readReceipt } from '@/features/assistant/assistant-api';
 import { formatEuro, parseEuro } from '@/features/crm/order-logic';
 import { todayIso } from '@/features/documents/document-logic';
+import { useDocuments } from '@/features/documents/documents-provider';
 import { useAuth } from '@/providers/auth-provider';
 
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type ExpenseRepeat } from './finance-logic';
@@ -73,6 +74,9 @@ function ExpenseEditor({
 }) {
   const { expenses, createExpense, updateExpense, deleteExpense, error: setupError } = useFinance();
   const { user } = useAuth();
+  // Vorsteuer nur bei Regelbesteuerung (Kleinunternehmer: Feld ausgeblendet)
+  const { seller } = useDocuments();
+  const showVat = !seller.small_business;
   const [title, setTitle] = useState(expense?.title ?? '');
   const [amount, setAmount] = useState(
     expense ? expense.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
@@ -82,7 +86,10 @@ function ExpenseEditor({
   const [spentOn, setSpentOn] = useState<string | null>(expense?.spent_on ?? todayIso());
   const [endsOn, setEndsOn] = useState<string | null>(expense?.ends_on ?? null);
   const [notes, setNotes] = useState(expense?.notes ?? '');
-  const [errors, setErrors] = useState<{ title?: string; amount?: string }>({});
+  const [vat, setVat] = useState(
+    expense?.vat_amount ? expense.vat_amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+  );
+  const [errors, setErrors] = useState<{ title?: string; amount?: string; vat?: string }>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptState>(
@@ -95,6 +102,7 @@ function ExpenseEditor({
 
   const recurring = repeat !== 'once';
   const parsed = parseEuro(amount);
+  const parsedVat = parseEuro(vat);
   const duplicate = possibleDuplicate(expenses, typeof parsed === 'number' ? parsed : null, spentOn, expense?.id);
 
   /** Beleg wählen; bei einer neuen Ausgabe liest Nexy ihn gleich aus */
@@ -126,6 +134,8 @@ function ExpenseEditor({
     if (repeat === 'once') setRepeat(draft.repeat);
     if (draft.spent_on && (!spentOn || spentOn === todayIso())) setSpentOn(draft.spent_on);
     if (!notes.trim() && draft.notes) setNotes(draft.notes);
+    if (!vat.trim() && draft.vat_amount !== null)
+      setVat(draft.vat_amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setErrors({});
   };
 
@@ -138,10 +148,18 @@ function ExpenseEditor({
           : parsed === 'invalid' || parsed <= 0
             ? 'Bitte einen Betrag wie 49,90 eingeben.'
             : undefined,
+      vat:
+        !showVat || parsedVat === null
+          ? undefined
+          : parsedVat === 'invalid' || parsedVat < 0
+            ? 'Bitte einen Betrag wie 7,97 eingeben.'
+            : typeof parsed === 'number' && parsedVat >= parsed
+              ? 'Die Umsatzsteuer muss kleiner als der Betrag sein.'
+              : undefined,
     };
     setErrors(problems);
     setFailure(null);
-    if (problems.title || problems.amount || typeof parsed !== 'number') return;
+    if (problems.title || problems.amount || problems.vat || typeof parsed !== 'number') return;
     if (!spentOn) return setFailure('Bitte ein Datum wählen.');
     if (recurring && endsOn && endsOn < spentOn) return setFailure('Das Ende liegt vor dem Start.');
     setSaving(true);
@@ -177,6 +195,10 @@ function ExpenseEditor({
       ends_on: recurring ? endsOn : null,
       notes: notes.trim() || null,
       ...receiptFields,
+      // nur senden, wenn sichtbar und etwas drinsteht bzw. vorher drinstand
+      ...(showVat && (typeof parsedVat === 'number' || expense?.vat_amount)
+        ? { vat_amount: typeof parsedVat === 'number' && parsedVat > 0 ? parsedVat : null }
+        : {}),
     };
     const { error } = expense ? await updateExpense(expense.id, input) : await createExpense(input);
     setSaving(false);
@@ -265,6 +287,19 @@ function ExpenseEditor({
               </View>
             )}
           </View>
+          {showVat && (
+            <TextField
+              label={repeat === 'once' ? 'Darin enthaltene Umsatzsteuer in €' : 'Darin enthaltene Umsatzsteuer je Zahlung in €'}
+              value={vat}
+              onChangeText={(v) => {
+                setVat(v);
+                setErrors((e) => ({ ...e, vat: undefined }));
+              }}
+              error={errors.vat}
+              placeholder="optional, z. B. 7,97 – steht auf dem Beleg"
+              keyboardType="decimal-pad"
+            />
+          )}
           {recurring && typeof parsed === 'number' && parsed > 0 && (
             <Text style={styles.hint}>
               {repeat === 'monthly'

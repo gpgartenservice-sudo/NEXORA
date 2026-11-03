@@ -29,6 +29,7 @@ test('Beleg -> Ausgabe: Felder, Notiz mit Händler und USt', () => {
     repeat: 'once',
     spent_on: '2026-11-02',
     notes: 'Hornbach · darin 7,97 € USt (19 %)',
+    vat_amount: 7.97,
   });
   assert.deepEqual(warnings, []);
 });
@@ -42,6 +43,9 @@ test('Beleg: Abo, unbekannte Kategorie, Titel fehlt', () => {
   assert.equal(draft.category, 'other');
   assert.equal(draft.repeat, 'monthly');
   assert.equal(draft.notes, null);
+  assert.equal(draft.vat_amount, null);
+  // Umsatzsteuer nicht kleiner als der Betrag -> nicht übernehmen
+  assert.equal(receiptToDraft(r({ amount: 10, vat_amount: 12 }), TODAY).draft.vat_amount, null);
 });
 
 test('Beleg: unsicher -> Hinweise', () => {
