@@ -5,9 +5,12 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { installCrashLog, showLastCrash } from '@/lib/crash-log';
 import { AuthProvider } from '@/providers/auth-provider';
 
 SplashScreen.preventAutoHideAsync();
+// Handy: Abstürze mit Fehlertext festhalten (siehe crash-log.ts)
+installCrashLog();
 
 const theme = {
   ...DarkTheme,
@@ -18,6 +21,7 @@ export default function RootLayout() {
   useEffect(() => {
     // Das native Startbild (N auf Schwarz) geht nahtlos in die Intro-Animation über
     SplashScreen.hideAsync();
+    void showLastCrash();
     // Web/Mac: Seite als deutsch kennzeichnen (Vorlesefunktion, Silbentrennung, Datumsfelder)
     if (Platform.OS === 'web' && typeof document !== 'undefined') document.documentElement.lang = 'de';
   }, []);
@@ -37,3 +41,6 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+/** Fehler außerhalb der Bereiche: Fehlerseite statt Absturz */
+export { AppError as ErrorBoundary } from '@/components/app-error';

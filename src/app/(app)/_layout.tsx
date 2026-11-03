@@ -58,3 +58,6 @@ const styles = StyleSheet.create({
   title: { color: Colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
   text: { color: Colors.textMuted, fontSize: 15, lineHeight: 22, textAlign: 'center' },
 });
+
+/** Fehler beim Laden des Profils o. Ä.: Fehlerseite statt Absturz */
+export { AppError as ErrorBoundary } from '@/components/app-error';
