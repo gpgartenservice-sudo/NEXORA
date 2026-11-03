@@ -16,6 +16,7 @@ import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { pdfSupported } from '@/features/documents/save-pdf';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -91,6 +92,7 @@ export function TaxScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'info' | 'success' | 'error'; text: string } | null>(null);
   const partial = year === thisYear;
+  useAreaTutorial('steuern');
   const invoices = invoicesOfYear(t.documents, year);
   const withReceipt = t.expenses.filter((e) => e.receipt_path && expenseOccurrences(e, year, t.today).length > 0);
   const yearExpenses = t.expenses.filter((e) => expenseOccurrences(e, year, t.today).length > 0);
@@ -175,6 +177,7 @@ export function TaxScreen() {
         title="Steuern"
         subtitle="Rücklage, Grenzen und Unterlagen für die Steuerberatung – als grobe Orientierung."
         back={{ label: 'Finanzen', onPress: back }}
+        help={<TutorialButton id="steuern" />}
       />
       <Reveal delay={120}>
         <Segmented
@@ -188,129 +191,135 @@ export function TaxScreen() {
       </Reveal>
 
       {/* Steuer-Topf */}
-      <Reveal delay={180}>
-        <Card>
-          <Text style={styles.eyebrow}>STEUER-TOPF {year}</Text>
-          <Text style={styles.big} testID="tax-reserve">
-            {formatEuro(t.reserve.total)}
-          </Text>
-          <Text style={styles.body}>
-            So viel solltest du für {year} ungefähr zurücklegen: {t.reserve.percent} % von{' '}
-            {formatEuro(Math.max(0, t.totals.profit))} Gewinn
-            {!s && t.reserve.vat > 0 ? ` plus ${formatEuro(t.reserve.vat)} Umsatzsteuer, die ans Finanzamt geht` : ''}
-            {partial ? ' (Stand heute).' : '.'}
-          </Text>
-          <Text style={styles.label}>Wie viel Prozent vom Gewinn?</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Rücklage in Prozent">
-            {RESERVE_CHOICES.map((p) => {
-              const active = p === t.percent;
-              return (
-                <Pressable
-                  key={p}
-                  onPress={async () => {
-                    const err = await t.save(p);
-                    if (err) setMessage({ tone: 'info', text: err });
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: active }}
-                  aria-checked={active}
-                  style={[styles.chip, active && styles.chipActive]}>
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{p} %</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.hint}>
-            Faustregel für den Anfang: 25–30 % vom Gewinn auf ein eigenes Konto. Die echte Einkommensteuer hängt von
-            deinem gesamten Einkommen ab – deine Steuerberatung rechnet es genau aus.
-          </Text>
-        </Card>
-      </Reveal>
+      <TourTarget id="steuern.topf">
+        <Reveal delay={180}>
+          <Card>
+            <Text style={styles.eyebrow}>STEUER-TOPF {year}</Text>
+            <Text style={styles.big} testID="tax-reserve">
+              {formatEuro(t.reserve.total)}
+            </Text>
+            <Text style={styles.body}>
+              So viel solltest du für {year} ungefähr zurücklegen: {t.reserve.percent} % von{' '}
+              {formatEuro(Math.max(0, t.totals.profit))} Gewinn
+              {!s && t.reserve.vat > 0 ? ` plus ${formatEuro(t.reserve.vat)} Umsatzsteuer, die ans Finanzamt geht` : ''}
+              {partial ? ' (Stand heute).' : '.'}
+            </Text>
+            <Text style={styles.label}>Wie viel Prozent vom Gewinn?</Text>
+            <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Rücklage in Prozent">
+              {RESERVE_CHOICES.map((p) => {
+                const active = p === t.percent;
+                return (
+                  <Pressable
+                    key={p}
+                    onPress={async () => {
+                      const err = await t.save(p);
+                      if (err) setMessage({ tone: 'info', text: err });
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
+                    aria-checked={active}
+                    style={[styles.chip, active && styles.chipActive]}>
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{p} %</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.hint}>
+              Faustregel für den Anfang: 25–30 % vom Gewinn auf ein eigenes Konto. Die echte Einkommensteuer hängt von
+              deinem gesamten Einkommen ab – deine Steuerberatung rechnet es genau aus.
+            </Text>
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       {/* Kleinunternehmer-Grenze bzw. Umsatzsteuer */}
-      <Reveal delay={240}>
-        <Card>
-          {s ? (
-            <>
-              <Text style={styles.eyebrow}>KLEINUNTERNEHMER-GRENZE</Text>
-              <Text style={styles.title} testID="limit-summary">
-                {formatEuro(t.totals.income)} von {formatEuro(SMALL_BUSINESS_LIMIT)} Umsatz {year}
-              </Text>
-              <ProgressBar value={t.limit.ratio} />
-              <Text style={[styles.body, { color: statusColor }]} testID="limit-message">
-                {t.limit.message}
-              </Text>
-              <Text style={styles.hint}>
-                Seit 2025 gilt: Umsatz im Vorjahr höchstens 25.000 €, im laufenden Jahr höchstens 100.000 € (§ 19 UStG).
-                Gezählt werden deine Einnahmen aus abgeschlossenen Aufträgen.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.eyebrow}>UMSATZSTEUER {year}</Text>
-              <Row label="Auf deinen Rechnungen ausgewiesen" value={formatEuro(t.vat.collected)} />
-              <Row label="Vorsteuer aus Ausgaben (soweit eingetragen)" value={formatEuro(t.vat.input)} />
-              <Row label="Ans Finanzamt (geschätzt)" value={formatEuro(t.vat.payable)} strong />
-              <Text style={styles.hint}>
-                Damit die Vorsteuer stimmt, trag bei Ausgaben die enthaltene Umsatzsteuer ein – bei Belegen füllt Nexy
-                das aus. Voranmeldungen macht deine Steuerberatung bzw. ELSTER.
-              </Text>
-            </>
-          )}
-        </Card>
-      </Reveal>
+      <TourTarget id="steuern.grenze">
+        <Reveal delay={240}>
+          <Card>
+            {s ? (
+              <>
+                <Text style={styles.eyebrow}>KLEINUNTERNEHMER-GRENZE</Text>
+                <Text style={styles.title} testID="limit-summary">
+                  {formatEuro(t.totals.income)} von {formatEuro(SMALL_BUSINESS_LIMIT)} Umsatz {year}
+                </Text>
+                <ProgressBar value={t.limit.ratio} />
+                <Text style={[styles.body, { color: statusColor }]} testID="limit-message">
+                  {t.limit.message}
+                </Text>
+                <Text style={styles.hint}>
+                  Seit 2025 gilt: Umsatz im Vorjahr höchstens 25.000 €, im laufenden Jahr höchstens 100.000 € (§ 19
+                  UStG). Gezählt werden deine Einnahmen aus abgeschlossenen Aufträgen.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.eyebrow}>UMSATZSTEUER {year}</Text>
+                <Row label="Auf deinen Rechnungen ausgewiesen" value={formatEuro(t.vat.collected)} />
+                <Row label="Vorsteuer aus Ausgaben (soweit eingetragen)" value={formatEuro(t.vat.input)} />
+                <Row label="Ans Finanzamt (geschätzt)" value={formatEuro(t.vat.payable)} strong />
+                <Text style={styles.hint}>
+                  Damit die Vorsteuer stimmt, trag bei Ausgaben die enthaltene Umsatzsteuer ein – bei Belegen füllt Nexy
+                  das aus. Voranmeldungen macht deine Steuerberatung bzw. ELSTER.
+                </Text>
+              </>
+            )}
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       {/* Unterlagen */}
-      <Reveal delay={300}>
-        <Card>
-          <Text style={styles.eyebrow}>FÜR DIE STEUERBERATUNG</Text>
-          <Text style={styles.body}>
-            {invoices.length} {invoices.length === 1 ? 'Rechnung' : 'Rechnungen'} · {yearExpenses.length}{' '}
-            {yearExpenses.length === 1 ? 'Ausgabe' : 'Ausgaben'} · {withReceipt.length}{' '}
-            {withReceipt.length === 1 ? 'Beleg' : 'Belege'} in {year}
-          </Text>
-          {pdfSupported ? (
-            <View style={styles.chips}>
-              <ActionChip
-                icon={Archive}
-                label={busy === 'zip' ? 'Wird erstellt …' : 'Alles als ZIP'}
-                accessibilityLabel={`Alles für ${year} als ZIP`}
-                onPress={() => void zip()}
-                disabled={!!busy}
-              />
-              <ActionChip
-                icon={FileText}
-                label="Jahresübersicht (PDF)"
-                onPress={() =>
-                  void run('pdf', async () =>
-                    download(await pdfBytes(), `Jahresuebersicht_${year}.pdf`, 'application/pdf'),
-                  )
-                }
-                disabled={!!busy}
-              />
-              <ActionChip
-                icon={FileSpreadsheet}
-                label="Rechnungen (CSV)"
-                onPress={() => download(csvIncome(), `Rechnungen_${year}.csv`, 'text/csv;charset=utf-8')}
-                disabled={!!busy}
-              />
-              <ActionChip
-                icon={Download}
-                label="Ausgaben (CSV)"
-                onPress={() => download(csvExpenses(), `Ausgaben_${year}.csv`, 'text/csv;charset=utf-8')}
-                disabled={!!busy}
-              />
-            </View>
-          ) : (
-            <Notice>Die Unterlagen gibt es im Moment auf dem Mac und im Browser.</Notice>
-          )}
-          <Text style={styles.hint}>
-            Das ZIP enthält die Jahresübersicht, Listen für Excel und alle Belege – zum Weiterleiten an deine
-            Steuerberatung.
-          </Text>
-          {message && <Notice tone={message.tone}>{message.text}</Notice>}
-        </Card>
-      </Reveal>
+      <TourTarget id="steuern.export">
+        <Reveal delay={300}>
+          <Card>
+            <Text style={styles.eyebrow}>FÜR DIE STEUERBERATUNG</Text>
+            <Text style={styles.body}>
+              {invoices.length} {invoices.length === 1 ? 'Rechnung' : 'Rechnungen'} · {yearExpenses.length}{' '}
+              {yearExpenses.length === 1 ? 'Ausgabe' : 'Ausgaben'} · {withReceipt.length}{' '}
+              {withReceipt.length === 1 ? 'Beleg' : 'Belege'} in {year}
+            </Text>
+            {pdfSupported ? (
+              <View style={styles.chips}>
+                <ActionChip
+                  icon={Archive}
+                  label={busy === 'zip' ? 'Wird erstellt …' : 'Alles als ZIP'}
+                  accessibilityLabel={`Alles für ${year} als ZIP`}
+                  onPress={() => void zip()}
+                  disabled={!!busy}
+                />
+                <ActionChip
+                  icon={FileText}
+                  label="Jahresübersicht (PDF)"
+                  onPress={() =>
+                    void run('pdf', async () =>
+                      download(await pdfBytes(), `Jahresuebersicht_${year}.pdf`, 'application/pdf'),
+                    )
+                  }
+                  disabled={!!busy}
+                />
+                <ActionChip
+                  icon={FileSpreadsheet}
+                  label="Rechnungen (CSV)"
+                  onPress={() => download(csvIncome(), `Rechnungen_${year}.csv`, 'text/csv;charset=utf-8')}
+                  disabled={!!busy}
+                />
+                <ActionChip
+                  icon={Download}
+                  label="Ausgaben (CSV)"
+                  onPress={() => download(csvExpenses(), `Ausgaben_${year}.csv`, 'text/csv;charset=utf-8')}
+                  disabled={!!busy}
+                />
+              </View>
+            ) : (
+              <Notice>Die Unterlagen gibt es im Moment auf dem Mac und im Browser.</Notice>
+            )}
+            <Text style={styles.hint}>
+              Das ZIP enthält die Jahresübersicht, Listen für Excel und alle Belege – zum Weiterleiten an deine
+              Steuerberatung.
+            </Text>
+            {message && <Notice tone={message.tone}>{message.text}</Notice>}
+          </Card>
+        </Reveal>
+      </TourTarget>
     </Screen>
   );
 }

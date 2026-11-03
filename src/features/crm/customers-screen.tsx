@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
 import { formatEuro, outstandingRevenue, recognizedRevenue } from './order-logic';
@@ -19,6 +20,7 @@ import { CrmSetupNotice, Initials, StatRow, StatTile } from './ui';
 export function CustomersScreen() {
   const { customers, orders, loading, error } = useCrm();
   const [query, setQuery] = useState('');
+  useAreaTutorial('kunden');
 
   const stats = useMemo(() => {
     const per = new Map<string, { count: number; revenue: number; outstanding: number }>();
@@ -50,7 +52,9 @@ export function CustomersScreen() {
     : customers;
 
   const newButton = (
-    <Button label="+ Neuer Kunde" onPress={() => router.push('/kunden/neu')} style={styles.newButton} />
+    <TourTarget id="kunden.neu">
+      <Button label="+ Neuer Kunde" onPress={() => router.push('/kunden/neu')} style={styles.newButton} />
+    </TourTarget>
   );
 
   return (
@@ -59,42 +63,49 @@ export function CustomersScreen() {
         title="Kunden"
         subtitle={customers.length ? `${customers.length} ${customers.length === 1 ? 'Kunde' : 'Kunden'}` : undefined}
         action={customers.length ? newButton : undefined}
+        help={<TutorialButton id="kunden" />}
       />
       <CrmSetupNotice error={error} />
 
       {!loading && customers.length === 0 && !error ? (
-        <Reveal delay={200}>
-          <Card style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Users size={28} color={Colors.accent} strokeWidth={1.8} />
-            </View>
-            <Text style={styles.emptyTitle}>Lege deinen ersten Kunden an</Text>
-            <Text style={styles.emptyText}>
-              Kontaktdaten, Notizen und alle Aufträge an einem Ort – und du siehst sofort, wie viel Umsatz jeder Kunde
-              bringt.
-            </Text>
-            <Button label="+ Ersten Kunden anlegen" onPress={() => router.push('/kunden/neu')} />
-          </Card>
-        </Reveal>
+        <TourTarget id="kunden.neu">
+          <Reveal delay={200}>
+            <Card style={styles.empty}>
+              <View style={styles.emptyIcon}>
+                <Users size={28} color={Colors.accent} strokeWidth={1.8} />
+              </View>
+              <Text style={styles.emptyTitle}>Lege deinen ersten Kunden an</Text>
+              <Text style={styles.emptyText}>
+                Kontaktdaten, Notizen und alle Aufträge an einem Ort – und du siehst sofort, wie viel Umsatz jeder Kunde
+                bringt.
+              </Text>
+              <Button label="+ Ersten Kunden anlegen" onPress={() => router.push('/kunden/neu')} />
+            </Card>
+          </Reveal>
+        </TourTarget>
       ) : (
         <>
-          <Reveal delay={150}>
-            <StatRow>
-              <StatTile label="Kunden" value={String(customers.length)} />
-              <StatTile label="Umsatz (realisiert)" value={formatEuro(totals.revenue)} tone="accent" />
-              <StatTile label="Anstehende Einnahmen" value={formatEuro(totals.outstanding)} />
-            </StatRow>
-          </Reveal>
+          <TourTarget id="kunden.zahlen">
+            <Reveal delay={150}>
+              <StatRow>
+                <StatTile label="Kunden" value={String(customers.length)} />
+                <StatTile label="Umsatz (realisiert)" value={formatEuro(totals.revenue)} tone="accent" />
+                <StatTile label="Anstehende Einnahmen" value={formatEuro(totals.outstanding)} />
+              </StatRow>
+            </Reveal>
+          </TourTarget>
 
-          <Reveal delay={230}>
-            <TextField
-              label="Suchen"
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Name, Firma, Telefon oder E-Mail"
-              autoCorrect={false}
-            />
-          </Reveal>
+          <TourTarget id="kunden.suche">
+            <Reveal delay={230}>
+              <TextField
+                label="Suchen"
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Name, Firma, Telefon oder E-Mail"
+                autoCorrect={false}
+              />
+            </Reveal>
+          </TourTarget>
 
           <View style={styles.list}>
             {visible.map((c, i) => {

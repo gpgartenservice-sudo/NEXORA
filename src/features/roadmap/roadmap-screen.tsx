@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useProfile } from '@/providers/profile-provider';
 
 import { Celebration } from './celebration';
@@ -35,6 +36,7 @@ export function RoadmapScreen() {
   const nextKey = allSteps.find((s) => !done.has(s.key))?.key;
   const currentPhaseKey = phases.find((p) => p.steps.some((s) => !done.has(s.key)))?.key;
   const goals = profile?.goals ?? [];
+  useAreaTutorial('fahrplan');
 
   const onToggle = async (phase: RoadmapPhase, stepKey: string) => {
     const completing = !done.has(stepKey);
@@ -58,7 +60,12 @@ export function RoadmapScreen() {
     <View style={styles.root}>
       <Screen maxWidth={860}>
         <View style={styles.header}>
-          <AnimatedTitle text="Dein Fahrplan" style={styles.title} align="left" />
+          <View style={styles.titleRow}>
+            <View style={styles.titleText}>
+              <AnimatedTitle text="Dein Fahrplan" style={styles.title} align="left" />
+            </View>
+            <TutorialButton id="fahrplan" />
+          </View>
           <Reveal delay={200}>
             <Text style={styles.subtitle}>{INTRO[profile?.stage ?? 'started']}</Text>
           </Reveal>
@@ -72,66 +79,71 @@ export function RoadmapScreen() {
         )}
         {saveError && <Notice tone="error">{saveError}</Notice>}
 
-        <Reveal delay={300}>
-          <Card>
-            <View style={styles.progressHead}>
-              <Text style={styles.progressNumber}>
-                {doneCount}
-                <Text style={styles.progressTotal}> / {total}</Text>
-              </Text>
-              <Text style={styles.progressPercent}>{Math.round((doneCount / total) * 100)} %</Text>
-            </View>
-            <ProgressBar value={doneCount / total} height={8} delay={400} />
-            <Text style={styles.progressText}>{progressText}</Text>
-          </Card>
-        </Reveal>
+        <TourTarget id="fahrplan.fortschritt">
+          <Reveal delay={300}>
+            <Card>
+              <View style={styles.progressHead}>
+                <Text style={styles.progressNumber}>
+                  {doneCount}
+                  <Text style={styles.progressTotal}> / {total}</Text>
+                </Text>
+                <Text style={styles.progressPercent}>{Math.round((doneCount / total) * 100)} %</Text>
+              </View>
+              <ProgressBar value={doneCount / total} height={8} delay={400} />
+              <Text style={styles.progressText}>{progressText}</Text>
+            </Card>
+          </Reveal>
+        </TourTarget>
 
         {phases.map((phase, i) => {
           const phaseDone = phase.steps.filter((s) => done.has(s.key)).length;
           const complete = phaseDone === phase.steps.length;
           const recommended = phase.key === currentPhaseKey;
+          const highlight = recommended || (!currentPhaseKey && i === 0);
           return (
-            <Reveal key={phase.key} delay={420 + i * 90}>
-              <Card style={[recommended && styles.cardRecommended, complete && styles.cardComplete]}>
-                <View style={styles.phaseHead}>
-                  <View style={[styles.phaseIcon, complete && styles.phaseIconDone]}>
-                    <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
-                  </View>
-                  <View style={styles.phaseTexts}>
-                    <View style={styles.phaseTitleRow}>
-                      <Text style={styles.phaseTitle}>{phase.title}</Text>
-                      {recommended && (
-                        <View style={styles.pillLight}>
-                          <Text style={styles.pillLightText}>Jetzt dran</Text>
-                        </View>
-                      )}
-                      {complete && (
-                        <View style={styles.pill}>
-                          <Text style={styles.pillText}>Geschafft ✓</Text>
-                        </View>
-                      )}
+            <TourTarget key={phase.key} id={highlight ? 'fahrplan.phasen' : `fahrplan.${phase.key}`}>
+              <Reveal delay={420 + i * 90}>
+                <Card style={[recommended && styles.cardRecommended, complete && styles.cardComplete]}>
+                  <View style={styles.phaseHead}>
+                    <View style={[styles.phaseIcon, complete && styles.phaseIconDone]}>
+                      <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
                     </View>
-                    <Text style={styles.phaseDescription}>{phase.description}</Text>
+                    <View style={styles.phaseTexts}>
+                      <View style={styles.phaseTitleRow}>
+                        <Text style={styles.phaseTitle}>{phase.title}</Text>
+                        {recommended && (
+                          <View style={styles.pillLight}>
+                            <Text style={styles.pillLightText}>Jetzt dran</Text>
+                          </View>
+                        )}
+                        {complete && (
+                          <View style={styles.pill}>
+                            <Text style={styles.pillText}>Geschafft ✓</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.phaseDescription}>{phase.description}</Text>
+                    </View>
+                    <Text style={styles.phaseCount}>
+                      {phaseDone}/{phase.steps.length}
+                    </Text>
                   </View>
-                  <Text style={styles.phaseCount}>
-                    {phaseDone}/{phase.steps.length}
-                  </Text>
-                </View>
-                <ProgressBar value={phaseDone / phase.steps.length} height={3} delay={500 + i * 90} />
-                <View style={styles.steps}>
-                  {phase.steps.map((step) => (
-                    <StepRow
-                      key={step.key}
-                      step={step}
-                      done={done.has(step.key)}
-                      isNext={step.key === nextKey}
-                      userGoals={goals}
-                      onToggle={() => onToggle(phase, step.key)}
-                    />
-                  ))}
-                </View>
-              </Card>
-            </Reveal>
+                  <ProgressBar value={phaseDone / phase.steps.length} height={3} delay={500 + i * 90} />
+                  <View style={styles.steps}>
+                    {phase.steps.map((step) => (
+                      <StepRow
+                        key={step.key}
+                        step={step}
+                        done={done.has(step.key)}
+                        isNext={step.key === nextKey}
+                        userGoals={goals}
+                        onToggle={() => onToggle(phase, step.key)}
+                      />
+                    ))}
+                  </View>
+                </Card>
+              </Reveal>
+            </TourTarget>
           );
         })}
 
@@ -148,6 +160,8 @@ export function RoadmapScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { gap: Spacing.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  titleText: { flexShrink: 1 },
   title: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.7, lineHeight: 42 },
   subtitle: { color: Colors.textMuted, fontSize: 16, lineHeight: 23 },
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },

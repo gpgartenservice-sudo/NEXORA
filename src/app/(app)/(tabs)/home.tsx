@@ -17,6 +17,7 @@ import { GOALS } from '@/features/onboarding/options';
 import { nextSteps, stepsFor } from '@/features/roadmap/content';
 import { useRoadmap } from '@/features/roadmap/roadmap-provider';
 import { StepCheck } from '@/features/roadmap/step-check';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useProfile } from '@/providers/profile-provider';
 
 const GLOW = require('@/assets/images/glow.png');
@@ -38,6 +39,7 @@ export default function DashboardScreen() {
   const totalSteps = stepsFor(profile?.stage).length;
   const doneSteps = stepsFor(profile?.stage).filter((s) => done.has(s.key)).length;
   const goals = GOALS.filter((g) => profile?.goals?.includes(g.key));
+  useAreaTutorial('home');
   const tools = NAV_ITEMS.filter((i) =>
     ['kunden', 'auftraege', 'termine', 'aufgaben', 'finanzen', 'social', 'assistent'].includes(i.name),
   );
@@ -46,9 +48,12 @@ export default function DashboardScreen() {
     <Screen>
       {/* Begrüßung */}
       <View style={styles.header}>
-        <Reveal distance={8}>
-          <Text style={styles.date}>{formatToday()}</Text>
-        </Reveal>
+        <View style={styles.dateRow}>
+          <Reveal distance={8}>
+            <Text style={styles.date}>{formatToday()}</Text>
+          </Reveal>
+          <TutorialButton id="home" />
+        </View>
         <AnimatedTitle
           text={name ? `${greeting()}, ${name}` : greeting()}
           style={styles.title}
@@ -68,11 +73,13 @@ export default function DashboardScreen() {
       </Reveal>
 
       {/* To-dos für heute und Ziele */}
-      <Reveal delay={300}>
-        <TodayCard />
-      </Reveal>
+      <TourTarget id="home.today">
+        <Reveal delay={300}>
+          <TodayCard />
+        </Reveal>
+      </TourTarget>
 
-      <View style={[styles.grid, twoColumns && styles.gridRow]}>
+      <TourTarget id="home.focus" style={[styles.grid, twoColumns && styles.gridRow]}>
         {/* Fokus nach Phase */}
         <Reveal delay={320} style={twoColumns ? styles.colWide : undefined}>
           <Card style={styles.fill}>
@@ -102,9 +109,9 @@ export default function DashboardScreen() {
             <Text style={styles.impulse}>„{impulseOfTheDay()}“</Text>
           </Card>
         </Reveal>
-      </View>
+      </TourTarget>
 
-      <View style={[styles.grid, twoColumns && styles.gridRow]}>
+      <TourTarget id="home.steps" style={[styles.grid, twoColumns && styles.gridRow]}>
         {/* Nächste Schritte */}
         <Reveal delay={520} style={twoColumns ? styles.colWide : undefined}>
           <Card style={styles.fill}>
@@ -160,36 +167,38 @@ export default function DashboardScreen() {
             </View>
           </Card>
         </Reveal>
-      </View>
+      </TourTarget>
 
       {/* Werkzeuge */}
       <Reveal delay={700}>
         <Text style={styles.sectionTitle}>Deine Werkzeuge</Text>
       </Reveal>
-      <View style={styles.tools} onLayout={(e) => setToolsWidth(e.nativeEvent.layout.width)}>
-        {tools.map((tool, i) => {
-          const Icon = tool.icon;
-          return (
-            <Reveal key={tool.name} delay={760 + i * 60} style={[styles.tool, { width: toolWidth ?? '100%' }]}>
-              <Card onPress={() => router.navigate(tool.href)} accessibilityLabel={tool.label} style={styles.fill}>
-                <View style={styles.toolHead}>
-                  <View style={styles.toolIcon}>
-                    <Icon size={20} color={Colors.text} strokeWidth={1.8} />
+      <TourTarget id="home.tools">
+        <View style={styles.tools} onLayout={(e) => setToolsWidth(e.nativeEvent.layout.width)}>
+          {tools.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <Reveal key={tool.name} delay={760 + i * 60} style={[styles.tool, { width: toolWidth ?? '100%' }]}>
+                <Card onPress={() => router.navigate(tool.href)} accessibilityLabel={tool.label} style={styles.fill}>
+                  <View style={styles.toolHead}>
+                    <View style={styles.toolIcon}>
+                      <Icon size={20} color={Colors.text} strokeWidth={1.8} />
+                    </View>
+                    {tool.soon && <Text style={styles.soon}>bald</Text>}
                   </View>
-                  {tool.soon && <Text style={styles.soon}>bald</Text>}
-                </View>
-                <Text style={styles.toolTitle}>{tool.label}</Text>
-                <Text style={styles.toolText} numberOfLines={2}>
-                  {tool.description}
-                </Text>
-                <View style={styles.toolArrow}>
-                  <ArrowRight size={16} color={Colors.textMuted} />
-                </View>
-              </Card>
-            </Reveal>
-          );
-        })}
-      </View>
+                  <Text style={styles.toolTitle}>{tool.label}</Text>
+                  <Text style={styles.toolText} numberOfLines={2}>
+                    {tool.description}
+                  </Text>
+                  <View style={styles.toolArrow}>
+                    <ArrowRight size={16} color={Colors.textMuted} />
+                  </View>
+                </Card>
+              </Reveal>
+            );
+          })}
+        </View>
+      </TourTarget>
     </Screen>
   );
 }
@@ -197,6 +206,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   header: { gap: Spacing.xs, marginBottom: Spacing.sm },
   date: { color: Colors.textFaint, fontSize: 13, fontWeight: '600', letterSpacing: 0.4 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
   title: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.7, lineHeight: 42 },
   subtitle: { color: Colors.textMuted, fontSize: 16 },
   grid: { gap: Spacing.lg },

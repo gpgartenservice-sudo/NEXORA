@@ -11,6 +11,9 @@ export type Profile = {
   industry: Industry | null;
   goals: Goal[];
   onboarding_completed_at: string | null;
+  /** Einführungen (fehlen, solange das Skript 20261115090000_tutorials.sql nicht ausgeführt ist) */
+  tutorials_done?: string[];
+  tutorials_off?: boolean;
 };
 
 export type ProfileUpdate = Partial<Omit<Profile, 'id'>>;

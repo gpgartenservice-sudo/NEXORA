@@ -15,10 +15,12 @@ type Props = {
   action?: ReactNode;
   /** Kleines Element unter der Überschrift (z. B. Status) */
   meta?: ReactNode;
+  /** Neben der Überschrift, z. B. „?“ für die Einführung */
+  help?: ReactNode;
 };
 
 /** Seitenkopf mit optionalem Zurück-Link und Aktion rechts. */
-export function PageHeader({ title, subtitle, back, action, meta }: Props) {
+export function PageHeader({ title, subtitle, back, action, meta, help }: Props) {
   const { hovered, hoverProps } = useHover();
   return (
     <View style={styles.wrap}>
@@ -30,7 +32,16 @@ export function PageHeader({ title, subtitle, back, action, meta }: Props) {
       )}
       <View style={styles.row}>
         <View style={styles.texts}>
-          <AnimatedTitle text={title} style={styles.title} align="left" />
+          {help ? (
+            <View style={styles.titleRow}>
+              <View style={styles.titleText}>
+                <AnimatedTitle text={title} style={styles.title} align="left" />
+              </View>
+              <Reveal delay={260}>{help}</Reveal>
+            </View>
+          ) : (
+            <AnimatedTitle text={title} style={styles.title} align="left" />
+          )}
           {!!subtitle && (
             <Reveal delay={180}>
               <Text style={styles.subtitle}>{subtitle}</Text>
@@ -55,6 +66,8 @@ const styles = StyleSheet.create({
   backHover: { color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.lg, flexWrap: 'wrap' },
   texts: { flex: 1, minWidth: 220, gap: Spacing.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  titleText: { flexShrink: 1 },
   // schmaler Bildschirm: Knöpfe dürfen umbrechen statt über den Rand zu ragen
   action: { maxWidth: '100%', flexShrink: 1 },
   title: { color: Colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.6, lineHeight: 40 },

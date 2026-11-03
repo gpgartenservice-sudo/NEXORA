@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Spacing } from '@/constants/theme';
 import { StatRow, StatTile } from '@/features/crm/ui';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { AccountsView } from './accounts-view';
 import { BoardView } from './board-view';
@@ -32,6 +33,7 @@ export function SocialScreen() {
   const { finishReturn, autoSync, loading: accountsLoading } = connect;
   const params = useLocalSearchParams<ReturnParams>();
   const { width } = useWindowDimensions();
+  useAreaTutorial('social');
   const returning = !!(params.social_state || params.social_error);
   const [chosen, setView] = useState<View_>('board');
   // Rückkehr von der Anmeldung: gleich die Konten zeigen
@@ -76,8 +78,9 @@ export function SocialScreen() {
       <PageHeader
         title="Social Media"
         subtitle="Von der Idee bis zum Post – plane deinen Content und behalte deine Zahlen im Blick."
+        help={<TutorialButton id="social" />}
         action={
-          <View style={styles.actions}>
+          <TourTarget id="social.aktionen" style={styles.actions}>
             <ActionChip
               icon={Music2}
               label={connect.accounts.length ? 'TikTok & Instagram' : 'TikTok & Instagram verbinden'}
@@ -85,7 +88,7 @@ export function SocialScreen() {
               onPress={() => setView('accounts')}
             />
             <Button label="+ Idee" onPress={() => router.push('/social/neu')} style={styles.action} />
-          </View>
+          </TourTarget>
         }
       />
       {error && (
@@ -109,21 +112,23 @@ export function SocialScreen() {
         </StatRow>
       </Reveal>
 
-      <Reveal delay={210}>
-        <View style={styles.tabs}>
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'board', label: 'Board' },
-              { value: 'week', label: width < 480 ? 'Woche' : 'Wochenplan' },
-              { value: 'numbers', label: 'Zahlen' },
-              { value: 'tags', label: 'Hashtags' },
-              { value: 'accounts', label: 'Konten' },
-            ]}
-          />
-        </View>
-      </Reveal>
+      <TourTarget id="social.ansicht">
+        <Reveal delay={210}>
+          <View style={styles.tabs}>
+            <Segmented
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'board', label: 'Board' },
+                { value: 'week', label: width < 480 ? 'Woche' : 'Wochenplan' },
+                { value: 'numbers', label: 'Zahlen' },
+                { value: 'tags', label: 'Hashtags' },
+                { value: 'accounts', label: 'Konten' },
+              ]}
+            />
+          </View>
+        </Reveal>
+      </TourTarget>
 
       {!loading && (
         <Reveal delay={260}>

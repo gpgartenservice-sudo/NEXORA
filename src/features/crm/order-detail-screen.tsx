@@ -18,6 +18,7 @@ import { Colors, Spacing } from '@/constants/theme';
 
 import { useDocuments } from '@/features/documents/documents-provider';
 import { OrderDocumentsCard } from '@/features/documents/order-documents-card';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm, type Order } from './crm-provider';
 import {
@@ -129,6 +130,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  useAreaTutorial('auftrag');
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -219,6 +221,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
       <PageHeader
         title={draft.title || 'Auftrag'}
         back={{ label: 'Aufträge', onPress: () => router.navigate('/auftraege') }}
+        help={<TutorialButton id="auftrag" />}
         meta={
           <View style={styles.meta}>
             <StatusPill status={status} />
@@ -227,14 +230,16 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
         }
       />
 
-      <Reveal delay={180}>
-        <Card>
-          <StatusStepper status={status} />
-          {status === 'cancelled' && <Text style={styles.cancelled}>Dieser Auftrag ist storniert und zählt nicht zum Umsatz.</Text>}
-        </Card>
-      </Reveal>
+      <TourTarget id="auftrag.status">
+        <Reveal delay={180}>
+          <Card>
+            <StatusStepper status={status} />
+            {status === 'cancelled' && <Text style={styles.cancelled}>Dieser Auftrag ist storniert und zählt nicht zum Umsatz.</Text>}
+          </Card>
+        </Reveal>
+      </TourTarget>
 
-      <View style={styles.columns}>
+      <TourTarget id="auftrag.ablauf" style={styles.columns}>
         <Reveal delay={260} style={styles.column}>
           <Card style={styles.fill}>
             <Text style={styles.cardTitle}>Ablauf</Text>
@@ -302,19 +307,21 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
             </View>
           </Card>
         </Reveal>
-      </View>
+      </TourTarget>
 
       {customer && (
-        <Reveal delay={400}>
-          <OrderDocumentsCard
-            order={order}
-            customer={customer}
-            dirty={dirty}
-            offerSent={initial.offer_sent}
-            onMarkOfferSent={markOfferSent}
-            openDunningFor={mahnen}
-          />
-        </Reveal>
+        <TourTarget id="auftrag.dokumente">
+          <Reveal delay={400}>
+            <OrderDocumentsCard
+              order={order}
+              customer={customer}
+              dirty={dirty}
+              offerSent={initial.offer_sent}
+              onMarkOfferSent={markOfferSent}
+              openDunningFor={mahnen}
+            />
+          </Reveal>
+        </TourTarget>
       )}
 
       <Reveal delay={440}>

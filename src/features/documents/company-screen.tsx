@@ -12,6 +12,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { validReviewUrl } from '@/features/dunning/dunning-logic';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { validateEmail } from '@/lib/validation';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -75,9 +76,14 @@ function toValues(draft: Draft): Omit<Seller, 'logo_id'> {
 /** Bereich "Firma": Logo, Firmendaten, Steuern und Bank – so stehen sie auf Angeboten und Rechnungen. */
 export function CompanyScreen() {
   const { loading } = useDocuments();
+  useAreaTutorial('firma');
   return (
     <Screen maxWidth={760}>
-      <PageHeader title="Firma" subtitle="Dein Logo und deine Firmendaten – so stehen sie auf deinen Angeboten und Rechnungen." />
+      <PageHeader
+        title="Firma"
+        subtitle="Dein Logo und deine Firmendaten – so stehen sie auf deinen Angeboten und Rechnungen."
+        help={<TutorialButton id="firma" />}
+      />
       {/* Formular erst zeigen, wenn die gespeicherten Daten da sind */}
       {!loading && <CompanyForm />}
     </Screen>
@@ -147,70 +153,78 @@ function CompanyForm() {
       )}
       {missingInvoice.length > 0 && <Notice>Für Rechnungen fehlt noch: {missingInvoice.join(', ')}.</Notice>}
 
-      <Reveal delay={160}>
-        <LogoCard preview={preview} />
-      </Reveal>
+      <TourTarget id="firma.logo">
+        <Reveal delay={160}>
+          <LogoCard preview={preview} />
+        </Reveal>
+      </TourTarget>
 
-      <Reveal delay={220}>
-        <Card>
-          <Text style={styles.cardTitle}>Absender</Text>
-          {field('company_name', 'Firmenname', { placeholder: 'z. B. Lena Design Studio' })}
-          {field('owner_name', 'Inhaber/in', { placeholder: 'Vor- und Nachname', autoCapitalize: 'words' })}
-          {field('street', 'Straße und Hausnummer')}
-          <View style={styles.row}>
-            <View style={styles.zip}>{field('zip', 'PLZ', { keyboardType: 'number-pad' })}</View>
-            <View style={styles.flex}>{field('city', 'Ort')}</View>
-          </View>
-          <View style={styles.row}>
-            <View style={styles.flex}>{field('phone', 'Telefon', { keyboardType: 'phone-pad' })}</View>
-            <View style={styles.flex}>{field('email', 'E-Mail', { keyboardType: 'email-address', autoCapitalize: 'none' })}</View>
-          </View>
-          {field('website', 'Website', { autoCapitalize: 'none', placeholder: 'optional' })}
-        </Card>
-      </Reveal>
+      <TourTarget id="firma.absender">
+        <Reveal delay={220}>
+          <Card>
+            <Text style={styles.cardTitle}>Absender</Text>
+            {field('company_name', 'Firmenname', { placeholder: 'z. B. Lena Design Studio' })}
+            {field('owner_name', 'Inhaber/in', { placeholder: 'Vor- und Nachname', autoCapitalize: 'words' })}
+            {field('street', 'Straße und Hausnummer')}
+            <View style={styles.row}>
+              <View style={styles.zip}>{field('zip', 'PLZ', { keyboardType: 'number-pad' })}</View>
+              <View style={styles.flex}>{field('city', 'Ort')}</View>
+            </View>
+            <View style={styles.row}>
+              <View style={styles.flex}>{field('phone', 'Telefon', { keyboardType: 'phone-pad' })}</View>
+              <View style={styles.flex}>{field('email', 'E-Mail', { keyboardType: 'email-address', autoCapitalize: 'none' })}</View>
+            </View>
+            {field('website', 'Website', { autoCapitalize: 'none', placeholder: 'optional' })}
+          </Card>
+        </Reveal>
+      </TourTarget>
 
-      <Reveal delay={280}>
-        <Card>
-          <Text style={styles.cardTitle}>Steuern</Text>
-          <ToggleRow
-            label="Kleinunternehmerregelung (§ 19 UStG)"
-            hint="Keine Umsatzsteuer auf Rechnungen – der Preis ist der Endbetrag."
-            value={draft.small_business}
-            onChange={(v) => set('small_business', v)}
-          />
-          {!draft.small_business && (
-            <Segmented
-              label="Umsatzsteuersatz"
-              value={draft.vat_rate}
-              onChange={(v) => set('vat_rate', v)}
-              options={[
-                { value: '19', label: '19 %' },
-                { value: '7', label: '7 % (ermäßigt)' },
-              ]}
+      <TourTarget id="firma.steuern">
+        <Reveal delay={280}>
+          <Card>
+            <Text style={styles.cardTitle}>Steuern</Text>
+            <ToggleRow
+              label="Kleinunternehmerregelung (§ 19 UStG)"
+              hint="Keine Umsatzsteuer auf Rechnungen – der Preis ist der Endbetrag."
+              value={draft.small_business}
+              onChange={(v) => set('small_business', v)}
             />
-          )}
-          <View style={styles.row}>
-            <View style={styles.flex}>{field('tax_number', 'Steuernummer', { placeholder: 'vom Finanzamt' })}</View>
-            <View style={styles.flex}>{field('vat_id', 'USt-IdNr.', { placeholder: 'optional, z. B. DE123456789', autoCapitalize: 'characters' })}</View>
-          </View>
-          <Text style={styles.hint}>Auf Rechnungen muss die Steuernummer oder die USt-IdNr. stehen.</Text>
-        </Card>
-      </Reveal>
+            {!draft.small_business && (
+              <Segmented
+                label="Umsatzsteuersatz"
+                value={draft.vat_rate}
+                onChange={(v) => set('vat_rate', v)}
+                options={[
+                  { value: '19', label: '19 %' },
+                  { value: '7', label: '7 % (ermäßigt)' },
+                ]}
+              />
+            )}
+            <View style={styles.row}>
+              <View style={styles.flex}>{field('tax_number', 'Steuernummer', { placeholder: 'vom Finanzamt' })}</View>
+              <View style={styles.flex}>{field('vat_id', 'USt-IdNr.', { placeholder: 'optional, z. B. DE123456789', autoCapitalize: 'characters' })}</View>
+            </View>
+            <Text style={styles.hint}>Auf Rechnungen muss die Steuernummer oder die USt-IdNr. stehen.</Text>
+          </Card>
+        </Reveal>
+      </TourTarget>
 
-      <Reveal delay={360}>
-        <Card>
-          <Text style={styles.cardTitle}>Bank & Fristen</Text>
-          {field('bank_name', 'Bank', { placeholder: 'z. B. Sparkasse' })}
-          <View style={styles.row}>
-            <View style={styles.flex}>{field('iban', 'IBAN', { autoCapitalize: 'characters', placeholder: 'DE89 3704 0044 0532 0130 00' })}</View>
-            <View style={styles.zip}>{field('bic', 'BIC', { autoCapitalize: 'characters' })}</View>
-          </View>
-          <View style={styles.row}>
-            <View style={styles.flex}>{field('payment_days', 'Zahlungsziel (Tage)', { keyboardType: 'number-pad' })}</View>
-            <View style={styles.flex}>{field('offer_validity_days', 'Angebote gültig (Tage)', { keyboardType: 'number-pad' })}</View>
-          </View>
-        </Card>
-      </Reveal>
+      <TourTarget id="firma.bank">
+        <Reveal delay={360}>
+          <Card>
+            <Text style={styles.cardTitle}>Bank & Fristen</Text>
+            {field('bank_name', 'Bank', { placeholder: 'z. B. Sparkasse' })}
+            <View style={styles.row}>
+              <View style={styles.flex}>{field('iban', 'IBAN', { autoCapitalize: 'characters', placeholder: 'DE89 3704 0044 0532 0130 00' })}</View>
+              <View style={styles.zip}>{field('bic', 'BIC', { autoCapitalize: 'characters' })}</View>
+            </View>
+            <View style={styles.row}>
+              <View style={styles.flex}>{field('payment_days', 'Zahlungsziel (Tage)', { keyboardType: 'number-pad' })}</View>
+              <View style={styles.flex}>{field('offer_validity_days', 'Angebote gültig (Tage)', { keyboardType: 'number-pad' })}</View>
+            </View>
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={420}>
         <Card>

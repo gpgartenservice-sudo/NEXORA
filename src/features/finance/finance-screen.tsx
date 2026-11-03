@@ -18,6 +18,7 @@ import { formatDay, todayIso } from '@/features/documents/document-logic';
 import { invoiceState, useDocuments } from '@/features/documents/documents-provider';
 import { dunningState, dunningSummary } from '@/features/dunning/dunning-logic';
 import { useFollowups } from '@/features/dunning/followups-provider';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
 import { BankComingSoon, BankConnectButton } from './bank-connect';
@@ -57,6 +58,7 @@ export function FinanceScreen() {
   const [mode, setMode] = useState<Mode>('month');
   const [bankInfo, setBankInfo] = useState(false);
   const [anchor, setAnchor] = useState<MonthKey>(current);
+  useAreaTutorial('finanzen');
 
   const year = anchor.slice(0, 4);
   const periodMonths = useMemo(
@@ -102,8 +104,9 @@ export function FinanceScreen() {
       <PageHeader
         title="Finanzen"
         subtitle="Einnahmen aus deinen Aufträgen, deine Ausgaben – und was übrig bleibt."
+        help={<TutorialButton id="finanzen" />}
         action={
-          <View style={styles.actions}>
+          <TourTarget id="finanzen.ausgaben" style={styles.actions}>
             <BankConnectButton open={bankInfo} onPress={() => setBankInfo((v) => !v)} />
             {receiptSupported && (
               <Button
@@ -114,7 +117,7 @@ export function FinanceScreen() {
               />
             )}
             <Button label="+ Ausgabe" onPress={() => router.push('/finanzen/ausgabe/neu')} style={styles.action} />
-          </View>
+          </TourTarget>
         }
       />
       {bankInfo && (
@@ -130,56 +133,62 @@ export function FinanceScreen() {
       {crmError && <Notice tone="error">Aufträge konnten nicht geladen werden – die Einnahmen sind deshalb unvollständig.</Notice>}
 
       {/* Zeitraum: gilt für alles darunter */}
-      <Reveal delay={120}>
-        <View style={styles.periodBar}>
-          <View style={styles.modeWrap}>
-            <Segmented
-              value={mode}
-              onChange={(m) => {
-                setMode(m);
-                if (m === 'year' && anchor > current) setAnchor(current);
-              }}
-              options={[
-                { value: 'month', label: 'Monat' },
-                { value: 'year', label: 'Jahr' },
-              ]}
-            />
+      <TourTarget id="finanzen.zeitraum">
+        <Reveal delay={120}>
+          <View style={styles.periodBar}>
+            <View style={styles.modeWrap}>
+              <Segmented
+                value={mode}
+                onChange={(m) => {
+                  setMode(m);
+                  if (m === 'year' && anchor > current) setAnchor(current);
+                }}
+                options={[
+                  { value: 'month', label: 'Monat' },
+                  { value: 'year', label: 'Jahr' },
+                ]}
+              />
+            </View>
+            <View style={styles.stepper}>
+              <StepButton dir={-1} label={mode === 'month' ? 'Vorheriger Monat' : 'Vorheriges Jahr'} onPress={() => shift(-1)} />
+              <Text style={styles.periodLabel} accessibilityRole="header">
+                {periodLabel}
+              </Text>
+              <StepButton
+                dir={1}
+                label={mode === 'month' ? 'Nächster Monat' : 'Nächstes Jahr'}
+                onPress={() => shift(1)}
+                disabled={!canNext}
+              />
+            </View>
           </View>
-          <View style={styles.stepper}>
-            <StepButton dir={-1} label={mode === 'month' ? 'Vorheriger Monat' : 'Vorheriges Jahr'} onPress={() => shift(-1)} />
-            <Text style={styles.periodLabel} accessibilityRole="header">
-              {periodLabel}
-            </Text>
-            <StepButton
-              dir={1}
-              label={mode === 'month' ? 'Nächster Monat' : 'Nächstes Jahr'}
-              onPress={() => shift(1)}
-              disabled={!canNext}
+        </Reveal>
+      </TourTarget>
+
+      <TourTarget id="finanzen.zahlen">
+        <Reveal delay={180}>
+          <StatRow>
+            <StatTile label="Einnahmen" value={formatEuro(totals.income)} />
+            <StatTile label="Ausgaben" value={formatEuro(totals.expenses)} />
+            <StatTile
+              label={totals.profit < 0 ? 'Verlust' : 'Gewinn'}
+              value={formatEuro(totals.profit)}
+              tone={totals.profit > 0 ? 'accent' : undefined}
             />
-          </View>
-        </View>
-      </Reveal>
+            <StatTile
+              label={openInvoices.length ? `Offene Rechnungen (${openInvoices.length})` : 'Offene Rechnungen'}
+              value={formatEuro(openSum)}
+              tone={openInvoices.length ? undefined : 'muted'}
+            />
+          </StatRow>
+        </Reveal>
+      </TourTarget>
 
-      <Reveal delay={180}>
-        <StatRow>
-          <StatTile label="Einnahmen" value={formatEuro(totals.income)} />
-          <StatTile label="Ausgaben" value={formatEuro(totals.expenses)} />
-          <StatTile
-            label={totals.profit < 0 ? 'Verlust' : 'Gewinn'}
-            value={formatEuro(totals.profit)}
-            tone={totals.profit > 0 ? 'accent' : undefined}
-          />
-          <StatTile
-            label={openInvoices.length ? `Offene Rechnungen (${openInvoices.length})` : 'Offene Rechnungen'}
-            value={formatEuro(openSum)}
-            tone={openInvoices.length ? undefined : 'muted'}
-          />
-        </StatRow>
-      </Reveal>
-
-      <Reveal delay={210}>
-        <TaxSummaryCard />
-      </Reveal>
+      <TourTarget id="finanzen.steuern">
+        <Reveal delay={210}>
+          <TaxSummaryCard />
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={240}>
         <Card>

@@ -31,6 +31,7 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
 import { NexyAvatar, type NexyMood } from './nexy-avatar';
@@ -99,6 +100,7 @@ export function NexyScreen() {
   const pad = wide ? Spacing.xxxl : Spacing.lg;
   const scroll = useRef<ScrollViewInstance>(null);
   const [text, setText] = useState('');
+  useAreaTutorial('nexy');
   // Neue Nachrichten von Nexy tippen sich ein; ältere stehen sofort da
   const [seen] = useState(() => new Set(messages.map((m) => m.id)));
   const [readIds] = useState(() => new Set(messages.map((m) => m.id)));
@@ -157,6 +159,9 @@ export function NexyScreen() {
         <View style={[styles.inner, { paddingHorizontal: pad }]}>
           {messages.length === 0 ? (
             <View style={styles.hero}>
+              <View style={styles.heroHelp}>
+                <TutorialButton id="nexy" />
+              </View>
               <Reveal style={styles.heroFigure}>
                 <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
               </Reveal>
@@ -168,13 +173,15 @@ export function NexyScreen() {
                   passiert.
                 </Text>
               </Reveal>
-              <Reveal delay={480}>
-                <View style={styles.starters}>
-                  {STARTERS.map((s) => (
-                    <Starter key={s} text={s} onPress={() => submit(s)} />
-                  ))}
-                </View>
-              </Reveal>
+              <TourTarget id="nexy.ideen">
+                <Reveal delay={480}>
+                  <View style={styles.starters}>
+                    {STARTERS.map((s) => (
+                      <Starter key={s} text={s} onPress={() => submit(s)} />
+                    ))}
+                  </View>
+                </Reveal>
+              </TourTarget>
             </View>
           ) : (
             <View style={styles.head}>
@@ -198,6 +205,7 @@ export function NexyScreen() {
                   <Text style={[styles.readText, readAloud && styles.readTextOn]}>Vorlesen</Text>
                 </Pressable>
               )}
+              <TutorialButton id="nexy" />
               <Pressable
                 onPress={() => {
                   stopVoice();
@@ -266,7 +274,7 @@ export function NexyScreen() {
         {voice.active ? (
           <VoicePanel voice={voice} />
         ) : (
-          <View style={styles.composer}>
+          <TourTarget id="nexy.eingabe" style={styles.composer}>
             <TextInput
               value={text}
               onChangeText={(v) => setText(v.slice(0, MAX))}
@@ -290,7 +298,7 @@ export function NexyScreen() {
                 <ArrowUp size={18} color={Colors.onAccent} strokeWidth={2.6} />
               </Pressable>
             )}
-          </View>
+          </TourTarget>
         )}
         <Text style={styles.foot}>
           {voice.active
@@ -519,6 +527,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   inner: { width: '100%', maxWidth: 860, alignSelf: 'center', gap: Spacing.lg },
   hero: { alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.xxl },
+  heroHelp: { alignSelf: 'flex-end', marginTop: -Spacing.xxl, marginBottom: -Spacing.md },
   // Platz für Antenne oben und Schatten unten
   heroFigure: { paddingTop: Spacing.lg, paddingBottom: Spacing.xl },
   heroTitle: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.6, textAlign: 'center' },

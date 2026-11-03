@@ -8,10 +8,13 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TextLink } from '@/components/ui/text-link';
+import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, stageLabel } from '@/features/onboarding/options';
+import { TUTORIALS } from '@/features/tutorial/tutorial-content';
+import { useTutorial } from '@/features/tutorial/tutorial-provider';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
@@ -24,6 +27,10 @@ export default function ProfileScreen() {
   const { seller } = useDocuments();
   const missing = missingSellerFields(seller, 'invoice');
   const name = profile?.display_name?.trim() || 'Dein Profil';
+  const tutorial = useTutorial();
+  const [resetDone, setResetDone] = useState(false);
+  const seen = tutorial.done.length;
+  const total = Object.keys(TUTORIALS).length;
 
   const signOut = async () => {
     setSigningOut(true);
@@ -87,6 +94,44 @@ export default function ProfileScreen() {
         </Card>
       </Reveal>
 
+      <Reveal delay={450}>
+        <Card>
+          <Text style={styles.cardTitle}>Einführungen</Text>
+          <Text style={styles.firmText}>
+            Nexy erklärt dir jeden Bereich beim ersten Besuch. Über das ? oben auf jeder Seite kannst du sie jederzeit
+            wiederholen. Gesehen: {seen} von {total}.
+          </Text>
+          <ToggleRow
+            label="Beim ersten Besuch automatisch zeigen"
+            value={!tutorial.off}
+            onChange={(v) => {
+              setResetDone(false);
+              tutorial.setOff(!v);
+            }}
+          />
+          <View style={styles.tutorialActions}>
+            <Button
+              label="Rundgang starten"
+              variant="secondary"
+              onPress={() => {
+                tutorial.start('home', { tour: true });
+                router.navigate('/home');
+              }}
+            />
+            <TextLink
+              label="Alle wieder als neu markieren"
+              onPress={() => {
+                tutorial.reset();
+                setResetDone(true);
+              }}
+            />
+          </View>
+          {resetDone && (
+            <Text style={styles.firmText}>Erledigt – beim nächsten Besuch zeigt Nexy jeden Bereich wieder.</Text>
+          )}
+        </Card>
+      </Reveal>
+
       <Reveal delay={480}>
         <Button label="Abmelden" variant="secondary" onPress={signOut} loading={signingOut} />
       </Reveal>
@@ -117,4 +162,5 @@ const styles = StyleSheet.create({
   firmRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
   flex: { flex: 1, gap: 4 },
   firmText: { color: Colors.textMuted, fontSize: 14, lineHeight: 20 },
+  tutorialActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.lg },
 });

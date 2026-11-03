@@ -20,6 +20,7 @@ import { dunningState } from '@/features/dunning/dunning-logic';
 import { useFollowups } from '@/features/dunning/followups-provider';
 import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social-logic';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
 import {
@@ -53,6 +54,7 @@ export function TermineScreen() {
   const { followups } = useFollowups();
   const { error: setupError } = useAppointments();
   const events = useCalendarEvents();
+  useAreaTutorial('termine');
   const { width } = useWindowDimensions();
   const contentWidth = width >= SIDEBAR_BREAKPOINT ? width - SIDEBAR_WIDTH : width;
   const columns = contentWidth >= 1000;
@@ -96,8 +98,9 @@ export function TermineScreen() {
       <PageHeader
         title="Termine"
         subtitle="Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Kalender-Abo."
+        help={<TutorialButton id="termine" />}
         action={
-          <View style={styles.headerActions}>
+          <TourTarget id="termine.aktionen" style={styles.headerActions}>
             <ActionChip
               icon={CalendarSync}
               label="Kalender-Abo"
@@ -105,7 +108,7 @@ export function TermineScreen() {
               onPress={() => setShowAbo((v) => !v)}
             />
             <Button label="+ Termin" onPress={() => router.push('/termine/neu')} style={styles.newButton} />
-          </View>
+          </TourTarget>
         }
       />
       {showAbo && (
@@ -133,26 +136,30 @@ export function TermineScreen() {
       </Reveal>
 
       {open.length + payments.length > 0 && (
-        <Reveal delay={170}>
-          <OpenItems items={open} payments={payments} />
-        </Reveal>
+        <TourTarget id="termine.offen">
+          <Reveal delay={170}>
+            <OpenItems items={open} payments={payments} />
+          </Reveal>
+        </TourTarget>
       )}
 
-      <Reveal delay={220}>
-        <View style={styles.toolbar}>
-          <View style={styles.segment}>
-            <Segmented
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'week', label: 'Woche' },
-                { value: 'list', label: 'Liste' },
-              ]}
-            />
+      <TourTarget id="termine.ansicht">
+        <Reveal delay={220}>
+          <View style={styles.toolbar}>
+            <View style={styles.segment}>
+              <Segmented
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'week', label: 'Woche' },
+                  { value: 'list', label: 'Liste' },
+                ]}
+              />
+            </View>
+            <Legend />
           </View>
-          <Legend />
-        </View>
-      </Reveal>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={260}>
         {view === 'week' ? (

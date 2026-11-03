@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
 import { computeStatus, formatEuro, outstandingRevenue, recognizedRevenue, statusGroup, type StatusGroup } from './order-logic';
@@ -29,6 +30,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 export function OrdersScreen() {
   const { orders, customerById, loading, error, customers } = useCrm();
   const [filter, setFilter] = useState<Filter>('all');
+  useAreaTutorial('auftraege');
 
   const groups = useMemo(() => orders.map((o) => ({ order: o, group: statusGroup(computeStatus(o)) })), [orders]);
   const count = (f: Filter) => (f === 'all' ? groups.length : groups.filter((g) => g.group === f).length);
@@ -43,52 +45,65 @@ export function OrdersScreen() {
       <PageHeader
         title="Aufträge"
         subtitle={orders.length ? `${count('new') + count('progress')} offen · ${count('done')} abgeschlossen` : undefined}
-        action={orders.length ? <Button label="+ Neuer Auftrag" onPress={newOrder} style={styles.action} /> : undefined}
+        action={
+          orders.length ? (
+            <TourTarget id="auftraege.neu">
+              <Button label="+ Neuer Auftrag" onPress={newOrder} style={styles.action} />
+            </TourTarget>
+          ) : undefined
+        }
+        help={<TutorialButton id="auftraege" />}
       />
       <CrmSetupNotice error={error} />
 
       {!loading && orders.length === 0 && !error ? (
-        <Reveal delay={200}>
-          <Card style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Briefcase size={28} color={Colors.accent} strokeWidth={1.8} />
-            </View>
-            <Text style={styles.emptyTitle}>Noch keine Aufträge</Text>
-            <Text style={styles.emptyText}>
-              Vom ersten Kontakt bis zum Abschluss: Trag ein, was passiert – der Status aktualisiert sich von selbst.
-            </Text>
-            <Button label={customers.length ? '+ Ersten Auftrag anlegen' : '+ Erst einen Kunden anlegen'} onPress={newOrder} />
-          </Card>
-        </Reveal>
+        <TourTarget id="auftraege.neu">
+          <Reveal delay={200}>
+            <Card style={styles.empty}>
+              <View style={styles.emptyIcon}>
+                <Briefcase size={28} color={Colors.accent} strokeWidth={1.8} />
+              </View>
+              <Text style={styles.emptyTitle}>Noch keine Aufträge</Text>
+              <Text style={styles.emptyText}>
+                Vom ersten Kontakt bis zum Abschluss: Trag ein, was passiert – der Status aktualisiert sich von selbst.
+              </Text>
+              <Button label={customers.length ? '+ Ersten Auftrag anlegen' : '+ Erst einen Kunden anlegen'} onPress={newOrder} />
+            </Card>
+          </Reveal>
+        </TourTarget>
       ) : (
         <>
-          <Reveal delay={150}>
-            <StatRow>
-              <StatTile label="Offene Aufträge" value={String(count('new') + count('progress'))} />
-              <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />
-              <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />
-            </StatRow>
-          </Reveal>
+          <TourTarget id="auftraege.zahlen">
+            <Reveal delay={150}>
+              <StatRow>
+                <StatTile label="Offene Aufträge" value={String(count('new') + count('progress'))} />
+                <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />
+                <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />
+              </StatRow>
+            </Reveal>
+          </TourTarget>
 
-          <Reveal delay={220}>
-            <View style={styles.filters} accessibilityRole="tablist">
-              {FILTERS.map((f) => {
-                const active = filter === f.key;
-                return (
-                  <Pressable
-                    key={f.key}
-                    onPress={() => setFilter(f.key)}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    style={[styles.chip, active && styles.chipActive]}>
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {f.label} <Text style={styles.chipCount}>{count(f.key)}</Text>
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Reveal>
+          <TourTarget id="auftraege.filter">
+            <Reveal delay={220}>
+              <View style={styles.filters} accessibilityRole="tablist">
+                {FILTERS.map((f) => {
+                  const active = filter === f.key;
+                  return (
+                    <Pressable
+                      key={f.key}
+                      onPress={() => setFilter(f.key)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      style={[styles.chip, active && styles.chipActive]}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {f.label} <Text style={styles.chipCount}>{count(f.key)}</Text>
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Reveal>
+          </TourTarget>
 
           <View style={styles.list}>
             {visible.map(({ order }, i) => (

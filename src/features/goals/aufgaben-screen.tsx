@@ -14,6 +14,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import { todayIso } from '@/features/documents/document-logic';
+import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { GoalCard } from './goal-card';
 import { DUE_PRESETS, goalTitle, groupTodos, presetDue, type DuePreset, type Todo } from './goals-logic';
@@ -37,20 +38,27 @@ export function AufgabenScreen() {
   const { ansicht } = useLocalSearchParams<{ ansicht?: string }>();
   const view: View_ = ansicht === 'ziele' ? 'ziele' : 'todos';
   const { error } = useGoals();
+  useAreaTutorial('aufgaben');
 
   return (
     <Screen maxWidth={820}>
-      <PageHeader title="To-dos & Ziele" subtitle="Was ansteht – und wo du hinwillst." />
-      <Reveal delay={120}>
-        <Segmented
-          value={view}
-          onChange={(v) => router.setParams({ ansicht: v })}
-          options={[
-            { value: 'todos', label: 'To-dos' },
-            { value: 'ziele', label: 'Ziele' },
-          ]}
-        />
-      </Reveal>
+      <PageHeader
+        title="To-dos & Ziele"
+        subtitle="Was ansteht – und wo du hinwillst."
+        help={<TutorialButton id="aufgaben" />}
+      />
+      <TourTarget id="aufgaben.ansicht">
+        <Reveal delay={120}>
+          <Segmented
+            value={view}
+            onChange={(v) => router.setParams({ ansicht: v })}
+            options={[
+              { value: 'todos', label: 'To-dos' },
+              { value: 'ziele', label: 'Ziele' },
+            ]}
+          />
+        </Reveal>
+      </TourTarget>
       {error === 'setup' && <Notice>{SETUP_HINT}</Notice>}
       {error === 'failed' && <Notice tone="error">To-dos und Ziele konnten nicht geladen werden.</Notice>}
       {view === 'todos' ? <TodosView /> : <GoalsView />}
@@ -93,52 +101,54 @@ function TodosView() {
 
   return (
     <>
-      <Reveal delay={180}>
-        <Card>
-          <TextField
-            ref={input}
-            label="Neues To-do"
-            value={title}
-            onChangeText={setTitle}
-            placeholder="z. B. Steuerberater anrufen"
-            onSubmitEditing={() => void add()}
-            returnKeyType="done"
-            maxLength={200}
-            editable={loadError !== 'setup'}
-          />
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Fällig">
-            {DUE_PRESETS.map((p) => {
-              const active = p.key === preset;
-              return (
-                <Pressable
-                  key={p.key}
-                  onPress={() => setPreset(p.key)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: active }}
-                  aria-checked={active}
-                  style={[styles.chip, active && styles.chipActive]}>
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              onPress={() => setImportant((v) => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: important }}
-              aria-checked={important}
-              accessibilityLabel="Wichtig"
-              style={[styles.chip, important && styles.chipActive]}>
-              <Star
-                size={13}
-                color={important ? Colors.accent : Colors.textMuted}
-                fill={important ? Colors.accent : 'transparent'}
-              />
-              <Text style={[styles.chipText, important && styles.chipTextActive]}>Wichtig</Text>
-            </Pressable>
-          </View>
-          <Button label="Hinzufügen" onPress={() => void add()} loading={saving} disabled={loadError === 'setup'} />
-        </Card>
-      </Reveal>
+      <TourTarget id="aufgaben.neu">
+        <Reveal delay={180}>
+          <Card>
+            <TextField
+              ref={input}
+              label="Neues To-do"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="z. B. Steuerberater anrufen"
+              onSubmitEditing={() => void add()}
+              returnKeyType="done"
+              maxLength={200}
+              editable={loadError !== 'setup'}
+            />
+            <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Fällig">
+              {DUE_PRESETS.map((p) => {
+                const active = p.key === preset;
+                return (
+                  <Pressable
+                    key={p.key}
+                    onPress={() => setPreset(p.key)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
+                    aria-checked={active}
+                    style={[styles.chip, active && styles.chipActive]}>
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => setImportant((v) => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: important }}
+                aria-checked={important}
+                accessibilityLabel="Wichtig"
+                style={[styles.chip, important && styles.chipActive]}>
+                <Star
+                  size={13}
+                  color={important ? Colors.accent : Colors.textMuted}
+                  fill={important ? Colors.accent : 'transparent'}
+                />
+                <Text style={[styles.chipText, important && styles.chipTextActive]}>Wichtig</Text>
+              </Pressable>
+            </View>
+            <Button label="Hinzufügen" onPress={() => void add()} loading={saving} disabled={loadError === 'setup'} />
+          </Card>
+        </Reveal>
+      </TourTarget>
       {failure && <Notice tone="error">{failure}</Notice>}
 
       {groups.length === 0 && loadError !== 'setup' && (
