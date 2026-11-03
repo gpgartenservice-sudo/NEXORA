@@ -14,6 +14,7 @@ import {
   type Seller,
 } from './document-logic';
 import type { LogoImage } from './logo-logic';
+import { offerToken } from './offer-link';
 
 export type StoredDocument = {
   id: string;
@@ -27,6 +28,12 @@ export type StoredDocument = {
   data: DocumentData;
   paid_at: string | null;
   created_at: string;
+  /** Angebot: geheimer Link zum Online-Annehmen */
+  public_token?: string | null;
+  accepted_at?: string | null;
+  accepted_name?: string | null;
+  declined_at?: string | null;
+  decline_note?: string | null;
 };
 
 export type ServiceInfo = { date: string | null; period: { from: string; to: string } | null };
@@ -50,6 +57,10 @@ type State = {
   removeLogo: () => Promise<{ error?: string }>;
   /** Logo, das beim Erstellen eines Dokuments galt (für dessen PDF) */
   logoFor: (doc: { data: DocumentData }) => Promise<LogoImage | null>;
+  /** Angebot: geheimen Link zum Online-Annehmen anlegen (bleibt danach gleich) */
+  shareOffer: (id: string) => Promise<{ token?: string; error?: string }>;
+  /** Dokumente neu laden (z. B. um eine Online-Annahme zu sehen) */
+  reload: () => Promise<void>;
 };
 
 const Ctx = createContext<State | null>(null);
@@ -218,6 +229,37 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
     return {};
   }, []);
 
+  const shareOffer = useCallback(
+    async (id: string) => {
+      const doc = documents.find((d) => d.id === id);
+      if (doc?.public_token) return { token: doc.public_token };
+      const token = offerToken((n) => crypto.getRandomValues(new Uint8Array(n)));
+      const { data, error: err } = await supabase
+        .from('documents')
+        .update({ public_token: token })
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (err) {
+        if (err.code === 'PGRST204' || err.code === '42703' || err.code === '42501')
+          return {
+            error:
+              'Online-Angebote brauchen noch das Datenbank-Skript 20261113090000_offer_links_mail.sql (siehe supabase/README.md).',
+          };
+        return { error: errorText(err, 'Der Link konnte nicht erstellt werden.') };
+      }
+      const updated = toDocument(data as Record<string, unknown>);
+      setDocuments((list) => list.map((d) => (d.id === id ? updated : d)));
+      return { token };
+    },
+    [documents],
+  );
+
+  const reload = useCallback(async () => {
+    const { data, error: err } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+    if (!err) setDocuments((data ?? []).map(toDocument));
+  }, []);
+
   const logoFor = useCallback(async (doc: { data: DocumentData }) => {
     const id = doc.data.seller?.logo_id;
     if (!id) return null;
@@ -294,8 +336,25 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
       uploadLogo,
       removeLogo,
       logoFor,
+      shareOffer,
+      reload,
     }),
-    [seller, hasSettings, documents, loading, error, saveSeller, issue, setPaid, logo, uploadLogo, removeLogo, logoFor],
+    [
+      seller,
+      hasSettings,
+      documents,
+      loading,
+      error,
+      saveSeller,
+      issue,
+      setPaid,
+      logo,
+      uploadLogo,
+      removeLogo,
+      logoFor,
+      shareOffer,
+      reload,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

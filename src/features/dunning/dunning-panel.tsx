@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Download, Gavel, Mail, MessageCircle, Share, Star } from 'lucide-react-native';
+import { Download, Gavel, Mail, MessageCircle, Send, Share, Star } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Customer } from '@/features/crm/crm-provider';
+import { DirectMail } from '@/features/documents/direct-mail';
 import { formatDay, mailtoUrl, todayIso, whatsappUrl } from '@/features/documents/document-logic';
 import { useDocuments, type StoredDocument } from '@/features/documents/documents-provider';
 import { downloadPdf, pdfSupported, type PreparedPdf } from '@/features/documents/save-pdf';
@@ -58,6 +59,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
   const [today] = useState(() => todayIso());
   /** in diesem Fenster schon vermerkte Stufe (weitere Wege verschicken nicht erneut vermerken) */
   const [recorded, setRecorded] = useState<Followup | null>(null);
+  const [direct, setDirect] = useState(false);
   const history = dunningHistory(followups, doc.id);
   const before = recorded ? history.filter((h) => h.id !== recorded.id) : history;
   const done = new Set(before.map((h) => h.kind));
@@ -257,7 +259,40 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
             {canShareFile({ bytes: new Uint8Array([37]), fileName: 'x.pdf' }) && (
               <ActionChip icon={Share} label="Teilen …" onPress={() => void run('share')} disabled={busy} />
             )}
+            <ActionChip
+              icon={Send}
+              label="Direkt senden"
+              accessibilityLabel={`${nextStage.label} direkt senden`}
+              onPress={() => setDirect((v) => !v)}
+              active={direct}
+              disabled={busy || !input}
+            />
           </View>
+          {direct && input && text && (
+            <DirectMail
+              key={`${nextStage.kind}-${input.fee}-${input.newDueOn}`}
+              defaultTo={customer.email}
+              subject={text.subject}
+              body={text.body}
+              attachment={async () => {
+                const { renderReminderPdf } = await import('./dunning-pdf');
+                return { bytes: await renderReminderPdf({ ...input, logo }), fileName: reminderFileName(nextStage.kind, doc) };
+              }}
+              attachmentName={reminderFileName(nextStage.kind, doc)}
+              kind="reminder"
+              documentId={doc.id}
+              onSent={async () => {
+                if (recorded) return;
+                const r = await record({ document_id: doc.id, kind: nextStage.kind, fee: input.fee, new_due_on: newDue });
+                if (r.error) return setMessage({ tone: 'error', text: r.error });
+                setRecorded(r.data!);
+                setMessage({
+                  tone: 'success',
+                  text: `Vermerkt: ${nextStage.label} vom ${formatDay(today)}, neue Frist bis ${formatDay(newDue)}.`,
+                });
+              }}
+            />
+          )}
           <Text style={styles.hint}>
             {recorded
               ? 'Schon vermerkt – du kannst sie hier noch über einen anderen Weg schicken.'

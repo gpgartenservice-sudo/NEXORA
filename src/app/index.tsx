@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, type HostInstance } from 'react-native';
 import {
@@ -21,11 +21,23 @@ import { useAuth } from '@/providers/auth-provider';
 let introAlreadyPlayed = false;
 
 /**
+ * Startadresse. Links zu Online-Angeboten kommen als „/?angebot=…“ (das
+ * funktioniert auf jedem Webspace) und führen direkt zur Angebotsseite.
+ */
+export default function StartScreen() {
+  const { angebot } = useLocalSearchParams<{ angebot?: string }>();
+  if (typeof angebot === 'string' && angebot) {
+    return <Redirect href={{ pathname: '/angebot/[token]', params: { token: angebot } }} />;
+  }
+  return <WelcomeScreen />;
+}
+
+/**
  * Startbildschirm: erst die Logo-Animation, danach fliegt der Schriftzug
  * nach oben und der Anmelde-Screen blendet darunter ein. Wer schon
  * angemeldet ist, landet nach dem Intro direkt in der App.
  */
-export default function WelcomeScreen() {
+function WelcomeScreen() {
   const reduceMotion = useReducedMotion();
   const { session, initializing } = useAuth();
   const [introDone, setIntroDone] = useState(reduceMotion || introAlreadyPlayed);

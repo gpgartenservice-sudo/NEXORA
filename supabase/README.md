@@ -44,6 +44,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261110090000_invoice_followups.sql` | Mahnwesen: verschickte Zahlungserinnerungen, Mahnungen und Bewertungsbitten; Link für Bewertungen in den Firmendaten |
 | `20261111090000_todos_goals.sql` | To-dos (mit Fälligkeit, optional zu Kunde/Auftrag) und Ziele (Umsatz, neue Kunden, Aufträge, Posts oder eigene) |
 | `20261112090000_receipts.sql` | Belege zu Ausgaben: privater Speicher „receipts“ (jeder Nutzer nur sein eigener Ordner) und Verknüpfung zur Ausgabe |
+| `20261113090000_offer_links_mail.sql` | Angebote online annehmen (geheimer Link, Annehmen/Ablehnen ohne Anmeldung) und Versandprotokoll für E-Mails aus der App |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -202,7 +203,44 @@ Einrichtung:
 
 Gut zu wissen: Fotos werden vor dem Hochladen verkleinert (längste Seite 2000 px), PDFs bis 6 MB. iPhone-Fotos im HEIC-Format bitte als JPG speichern (*Einstellungen → Kamera → Formate → Maximale Kompatibilität*). Löschst du einen Nutzer im Dashboard, bleiben seine Belege unter **Storage → receipts → <Nutzer-ID>** liegen – dort bei Bedarf mit löschen.
 
-## 9. Wichtig zum Testen: E-Mail-Versand
+## 9. Angebote online annehmen
+
+Dein Kunde bekommt einen Link, sieht das Angebot im Browser (mit deinem Logo), lädt das PDF und klickt **Angebot annehmen** (mit Name und Bestätigung) – oder lehnt mit einer Nachricht ab. Der Auftrag springt bei Annahme automatisch auf „Angebot angenommen“; im Auftrag steht „Online angenommen am … von …“.
+
+Einrichtung:
+
+1. Datenbank-Skript `20261113090000_offer_links_mail.sql` ausführen (Abschnitt 3).
+2. **NEXORA ins Internet stellen** – die Angebotsseite ist Teil der App. Am einfachsten mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg), im Projektordner:
+   ```bash
+   npx expo export --platform web
+   npx eas-cli@latest deploy --prod
+   ```
+   Beim ersten Mal fragt das Programm nach deinem Expo-Konto (kostenlos anlegen) und einem Namen; am Ende steht die Adresse, z. B. `https://nexora.expo.app`. (Die genauen Schritte stehen in Expos Anleitung zu „EAS Hosting“.) Jeder andere Webspace geht auch: einfach den Ordner `dist` hochladen – der Link funktioniert über die Startadresse (`/?angebot=…`).
+3. Die Adresse in die `.env` der App eintragen:
+   ```
+   EXPO_PUBLIC_WEB_URL=https://nexora.expo.app
+   ```
+   Danach die Mac-App neu starten (`npm run mac`) **und** Schritt 2 wiederholen, damit beide die Adresse kennen.
+
+Danach: im Auftrag beim Angebot **Senden → Link zum Annehmen** (Link wird kopiert, z. B. für WhatsApp) oder **Direkt senden** mit eingeschaltetem „Link zum Online-Annehmen“.
+
+Gut zu wissen: Wer den Link kennt, sieht nur dieses eine Angebot – nicht deine anderen Daten. Abgelaufene Angebote lassen sich nicht mehr annehmen. Die Online-Annahme ist eine verbindliche Zusage deines Kunden, ersetzt aber bei großen Aufträgen nicht unbedingt einen schriftlichen Vertrag.
+
+## 10. E-Mails direkt verschicken
+
+Angebote, Rechnungen und Mahnungen gehen mit **Direkt senden** ohne Mail-Programm an den Kunden – mit PDF im Anhang. Absender ist dein Firmenname, Antworten landen bei der E-Mail-Adresse aus deinen Firmendaten. Das läuft über den E-Mail-Dienst **Resend** (kostenloser Einstieg; Limits auf resend.com).
+
+1. Auf [resend.com](https://resend.com) ein Konto anlegen.
+2. **Domains → Add Domain**: deine Domain eintragen (z. B. `gp-gartenservice.de`) und die angezeigten DNS-Einträge bei deinem Domain-Anbieter setzen → **Verify**. (Ohne eigene Domain geht es nicht – Resend verschickt nur von bestätigten Domains.)
+3. **API Keys → Create API Key** (Zugriff „Sending“) und kopieren – er beginnt mit `re_`.
+   > Den Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
+4. Supabase: **Edge Functions → Deploy a new function → Via Editor**, Name genau `mail`, Inhalt von [`functions/mail/index.ts`](functions/mail/index.ts) → **Deploy**. Falls „Invalid JWT“ kommt: **Verify JWT** ausschalten (die Funktion prüft die Anmeldung selbst).
+5. **Edge Functions → Secrets**: `RESEND_API_KEY` = dein Schlüssel, `MAIL_FROM` = Absender-Adresse auf deiner Domain (z. B. `angebote@gp-gartenservice.de`).
+6. In der App unter **Firma** deine E-Mail-Adresse eintragen – dorthin gehen die Antworten deiner Kunden.
+
+Zum Schutz: höchstens 3 Empfänger pro E-Mail, nur PDFs als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag. Jede verschickte E-Mail steht im Versandprotokoll (am Dokument: „Direkt verschickt am … an …“).
+
+## 11. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

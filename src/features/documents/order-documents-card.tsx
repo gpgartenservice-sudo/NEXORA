@@ -263,8 +263,20 @@ function DocumentRow({
           <Text style={styles.docMeta}>
             {formatDay(doc.issued_on)} · {formatMoney(doc.total)}
             {isInvoice && doc.due_on && !doc.paid_at ? ` · fällig ${formatDay(doc.due_on)}` : ''}
-            {!isInvoice && doc.due_on ? ` · gültig bis ${formatDay(doc.due_on)}` : ''}
+            {!isInvoice && doc.due_on && !doc.accepted_at && !doc.declined_at ? ` · gültig bis ${formatDay(doc.due_on)}` : ''}
           </Text>
+          {!isInvoice && doc.accepted_at && (
+            <Text style={styles.docAccepted} testID="offer-accepted">
+              ✓ Online angenommen am {formatDay(doc.accepted_at.slice(0, 10))}
+              {doc.accepted_name ? ` von ${doc.accepted_name}` : ''}
+            </Text>
+          )}
+          {!isInvoice && doc.declined_at && (
+            <Text style={styles.docDeclined} testID="offer-declined">
+              Abgelehnt am {formatDay(doc.declined_at.slice(0, 10))}
+              {doc.decline_note ? ` – „${doc.decline_note}“` : ''}
+            </Text>
+          )}
         </View>
         {state && (
           <Pressable
@@ -358,6 +370,8 @@ const styles = StyleSheet.create({
   docTexts: { flex: 1, minWidth: 190, gap: 2 },
   docNumber: { color: Colors.text, fontSize: 14.5, fontWeight: '600' },
   docMeta: { color: Colors.textMuted, fontSize: 12.5 },
+  docAccepted: { color: Colors.accent, fontSize: 12.5, fontWeight: '600' },
+  docDeclined: { color: Colors.danger, fontSize: 12.5 },
   state: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
   stateOpen: { borderColor: 'rgba(245,185,74,0.35)', backgroundColor: 'rgba(245,185,74,0.10)' },
   statePaid: { borderColor: 'rgba(47,227,154,0.4)', backgroundColor: Colors.accentSoft },

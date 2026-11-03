@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Check, Mail, MessageCircle, Share } from 'lucide-react-native';
+import { Check, Link2, Mail, MessageCircle, Send, Share } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -9,10 +9,14 @@ import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Customer } from '@/features/crm/crm-provider';
 
-import { documentMessage, mailtoUrl, whatsappNumber, whatsappUrl } from './document-logic';
+import { DirectMail } from './direct-mail';
+import { documentMessage, formatDay, mailtoUrl, whatsappNumber, whatsappUrl } from './document-logic';
 import { useDocuments, type StoredDocument } from './documents-provider';
+import { mailLogFor, type MailLogEntry } from './mail-api';
+import { offerUrl } from './offer-link';
 import { pdfSupported, preparePdf, type PreparedPdf } from './save-pdf';
 import { canShareFile, openWith, shareFile, type Delivery } from './send-document';
+import { WEB_URL } from './web-url';
 
 type Props = {
   doc: StoredDocument;
@@ -38,7 +42,19 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   const [pdf, setPdf] = useState<PreparedPdf | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [marking, setMarking] = useState(false);
-  const { logoFor } = useDocuments();
+  const [direct, setDirect] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
+  const [log, setLog] = useState<MailLogEntry[]>([]);
+  const { logoFor, shareOffer } = useDocuments();
+
+  // bisher direkt verschickt?
+  useEffect(() => {
+    let active = true;
+    mailLogFor(doc.id).then((list) => active && setLog(list));
+    return () => {
+      active = false;
+    };
+  }, [doc.id]);
 
   // PDF vorab erzeugen, damit E-Mail/WhatsApp sofort beim Klick aufgehen
   useEffect(() => {
@@ -98,6 +114,38 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
     setMessage(error ? { tone: 'error', text: error } : null);
   };
 
+  /** Angebots-Link anlegen (bleibt danach gleich) */
+  const makeLink = async (): Promise<{ url?: string; error?: string }> => {
+    if (!WEB_URL)
+      return {
+        error:
+          'Für Online-Angebote muss NEXORA im Internet stehen (EXPO_PUBLIC_WEB_URL in der .env – Anleitung: supabase/README.md, Abschnitt 9).',
+      };
+    const { token, error } = await shareOffer(doc.id);
+    if (error || !token) return { error: error ?? 'Der Link konnte nicht erstellt werden.' };
+    const url = offerUrl(WEB_URL, token);
+    setLink(url);
+    return { url };
+  };
+
+  const copyLink = async () => {
+    const { url, error } = await makeLink();
+    if (error || !url) return setMessage({ tone: 'error', text: error ?? 'Der Link konnte nicht erstellt werden.' });
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    } catch {
+      // Zwischenablage nicht erlaubt – Link steht trotzdem unten
+    }
+    setMessage({
+      tone: 'success',
+      text: copied
+        ? 'Link kopiert – füg ihn z. B. in WhatsApp ein. Dein Kunde kann das Angebot damit ansehen und annehmen.'
+        : 'Link erstellt – kopier ihn unten. Dein Kunde kann das Angebot damit ansehen und annehmen.',
+    });
+  };
+
   const markSent = async () => {
     setMarking(true);
     const { error } = await onMarkOfferSent();
@@ -131,7 +179,51 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
           disabled={!pdf}
         />
         {share && <ActionChip icon={Share} label="Teilen …" onPress={viaShare} />}
+        <ActionChip
+          icon={Send}
+          label="Direkt senden"
+          accessibilityLabel="Direkt aus NEXORA senden"
+          onPress={() => setDirect((v) => !v)}
+          active={direct}
+          disabled={!pdf}
+        />
+        {isOffer && (
+          <ActionChip icon={Link2} label="Link zum Annehmen" accessibilityLabel="Link zum Online-Annehmen" onPress={copyLink} />
+        )}
       </View>
+      {direct && pdf && (
+        <DirectMail
+          defaultTo={email}
+          subject={text.subject}
+          body={text.body}
+          attachment={async () => ({ bytes: pdf.bytes, fileName: pdf.fileName })}
+          attachmentName={pdf.fileName}
+          kind={doc.kind}
+          documentId={doc.id}
+          offerLink={isOffer ? makeLink : undefined}
+          onSent={async ({ to }) => {
+            setLog((l) => [
+              { id: `neu-${l.length}`, document_id: doc.id, kind: doc.kind, to_email: to, subject: text.subject, created_at: new Date().toISOString() },
+              ...l,
+            ]);
+            if (isOffer && !offerSent) await onMarkOfferSent();
+          }}
+        />
+      )}
+      {link && (
+        <Text style={styles.link} selectable testID="offer-link">
+          {link}
+        </Text>
+      )}
+      {log.length > 0 && (
+        <View style={styles.log}>
+          {log.map((l) => (
+            <Text key={l.id} style={styles.hint}>
+              ✓ Direkt verschickt am {formatDay(l.created_at.slice(0, 10))} an {l.to_email}
+            </Text>
+          ))}
+        </View>
+      )}
       <Text style={styles.hint}>
         Text und Betreff sind schon fertig – du schickst selbst ab.
         {share ? ' Über „Teilen …“ hängt dein Mac das PDF direkt an (z. B. Mail, Nachrichten, AirDrop).' : ''}
@@ -167,4 +259,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   markText: { color: Colors.textMuted, fontSize: 13, lineHeight: 18, flexShrink: 1 },
+  link: { color: Colors.accent, fontSize: 13, lineHeight: 18 },
+  log: { gap: 2 },
 });

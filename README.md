@@ -86,6 +86,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `supabase/functions/assistant/` | Server-Funktion von Nexy (Claude; Spracherkennung über Groq Whisper), läuft bei Supabase |
 | `supabase/functions/social/` | Server-Funktion für TikTok & Instagram (Anmeldung, verschlüsselte Zugangsdaten, Zahlen abholen) |
 | `src/features/appointments/` | Termine – **Termine aus Aufträgen + eigene, Überschneidungen, offene Punkte, Route, .ics in `appointment-logic.ts`** |
+| `supabase/functions/mail/` | Server-Funktion für E-Mails aus der App (Resend, PDF-Anhang, Bremse, Versandprotokoll) |
+| `src/app/angebot/` | Öffentliche Angebotsseite (ohne Anmeldung, über den geheimen Link) |
 | `supabase/functions/calendar/` | Server-Funktion fürs Kalender-Abo (alle Termine als .ics über einen geheimen Link) |
 | `src/features/social/` | Social Media – **Status, Schritte, Hashtags, Zeichenlimits in `social-logic.ts`**; TikTok/Instagram verbinden: Zuordnung Videos ↔ Ideen, Zahlen übernehmen, Follower-Verlauf in `connect-logic.ts` |
 | `src/features/dunning/` | Zahlungserinnerungen, Mahnungen, Bewertungsbitten – **Stufen, Fristen, Texte in `dunning-logic.ts`**, PDF in `dunning-pdf.ts` |
@@ -134,7 +136,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Zahlungserinnerungen & Mahnungen: überfällige Rechnungen in Finanzen, Termine und im Auftrag; Zahlungserinnerung → 1. Mahnung → letzte Mahnung mit neuer Frist und optionaler Mahngebühr; als PDF im Briefkopf, per E-Mail oder WhatsApp; Verlauf mit Rückgängig; danach Hinweis auf den Online-Mahnantrag; Nexy kennt den Mahnstand. Bewertungsbitte bei bezahlten Rechnungen mit eigenem Bewertungs-Link (Firma → Bewertungen). Einrichtung: `supabase/README.md`, Abschnitt 7
 - ✅ To-dos & Ziele: To-dos mit Fälligkeit (Überfällig, Heute, Nächste 7 Tage, Später, Ohne Datum), wichtig, optional zu Kunde/Auftrag; Ziele für Umsatz (Monat/Jahr), neue Kunden, abgeschlossene Aufträge und veröffentlichte Posts (Woche/Monat/Jahr) zählen automatisch aus den echten Zahlen mit – mit „Im Plan“/„Hinterher“; eigene Ziele zum Selbstzählen; „Heute zu tun“ und Ziele auf der Startseite. Nexy legt To-dos an („Erinner mich Freitag …“), ändert und hakt sie ab, legt Ziele an und trägt Preise in Aufträge ein. Einrichtung: SQL-Skript `20261111090000_todos_goals.sql`
 - ✅ Belege: Foto oder PDF – Nexy liest Betrag, Datum, Händler, Kategorie und Umsatzsteuer aus und füllt die Ausgabe vor; Beleg sicher im privaten Speicher, an jeder Ausgabe ansehen/ersetzen/entfernen; Hinweis auf doppelt erfasste Belege; „Speichern & nächster Beleg“. Einrichtung: `supabase/README.md`, Abschnitt 8
-- ⏳ Automatischer Versand aus der App, Angebot online annehmen
+- ✅ Angebot online annehmen: geheimer Link pro Angebot – Kunde sieht das Angebot im Browser (mit Logo), lädt das PDF, nimmt verbindlich an (Name + Bestätigung) oder lehnt mit Nachricht ab; Auftrag springt automatisch weiter, im Auftrag „Online angenommen am … von …“. Einrichtung: `supabase/README.md`, Abschnitt 9
+- ✅ Direkt senden: Angebote, Rechnungen und Mahnungen per E-Mail mit PDF direkt aus NEXORA (Resend), Text anpassbar, Antworten an die eigene Adresse, Versandprotokoll; Speichern im Auftrag überschreibt nur noch geänderte Felder. Einrichtung: `supabase/README.md`, Abschnitt 10
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG

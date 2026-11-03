@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TextField } from '@/components/auth/text-field';
@@ -16,6 +16,7 @@ import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 
+import { useDocuments } from '@/features/documents/documents-provider';
 import { OrderDocumentsCard } from '@/features/documents/order-documents-card';
 
 import { useCrm, type Order } from './crm-provider';
@@ -89,8 +90,22 @@ function toFacts(d: Draft): OrderFacts {
 /** Auftrag im Detail: Ablauf eintragen, Status aktualisiert sich von selbst. */
 export function OrderDetailScreen() {
   const { id, mahnen } = useLocalSearchParams<{ id: string; mahnen?: string }>();
-  const { orders, loading } = useCrm();
+  const { orders, loading, reload: reloadOrders } = useCrm();
+  const { documents, reload: reloadDocuments } = useDocuments();
   const order = orders.find((o) => o.id === id);
+
+  // Beim Öffnen: neuester Stand der Angebote (online angenommen/abgelehnt?)
+  useFocusEffect(
+    useCallback(() => {
+      void reloadDocuments();
+    }, [reloadDocuments]),
+  );
+  // Online angenommen, der Auftrag weiß es aber noch nicht -> Aufträge neu laden
+  const acceptedOnline = documents.some((d) => d.order_id === id && d.kind === 'offer' && !!d.accepted_at);
+  const knowsAccepted = !!order?.offer_accepted;
+  useEffect(() => {
+    if (acceptedOnline && order && !knowsAccepted) void reloadOrders();
+  }, [acceptedOnline, knowsAccepted, order, reloadOrders]);
 
   if (!order) {
     return (
@@ -101,7 +116,8 @@ export function OrderDetailScreen() {
     );
   }
   // key: bei einem anderen Auftrag frisch mit dessen Daten starten
-  return <OrderEditor key={order.id} order={order} mahnen={mahnen} />;
+  // (neu starten, wenn das Angebot inzwischen online angenommen wurde)
+  return <OrderEditor key={`${order.id}-${order.offer_accepted ? 'a' : 'o'}`} order={order} mahnen={mahnen} />;
 }
 
 function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
@@ -143,24 +159,41 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
       return;
     }
     setSaving(true);
-    const { data, error } = await updateOrder(order.id, {
-      title: draft.title.trim(),
-      description: draft.description.trim() || null,
-      price: num(price),
-      discount_percent: num(discount) ?? 0,
-      billing: draft.billing,
-      contract_start: monthly ? draft.contract_start : null,
-      contract_end: monthly ? draft.contract_end : null,
-      meeting_at: draft.meeting_at,
-      meeting_done: draft.meeting_done,
-      offer_sent: draft.offer_sent,
-      offer_accepted: draft.offer_accepted,
-      execution_at: draft.execution_at,
-      completed: draft.completed,
-      cancelled: draft.cancelled,
-      expenses: num(expenses),
-      internal_notes: draft.internal_notes.trim() || null,
-    });
+    // Nur geänderte Felder speichern – so überschreibt das Formular nichts, was
+    // inzwischen anderswo geändert wurde (z. B. Angebot online angenommen, Nexy).
+    const payload = (d: Draft) => {
+      const m = d.billing === 'monthly';
+      return {
+        title: d.title.trim(),
+        description: d.description.trim() || null,
+        price: num(parseEuro(d.price)),
+        discount_percent: num(parseEuro(d.discount)) ?? 0,
+        billing: d.billing,
+        contract_start: m ? d.contract_start : null,
+        contract_end: m ? d.contract_end : null,
+        meeting_at: d.meeting_at,
+        meeting_done: d.meeting_done,
+        offer_sent: d.offer_sent,
+        offer_accepted: d.offer_accepted,
+        execution_at: d.execution_at,
+        completed: d.completed,
+        cancelled: d.cancelled,
+        expenses: num(parseEuro(d.expenses)),
+        internal_notes: d.internal_notes.trim() || null,
+      };
+    };
+    const now = payload(draft);
+    const before = payload(initial);
+    const changes = Object.fromEntries(
+      Object.entries(now).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(before[k as keyof typeof before])),
+    ) as Partial<typeof now>;
+    if (Object.keys(changes).length === 0) {
+      setSaving(false);
+      setInitial(draft);
+      setSaved(true);
+      return;
+    }
+    const { data, error } = await updateOrder(order.id, changes);
     setSaving(false);
     if (error || !data) {
       setFailure(error ?? 'Speichern hat nicht geklappt.');
