@@ -212,17 +212,26 @@ Dein Kunde bekommt einen Link, sieht das Angebot im Browser (mit deinem Logo), l
 Einrichtung:
 
 1. Datenbank-Skript `20261113090000_offer_links_mail.sql` ausführen (Abschnitt 3).
-2. **NEXORA ins Internet stellen** – die Angebotsseite ist Teil der App. Am einfachsten mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg), im Projektordner:
+2. **NEXORA ins Internet stellen** – die Angebotsseite ist Teil der App. Zwei Wege:
+
+   **a) Auf deinem eigenen Webspace (z. B. webgo, IONOS, Strato)** – nichts Neues nötig:
+   1. Beim Hoster eine **Subdomain** anlegen, z. B. `app.deine-domain.de` (nicht in einen Unterordner wie `deine-domain.de/nexora` – die App braucht eine eigene Adresse).
+   2. Für die Subdomain **SSL/HTTPS einschalten** (bei den meisten Hostern ein Klick, „Let’s Encrypt“).
+   3. Web-Version bauen: im Projektordner `npx expo export --platform web` – das ergibt den Ordner `dist`.
+   4. Den **Inhalt** von `dist` (nicht den Ordner selbst) per FTP oder Dateimanager des Hosters in das Verzeichnis der Subdomain hochladen. Die Datei `.htaccess` gehört mit dazu (sie sorgt dafür, dass jede Adresse die App zeigt).
+   5. Test: `https://app.deine-domain.de` im Browser öffnen – die NEXORA-Startseite erscheint.
+
+   **b) Mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg)**, im Projektordner:
    ```bash
    npx expo export --platform web
    npx eas-cli@latest deploy --prod
    ```
-   Beim ersten Mal fragt das Programm nach deinem Expo-Konto (kostenlos anlegen) und einem Namen; am Ende steht die Adresse, z. B. `https://nexora.expo.app`. (Die genauen Schritte stehen in Expos Anleitung zu „EAS Hosting“.) Jeder andere Webspace geht auch: einfach den Ordner `dist` hochladen – der Link funktioniert über die Startadresse (`/?angebot=…`).
-3. Die Adresse in die `.env` der App eintragen:
+   Beim ersten Mal fragt das Programm nach deinem Expo-Konto (kostenlos anlegen) und einem Namen; am Ende steht die Adresse, z. B. `https://nexora.expo.app`.
+3. Die Adresse in die `.env` der App eintragen (neue Zeile):
    ```
-   EXPO_PUBLIC_WEB_URL=https://nexora.expo.app
+   EXPO_PUBLIC_WEB_URL=https://app.deine-domain.de
    ```
-   Danach die Mac-App neu starten (`npm run mac`) **und** Schritt 2 wiederholen, damit beide die Adresse kennen.
+   Danach die Mac-App neu starten (`npm run mac`). Bei neuen Versionen von NEXORA Schritt 2 wiederholen, damit auch die Angebotsseite aktuell ist.
 
 Danach: im Auftrag beim Angebot **Senden → Link zum Annehmen** (Link wird kopiert, z. B. für WhatsApp) oder **Direkt senden** mit eingeschaltetem „Link zum Online-Annehmen“.
 

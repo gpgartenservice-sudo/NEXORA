@@ -1,0 +1,6 @@
+# NEXORA (Web): jede Adresse zeigt die App – Dateien, die es gibt, werden direkt ausgeliefert
+DirectoryIndex index.html
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
