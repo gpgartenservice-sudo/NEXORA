@@ -9,6 +9,7 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
+import { UpcomingAppointments } from '@/features/appointments/upcoming-card';
 import { FOCUS, formatToday, greeting, impulseOfTheDay } from '@/features/dashboard/content';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { GOALS } from '@/features/onboarding/options';
@@ -36,7 +37,9 @@ export default function DashboardScreen() {
   const totalSteps = stepsFor(profile?.stage).length;
   const doneSteps = stepsFor(profile?.stage).filter((s) => done.has(s.key)).length;
   const goals = GOALS.filter((g) => profile?.goals?.includes(g.key));
-  const tools = NAV_ITEMS.filter((i) => ['kunden', 'auftraege', 'finanzen', 'social', 'assistent'].includes(i.name));
+  const tools = NAV_ITEMS.filter((i) =>
+    ['kunden', 'auftraege', 'termine', 'finanzen', 'social', 'assistent'].includes(i.name),
+  );
 
   return (
     <Screen>
@@ -58,11 +61,22 @@ export default function DashboardScreen() {
         )}
       </View>
 
+      {/* Termine heute & morgen (nur wenn es welche gibt) */}
+      <Reveal delay={280}>
+        <UpcomingAppointments />
+      </Reveal>
+
       <View style={[styles.grid, twoColumns && styles.gridRow]}>
         {/* Fokus nach Phase */}
         <Reveal delay={320} style={twoColumns ? styles.colWide : undefined}>
           <Card style={styles.fill}>
-            <Image source={GLOW} style={styles.focusGlow} contentFit="fill" tintColor={Colors.accent} pointerEvents="none" />
+            <Image
+              source={GLOW}
+              style={styles.focusGlow}
+              contentFit="fill"
+              tintColor={Colors.accent}
+              pointerEvents="none"
+            />
             <Text style={styles.eyebrow}>DEIN FOKUS</Text>
             <View style={styles.focusHead}>
               <Text style={styles.focusEmoji}>{focus.emoji}</Text>
@@ -99,8 +113,16 @@ export default function DashboardScreen() {
             ) : (
               upcoming.map((step) => (
                 <View key={step.key} style={styles.step}>
-                  <StepCheck checked={done.has(step.key)} onToggle={() => toggle(step.key)} label={step.title} size={24} />
-                  <Pressable style={styles.stepPress} onPress={() => router.navigate('/fahrplan')} accessibilityRole="link">
+                  <StepCheck
+                    checked={done.has(step.key)}
+                    onToggle={() => toggle(step.key)}
+                    label={step.title}
+                    size={24}
+                  />
+                  <Pressable
+                    style={styles.stepPress}
+                    onPress={() => router.navigate('/fahrplan')}
+                    accessibilityRole="link">
                     <Text style={styles.stepText}>{step.title}</Text>
                   </Pressable>
                 </View>

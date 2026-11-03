@@ -88,6 +88,32 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
 });
 
 // ---------------------------------------------------------------------------
+// Termin in den Kalender: .ics-Datei in Downloads/NEXORA ablegen und mit dem
+// Kalender des Mac öffnen (der fragt dann, in welchen Kalender).
+// ---------------------------------------------------------------------------
+const MAX_ICS_BYTES = 1024 * 1024;
+
+function safeIcsName(name) {
+  const base = path.basename(String(name || 'Termin')).replace(/[^\w.\-äöüÄÖÜß ]+/g, '_').slice(0, 120);
+  return base.toLowerCase().endsWith('.ics') ? base : `${base}.ics`;
+}
+
+ipcMain.handle('nexora:open-calendar-file', async (event, payload) => {
+  if (!fromApp(event)) throw new Error('Nicht erlaubt');
+  const { text, fileName } = payload ?? {};
+  if (typeof text !== 'string' || !text.startsWith('BEGIN:VCALENDAR') || Buffer.byteLength(text, 'utf8') > MAX_ICS_BYTES) {
+    throw new Error('Ungültige Kalender-Datei');
+  }
+  const dir = path.join(app.getPath('downloads'), 'NEXORA');
+  await fs.promises.mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, safeIcsName(fileName));
+  await fs.promises.writeFile(filePath, text, 'utf8');
+  const problem = await shell.openPath(filePath);
+  if (problem) throw new Error(problem);
+  return { filePath };
+});
+
+// ---------------------------------------------------------------------------
 // Mikrofon (Sprachmodus von Nexy): nur für die App selbst und nur Ton.
 // Auf dem Mac fragt das System beim ersten Mal nach der Erlaubnis.
 // ---------------------------------------------------------------------------

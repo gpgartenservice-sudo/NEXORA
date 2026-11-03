@@ -11,6 +11,9 @@ if (!url || !publishableKey) {
   );
 }
 
+/** Adresse des Supabase-Projekts (z. B. für Links zu Server-Funktionen) */
+export const SUPABASE_URL = url;
+
 export const supabase = createClient(url, publishableKey, {
   auth: {
     // Im Web/auf dem Mac speichert Supabase die Sitzung selbst im Browser-Speicher,

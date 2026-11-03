@@ -1,4 +1,15 @@
-import { Briefcase, Building2, Ellipsis, House, Megaphone, Route, UserRound, Users, Wallet } from 'lucide-react-native';
+import {
+  Briefcase,
+  Building2,
+  CalendarDays,
+  Ellipsis,
+  House,
+  Megaphone,
+  Route,
+  UserRound,
+  Users,
+  Wallet,
+} from 'lucide-react-native';
 import type { ComponentType } from 'react';
 
 import { NexyGlyph } from '@/features/assistant/nexy-avatar';
@@ -11,6 +22,7 @@ export type NavItem = {
     | '/fahrplan'
     | '/kunden'
     | '/auftraege'
+    | '/termine'
     | '/firma'
     | '/finanzen'
     | '/social'
@@ -76,6 +88,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Aufträge',
     icon: Briefcase,
     description: 'Vom ersten Kontakt bis zur bezahlten Rechnung: Angebote, Termine, Rechnungen.',
+  },
+  {
+    name: 'termine',
+    href: '/termine',
+    label: 'Termine',
+    icon: CalendarDays,
+    description: 'Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Kalender-Abo.',
   },
   {
     name: 'firma',

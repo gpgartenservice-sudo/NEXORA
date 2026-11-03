@@ -40,6 +40,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261106090000_finances.sql` | Finanzen: Ausgaben (einmalig, monatlich, jährlich) und automatisches Abschlussdatum bei Aufträgen |
 | `20261107090000_social.sql` | Social Media: Posts (Board, Wochenplan, Zahlen) und Hashtag-Sets |
 | `20261108090000_social_accounts.sql` | TikTok & Instagram verbinden: Konten (Zugangsdaten verschlüsselt), Follower-Verlauf, Videos/Beiträge mit Zahlen |
+| `20261109090000_appointments.sql` | Termine: eigene Termine und geheimer Link fürs Kalender-Abo |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -158,7 +159,25 @@ Die Bezeichnungen in den Entwicklerportalen ändern sich ab und zu – sinngemä
 
 **Datenschutz:** Gespeichert werden Profilname, Profilbild, Follower-Zahlen, Beschreibungen, Links und Zahlen deiner Videos/Beiträge. Beim **Trennen** werden Zugang, Verlauf und Videoliste gelöscht (bei TikTok wird der Zugang auch dort zurückgezogen); deine Posts im Content-Board und ihre Zahlen bleiben.
 
-## 6. Wichtig zum Testen: E-Mail-Versand
+## 6. Termine & Kalender-Abo
+
+Der Bereich **Termine** zeigt Erstgespräche und Ausführungen aus deinen Aufträgen und eigene Termine (z. B. Steuerberatung) – als Woche oder Liste, mit offenen Punkten, Tagesroute (Google Maps ab deiner Firmenadresse) und „In Kalender übernehmen“. Dafür reicht das Datenbank-Skript `20261109090000_appointments.sql` (Abschnitt 3).
+
+**Kalender-Abo (optional):** Damit erscheinen alle Termine automatisch in Apple Kalender, Google Kalender oder Outlook – auch auf dem Handy – und bleiben aktuell.
+
+1. **Edge Functions → Deploy a new function → Via Editor**, Name genau `calendar`.
+2. Den Beispiel-Code komplett durch den Inhalt von [`functions/calendar/index.ts`](functions/calendar/index.ts) ersetzen → **Deploy**.
+3. In den Einstellungen der Funktion **Verify JWT** ausschalten – Kalender-Apps melden sich nicht an. Geschützt sind die Termine durch den langen, geheimen Link.
+4. In der App: **Termine → Kalender-Abo → Abo-Link erstellen → Abo testen**. Dann **In Apple Kalender öffnen** (Mac/iPhone) bzw. **Zu Google Kalender**.
+
+Gut zu wissen:
+
+- Apple Kalender fragt je nach Einstellung alle 5 Minuten bis 1× pro Woche nach neuen Terminen (*Kalender → Einstellungen → Accounts → Abonnements*), Google Kalender meist alle paar Stunden – das lässt sich bei Google nicht beschleunigen.
+- Das Abo ist zum Lesen: Termine änderst du in NEXORA.
+- Wer den Link kennt, sieht deine Termine (mit Kunden und Adressen). Bei Bedarf in der App **Neuen Link erzeugen** – der alte funktioniert dann sofort nicht mehr.
+- Falls **Abo testen** „Schlüssel ungültig“ meldet: Geheimnis `NEXORA_PUBLISHABLE_KEY` = der Publishable Key aus der `.env` der App (der ist öffentlich und darf dort hin).
+
+## 7. Wichtig zum Testen: E-Mail-Versand
 
 Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stunde** und **nur an Adressen von Mitgliedern eures Supabase-Teams**. Zum Testen also mit der E-Mail-Adresse registrieren, mit der ihr bei Supabase angemeldet seid.
 

@@ -63,6 +63,8 @@ export type ContextInput = {
   posts: PostLike[];
   /** verbundene TikTok-/Instagram-Konten */
   accounts?: AccountLike[];
+  /** Termine der nächsten Tage (schon kurz aufbereitet) */
+  upcoming?: Record<string, unknown>[];
   today?: Date;
 };
 
@@ -76,6 +78,7 @@ export function buildNexyContext({
   expenses,
   posts,
   accounts = [],
+  upcoming = [],
   today = new Date(),
 }: ContextInput) {
   const customerName = new Map(customers.map((c) => [c.id, c.name]));
@@ -140,6 +143,7 @@ export function buildNexyContext({
       dieses_jahr: money(monthRange(`${year}-01`, thisMonth)),
       fixkosten_pro_monat: fixedCostsPerMonth(expenses, today),
     },
+    termine_naechste_7_tage: upcoming.slice(0, 25),
     social: {
       ideen: statusCount('idea'),
       in_arbeit: statusCount('in_progress'),

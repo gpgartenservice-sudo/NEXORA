@@ -20,6 +20,8 @@ export type DesktopBridge = {
    * Anmeldeseite zu `callbackUrl` zurückleitet (url = komplette Rückleitung).
    */
   openAuthWindow?: (options: { url: string; callbackUrl: string }) => Promise<{ url?: string; cancelled?: boolean }>;
+  /** Kalender-Datei (.ics) mit dem Kalender des Mac öffnen (Termin übernehmen) */
+  openCalendarFile?: (payload: { text: string; fileName: string }) => Promise<{ filePath: string }>;
 };
 
 declare global {

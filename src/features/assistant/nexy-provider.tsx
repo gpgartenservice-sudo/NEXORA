@@ -6,6 +6,8 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { downloadPdf, PDF_UNSUPPORTED, pdfSupported, savePdf } from '@/features/documents/save-pdf';
 import { incomeProofMonths, summarize } from '@/features/finance/finance-logic';
 import { useFinance } from '@/features/finance/finance-provider';
+import { contextEvents } from '@/features/appointments/appointment-logic';
+import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { followerGrowth } from '@/features/social/connect-logic';
 import { useSocialConnect } from '@/features/social/connect-provider';
 import { useSocial } from '@/features/social/social-provider';
@@ -95,6 +97,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const finance = useFinance();
   const social = useSocial();
   const connected = useSocialConnect();
+  const calendar = useCalendarEvents();
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
@@ -126,6 +129,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         documents: docs.documents,
         expenses: finance.expenses,
         posts: social.posts,
+        upcoming: contextEvents(calendar, new Date(), 7),
         accounts: connected.accounts.map((a) => ({
           ...a,
           growth7:
@@ -176,6 +180,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       social.posts,
       connected.accounts,
       connected.stats,
+      calendar,
     ],
   );
 

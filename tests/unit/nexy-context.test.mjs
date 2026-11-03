@@ -58,3 +58,9 @@ test('Übersicht: verbundene Social-Konten mit Followern', () => {
   ]);
   assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).social.verbundene_konten, []);
 });
+
+test('Übersicht: nächste Termine', () => {
+  const c = buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], upcoming: [{ wann: 'Do., 05.11., 09:00', art: 'Erstgespräch', was: 'Hecke schneiden', kunde: 'Peter Müller' }], today: TODAY });
+  assert.equal(c.termine_naechste_7_tage[0].was, 'Hecke schneiden');
+  assert.deepEqual(buildNexyContext({ seller, customers: [], orders: [], documents: [], expenses: [], posts: [], today: TODAY }).termine_naechste_7_tage, []);
+});
