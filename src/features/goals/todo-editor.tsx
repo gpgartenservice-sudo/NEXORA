@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 import { useCrm } from '@/features/crm/crm-provider';
 
 import type { Todo } from './goals-logic';
@@ -36,7 +37,8 @@ export function TodoEditScreen() {
       </Screen>
     );
   }
-  return <TodoEditor key={todo.id} todo={todo} />;
+  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Nexy) -> frisch mit den neuen Werten
+  return <TodoEditor key={JSON.stringify(todo)} todo={todo} />;
 }
 
 function TodoEditor({ todo }: { todo: Todo }) {
@@ -92,24 +94,26 @@ function TodoEditor({ todo }: { todo: Todo }) {
   return (
     <Screen maxWidth={680}>
       <PageHeader title="To-do" back={{ label: 'To-dos', onPress: back }} />
-      <Reveal delay={120}>
-        <Card>
-          <TextField
-            label="Was ist zu tun?"
-            value={title}
-            onChangeText={(v) => {
-              setTitle(v);
-              setTitleError(undefined);
-            }}
-            error={titleError}
-            maxLength={200}
-          />
-          <DateField label="Fällig am (optional)" value={due} onChange={setDue} />
-          {due && <TextLink label="Ohne Datum" onPress={() => setDue(null)} />}
-          <ToggleRow label="Wichtig" value={important} onChange={setImportant} />
-          <ToggleRow label="Erledigt" value={done} onChange={setDone} />
-        </Card>
-      </Reveal>
+      <TourTarget id="guide.todo">
+        <Reveal delay={120}>
+          <Card>
+            <TextField
+              label="Was ist zu tun?"
+              value={title}
+              onChangeText={(v) => {
+                setTitle(v);
+                setTitleError(undefined);
+              }}
+              error={titleError}
+              maxLength={200}
+            />
+            <DateField label="Fällig am (optional)" value={due} onChange={setDue} />
+            {due && <TextLink label="Ohne Datum" onPress={() => setDue(null)} />}
+            <ToggleRow label="Wichtig" value={important} onChange={setImportant} />
+            <ToggleRow label="Erledigt" value={done} onChange={setDone} />
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={200}>
         <Card>

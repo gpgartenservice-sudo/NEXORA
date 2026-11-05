@@ -67,14 +67,19 @@ export function useVoiceMode() {
     if (session.current) end(session.current);
   }, [end]);
 
+  // Nexys Stimme ging nicht (z. B. ElevenLabs nicht eingerichtet) – Grund im Nexy-Bereich zeigen
+  const speechFailed = useCallback((text: string, setup: boolean) => {
+    setError({ text: `Nexy kann gerade nicht sprechen: ${text}`, setup });
+  }, []);
+
   const say = useCallback(async (s: Session, text: string) => {
     if (!s.alive || !text) return;
     setPhase('speaking');
-    const speech = speak(text);
+    const speech = speak(text, { onError: speechFailed });
     s.speech = speech;
     await speech.done;
     s.speech = null;
-  }, []);
+  }, [speechFailed]);
 
   const loop = useCallback(
     async (s: Session) => {
@@ -180,7 +185,7 @@ export function useVoiceMode() {
   const read = useCallback((text: string) => {
     if (session.current) return;
     readSpeech.current?.cancel();
-    const speech = speak(text);
+    const speech = speak(text, { onError: speechFailed });
     readSpeech.current = speech;
     setReading(true);
     void speech.done.then(() => {
@@ -189,7 +194,7 @@ export function useVoiceMode() {
         setReading(false);
       }
     });
-  }, []);
+  }, [speechFailed]);
 
   const stopReading = useCallback(() => {
     readSpeech.current?.cancel();

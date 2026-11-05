@@ -45,6 +45,8 @@ type State = {
   close: () => void;
   /** Nicht mehr automatisch zeigen */
   stopAuto: () => void;
+  /** Automatische Einführungen kurz zurückhalten (z. B. solange Nexy etwas zeigt) */
+  holdAuto: (on: boolean) => void;
   setOff: (off: boolean) => void;
   /** Alle Einführungen wieder als „neu“ markieren */
   reset: () => void;
@@ -84,6 +86,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ActiveTutorial | null>(null);
   const [version, setVersion] = useState(0);
   const [targets] = useState(() => new Map<string, Set<RefObject<HostInstance | null>>>());
+  const held = useRef(0);
 
   // Spalten vorhanden? (fehlt das Skript, liefert die Datenbank sie nicht mit)
   const dbMode = !!profile && 'tutorials_done' in profile && !dbFailed;
@@ -125,6 +128,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const autoStart = useCallback(
     (id: TutorialId) => {
       const { prefs: p, active: a, ready: r } = latest.current;
+      if (held.current > 0) return;
       if (!shouldAutoStart(id, { ready: r, off: p.off, done: p.done, active: !!a })) return;
       // ganz neu: die Startseite führt als Rundgang durch alle Bereiche
       start(id, { auto: true, tour: id === 'home' && p.done.length === 0 });
@@ -173,6 +177,10 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     setActive(null);
   }, [markDone, persist]);
 
+  const holdAuto = useCallback((on: boolean) => {
+    held.current = Math.max(0, held.current + (on ? 1 : -1));
+  }, []);
+
   const setOff = useCallback((off: boolean) => void persist({ ...latest.current.prefs, off }), [persist]);
   const reset = useCallback(() => void persist({ done: [], off: false }), [persist]);
 
@@ -203,6 +211,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       finish,
       close,
       stopAuto,
+      holdAuto,
       setOff,
       reset,
       register,
@@ -219,6 +228,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       finish,
       close,
       stopAuto,
+      holdAuto,
       setOff,
       reset,
       register,

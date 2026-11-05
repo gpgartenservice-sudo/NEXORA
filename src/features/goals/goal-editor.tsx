@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 import { todayIso } from '@/features/documents/document-logic';
 
 import { GoalCard } from './goal-card';
@@ -138,23 +139,25 @@ function GoalEditor({ goal, preset }: { goal?: Goal; preset?: { art?: string; ze
           Ziele brauchen noch das Datenbank-Skript 20261111090000_todos_goals.sql (siehe supabase/README.md).
         </Notice>
       )}
-      <Reveal delay={120}>
-        <Card>
-          <Text style={styles.cardTitle}>Was willst du erreichen?</Text>
-          <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Art des Ziels">
-            {GOAL_KINDS.map((k) => (
-              <OptionCard
-                key={k.kind}
-                compact
-                title={k.label}
-                description={k.description}
-                selected={kind === k.kind}
-                onPress={() => pickKind(k.kind)}
-              />
-            ))}
-          </View>
-        </Card>
-      </Reveal>
+      <TourTarget id="guide.goal">
+        <Reveal delay={120}>
+          <Card>
+            <Text style={styles.cardTitle}>Was willst du erreichen?</Text>
+            <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Art des Ziels">
+              {GOAL_KINDS.map((k) => (
+                <OptionCard
+                  key={k.kind}
+                  compact
+                  title={k.label}
+                  description={k.description}
+                  selected={kind === k.kind}
+                  onPress={() => pickKind(k.kind)}
+                />
+              ))}
+            </View>
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={200}>
         <Card>

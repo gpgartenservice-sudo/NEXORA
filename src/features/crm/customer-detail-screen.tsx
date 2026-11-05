@@ -11,6 +11,7 @@ import { ConfirmDelete } from '@/components/ui/confirm-delete';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
 import { useCrm } from './crm-provider';
@@ -41,38 +42,40 @@ export function CustomerDetailScreen() {
 
   return (
     <Screen maxWidth={960}>
-      <PageHeader
-        title={customer.name}
-        subtitle={customer.company ?? undefined}
-        back={{ label: 'Kunden', onPress: () => router.navigate('/kunden') }}
-        action={
-          <Button
-            label="+ Neuer Auftrag"
-            onPress={() => router.push({ pathname: '/auftraege/neu', params: { customer: customer.id } })}
-            style={styles.action}
-          />
-        }
-        meta={
-          (customer.phone || customer.email) && (
-            <View style={styles.quick}>
-              {!!customer.phone && (
-                <QuickAction
-                  icon={<Phone size={15} color={Colors.text} />}
-                  label={customer.phone}
-                  onPress={() => Linking.openURL(`tel:${customer.phone!.replace(/[^\d+]/g, '')}`)}
-                />
-              )}
-              {!!customer.email && (
-                <QuickAction
-                  icon={<Mail size={15} color={Colors.text} />}
-                  label="E-Mail senden"
-                  onPress={() => Linking.openURL(`mailto:${customer.email}`)}
-                />
-              )}
-            </View>
-          )
-        }
-      />
+      <TourTarget id="guide.customer">
+        <PageHeader
+          title={customer.name}
+          subtitle={customer.company ?? undefined}
+          back={{ label: 'Kunden', onPress: () => router.navigate('/kunden') }}
+          action={
+            <Button
+              label="+ Neuer Auftrag"
+              onPress={() => router.push({ pathname: '/auftraege/neu', params: { customer: customer.id } })}
+              style={styles.action}
+            />
+          }
+          meta={
+            (customer.phone || customer.email) && (
+              <View style={styles.quick}>
+                {!!customer.phone && (
+                  <QuickAction
+                    icon={<Phone size={15} color={Colors.text} />}
+                    label={customer.phone}
+                    onPress={() => Linking.openURL(`tel:${customer.phone!.replace(/[^\d+]/g, '')}`)}
+                  />
+                )}
+                {!!customer.email && (
+                  <QuickAction
+                    icon={<Mail size={15} color={Colors.text} />}
+                    label="E-Mail senden"
+                    onPress={() => Linking.openURL(`mailto:${customer.email}`)}
+                  />
+                )}
+              </View>
+            )
+          }
+        />
+      </TourTarget>
 
       <Reveal delay={200}>
         <StatRow>
@@ -101,7 +104,9 @@ export function CustomerDetailScreen() {
         <View style={styles.list}>
           {orders.map((o, i) => (
             <Reveal key={o.id} delay={Math.min(340 + i * 50, 700)}>
-              <OrderRow order={o} />
+              <TourTarget id={`guide.order.${o.id}`}>
+                <OrderRow order={o} />
+              </TourTarget>
             </Reveal>
           ))}
         </View>

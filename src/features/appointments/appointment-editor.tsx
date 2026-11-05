@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 import { useCrm } from '@/features/crm/crm-provider';
 import { toDate, toIso, toMs } from '@/lib/dates';
 
@@ -64,7 +65,8 @@ export function AppointmentEditScreen() {
       </Screen>
     );
   }
-  return <AppointmentEditor key={appointment.id} appointment={appointment} />;
+  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Nexy) -> frisch mit den neuen Werten
+  return <AppointmentEditor key={JSON.stringify(appointment)} appointment={appointment} />;
 }
 
 function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; datum?: string }) {
@@ -153,53 +155,55 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
       {setupError === 'setup' && (
         <Notice tone="error">Das Datenbank-Skript für Termine fehlt noch (siehe supabase/README.md).</Notice>
       )}
-      <Reveal delay={140}>
-        <Card>
-          <TextField
-            label="Was? *"
-            value={title}
-            onChangeText={(v) => {
-              setTitle(v);
-              setTitleError(undefined);
-            }}
-            error={titleError}
-            placeholder="z. B. Steuerberatung, Netzwerktreffen, Fotoshooting"
-            maxLength={200}
-          />
-          <ToggleRow label="Ganztägig" value={allDay} onChange={setAllDay} />
-          <DateField label={allDay ? 'Tag' : 'Beginn'} value={start} onChange={setStart} withTime={!allDay} />
-          {!allDay && (
-            <View style={styles.durationWrap}>
-              <Text style={styles.label}>Dauer</Text>
-              <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Dauer">
-                {DURATIONS.map((d) => {
-                  const active = d.minutes === minutes;
-                  return (
-                    <Pressable
-                      key={d.minutes}
-                      onPress={() => setMinutes(d.minutes)}
-                      accessibilityRole="radio"
-                      aria-checked={active}
-                      style={[styles.chip, active && styles.chipActive]}>
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{d.label}</Text>
-                    </Pressable>
-                  );
-                })}
-                {custom && (
-                  <View style={[styles.chip, styles.chipActive]}>
-                    <Text style={[styles.chipText, styles.chipTextActive]}>{minutes} Min.</Text>
-                  </View>
+      <TourTarget id="guide.appointment">
+        <Reveal delay={140}>
+          <Card>
+            <TextField
+              label="Was? *"
+              value={title}
+              onChangeText={(v) => {
+                setTitle(v);
+                setTitleError(undefined);
+              }}
+              error={titleError}
+              placeholder="z. B. Steuerberatung, Netzwerktreffen, Fotoshooting"
+              maxLength={200}
+            />
+            <ToggleRow label="Ganztägig" value={allDay} onChange={setAllDay} />
+            <DateField label={allDay ? 'Tag' : 'Beginn'} value={start} onChange={setStart} withTime={!allDay} />
+            {!allDay && (
+              <View style={styles.durationWrap}>
+                <Text style={styles.label}>Dauer</Text>
+                <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Dauer">
+                  {DURATIONS.map((d) => {
+                    const active = d.minutes === minutes;
+                    return (
+                      <Pressable
+                        key={d.minutes}
+                        onPress={() => setMinutes(d.minutes)}
+                        accessibilityRole="radio"
+                        aria-checked={active}
+                        style={[styles.chip, active && styles.chipActive]}>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{d.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {custom && (
+                    <View style={[styles.chip, styles.chipActive]}>
+                      <Text style={[styles.chipText, styles.chipTextActive]}>{minutes} Min.</Text>
+                    </View>
+                  )}
+                </View>
+                {end && (
+                  <Text style={styles.hint}>
+                    bis {pad(end.getHours())}:{pad(end.getMinutes())} Uhr
+                  </Text>
                 )}
               </View>
-              {end && (
-                <Text style={styles.hint}>
-                  bis {pad(end.getHours())}:{pad(end.getMinutes())} Uhr
-                </Text>
-              )}
-            </View>
-          )}
-        </Card>
-      </Reveal>
+            )}
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={200}>
         <Card>

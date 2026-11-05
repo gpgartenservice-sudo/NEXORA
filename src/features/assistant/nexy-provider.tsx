@@ -30,12 +30,44 @@ import {
   whenLabel,
   type Proposal,
 } from './assistant-logic';
+import {
+  appointmentChangeDone,
+  appointmentChangeSteps,
+  appointmentDone,
+  appointmentSteps,
+  customerDone,
+  customerSteps,
+  documentsDone,
+  documentsSteps,
+  documentSteps,
+  expenseDone,
+  expenseSteps,
+  goalDone,
+  goalSteps,
+  incomeProofSteps,
+  orderDateSteps,
+  orderDatesSteps,
+  orderDone,
+  orderPriceSteps,
+  orderSpotDone,
+  orderSteps,
+  postDone,
+  postSteps,
+  todoChangeDone,
+  todoChangeSteps,
+  todoDone,
+  todoSteps,
+  type GuideOrder,
+  type GuideStep,
+} from './guide-logic';
 import { buildNexyContext } from './nexy-context';
 
 export type NexyResult = { label: string; href?: string; note?: string };
 
-/** Ergebnis von "Ausführen" (für den Sprachmodus) */
+/** Ergebnis von "Ausführen" */
 export type ExecuteOutcome = { ok: boolean; results: NexyResult[]; error?: string };
+/** Nexy macht es in der App vor (vor bzw. nach jeder Aktion); fertig, wenn gezeigt */
+export type LivePlayer = (steps: GuideStep[]) => Promise<void>;
 
 export type NexyMessage = {
   id: string;
@@ -64,7 +96,8 @@ type State = {
   /** Nachricht an Nexy; liefert Nexys Antwort (null bei leerem Text) */
   send: (text: string, options?: { voice?: boolean }) => Promise<NexyMessage | null>;
   updateProposal: (messageId: string, proposalId: string, change: (p: Proposal) => Proposal) => void;
-  execute: (messageId: string) => Promise<ExecuteOutcome>;
+  /** `live`: Nexy zeigt dabei in der App, wie sie alles einträgt */
+  execute: (messageId: string, live?: LivePlayer) => Promise<ExecuteOutcome>;
   dismiss: (messageId: string) => void;
   reset: () => void;
   /** Was fehlt, damit ein Vorschlag ausgeführt werden kann? (Zuordnung, Pflichtangaben) */
@@ -272,7 +305,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   );
 
   const execute = useCallback(
-    async (messageId: string): Promise<ExecuteOutcome> => {
+    async (messageId: string, live?: LivePlayer): Promise<ExecuteOutcome> => {
       const message = latest.current.find((m) => m.id === messageId);
       if (!message?.proposals) return { ok: false, results: [], error: 'Diese Vorschläge gibt es nicht mehr.' };
       setExecuting(messageId);
@@ -287,6 +320,20 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const newOrders = new Map<string, Order>();
       // in diesem Durchgang geänderte Aufträge (z. B. neuer Preis vor der Rechnung)
       const changedOrders = new Map<string, Order>();
+      // Nexy macht es vor: vor jeder Aktion hingehen und eintippen, danach zeigen
+      const show = async (steps: GuideStep[]) => {
+        if (live && steps.length) await live(steps);
+      };
+      const named = (c: Customer | undefined) => (c ? { id: c.id, name: c.name } : null);
+      const customerOf = (id: string | null | undefined) =>
+        id ? (crm.customers.find((c) => c.id === id) ?? [...newCustomers.values()].find((c) => c.id === id)) : undefined;
+      const orderOf = (id: string) =>
+        changedOrders.get(id) ?? crm.orders.find((o) => o.id === id) ?? [...newOrders.values()].find((o) => o.id === id);
+      const guideOrder = (id: string, fallbackTitle?: string | null): GuideOrder => {
+        const o = orderOf(id);
+        const c = customerOf(o?.customer_id);
+        return { id, title: o?.title ?? fallbackTitle ?? 'Auftrag', customer: named(c), billing: o?.billing ?? null };
+      };
 
       const finish = (error?: string): ExecuteOutcome => {
         setExecuting(null);
@@ -298,18 +345,36 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         const blocked = blockers(p, all);
         if (blocked.length) return finish(`„${proposalLabel(p)}“: Dafür fehlt noch ${blocked.join(', ')}.`);
         if (p.kind === 'customer') {
+          await show(customerSteps(p));
           const { data, error } = await crm.createCustomer(p.data);
           if (error || !data) return finish(error ?? 'Der Kunde konnte nicht gespeichert werden.');
           newCustomers.set(p.id, data);
           results.push({ label: `Kunde ${data.name}`, href: `/kunden/${data.id}` });
+          await show(customerDone(data.id));
         } else if (p.kind === 'order') {
           const customerId =
             p.customer.existingId ?? (p.customer.newRef ? newCustomers.get(p.customer.newRef)?.id : undefined);
           if (!customerId) return finish(`Für „${p.data.title}“ fehlt der Kunde.`);
-          const { data, error } = await crm.createOrder({ customer_id: customerId, ...p.data });
+          await show(orderSteps(p, named(customerOf(customerId))));
+          // Termine trägt Nexy sichtbar im Auftrag nach (wie man es selbst machen würde)
+          const dates = { meeting_at: p.data.meeting_at, execution_at: p.data.execution_at };
+          const later = !!live && !!(dates.meeting_at || dates.execution_at);
+          const { data, error } = await crm.createOrder({
+            customer_id: customerId,
+            ...p.data,
+            ...(later ? { meeting_at: null, execution_at: null } : {}),
+          });
           if (error || !data) return finish(error ?? 'Der Auftrag konnte nicht gespeichert werden.');
           newOrders.set(p.id, data);
           results.push({ label: `Auftrag ${data.title}`, href: `/auftraege/${data.id}` });
+          await show(orderDone(data.id));
+          if (later) {
+            await show(orderDatesSteps(dates));
+            const { data: dated, error: dateError } = await crm.updateOrder(data.id, dates);
+            if (dateError) return finish(dateError);
+            if (dated) newOrders.set(p.id, dated);
+            await show(orderSpotDone(dates.meeting_at ? 'guide.order.meeting' : 'guide.order.execution'));
+          }
         } else if (p.kind === 'document') {
           const order = p.order.existingId
             ? (changedOrders.get(p.order.existingId) ?? crm.orders.find((o) => o.id === p.order.existingId))
@@ -319,6 +384,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
               [...newCustomers.values()].find((c) => c.id === order.customer_id))
             : undefined;
           if (!order || !customer) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
+          await show(documentSteps(p, guideOrder(order.id)));
           const kind = p.data.docKind;
           const service =
             kind === 'invoice'
@@ -334,9 +400,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             href: `/auftraege/${order.id}`,
             note: pdf.error ? pdf.error : 'als PDF gespeichert',
           });
+          await show(documentsDone(guideOrder(order.id)));
         } else if (p.kind === 'appointment') {
           const customerId =
             p.customer.existingId ?? (p.customer.newRef ? (newCustomers.get(p.customer.newRef)?.id ?? null) : null);
+          await show(appointmentSteps(p));
           const { data, error } = await appts.createAppointment({ ...p.data, customer_id: customerId });
           if (error || !data) return finish(error ?? 'Der Termin konnte nicht gespeichert werden.');
           results.push({
@@ -344,9 +412,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             note: whenLabel(data.starts_at, data.all_day),
             href: `/termine/${data.id}`,
           });
+          await show(appointmentDone(data.id));
         } else if (p.kind === 'order_date') {
           const orderId = p.order.existingId;
           if (!orderId) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
+          await show(orderDateSteps(p, guideOrder(orderId, p.order.title)));
           const dates = p.data.field === 'meeting' ? { meeting_at: p.data.at } : { execution_at: p.data.at };
           const { data: changed, error } = await crm.updateOrder(orderId, dates);
           if (error) return finish(error);
@@ -356,6 +426,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             note: whenLabel(p.data.at),
             href: `/auftraege/${orderId}`,
           });
+          await show(orderSpotDone(p.data.field === 'meeting' ? 'guide.order.meeting' : 'guide.order.execution'));
         } else if (p.kind === 'appointment_change') {
           const ev = p.event;
           const c = p.data;
@@ -371,6 +442,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
                   ? 'erledigt'
                   : 'wieder offen'
                 : 'geändert';
+          const changeOrder = ev.kind !== 'appointment' && ev.orderId ? guideOrder(ev.orderId, ev.title) : null;
+          await show(appointmentChangeSteps(p, changeOrder));
           if (ev.kind === 'appointment' && ev.appointmentId) {
             if (c.remove) {
               const { error } = await appts.deleteAppointment(ev.appointmentId);
@@ -399,9 +472,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             if (error) return finish(error);
             results.push({ label: what, note, href: `/auftraege/${ev.orderId}` });
           }
+          await show(appointmentChangeDone(p, changeOrder));
         } else if (p.kind === 'order_price') {
           const orderId = p.order.existingId;
           if (!orderId) return finish(`Für „${proposalLabel(p)}“ fehlt der Auftrag.`);
+          await show(orderPriceSteps(p, guideOrder(orderId, p.order.title)));
           const { data: changed, error } = await crm.updateOrder(orderId, {
             price: p.data.price,
             ...(p.data.billing ? { billing: p.data.billing } : {}),
@@ -409,10 +484,12 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           if (error) return finish(error);
           if (changed) changedOrders.set(orderId, changed);
           results.push({ label: proposalLabel(p), href: `/auftraege/${orderId}` });
+          await show(orderSpotDone('guide.order.price'));
         } else if (p.kind === 'todo') {
           const customerId =
             p.customer.existingId ?? (p.customer.newRef ? (newCustomers.get(p.customer.newRef)?.id ?? null) : null);
           const newOrder = p.order.newRef ? newOrders.get(p.order.newRef) : undefined;
+          await show(todoSteps(p));
           const { data, error } = await goals.createTodo({
             ...p.data,
             customer_id: newOrder?.customer_id ?? customerId,
@@ -424,8 +501,10 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             note: data.due_on ? `fällig ${data.due_on.split('-').reverse().join('.')}` : undefined,
             href: `/aufgaben/${data.id}`,
           });
+          await show(todoDone(data.id));
         } else if (p.kind === 'todo_change') {
           const c = p.data;
+          await show(todoChangeSteps(p));
           if (c.remove) {
             const { error } = await goals.deleteTodo(p.todo.id);
             if (error) return finish(error);
@@ -439,39 +518,51 @@ export function NexyProvider({ children }: { children: ReactNode }) {
               ...(c.done !== null ? { done: c.done } : {}),
             });
             if (error) return finish(error);
-            results.push({
-              label: `To-do ${c.title ?? p.todo.title}`,
-              note: c.done === true ? 'erledigt' : c.done === false ? 'wieder offen' : 'geändert',
-              href: `/aufgaben/${p.todo.id}`,
-            });
+            const note = c.done === true ? 'erledigt' : c.done === false ? 'wieder offen' : 'geändert';
+            results.push({ label: `To-do ${c.title ?? p.todo.title}`, note, href: `/aufgaben/${p.todo.id}` });
           }
+          await show(todoChangeDone(p));
         } else if (p.kind === 'goal') {
+          await show(goalSteps(p));
           const { data, error } = await goals.createGoal(p.data);
           if (error || !data) return finish(error ?? 'Das Ziel konnte nicht gespeichert werden.');
           results.push({ label: proposalLabel(p), href: `/aufgaben/ziele/${data.id}` });
+          await show(goalDone(data.id));
         } else if (p.kind === 'expense') {
+          await show(expenseSteps(p));
           const { data, error } = await finance.createExpense({ ...p.data, ends_on: null, notes: null });
           if (error || !data) return finish(error ?? 'Die Ausgabe konnte nicht gespeichert werden.');
           results.push({ label: `Ausgabe ${data.title}`, href: `/finanzen/ausgabe/${data.id}` });
+          await show(expenseDone(data.id));
         } else if (p.kind === 'post') {
+          await show(postSteps(p));
           const { data, error } = await social.createPost(p.data);
           if (error || !data) return finish(error ?? 'Die Post-Idee konnte nicht gespeichert werden.');
           results.push({ label: `Post-Idee ${data.title}`, href: `/social/${data.id}` });
+          await show(postDone(data.id));
         } else if (p.kind === 'mark_paid') {
+          const paidOrderId = docs.documents.find((d) => d.id === p.data.documentId)?.order_id;
+          const paidOrder = paidOrderId ? guideOrder(paidOrderId) : null;
+          await show(documentsSteps(paidOrder, `Ich markiere ${p.data.number} als bezahlt.`));
           const { error } = await docs.setPaid(p.data.documentId, true);
           if (error) return finish(error);
           results.push({ label: `${p.data.number} als bezahlt markiert`, href: '/finanzen' });
+          await show(documentsDone(paidOrder));
         } else if (p.kind === 'existing_pdf') {
           const doc = docs.documents.find((d) => d.id === p.data.documentId);
           if (!doc) return finish(`${p.data.number} gibt es nicht mehr.`);
+          const pdfOrder = doc.order_id ? guideOrder(doc.order_id) : null;
+          await show(documentsSteps(pdfOrder, `Ich speichere ${doc.number} als PDF.`));
           const pdf = await savePdf(doc, await docs.logoFor(doc));
           if (pdf.error) return finish(pdf.error);
           results.push({
             label: `${doc.number} als PDF gespeichert`,
             href: doc.order_id ? `/auftraege/${doc.order_id}` : undefined,
           });
+          await show(documentsDone(pdfOrder));
         } else if (p.kind === 'income_proof') {
           if (!pdfSupported) return finish(PDF_UNSUPPORTED);
+          await show(incomeProofSteps());
           const months = incomeProofMonths(p.data.period);
           const rows = summarize([...crm.orders, ...newOrders.values()], finance.expenses, months);
           try {

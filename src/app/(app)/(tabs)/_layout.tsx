@@ -12,6 +12,7 @@ import { GoalsProvider } from '@/features/goals/goals-provider';
 import { RoadmapProvider } from '@/features/roadmap/roadmap-provider';
 import { SocialConnectProvider } from '@/features/social/connect-provider';
 import { SocialProvider } from '@/features/social/social-provider';
+import { GuideProvider } from '@/features/assistant/nexy-guide';
 import { NexyProvider } from '@/features/assistant/nexy-provider';
 import { AppointmentsProvider } from '@/features/appointments/appointments-provider';
 import { PlanProvider } from '@/features/plan/plan-provider';
@@ -42,18 +43,20 @@ export default function TabsLayout() {
                       <GoalsProvider userId={user?.id ?? ''}>
                         <NexyProvider key={user?.id ?? ''}>
                           <TutorialProvider>
-                            <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
-                              <TabList asChild>
-                                <NavBar wide={wide}>
-                                  {NAV_ITEMS.map((item) => (
-                                    <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                                      <NavButton item={item} wide={wide} />
-                                    </TabTrigger>
-                                  ))}
-                                </NavBar>
-                              </TabList>
-                              <TabSlot style={styles.slot} />
-                            </Tabs>
+                            <GuideProvider>
+                              <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+                                <TabList asChild>
+                                  <NavBar wide={wide}>
+                                    {NAV_ITEMS.map((item) => (
+                                      <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                                        <NavButton item={item} wide={wide} />
+                                      </TabTrigger>
+                                    ))}
+                                  </NavBar>
+                                </TabList>
+                                <TabSlot style={styles.slot} />
+                              </Tabs>
+                            </GuideProvider>
                           </TutorialProvider>
                         </NexyProvider>
                       </GoalsProvider>

@@ -12,6 +12,11 @@
  * eine kurze Sprachaufnahme in Text um (Groq Whisper). Die Aufnahme wird
  * nicht gespeichert.
  *
+ * Vorlesen: Mit { mode: "speak", say } macht ElevenLabs aus einem kurzen Text
+ * gesprochene Sprache (MP3, kommt als application/octet-stream zurück). Der
+ * Text heißt bewusst "say" statt "text": Eine ältere Version dieser Funktion
+ * antwortet darauf nur mit "empty_text" – statt Claude zu fragen.
+ *
  * Belege: Mit { mode: "receipt", file, mime } liest Claude einen Beleg (Foto
  * oder PDF) und schlägt eine Ausgabe vor. Die Datei wird hier nicht
  * gespeichert (das macht die App im privaten Speicher des Nutzers).
@@ -26,6 +31,9 @@
  *   ASSISTANT_EFFORT    (optional) low | medium | high – Standard: low
  *   GROQ_API_KEY        (für den Sprachmodus) API-Schlüssel von console.groq.com
  *   TRANSCRIBE_MODEL    (optional) Standard: whisper-large-v3-turbo
+ *   ELEVENLABS_API_KEY  (für die natürliche Stimme) API-Schlüssel von elevenlabs.io
+ *   ELEVENLABS_VOICE_ID (für die natürliche Stimme) ID der Stimme ("Copy voice ID")
+ *   ELEVENLABS_MODEL    (optional) Standard: eleven_v4_turbo
  */
 import Anthropic from 'npm:@anthropic-ai/sdk@1.4.0';
 import { betaZodOutputFormat } from 'npm:@anthropic-ai/sdk@1.4.0/helpers/beta/zod';
@@ -49,6 +57,10 @@ const AUDIO_TYPES: Record<string, string> = {
   'audio/wav': 'wav',
   'audio/x-wav': 'wav',
 };
+const DEFAULT_TTS_MODEL = 'eleven_v4_turbo';
+const ELEVENLABS_TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
+// Die App schickt Antworten in Stücken von höchstens ~400 Zeichen
+const MAX_SPEAK_TEXT = 1000;
 // Hilft Whisper bei Fachwörtern und Namen
 const VOCABULARY =
   'NEXORA, Nexy, Angebot, Rechnung, Auftrag, Kunde, Ausgabe, Einkommensnachweis, Kleinunternehmer, Termin, Erstgespräch, Ausführung, TikTok, Instagram.';
@@ -329,6 +341,7 @@ type Body = {
   mime?: unknown;
   hints?: unknown;
   file?: unknown;
+  say?: unknown;
 };
 
 type Segment = { text?: unknown; no_speech_prob?: unknown; avg_logprob?: unknown };
@@ -406,6 +419,43 @@ async function transcribe(body: Body, deps: Deps): Promise<Response> {
   return json(200, { text: transcriptText(data) });
 }
 
+/** Text -> gesprochene Sprache (ElevenLabs, MP3). Zählt nicht als Nexy-Nachricht. */
+async function speak(body: Body, deps: Deps): Promise<Response> {
+  const key = deps.env('ELEVENLABS_API_KEY');
+  if (!key) return json(500, { error: 'missing_elevenlabs_key' });
+  const voice = deps.env('ELEVENLABS_VOICE_ID')?.trim();
+  if (!voice) return json(500, { error: 'missing_elevenlabs_voice' });
+  const text = typeof body.say === 'string' ? body.say.trim() : '';
+  if (!text) return json(400, { error: 'empty_say' });
+  if (text.length > MAX_SPEAK_TEXT) return json(400, { error: 'say_too_long', max: MAX_SPEAK_TEXT });
+
+  let res: Response;
+  try {
+    res = await deps.fetch(`${ELEVENLABS_TTS_URL}/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
+      method: 'POST',
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: deps.env('ELEVENLABS_MODEL') || DEFAULT_TTS_MODEL }),
+    });
+  } catch (error) {
+    console.error('ElevenLabs', error);
+    return json(502, { error: 'tts_error', detail: 'ElevenLabs nicht erreichbar' });
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    console.error('ElevenLabs', res.status, detail);
+    // Credits aufgebraucht meldet ElevenLabs als 401 mit "quota_exceeded"
+    if (/quota_exceeded/i.test(detail)) return json(402, { error: 'elevenlabs_quota' });
+    if (res.status === 401 || res.status === 403) return json(500, { error: 'invalid_elevenlabs_key' });
+    if (res.status === 404 || /voice_not_found/i.test(detail)) return json(500, { error: 'elevenlabs_voice_not_found' });
+    if (res.status === 429) return json(429, { error: 'rate_limited' });
+    return json(502, { error: 'tts_error', status: res.status, detail });
+  }
+  return new Response(res.body, {
+    status: 200,
+    headers: { ...CORS, 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' },
+  });
+}
+
 export async function handleRequest(req: Request, deps: Deps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
@@ -420,6 +470,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
   if (body.mode === 'transcribe') return transcribe(body, deps);
+  if (body.mode === 'speak') return speak(body, deps);
 
   // Belege und Nachrichten zählen (Gratis: 5 bzw. 20 im Monat)
   const kind = body.mode === 'receipt' ? 'receipt' : 'nexy';

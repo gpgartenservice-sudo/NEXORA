@@ -1,7 +1,6 @@
 /**
  * Sprachmodus von Nexy – reine Logik (ohne Browser), damit sie sich testen lässt:
- * Pausen-Erkennung, Sprachbefehle, Aufräumen von erkanntem und vorzulesendem Text,
- * Auswahl der Stimme.
+ * Pausen-Erkennung, Sprachbefehle, Aufräumen von erkanntem und vorzulesendem Text.
  */
 
 // ---------------------------------------------------------------------------
@@ -358,50 +357,6 @@ export function executedText(outcome: { ok: boolean; results: { label: string }[
   if (labels.length === 1) return `Erledigt: ${labels[0]}.`;
   if (labels.length <= 3) return `Erledigt: ${labels.slice(0, -1).join(', ')} und ${labels[labels.length - 1]}.`;
   return `Erledigt! ${labels.length} Sachen sind fertig.`;
-}
-
-// ---------------------------------------------------------------------------
-// Stimme
-// ---------------------------------------------------------------------------
-
-export type VoiceInfo = { name: string; lang: string; localService?: boolean; default?: boolean };
-
-// Gute deutsche Stimmen (Mac, Windows, Chrome)
-const GOOD_VOICES = [
-  'anna',
-  'petra',
-  'helena',
-  'markus',
-  'yannick',
-  'viktor',
-  'martin',
-  'katja',
-  'conrad',
-  'google deutsch',
-];
-
-/** Beste deutsche Stimme: Premium/Erweitert > bekannte gute Stimmen > lokal > irgendeine deutsche. */
-export function pickGermanVoice<T extends VoiceInfo>(voices: T[]): T | null {
-  const german = voices.filter((v) => /^de([-_]|$)/i.test(v.lang));
-  if (!german.length) return null;
-  const score = (v: T) => {
-    const name = v.name.toLowerCase();
-    let s = 0;
-    if (/^de[-_]de$/i.test(v.lang)) s += 4;
-    if (/premium/.test(name)) s += 40;
-    else if (/enhanced|erweitert|verbessert|natural|neural/.test(name)) s += 30;
-    if (GOOD_VOICES.some((g) => name.includes(g))) s += 12;
-    if (v.localService) s += 3;
-    // Spaß-/Effektstimmen auf dem Mac
-    if (
-      /grandma|grandpa|oma|opa|eddy|flo|reed|rocko|sandy|shelley|bahh|bells|boing|bubbles|cellos|wobble|whisper|zarvox|trinoids|organ|superstar|bad news|good news|jester/.test(
-        name,
-      )
-    )
-      s -= 50;
-    return s;
-  };
-  return [...german].sort((a, b) => score(b) - score(a))[0];
 }
 
 // ---------------------------------------------------------------------------

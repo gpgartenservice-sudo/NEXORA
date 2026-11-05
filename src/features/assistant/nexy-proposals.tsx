@@ -33,6 +33,7 @@ import { FORMATS, platformLabel } from '@/features/social/social-logic';
 import { toDate, toMs } from '@/lib/dates';
 
 import { goalLabel, proposalLabel, whenLabel, type Proposal } from './assistant-logic';
+import { useGuide } from './nexy-guide';
 import { useNexy, type NexyMessage } from './nexy-provider';
 
 const REPEAT = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
@@ -246,6 +247,18 @@ function rows(p: Proposal): [string, string][] {
 /** Vorschläge einer Nexy-Nachricht: an-/abwählen, fehlende Zuordnung wählen, ausführen. */
 export function NexyProposals({ message }: { message: NexyMessage }) {
   const { updateProposal, execute, dismiss, executing, blockers } = useNexy();
+  const guide = useGuide();
+  // Ausführen – Nexy macht es dabei sichtbar in der App vor
+  const run = async () => {
+    if (!guide) {
+      await execute(message.id);
+      return;
+    }
+    await guide.live(async (play) => {
+      const outcome = await execute(message.id, play);
+      return outcome.ok ? 'Erledigt!' : 'Da hat etwas nicht geklappt – im Chat steht, woran es liegt.';
+    });
+  };
   const { customers, orders } = useCrm();
   const events = useCalendarEvents();
   const all = message.proposals ?? [];
@@ -405,7 +418,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
           <Button label="Verwerfen" variant="secondary" onPress={() => dismiss(message.id)} style={styles.flex} />
           <Button
             label={chosen.length ? `Ausführen (${chosen.length})` : 'Nichts ausgewählt'}
-            onPress={() => void execute(message.id)}
+            onPress={() => void run()}
             loading={executing === message.id}
             disabled={!chosen.length || blocked || (executing !== null && executing !== message.id)}
             style={styles.flex}

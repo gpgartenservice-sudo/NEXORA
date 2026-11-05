@@ -18,6 +18,8 @@ import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-na
 
 import { Colors } from '@/constants/theme';
 
+import { speakReaction } from './voice';
+
 export type NexyMood = 'idle' | 'thinking' | 'happy' | 'listening' | 'talking';
 
 type Props = {
@@ -324,7 +326,11 @@ export function NexyAvatar({
   const boop = useCallback(() => {
     setDrowsy(false);
     setBooped(true);
-    if (talk) setSpeech(REACTIONS[Math.floor(Math.random() * REACTIONS.length)]);
+    if (talk) {
+      const line = REACTIONS[Math.floor(Math.random() * REACTIONS.length)];
+      setSpeech(line);
+      speakReaction(line);
+    }
     timers.current.push(
       setTimeout(() => setBooped(false), 1300),
       setTimeout(() => setSpeech(null), 1800),

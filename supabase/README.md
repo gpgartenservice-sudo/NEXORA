@@ -95,7 +95,7 @@ Fertig – in der App links **Nexy** öffnen und losschreiben.
 
 Im Eingabefeld von Nexy gibt es einen **Mikrofon-Knopf**. Dann hört Nexy zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge bestätigst du mit „Ja“ (oder verwirfst sie mit „Nein“), „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
 
-Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Vorgelesen wird mit den Stimmen deines Mac bzw. Browsers (kostenlos).
+Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Gesprochen wird mit Nexys Stimme von **ElevenLabs** (Abschnitt „Nexys Stimme“ unten).
 
 **1. Groq-Schlüssel holen**
 
@@ -110,13 +110,31 @@ Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übern
 
 **Mac-App:** Beim ersten Start des Sprachmodus fragt macOS, ob NEXORA das Mikrofon benutzen darf → **Erlauben**. Falls versehentlich abgelehnt: **Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon** → NEXORA einschalten (beim Start über `npm run mac` heißt der Eintrag „Terminal“ bzw. „Electron“) und die App neu starten.
 
-**Schönere Stimme (Mac):** **Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten …** → unter Deutsch z. B. **Anna (Premium)** oder **Petra (Premium)** laden. Nexy nimmt automatisch die beste deutsche Stimme.
-
 **Falls es nicht klappt:** Die App zeigt einen Hinweis, was fehlt („GROQ_API_KEY fehlt“, „alte Version der Server-Funktion“, „Mikrofon blockiert“). Details stehen unter **Edge Functions → assistant → Logs**. Optional: Geheimnis `TRANSCRIBE_MODEL` = `whisper-large-v3` (etwas genauer, etwas langsamer als der Standard `whisper-large-v3-turbo`).
 
 **Kosten:** Groq hat einen kostenlosen Einstieg mit Tageslimits; danach kostet die Spracherkennung nach Audio-Dauer nur einen Bruchteil eines Cents pro Nachricht (aktuelle Preise: groq.com/pricing). Dazu kommt wie beim Schreiben die Antwort von Claude.
 
 **Datenschutz:** Die Sprachaufnahme wird nur zur Umwandlung in Text an Groq (USA) übertragen; NEXORA speichert sie nicht. Auch das gehört in die Datenschutzerklärung.
+
+### Nexys Stimme (ElevenLabs)
+
+Nexy spricht mit einer Stimme von **ElevenLabs** – beim Vorlesen, im Sprachmodus und wenn man Nexy anstupst – über dieselbe Server-Funktion `assistant` (Modus „speak“). Eine andere Stimme gibt es nicht: Ist ElevenLabs nicht eingerichtet oder gerade nicht erreichbar, bleibt Nexy stumm und zeigt im Nexy-Bereich den Grund. Gesprochen wird nur im Mac-Fenster und im Browser.
+
+**1. Konto und Stimme:** Auf [elevenlabs.io](https://elevenlabs.io) registrieren – für deutsche Stimmen aus der Bibliothek und die Nutzung in der App mindestens **Starter** (der Gratis-Tarif darf Bibliotheks-Stimmen nicht über die Schnittstelle nutzen und hat keine kommerzielle Lizenz). **Voices → Explore** → Filter **Language: German** → Stimme mit **+** speichern → unter **My Voices** bei der Stimme **⋯ → Copy voice ID**.
+
+**2. API-Schlüssel:** Bei ElevenLabs unter **API Keys** einen Schlüssel anlegen, nur **Text to Speech** erlauben und ein **Credit-Limit** setzen (zum Testen z. B. 20.000).
+
+> Den Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
+
+**3. Als Geheimnisse speichern:** **Edge Functions → Secrets** → `ELEVENLABS_API_KEY` = Schlüssel, `ELEVENLABS_VOICE_ID` = kopierte Stimmen-ID → **Save**. Optional `ELEVENLABS_MODEL` (Standard `eleven_v4_turbo`; z. B. `eleven_flash_v2_5` = günstiger, `eleven_v4` = noch ausdrucksstärker, aber langsamer).
+
+**4. Neue Version der Funktion einspielen:** **Edge Functions → assistant → Code** → Inhalt komplett durch [`functions/assistant/index.ts`](functions/assistant/index.ts) ersetzen → **Deploy**.
+
+**Prüfen:** In der App bei Nexy **Vorlesen** einschalten und etwas fragen. Klappt etwas nicht, zeigt Nexy über dem Eingabefeld den Grund („ELEVENLABS_API_KEY fehlt“, „alte Version der Server-Funktion“, „Credits aufgebraucht“ …). Details: **Edge Functions → assistant → Logs**.
+
+**Kosten:** ElevenLabs rechnet nach Zeichen ab; eine vorgelesene Antwort (meist 300–500 Zeichen) kostet grob 1–3 Cent. Vorlesen zählt nicht als Nexy-Nachricht – Grenze sind die Credits des Schlüssels bzw. Tarifs (aktuelle Preise: elevenlabs.io/pricing). Die kurzen Ausrufe beim Anstupsen holt die App nur einmal pro Start.
+
+**Datenschutz:** Die vorzulesenden Antworten von Nexy (können Kundennamen und Beträge enthalten) gehen zur Umwandlung an ElevenLabs (USA). Auch das gehört in die Datenschutzerklärung.
 
 ## 5. TikTok & Instagram verbinden
 

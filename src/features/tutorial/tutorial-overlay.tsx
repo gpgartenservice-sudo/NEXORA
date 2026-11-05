@@ -10,13 +10,13 @@ import { TUTORIALS } from './tutorial-content';
 import { highlightRect, nextInTour, onScreen, placeCard, visibleSteps, type Rect } from './tutorial-logic';
 import { useTutorial, type ActiveTutorial } from './tutorial-provider';
 
-type Node = HostInstance & {
+export type Node = HostInstance & {
   getBoundingClientRect?: () => { left: number; top: number; width: number; height: number };
   scrollIntoView?: (o: { block: string; behavior: string }) => void;
 };
 
 /** Position einer Stelle im Fenster (Web: sofort, sonst über measureInWindow) */
-function measure(ref: RefObject<HostInstance | null>): Promise<Rect | null> {
+export function measure(ref: RefObject<HostInstance | null>): Promise<Rect | null> {
   const node = ref.current as Node | null;
   if (!node) return Promise.resolve(null);
   if (typeof node.getBoundingClientRect === 'function') {

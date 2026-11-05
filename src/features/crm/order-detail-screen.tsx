@@ -121,11 +121,31 @@ export function OrderDetailScreen() {
   return <OrderEditor key={`${order.id}-${order.offer_accepted ? 'a' : 'o'}`} order={order} mahnen={mahnen} />;
 }
 
+/** Eigene Änderungen behalten, alles andere auf den neuen Stand bringen */
+function rebaseDraft(draft: Draft, before: Draft, fresh: Draft): Draft {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const next = { ...fresh };
+  for (const key of Object.keys(fresh) as (keyof Draft)[]) {
+    if (!same(draft[key], before[key]) && !same(draft[key], fresh[key])) Object.assign(next, { [key]: draft[key] });
+  }
+  return next;
+}
+
 function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
   const { customerById, updateOrder, deleteOrder } = useCrm();
   const customer = customerById(order.customer_id);
   const [initial, setInitial] = useState(() => toDraft(order));
   const [draft, setDraft] = useState(initial);
+  // Von außen geändert (z. B. hat Nexy gerade gespeichert)? Dann die neuen Werte
+  // übernehmen – nur eigene, noch nicht gespeicherte Eingaben bleiben stehen.
+  const fresh = toDraft(order);
+  const freshKey = JSON.stringify(fresh);
+  const [seenKey, setSeenKey] = useState(freshKey);
+  if (seenKey !== freshKey) {
+    setSeenKey(freshKey);
+    setInitial(fresh);
+    setDraft((d) => rebaseDraft(d, initial, fresh));
+  }
   const [errors, setErrors] = useState<{ title?: string; price?: string; discount?: string; expenses?: string }>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -218,17 +238,19 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
 
   return (
     <Screen maxWidth={1000}>
-      <PageHeader
-        title={draft.title || 'Auftrag'}
-        back={{ label: 'Aufträge', onPress: () => router.navigate('/auftraege') }}
-        help={<TutorialButton id="auftrag" />}
-        meta={
-          <View style={styles.meta}>
-            <StatusPill status={status} />
-            {customer && <TextLink label={customer.name} emphasis onPress={() => router.push(`/kunden/${customer.id}`)} />}
-          </View>
-        }
-      />
+      <TourTarget id="guide.order">
+        <PageHeader
+          title={draft.title || 'Auftrag'}
+          back={{ label: 'Aufträge', onPress: () => router.navigate('/auftraege') }}
+          help={<TutorialButton id="auftrag" />}
+          meta={
+            <View style={styles.meta}>
+              <StatusPill status={status} />
+              {customer && <TextLink label={customer.name} emphasis onPress={() => router.push(`/kunden/${customer.id}`)} />}
+            </View>
+          }
+        />
+      </TourTarget>
 
       <TourTarget id="auftrag.status">
         <Reveal delay={180}>
@@ -244,13 +266,17 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
           <Card style={styles.fill}>
             <Text style={styles.cardTitle}>Ablauf</Text>
             <Text style={styles.cardHint}>Trag ein, was passiert ist – der Status oben passt sich automatisch an.</Text>
-            <DateField label="Termin (z. B. Erstgespräch, Besichtigung)" value={draft.meeting_at} onChange={(v) => set('meeting_at', v)} withTime />
+            <TourTarget id="guide.order.meeting">
+              <DateField label="Termin (z. B. Erstgespräch, Besichtigung)" value={draft.meeting_at} onChange={(v) => set('meeting_at', v)} withTime />
+            </TourTarget>
             <ToggleRow label="Termin erledigt" value={draft.meeting_done} onChange={(v) => set('meeting_done', v)} />
             <View style={styles.divider} />
             <ToggleRow label="Angebot verschickt" value={draft.offer_sent} onChange={(v) => set('offer_sent', v)} />
             <ToggleRow label="Angebot angenommen" value={draft.offer_accepted} onChange={(v) => set('offer_accepted', v)} />
             <View style={styles.divider} />
-            <DateField label="Ausführung" value={draft.execution_at} onChange={(v) => set('execution_at', v)} withTime />
+            <TourTarget id="guide.order.execution">
+              <DateField label="Ausführung" value={draft.execution_at} onChange={(v) => set('execution_at', v)} withTime />
+            </TourTarget>
             <ToggleRow label="Abgeschlossen" hint="Ab jetzt zählt der Auftrag zum Umsatz." value={draft.completed} onChange={(v) => set('completed', v)} />
             <ToggleRow label="Storniert" danger value={draft.cancelled} onChange={(v) => set('cancelled', v)} />
           </Card>
@@ -268,7 +294,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
                 { value: 'monthly', label: 'Monatlich' },
               ]}
             />
-            <View style={styles.row}>
+            <TourTarget id="guide.order.price" style={styles.row}>
               <View style={styles.flex}>
                 <TextField
                   label={monthly ? 'Preis pro Monat in €' : 'Preis in €'}
@@ -282,7 +308,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
               <View style={styles.small}>
                 <TextField label="Rabatt in %" value={draft.discount} onChangeText={(v) => set('discount', v)} error={errors.discount} placeholder="0" keyboardType="decimal-pad" />
               </View>
-            </View>
+            </TourTarget>
             {monthly && (
               <View style={styles.row}>
                 <View style={styles.flex}>

@@ -13,6 +13,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 import { readReceipt } from '@/features/assistant/assistant-api';
 import { formatEuro, parseEuro } from '@/features/crm/order-logic';
 import { todayIso } from '@/features/documents/document-logic';
@@ -243,72 +244,74 @@ function ExpenseEditor({
       {hints.map((h) => (
         <Notice key={h}>{h}</Notice>
       ))}
-      <Reveal delay={160}>
-        <Card>
-          <TextField
-            label="Wofür? *"
-            value={title}
-            onChangeText={(v) => {
-              setTitle(v);
-              setErrors((e) => ({ ...e, title: undefined }));
-            }}
-            error={errors.title}
-            placeholder="z. B. Canva Pro, Akku-Schrauber, Flyer"
-            maxLength={200}
-          />
-          <TextField
-            label={repeat === 'monthly' ? 'Betrag pro Monat in € *' : repeat === 'yearly' ? 'Betrag pro Jahr in € *' : 'Betrag in € *'}
-            value={amount}
-            onChangeText={(v) => {
-              setAmount(v);
-              setErrors((e) => ({ ...e, amount: undefined }));
-            }}
-            error={errors.amount}
-            placeholder="z. B. 49,90"
-            keyboardType="decimal-pad"
-          />
-          <Segmented
-            label="Wie oft?"
-            value={repeat}
-            onChange={setRepeat}
-            options={[
-              { value: 'once', label: 'Einmalig' },
-              { value: 'monthly', label: 'Monatlich' },
-              { value: 'yearly', label: 'Jährlich' },
-            ]}
-          />
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <DateField label={recurring ? 'Erste Zahlung' : 'Datum'} value={spentOn} onChange={setSpentOn} />
-            </View>
-            {recurring && (
-              <View style={styles.flex}>
-                <DateField label="Letzte Zahlung" value={endsOn} onChange={setEndsOn} hint="Leer = läuft weiter" />
-              </View>
-            )}
-          </View>
-          {showVat && (
+      <TourTarget id="guide.expense">
+        <Reveal delay={160}>
+          <Card>
             <TextField
-              label={repeat === 'once' ? 'Darin enthaltene Umsatzsteuer in €' : 'Darin enthaltene Umsatzsteuer je Zahlung in €'}
-              value={vat}
+              label="Wofür? *"
+              value={title}
               onChangeText={(v) => {
-                setVat(v);
-                setErrors((e) => ({ ...e, vat: undefined }));
+                setTitle(v);
+                setErrors((e) => ({ ...e, title: undefined }));
               }}
-              error={errors.vat}
-              placeholder="optional, z. B. 7,97 – steht auf dem Beleg"
+              error={errors.title}
+              placeholder="z. B. Canva Pro, Akku-Schrauber, Flyer"
+              maxLength={200}
+            />
+            <TextField
+              label={repeat === 'monthly' ? 'Betrag pro Monat in € *' : repeat === 'yearly' ? 'Betrag pro Jahr in € *' : 'Betrag in € *'}
+              value={amount}
+              onChangeText={(v) => {
+                setAmount(v);
+                setErrors((e) => ({ ...e, amount: undefined }));
+              }}
+              error={errors.amount}
+              placeholder="z. B. 49,90"
               keyboardType="decimal-pad"
             />
-          )}
-          {recurring && typeof parsed === 'number' && parsed > 0 && (
-            <Text style={styles.hint}>
-              {repeat === 'monthly'
-                ? `Das sind ${formatEuro(parsed * 12)} im Jahr.`
-                : `Das sind ${formatEuro(parsed / 12)} pro Monat.`}
-            </Text>
-          )}
-        </Card>
-      </Reveal>
+            <Segmented
+              label="Wie oft?"
+              value={repeat}
+              onChange={setRepeat}
+              options={[
+                { value: 'once', label: 'Einmalig' },
+                { value: 'monthly', label: 'Monatlich' },
+                { value: 'yearly', label: 'Jährlich' },
+              ]}
+            />
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <DateField label={recurring ? 'Erste Zahlung' : 'Datum'} value={spentOn} onChange={setSpentOn} />
+              </View>
+              {recurring && (
+                <View style={styles.flex}>
+                  <DateField label="Letzte Zahlung" value={endsOn} onChange={setEndsOn} hint="Leer = läuft weiter" />
+                </View>
+              )}
+            </View>
+            {showVat && (
+              <TextField
+                label={repeat === 'once' ? 'Darin enthaltene Umsatzsteuer in €' : 'Darin enthaltene Umsatzsteuer je Zahlung in €'}
+                value={vat}
+                onChangeText={(v) => {
+                  setVat(v);
+                  setErrors((e) => ({ ...e, vat: undefined }));
+                }}
+                error={errors.vat}
+                placeholder="optional, z. B. 7,97 – steht auf dem Beleg"
+                keyboardType="decimal-pad"
+              />
+            )}
+            {recurring && typeof parsed === 'number' && parsed > 0 && (
+              <Text style={styles.hint}>
+                {repeat === 'monthly'
+                  ? `Das sind ${formatEuro(parsed * 12)} im Jahr.`
+                  : `Das sind ${formatEuro(parsed / 12)} pro Monat.`}
+              </Text>
+            )}
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={220}>
         <Card>

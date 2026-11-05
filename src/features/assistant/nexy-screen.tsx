@@ -170,7 +170,9 @@ export function NexyScreen() {
                 <TutorialButton id="nexy" />
               </View>
               <Reveal style={styles.heroFigure}>
-                <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
+                <TourTarget id="guide.nexy">
+                  <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
+                </TourTarget>
               </Reveal>
               <AnimatedTitle text="Hey, ich bin Nexy." style={styles.heroTitle} delay={150} />
               <Reveal delay={350}>
@@ -192,7 +194,9 @@ export function NexyScreen() {
             </View>
           ) : (
             <View style={styles.head}>
-              <NexyAvatar size={34} mood={heroMood} interactive level={voice.level} />
+              <TourTarget id="guide.nexy">
+                <NexyAvatar size={34} mood={heroMood} interactive level={voice.level} />
+              </TourTarget>
               <View style={styles.headTexts}>
                 <Text style={styles.headTitle}>Nexy</Text>
                 <Text style={styles.headSub}>Dein KI-Assistent</Text>

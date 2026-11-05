@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { TourTarget } from '@/features/tutorial/tour-target';
 
 import { copyText } from './copy-text';
 import {
@@ -173,44 +174,46 @@ function PostEditor({ post, planned = null }: { post?: SocialPost; planned?: str
         <Notice tone="error">Das Datenbank-Skript für Social Media fehlt noch (siehe supabase/README.md).</Notice>
       )}
 
-      <Reveal delay={140}>
-        <Card>
-          <TextField
-            label="Idee / Thema *"
-            value={title}
-            onChangeText={(v) => {
-              setTitle(v);
-              setErrors((e) => ({ ...e, title: undefined }));
-            }}
-            error={errors.title}
-            placeholder="z. B. 3 Fehler, die ich als Gründerin gemacht habe"
-            maxLength={200}
-          />
-          <Segmented
-            label="Format"
-            value={format}
-            onChange={setFormat}
-            options={FORMATS.map((f) => ({ value: f.key, label: f.label }))}
-          />
-          <Text style={styles.label}>Plattformen</Text>
-          <View style={styles.chips}>
-            {PLATFORMS.map((p) => {
-              const active = platforms.includes(p.key);
-              return (
-                <Pressable
-                  key={p.key}
-                  onPress={() => togglePlatform(p.key)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: active }}
-                  accessibilityLabel={p.label}
-                  style={[styles.chip, active && styles.chipActive]}>
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-      </Reveal>
+      <TourTarget id="guide.post">
+        <Reveal delay={140}>
+          <Card>
+            <TextField
+              label="Idee / Thema *"
+              value={title}
+              onChangeText={(v) => {
+                setTitle(v);
+                setErrors((e) => ({ ...e, title: undefined }));
+              }}
+              error={errors.title}
+              placeholder="z. B. 3 Fehler, die ich als Gründerin gemacht habe"
+              maxLength={200}
+            />
+            <Segmented
+              label="Format"
+              value={format}
+              onChange={setFormat}
+              options={FORMATS.map((f) => ({ value: f.key, label: f.label }))}
+            />
+            <Text style={styles.label}>Plattformen</Text>
+            <View style={styles.chips}>
+              {PLATFORMS.map((p) => {
+                const active = platforms.includes(p.key);
+                return (
+                  <Pressable
+                    key={p.key}
+                    onPress={() => togglePlatform(p.key)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: active }}
+                    accessibilityLabel={p.label}
+                    style={[styles.chip, active && styles.chipActive]}>
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+        </Reveal>
+      </TourTarget>
 
       <Reveal delay={200}>
         <Card>

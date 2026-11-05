@@ -140,6 +140,55 @@ export async function transcribe(audio: string, mime: string, hints: string[] = 
   };
 }
 
+export type SpeechAudioResult = {
+  audio?: Blob;
+  error?: string;
+  /** Liegt an der Einrichtung (Schlüssel, Stimme, alte Server-Funktion) – nicht bei jeder Antwort neu versuchen */
+  notSetUp?: boolean;
+};
+
+/**
+ * Text -> gesprochene Sprache mit der natürlichen Stimme (Server-Funktion,
+ * Modus "speak", ElevenLabs). Die Fehlertexte stehen in den Einstellungen.
+ */
+export async function speechAudio(text: string, signal?: AbortSignal): Promise<SpeechAudioResult> {
+  const { data, error } = await supabase.functions.invoke('assistant', {
+    body: { mode: 'speak', say: text },
+    signal,
+  });
+  if (!error) {
+    if (data instanceof Blob && data.size > 0) return { audio: data };
+    return { error: 'ElevenLabs hat keine Sprache geliefert.' };
+  }
+
+  const http = await httpFailure(error);
+  if (http) {
+    if (http.status === 404) return { error: SETUP, notSetUp: true };
+    // Die alte Server-Funktion kennt das Vorlesen noch nicht und vermisst den Text
+    if (http.code === 'empty_text')
+      return {
+        error:
+          'In Supabase läuft noch die alte Version der Server-Funktion „assistant“ – ohne natürliche Stimme. Bitte den neuen Code einspielen.',
+        notSetUp: true,
+      };
+    if (http.code === 'missing_elevenlabs_key')
+      return { error: 'In Supabase fehlt noch das Geheimnis ELEVENLABS_API_KEY.', notSetUp: true };
+    if (http.code === 'missing_elevenlabs_voice')
+      return { error: 'In Supabase fehlt noch das Geheimnis ELEVENLABS_VOICE_ID.', notSetUp: true };
+    if (http.code === 'invalid_elevenlabs_key')
+      return { error: 'Der ElevenLabs-Schlüssel ist ungültig oder darf kein Text to Speech.', notSetUp: true };
+    if (http.code === 'elevenlabs_voice_not_found')
+      return { error: 'Die Stimme aus ELEVENLABS_VOICE_ID gibt es bei ElevenLabs nicht (mehr).', notSetUp: true };
+    if (http.code === 'elevenlabs_quota')
+      return { error: 'Die ElevenLabs-Credits sind aufgebraucht (Limit des Schlüssels oder des Tarifs).', notSetUp: true };
+    if (http.status === 401) return { error: 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.' };
+    if (http.status === 429) return { error: 'Gerade sind es zu viele Anfragen.' };
+    return { error: `ElevenLabs hat gerade nicht geantwortet (${technical(http)}).` };
+  }
+  if (error instanceof FunctionsFetchError) return { error: 'Keine Verbindung zu ElevenLabs.' };
+  return { error: `ElevenLabs hat gerade nicht geantwortet (${String(error.message ?? error)}).` };
+}
+
 export type ReceiptResult = { data?: ReceiptReading; error?: string; notSetUp?: boolean; quota?: boolean };
 
 /** Beleg (Foto/PDF als Base64) von Nexy lesen lassen (Server-Funktion, Modus "receipt"). */

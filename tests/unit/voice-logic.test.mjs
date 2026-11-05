@@ -7,7 +7,6 @@ import {
   createSpeechDetector,
   executedText,
   pendingConfirmation,
-  pickGermanVoice,
   speechChunks,
   speechText,
   spokenReply,
@@ -142,21 +141,6 @@ test('Nach dem Ausführen', () => {
   );
   assert.equal(executedText({ ok: true, results: Array.from({ length: 5 }, () => ({ label: 'x' })) }), 'Erledigt! 5 Sachen sind fertig.');
   assert.match(executedText({ ok: false, results: [], error: '„Rechnung“: Dafür fehlt noch IBAN.' }), /^Das hat nicht ganz geklappt\. „Rechnung“: Dafür fehlt noch IBAN\.$/);
-});
-
-test('Stimme: beste deutsche Stimme', () => {
-  const voices = [
-    { name: 'Samantha', lang: 'en-US', localService: true },
-    { name: 'Grandma (Deutsch (Deutschland))', lang: 'de-DE', localService: true },
-    { name: 'Anna', lang: 'de-DE', localService: true },
-    { name: 'Google Deutsch', lang: 'de-DE', localService: false },
-    { name: 'Petra (Premium)', lang: 'de-DE', localService: true },
-  ];
-  assert.equal(pickGermanVoice(voices).name, 'Petra (Premium)');
-  assert.equal(pickGermanVoice(voices.slice(0, 4)).name, 'Anna');
-  assert.equal(pickGermanVoice(voices.slice(0, 2)).name, 'Grandma (Deutsch (Deutschland))');
-  assert.equal(pickGermanVoice([{ name: 'Samantha', lang: 'en-US' }]), null);
-  assert.equal(pickGermanVoice([{ name: 'Helena', lang: 'de_AT' }]).name, 'Helena');
 });
 
 test('Ja/Nein gilt nur für die Vorschläge der letzten Nexy-Nachricht', () => {

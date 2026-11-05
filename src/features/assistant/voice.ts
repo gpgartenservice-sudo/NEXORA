@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 
 import { desktop } from '@/lib/desktop';
 
-import { createSpeechDetector, pickGermanVoice, speechChunks, speechText, type DetectorOptions } from './voice-logic';
+import { speechAudio, type SpeechAudioResult } from './assistant-api';
+import { createSpeechDetector, speechChunks, speechText, type DetectorOptions } from './voice-logic';
 
 /**
  * Sprachmodus von Nexy – Mikrofon, Aufnahme mit Pausen-Erkennung, Vorlesen.
@@ -26,15 +27,13 @@ export function voiceSupported(): boolean {
   return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined' && !!audioContextClass();
 }
 
-/** Kann die App hier vorlesen? */
+/** Kann die App hier vorlesen? (Mac-Fenster und Browser – Nexys Stimme kommt von ElevenLabs) */
 export function speechSupported(): boolean {
-  return (
-    Platform.OS === 'web' &&
-    typeof window !== 'undefined' &&
-    'speechSynthesis' in window &&
-    typeof SpeechSynthesisUtterance !== 'undefined'
-  );
+  return Platform.OS === 'web' && typeof window !== 'undefined' && typeof Audio !== 'undefined';
 }
+
+// Mikrofon offen (Sprachmodus): dann keine Ausrufe beim Anstupsen – sonst hört Nexy sich selbst
+let micOpen = false;
 
 // ---------------------------------------------------------------------------
 // Mikrofon + Aufnahme
@@ -174,11 +173,13 @@ export async function openMic(): Promise<{ mic?: Mic; error?: string }> {
   const close = () => {
     if (closed) return;
     closed = true;
+    micOpen = false;
     current?.cancel();
     stream.getTracks().forEach((t) => t.stop());
     void audio.close().catch(() => {});
   };
 
+  micOpen = true;
   return { mic: { record, chime, close } };
 }
 
@@ -193,81 +194,132 @@ export function blobToBase64(blob: Blob): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Vorlesen (Stimmen des Systems – auf dem Mac z. B. Anna/Petra, kostenlos)
+// Vorlesen – Nexys Stimme von ElevenLabs (über die Server-Funktion). Eine
+// andere Stimme gibt es nicht: Geht ElevenLabs nicht, bleibt Nexy stumm und
+// meldet den Grund.
 // ---------------------------------------------------------------------------
 
 export type Speech = { done: Promise<void>; cancel: () => void };
 
-// Chrome meldet bei Sprachausgaben, die nicht mehr referenziert werden, manchmal kein Ende
-const alive = new Set<SpeechSynthesisUtterance>();
-let active: Speech | null = null;
+// Größere Stücke klingen zusammenhängender; das nächste lädt, während eins läuft
+const CHUNK = 400;
 
-function loadVoices(): Promise<SpeechSynthesisVoice[]> {
-  const synth = window.speechSynthesis;
-  const now = synth.getVoices();
-  if (now.length) return Promise.resolve(now);
+let active: Speech | null = null;
+let reacting: Speech | null = null;
+// Kurze, immer gleiche Sätze (Ausrufe) nur einmal bei ElevenLabs holen
+const cache = new Map<string, Blob>();
+
+type SpeakOptions = {
+  onStart?: () => void;
+  /** Vorlesen ging nicht – Grund und ob es an der Einrichtung liegt */
+  onError?: (error: string, notSetUp: boolean) => void;
+  /** Aufnahme merken (für kurze, wiederkehrende Sätze) */
+  cache?: boolean;
+};
+
+/** Laufender Vorgang: abbrechbar, merkt sich, ob schon Ton kam */
+type Run = {
+  signal: AbortSignal;
+  started: () => void;
+  /** aktuell laufende Aufnahme (zum Anhalten) */
+  stopAudio: (() => void) | null;
+};
+
+/** Eine fertige Aufnahme abspielen. false = ließ sich nicht abspielen */
+function playAudio(blob: Blob, run: Run): Promise<boolean> {
   return new Promise((resolve) => {
-    const done = () => {
-      synth.removeEventListener('voiceschanged', done);
-      clearTimeout(timer);
-      resolve(synth.getVoices());
+    const url = URL.createObjectURL(new Blob([blob], { type: 'audio/mpeg' }));
+    const el = new Audio(url);
+    let over = false;
+    const end = (ok: boolean) => {
+      if (over) return;
+      over = true;
+      el.onended = null;
+      el.onerror = null;
+      run.stopAudio = null;
+      URL.revokeObjectURL(url);
+      resolve(ok);
     };
-    const timer = setTimeout(done, 1200);
-    synth.addEventListener('voiceschanged', done);
+    run.stopAudio = () => {
+      el.pause();
+      end(true);
+    };
+    el.onplaying = () => run.started();
+    el.onended = () => end(true);
+    el.onerror = () => end(false);
+    el.play().catch(() => end(false));
   });
 }
 
-/** Text vorlesen. `done` ist erfüllt, wenn fertig (oder abgebrochen). */
-export function speak(text: string, options: { onStart?: () => void } = {}): Speech {
+async function fetchChunk(text: string, run: Run, keep: boolean): Promise<SpeechAudioResult> {
+  const hit = keep ? cache.get(text) : undefined;
+  if (hit) return { audio: hit };
+  const result = await speechAudio(text, run.signal);
+  if (keep && result.audio) cache.set(text, result.audio);
+  return result;
+}
+
+/** Text vorlesen. `done` ist erfüllt, wenn fertig (oder abgebrochen bzw. fehlgeschlagen). */
+export function speak(text: string, options: SpeakOptions = {}): Speech {
   active?.cancel();
-  const chunks = speechChunks(speechText(text));
+  const chunks = speechChunks(speechText(text), CHUNK);
   if (!speechSupported() || !chunks.length) return { done: Promise.resolve(), cancel: () => {} };
 
-  const synth = window.speechSynthesis;
+  const controller = new AbortController();
   let cancelled = false;
+  let started = false;
   let finish: () => void = () => {};
   const done = new Promise<void>((resolve) => (finish = resolve));
+  const run: Run = {
+    signal: controller.signal,
+    started: () => {
+      if (started) return;
+      started = true;
+      options.onStart?.();
+    },
+    stopAudio: null,
+  };
   const speech: Speech = {
     done,
     cancel: () => {
       if (cancelled) return;
       cancelled = true;
-      synth.cancel();
+      controller.abort();
+      run.stopAudio?.();
       finish();
     },
   };
   active = speech;
-  synth.cancel();
 
   void (async () => {
-    const voice = pickGermanVoice(await loadVoices());
-    for (const [i, chunk] of chunks.entries()) {
+    const keep = !!options.cache;
+    let next = fetchChunk(chunks[0], run, keep);
+    for (let i = 0; i < chunks.length; i++) {
+      const result = await next;
       if (cancelled) break;
-      await new Promise<void>((resolve) => {
-        const u = new SpeechSynthesisUtterance(chunk);
-        u.lang = voice?.lang ?? 'de-DE';
-        if (voice) u.voice = voice;
-        u.rate = 1.04;
-        u.pitch = 1.08;
-        alive.add(u);
-        // Sicherheitsnetz, falls kein "Ende" gemeldet wird
-        const guard = setTimeout(() => end(), 4000 + chunk.length * 110);
-        const end = () => {
-          clearTimeout(guard);
-          alive.delete(u);
-          resolve();
-        };
-        u.onend = end;
-        u.onerror = end;
-        if (i === 0 && options.onStart) u.onstart = () => options.onStart?.();
-        synth.speak(u);
-      });
+      if (!result.audio) {
+        options.onError?.(result.error ?? 'Nexys Stimme hat nicht geantwortet.', !!result.notSetUp);
+        break;
+      }
+      // das nächste Stück schon holen, während dieses läuft
+      if (i + 1 < chunks.length) next = fetchChunk(chunks[i + 1], run, keep);
+      if (!(await playAudio(result.audio, run))) break;
     }
     if (active === speech) active = null;
     finish();
   })();
 
   return speech;
+}
+
+/**
+ * Kurzer Ausruf beim Anstupsen von Nexy. Unterbricht nichts: nicht, während
+ * Nexy eine Antwort vorliest oder das Mikrofon offen ist. Fehler bleiben still.
+ */
+export function speakReaction(text: string) {
+  if (!speechSupported() || micOpen) return;
+  if (active && active !== reacting) return;
+  reacting = speak(text, { cache: true });
 }
 
 /** Vorlesen sofort beenden */
