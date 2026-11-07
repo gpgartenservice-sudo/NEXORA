@@ -47,6 +47,13 @@ export function withOfferLink(body: string, url: string): string {
   return i >= 0 ? `${body.slice(0, i)}\n\n${block}${body.slice(i)}` : `${body}\n\n${block}`;
 }
 
+/** WhatsApp-Text um den Link ergänzen: vor "Viele Grüße" als eigener Absatz (sonst ans Ende) */
+export function withOfferLinkChat(chat: string, url: string): string {
+  const block = offerLinkText(url);
+  const i = chat.lastIndexOf(' Viele Grüße');
+  return i >= 0 ? `${chat.slice(0, i)}\n\n${block}\n\n${chat.slice(i + 1)}` : `${chat}\n\n${block}`;
+}
+
 /** Status eines Angebots aus Sicht des Kunden */
 export type OfferAnswer =
   | { state: 'open' }

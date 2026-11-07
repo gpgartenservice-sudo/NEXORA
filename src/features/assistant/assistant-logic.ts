@@ -1,8 +1,9 @@
 /**
  * Nexy (Assistent): Die Server-Funktion (supabase/functions/assistant)
  * liefert eine Antwort und Vorschläge. Hier werden die Vorschläge geprüft,
- * bereinigt und vorhandenen Kunden, Aufträgen und Dokumenten zugeordnet –
- * ausgeführt wird erst, wenn der Nutzer bestätigt.
+ * bereinigt und vorhandenen Kunden, Aufträgen und Dokumenten zugeordnet.
+ * Ausgeführt wird sofort (Nexy macht es in der App vor) – nur wenn etwas
+ * fehlt, wartet der Vorschlag, bis der Nutzer es ergänzt hat.
  *
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
@@ -39,7 +40,9 @@ type Obj = Record<string, unknown>;
 export type RawAction = {
   type?: unknown;
   customer?: Obj | null;
+  customer_delete?: Obj | null;
   order?: Obj | null;
+  order_delete?: Obj | null;
   expense?: Obj | null;
   post?: Obj | null;
   document?: Obj | null;
@@ -53,6 +56,14 @@ export type RawAction = {
   todo?: Obj | null;
   todo_change?: Obj | null;
   goal?: Obj | null;
+  customer_change?: Obj | null;
+  order_change?: Obj | null;
+  expense_change?: Obj | null;
+  post_change?: Obj | null;
+  goal_change?: Obj | null;
+  company_change?: Obj | null;
+  mark_unpaid?: Obj | null;
+  open?: Obj | null;
 };
 export type RawResult = { actions?: unknown; reply?: unknown; quick_replies?: unknown };
 
@@ -143,6 +154,157 @@ export type AppointmentChange = {
   remove: boolean;
 };
 
+// --- Änderungen an Vorhandenem: null = bleibt, '' = Feld leeren ---
+
+/** Kundendaten ändern (der Name lässt sich nicht leeren) */
+export type CustomerChange = {
+  name: string | null;
+  company: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+};
+/** Auftrag ändern (Preis und Termine haben eigene Vorschläge) */
+export type OrderChange = {
+  title: string | null;
+  description: string | null;
+  discount_percent: number | null;
+  contract_start: string | null;
+  contract_end: string | null;
+  meeting_done: boolean | null;
+  offer_sent: boolean | null;
+  offer_accepted: boolean | null;
+  completed: boolean | null;
+  cancelled: boolean | null;
+  expenses: number | null;
+  internal_notes: string | null;
+};
+export type ExpenseRepeat = 'once' | 'monthly' | 'yearly';
+/** Vorhandene Ausgabe – so, wie Nexy sie kennt */
+export type KnownExpense = {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  repeat: ExpenseRepeat;
+  spent_on: string;
+  ends_on: string | null;
+  notes: string | null;
+};
+export type ExpenseChange = {
+  title: string | null;
+  amount: number | null;
+  category: (typeof EXPENSE_CATEGORY_KEYS)[number] | null;
+  repeat: ExpenseRepeat | null;
+  spent_on: string | null;
+  ends_on: string | null;
+  notes: string | null;
+  remove: boolean;
+};
+export type PostFormatKey = (typeof POST_FORMAT_KEYS)[number];
+export type PlatformKey = (typeof PLATFORM_KEYS)[number];
+/** Vorhandener Post – so, wie Nexy ihn kennt */
+export type KnownPost = {
+  id: string;
+  title: string;
+  format: PostFormatKey;
+  platforms: PlatformKey[];
+  script: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  planned_for: string | null;
+  published_at: string | null;
+  url: string | null;
+};
+export const POST_METRICS = ['views', 'likes', 'comments', 'shares', 'saves'] as const;
+export type PostMetric = (typeof POST_METRICS)[number];
+export type PostChange = {
+  title: string | null;
+  format: PostFormatKey | null;
+  platforms: PlatformKey[] | null;
+  script: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  planned_for: string | null;
+  /** alle Schritte erledigt ("ready") bzw. keiner ("idea") */
+  steps: 'ready' | 'idea' | null;
+  published: boolean | null;
+  published_at: string | null;
+  url: string | null;
+  metrics: Partial<Record<PostMetric, number>>;
+  remove: boolean;
+};
+/** Vorhandenes Ziel – so, wie Nexy es kennt */
+export type KnownGoal = {
+  id: string;
+  kind: GoalKind;
+  period: GoalPeriod;
+  target: number;
+  title: string | null;
+  progress: number;
+  due_on: string | null;
+  archived: boolean;
+};
+export type GoalChange = {
+  target: number | null;
+  title: string | null;
+  period: GoalPeriod | null;
+  progress: number | null;
+  due_on: string | null;
+  archived: boolean | null;
+  remove: boolean;
+};
+/** Textfelder der Firmendaten (Bereich Firma) */
+export const COMPANY_TEXT_FIELDS = [
+  'company_name',
+  'owner_name',
+  'street',
+  'zip',
+  'city',
+  'phone',
+  'email',
+  'website',
+  'tax_number',
+  'vat_id',
+  'bank_name',
+  'iban',
+  'bic',
+  'review_url',
+] as const;
+export type CompanyTextField = (typeof COMPANY_TEXT_FIELDS)[number];
+/** Firmendaten ändern: nur die genannten Felder (Text null = leeren) */
+export type CompanyChange = Partial<Record<CompanyTextField, string | null>> & {
+  small_business?: boolean;
+  vat_rate?: 19 | 7;
+  payment_days?: number;
+  offer_validity_days?: number;
+};
+/** Seiten, die Nexy öffnen kann */
+export const PAGES = {
+  start: { href: '/home', label: 'Start' },
+  kunden: { href: '/kunden', label: 'Kunden' },
+  auftraege: { href: '/auftraege', label: 'Aufträge' },
+  termine: { href: '/termine', label: 'Termine' },
+  aufgaben: { href: '/aufgaben', label: 'Aufgaben' },
+  ziele: { href: '/aufgaben?ansicht=ziele', label: 'Ziele' },
+  finanzen: { href: '/finanzen', label: 'Finanzen' },
+  steuern: { href: '/finanzen/steuern', label: 'Steuern' },
+  beleg: { href: '/finanzen/beleg', label: 'Beleg erfassen' },
+  social: { href: '/social', label: 'Social Media' },
+  firma: { href: '/firma', label: 'Firma' },
+  fahrplan: { href: '/fahrplan', label: 'Fahrplan' },
+  profil: { href: '/profil', label: 'Profil' },
+  abo: { href: '/profil/abo', label: 'Abo' },
+  neuer_kunde: { href: '/kunden/neu', label: 'Neuer Kunde' },
+  neuer_auftrag: { href: '/auftraege/neu', label: 'Neuer Auftrag' },
+  neuer_termin: { href: '/termine/neu', label: 'Neuer Termin' },
+  neue_ausgabe: { href: '/finanzen/ausgabe/neu', label: 'Neue Ausgabe' },
+  neuer_post: { href: '/social/neu', label: 'Neue Post-Idee' },
+  neues_ziel: { href: '/aufgaben/ziele/neu', label: 'Neues Ziel' },
+} as const;
+export type PageKey = keyof typeof PAGES;
+
 /** Zu welchem Kunden gehört etwas? Vorhanden, neu aus diesem Gespräch, oder noch offen. */
 export type CustomerLink = { existingId: string | null; newRef: string | null; name: string | null };
 /** Zu welchem Auftrag gehört ein Angebot/eine Rechnung? */
@@ -150,6 +312,9 @@ export type OrderLink = { existingId: string | null; newRef: string | null; titl
 
 export type Proposal =
   | { id: string; kind: 'customer'; include: boolean; data: CustomerDraft; duplicateOf: string | null }
+  /** orderIds = seine Aufträge – die löscht Nexy vorher (mit Aufträgen lässt sich ein Kunde nicht löschen) */
+  | { id: string; kind: 'customer_delete'; include: boolean; data: { customerId: string; name: string; orderIds: string[] } }
+  | { id: string; kind: 'order_delete'; include: boolean; customer: CustomerLink; order: OrderLink }
   | { id: string; kind: 'order'; include: boolean; data: OrderDraft; customer: CustomerLink }
   | { id: string; kind: 'expense'; include: boolean; data: ExpenseDraft }
   | { id: string; kind: 'post'; include: boolean; data: PostDraft }
@@ -163,7 +328,8 @@ export type Proposal =
     }
   | { id: string; kind: 'income_proof'; include: boolean; data: { period: IncomePeriod } }
   | { id: string; kind: 'existing_pdf'; include: boolean; data: { documentId: string; number: string } }
-  | { id: string; kind: 'mark_paid'; include: boolean; data: { documentId: string; number: string } }
+  /** paid false = wieder auf offen setzen */
+  | { id: string; kind: 'mark_paid'; include: boolean; data: { documentId: string; number: string; paid: boolean } }
   | { id: string; kind: 'appointment'; include: boolean; data: AppointmentDraft; customer: CustomerLink }
   | {
       id: string;
@@ -192,9 +358,25 @@ export type Proposal =
     }
   | { id: string; kind: 'todo'; include: boolean; data: TodoDraft; customer: CustomerLink; order: OrderLink }
   | { id: string; kind: 'todo_change'; include: boolean; data: TodoChange; todo: KnownTodo }
-  | { id: string; kind: 'goal'; include: boolean; data: GoalDraft };
+  | { id: string; kind: 'goal'; include: boolean; data: GoalDraft }
+  | { id: string; kind: 'customer_change'; include: boolean; data: CustomerChange; customer: { id: string; name: string } }
+  | { id: string; kind: 'order_change'; include: boolean; data: OrderChange; customer: CustomerLink; order: OrderLink }
+  | { id: string; kind: 'expense_change'; include: boolean; data: ExpenseChange; expense: KnownExpense }
+  | { id: string; kind: 'post_change'; include: boolean; data: PostChange; post: KnownPost }
+  | { id: string; kind: 'goal_change'; include: boolean; data: GoalChange; goal: KnownGoal }
+  | { id: string; kind: 'company_change'; include: boolean; data: CompanyChange }
+  /** Seite in der App öffnen (dort bleibt man danach) */
+  | { id: string; kind: 'open'; include: boolean; data: { href: string; label: string } };
 
-export type ExistingCustomer = { id: string; name: string; company?: string | null };
+export type ExistingCustomer = {
+  id: string;
+  name: string;
+  company?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  notes?: string | null;
+};
 export type ExistingOrder = {
   id: string;
   title: string;
@@ -204,6 +386,16 @@ export type ExistingOrder = {
   cancelled?: boolean | null;
   price?: number | null;
   billing?: 'once' | 'monthly' | null;
+  description?: string | null;
+  discount_percent?: number | null;
+  contract_start?: string | null;
+  contract_end?: string | null;
+  meeting_done?: boolean | null;
+  offer_sent?: boolean | null;
+  offer_accepted?: boolean | null;
+  completed?: boolean | null;
+  expenses?: number | null;
+  internal_notes?: string | null;
 };
 export type ExistingDocument = {
   id: string;
@@ -224,6 +416,20 @@ export type Known = {
   /** offene To-dos, die Nexy mitgeschickt bekam, und ihre Kurzzeichen (A1 -> To-do) */
   todos?: KnownTodo[];
   todoRefs?: Record<string, string>;
+  /** Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …), die Nexy mitgeschickt bekam */
+  expenses?: KnownExpense[];
+  expenseRefs?: Record<string, string>;
+  posts?: KnownPost[];
+  postRefs?: Record<string, string>;
+  goals?: KnownGoal[];
+  goalRefs?: Record<string, string>;
+  /** aktuelle Firmendaten (damit nichts „geändert“ wird, was schon so ist) */
+  seller?: Partial<Record<CompanyTextField, string | null>> & {
+    small_business?: boolean;
+    vat_rate?: number;
+    payment_days?: number;
+    offer_validity_days?: number;
+  };
 };
 
 const str = (v: unknown, max = 500): string | null => {
@@ -245,6 +451,48 @@ const num = (v: unknown): number | null => {
 };
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T =>
   typeof v === 'string' && (list as readonly string[]).includes(v) ? (v as T) : fallback;
+const inList = <T extends string>(v: unknown, list: readonly T[]): T | null =>
+  typeof v === 'string' && (list as readonly string[]).includes(v) ? (v as T) : null;
+
+/** "none" & Co. = Feld leeren */
+const CLEAR = /^(none|null|ohne|leer|-)$/i;
+const isClear = (v: unknown) => typeof v === 'string' && CLEAR.test(v.trim());
+/** before: bisheriger Wert (undefined = unbekannt) */
+type Before<T> = T | null | undefined;
+
+/** Neuer Text: null = bleibt, '' = leeren (nur wenn bisher etwas drinsteht) */
+function textChange(v: unknown, max: number, before?: Before<string>): string | null {
+  if (isClear(v)) return before === null || before === '' ? null : '';
+  const s = str(v, max);
+  return s === null || s === before ? null : s;
+}
+/** Neues Datum (JJJJ-MM-TT): null = bleibt, '' = leeren */
+function dayChange(v: unknown, before?: Before<string>): string | null {
+  if (isClear(v)) return before === null ? null : '';
+  const d = validDay(typeof v === 'string' ? v.trim().slice(0, 10) : null);
+  return d === null || d === before ? null : d;
+}
+/** Ja/Nein: null = bleibt (auch wenn es schon so ist) */
+function flagChange(v: unknown, before?: Before<boolean>): boolean | null {
+  const b = v === true || v === 'true' ? true : v === false || v === 'false' ? false : null;
+  if (b === null || before === undefined) return b;
+  return b === !!before ? null : b;
+}
+/** Betrag/Zahl in [min, max]: null = bleibt */
+function numberChange(v: unknown, min: number, max: number, before?: Before<number>): number | null {
+  const n = num(v);
+  return n === null || n < min || n > max || n === before ? null : n;
+}
+const hasChange = (c: Record<string, unknown>) =>
+  Object.entries(c).some(([k, v]) =>
+    k === 'remove' ? false : v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).length > 0 : v !== null,
+  );
+/** Kurzzeichen (T1, A2, E3 …) -> Eintrag */
+const byRef = <T extends { id: string }>(ref: unknown, refs?: Record<string, string>, list?: T[]): T | undefined => {
+  const r = str(ref, 20)?.toUpperCase();
+  const id = r ? refs?.[r] : undefined;
+  return id ? list?.find((x) => x.id === id) : undefined;
+};
 
 /** "2026-11-04" -> gültiges Datum? */
 export function validDay(v: unknown): string | null {
@@ -427,7 +675,46 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
 
   // 3. Alles andere
   for (const a of valid) {
-    if (a.type === 'document' && a.document) {
+    if (a.type === 'customer_delete' && a.customer_delete) {
+      // nur ein vorhandener Kunde, eindeutig über den Namen
+      const c = matchCustomer(str(a.customer_delete.customer_name, 200), known.customers);
+      if (!c || out.some((p) => p.kind === 'customer_delete' && p.data.customerId === c.id)) continue;
+      // Mit Aufträgen lässt sich ein Kunde nicht löschen: erst seine Aufträge, dann ihn
+      const theirs = known.orders.filter((o) => o.customer_id === c.id);
+      for (const o of theirs) {
+        if (out.some((p) => p.kind === 'order_delete' && p.order.existingId === o.id)) continue;
+        out.push({
+          id: id(),
+          kind: 'order_delete',
+          include: true,
+          customer: { existingId: c.id, newRef: null, name: c.name },
+          order: { existingId: o.id, newRef: null, title: o.title },
+        });
+      }
+      out.push({
+        id: id(),
+        kind: 'customer_delete',
+        include: true,
+        data: { customerId: c.id, name: c.name, orderIds: theirs.map((o) => o.id) },
+      });
+    } else if (a.type === 'order_delete' && a.order_delete) {
+      const d = a.order_delete;
+      const title = str(d.order_title, 200);
+      const customer = linkCustomer(str(d.customer_name, 200), false);
+      if (customer.newRef) continue; // wird gerade erst angelegt – hat noch keine Aufträge
+      // auch abgesagte Aufträge lassen sich löschen
+      const existing = matchOrder(title, customer.existingId, known.orders);
+      if (!existing && !title) continue;
+      if (existing && out.some((p) => p.kind === 'order_delete' && p.order.existingId === existing.id)) continue;
+      out.push({
+        id: id(),
+        kind: 'order_delete',
+        include: true,
+        customer: existing ? ownerLink(existing) : customer,
+        // nicht eindeutig: der Nutzer wählt den Auftrag in der Karte
+        order: existing ? { existingId: existing.id, newRef: null, title: existing.title } : { existingId: null, newRef: null, title },
+      });
+    } else if (a.type === 'document' && a.document) {
       const d = a.document;
       const docKind = d.kind === 'offer' ? 'offer' : d.kind === 'invoice' ? 'invoice' : null;
       if (!docKind) continue;
@@ -754,23 +1041,265 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
         include: true,
         data: { period: oneOf(a.income_proof.period, INCOME_PERIODS, '3') },
       });
-    } else if ((a.type === 'existing_pdf' && a.existing_pdf) || (a.type === 'mark_paid' && a.mark_paid)) {
-      const ref = (a.type === 'existing_pdf' ? a.existing_pdf : a.mark_paid)!;
+    } else if (
+      (a.type === 'existing_pdf' && a.existing_pdf) ||
+      (a.type === 'mark_paid' && a.mark_paid) ||
+      (a.type === 'mark_unpaid' && a.mark_unpaid)
+    ) {
+      const ref = (a.type === 'existing_pdf' ? a.existing_pdf : a.type === 'mark_paid' ? a.mark_paid : a.mark_unpaid)!;
       const number = str(ref.number, 40);
       const doc = number ? known.documents.find((d) => normNumber(d.number) === normNumber(number)) : undefined;
       if (!doc) continue;
-      if (a.type === 'mark_paid' && (doc.kind !== 'invoice' || doc.paid_at)) continue;
-      if (
-        out.some(
-          (p) =>
-            (p.kind === 'existing_pdf' || p.kind === 'mark_paid') && p.kind === a.type && p.data.documentId === doc.id,
-        )
-      )
+      if (a.type === 'existing_pdf') {
+        if (out.some((p) => p.kind === 'existing_pdf' && p.data.documentId === doc.id)) continue;
+        out.push({ id: id(), kind: 'existing_pdf', include: true, data: { documentId: doc.id, number: doc.number } });
         continue;
-      out.push({ id: id(), kind: a.type, include: true, data: { documentId: doc.id, number: doc.number } } as Proposal);
+      }
+      // bezahlt markieren nur offene Rechnungen, auf offen setzen nur bezahlte
+      const paid = a.type === 'mark_paid';
+      if (doc.kind !== 'invoice' || !!doc.paid_at === paid) continue;
+      if (out.some((p) => p.kind === 'mark_paid' && p.data.documentId === doc.id)) continue;
+      out.push({ id: id(), kind: 'mark_paid', include: true, data: { documentId: doc.id, number: doc.number, paid } });
+    } else if (a.type === 'customer_change' && a.customer_change) {
+      const d = a.customer_change;
+      const c = matchCustomer(str(d.customer_name, 200), known.customers);
+      if (!c || out.some((p) => p.kind === 'customer_change' && p.customer.id === c.id)) continue;
+      const name = str(d.name, 200);
+      const email = textChange(d.email, 160, c.email);
+      const change: CustomerChange = {
+        name: name && name !== c.name ? name : null,
+        company: textChange(d.company, 200, c.company),
+        phone: textChange(d.phone, 60, c.phone),
+        // keine kaputte Adresse speichern
+        email: email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : email,
+        address: textChange(d.address, 300, c.address),
+        notes: textChange(d.notes, 2000, c.notes),
+      };
+      if (!hasChange(change)) continue;
+      out.push({ id: id(), kind: 'customer_change', include: true, data: change, customer: { id: c.id, name: c.name } });
+    } else if (a.type === 'order_change' && a.order_change) {
+      const d = a.order_change;
+      const title = str(d.order_title, 200);
+      const customer = linkCustomer(str(d.customer_name, 200), false);
+      if (customer.newRef) continue; // wird gerade erst angelegt
+      // auch stornierte Aufträge (z. B. wieder aufnehmen)
+      const existing = matchOrder(title, customer.existingId, known.orders);
+      if (!existing && !title) continue;
+      if (existing && out.some((p) => p.kind === 'order_change' && p.order.existingId === existing.id)) continue;
+      const e = existing ?? undefined;
+      const newTitle = str(d.title, 200);
+      const change: OrderChange = {
+        title: newTitle && newTitle !== e?.title ? newTitle : null,
+        description: textChange(d.description, 5000, e?.description),
+        discount_percent: numberChange(d.discount, 0, 100, e ? (e.discount_percent ?? 0) : undefined),
+        contract_start: dayChange(d.contract_start, e?.contract_start),
+        contract_end: dayChange(d.contract_end, e?.contract_end),
+        meeting_done: flagChange(d.meeting_done, e?.meeting_done),
+        offer_sent: flagChange(d.offer_sent, e?.offer_sent),
+        offer_accepted: flagChange(d.offer_accepted, e?.offer_accepted),
+        completed: flagChange(d.completed, e?.completed),
+        cancelled: flagChange(d.cancelled, e?.cancelled),
+        expenses: numberChange(d.expenses, 0, 9_999_999, e?.expenses),
+        internal_notes: textChange(d.internal_notes, 5000, e?.internal_notes),
+      };
+      if (!hasChange(change)) continue;
+      out.push({
+        id: id(),
+        kind: 'order_change',
+        include: true,
+        data: change,
+        customer: existing ? ownerLink(existing) : customer,
+        // nicht eindeutig: der Nutzer wählt den Auftrag in der Karte
+        order: existing
+          ? { existingId: existing.id, newRef: null, title: existing.title }
+          : { existingId: null, newRef: null, title },
+      });
+    } else if (a.type === 'expense_change' && a.expense_change) {
+      const c = a.expense_change;
+      const exp = byRef(c.ref, known.expenseRefs, known.expenses);
+      if (!exp || out.some((p) => p.kind === 'expense_change' && p.expense.id === exp.id)) continue;
+      const remove = c.remove === true;
+      const title = str(c.title, 200);
+      const category = inList(c.category, EXPENSE_CATEGORY_KEYS);
+      const repeat = inList(c.repeat, ['once', 'monthly', 'yearly'] as const);
+      const change: ExpenseChange = {
+        title: !remove && title && title !== exp.title ? title : null,
+        amount: remove ? null : numberChange(c.amount, 0.01, 9_999_999, exp.amount),
+        category: !remove && category !== exp.category ? category : null,
+        repeat: !remove && repeat !== exp.repeat ? repeat : null,
+        spent_on: remove ? null : dayChange(isClear(c.spent_on) ? null : c.spent_on, exp.spent_on),
+        ends_on: remove ? null : dayChange(c.ends_on, exp.ends_on),
+        notes: remove ? null : textChange(c.notes, 2000, exp.notes),
+        remove,
+      };
+      if (!remove && !hasChange(change)) continue;
+      out.push({ id: id(), kind: 'expense_change', include: true, data: change, expense: exp });
+    } else if (a.type === 'post_change' && a.post_change) {
+      const c = a.post_change;
+      const post = byRef(c.ref, known.postRefs, known.posts);
+      if (!post || out.some((p) => p.kind === 'post_change' && p.post.id === post.id)) continue;
+      const remove = c.remove === true;
+      const change: PostChange = {
+        title: null,
+        format: null,
+        platforms: null,
+        script: null,
+        caption: null,
+        hashtags: null,
+        planned_for: null,
+        steps: null,
+        published: null,
+        published_at: null,
+        url: null,
+        metrics: {},
+        remove,
+      };
+      if (!remove) {
+        const title = str(c.title, 200);
+        if (title && title !== post.title) change.title = title;
+        const format = inList(c.format, POST_FORMAT_KEYS);
+        if (format && format !== post.format) change.format = format;
+        if (Array.isArray(c.platforms)) {
+          const list = PLATFORM_KEYS.filter((k) => (c.platforms as unknown[]).includes(k));
+          if (list.join() !== PLATFORM_KEYS.filter((k) => post.platforms.includes(k)).join()) change.platforms = list;
+        }
+        change.script = textChange(c.notes, 10000, post.script);
+        change.caption = textChange(c.caption, 5000, post.caption);
+        change.hashtags = textChange(c.hashtags, 2000, post.hashtags);
+        if (isClear(c.planned_for)) {
+          if (post.planned_for) change.planned_for = '';
+        } else {
+          const at = localDateTime(c.planned_for, 18);
+          if (at && !(post.planned_for && sameInstant(at, post.planned_for))) change.planned_for = at;
+        }
+        const status = typeof c.status === 'string' ? c.status.trim().toLowerCase() : '';
+        if (status === 'ready' || status === 'idea') change.steps = status;
+        const publishedAt = localDateTime(c.published_at, 12);
+        const published = publishedAt ? true : status === 'published' ? true : flagChange(c.published);
+        if (published !== null && published !== !!post.published_at) change.published = published;
+        if (publishedAt && !(post.published_at && sameInstant(publishedAt, post.published_at)))
+          change.published_at = publishedAt;
+        const url = textChange(c.url, 500, post.url);
+        change.url = url && !/^https?:\/\/\S+$/i.test(url) ? null : url;
+        for (const m of POST_METRICS) {
+          const n = num(c[m]);
+          if (n !== null && n >= 0 && n < 10_000_000_000) change.metrics[m] = Math.round(n);
+        }
+        if (!hasChange(change)) continue;
+      }
+      out.push({ id: id(), kind: 'post_change', include: true, data: change, post });
+    } else if (a.type === 'goal_change' && a.goal_change) {
+      const c = a.goal_change;
+      const goal = byRef(c.ref, known.goalRefs, known.goals);
+      if (!goal || out.some((p) => p.kind === 'goal_change' && p.goal.id === goal.id)) continue;
+      const remove = c.remove === true;
+      const custom = goal.kind === 'custom';
+      const title = custom ? str(c.title, 120) : null;
+      const period = goal.kind === 'custom' ? null : inList(c.period, periodsFor(goal.kind) as readonly GoalPeriod[]);
+      const change: GoalChange = {
+        target: remove ? null : numberChange(c.target, 0.01, 100_000_000, goal.target),
+        title: !remove && title && title !== goal.title ? title : null,
+        period: !remove && period && period !== goal.period ? period : null,
+        progress: !remove && custom ? numberChange(c.progress, 0, 100_000_000, goal.progress) : null,
+        due_on: !remove && custom ? dayChange(c.due_on, goal.due_on) : null,
+        archived: remove ? null : flagChange(c.archived, goal.archived),
+        remove,
+      };
+      if (!remove && !hasChange(change)) continue;
+      out.push({ id: id(), kind: 'goal_change', include: true, data: change, goal });
+    } else if (a.type === 'company_change' && a.company_change) {
+      if (out.some((p) => p.kind === 'company_change')) continue;
+      const c = a.company_change;
+      const s = known.seller ?? {};
+      const change: CompanyChange = {};
+      const MAX: Record<CompanyTextField, number> = {
+        company_name: 200,
+        owner_name: 200,
+        street: 200,
+        zip: 10,
+        city: 100,
+        phone: 60,
+        email: 160,
+        website: 300,
+        tax_number: 60,
+        vat_id: 40,
+        bank_name: 120,
+        iban: 42,
+        bic: 15,
+        review_url: 500,
+      };
+      for (const key of COMPANY_TEXT_FIELDS) {
+        if (!(key in c)) continue;
+        const before = s[key];
+        if (isClear(c[key])) {
+          if (before === undefined || before) change[key] = null;
+          continue;
+        }
+        let v = str(c[key], MAX[key]);
+        if (v === null) continue;
+        if (key === 'iban') v = v.replace(/\s+/g, '').toUpperCase();
+        if (key === 'bic' || key === 'vat_id') v = v.replace(/\s+/g, '').toUpperCase();
+        // nur gültige Angaben übernehmen (wie das Formular)
+        if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) continue;
+        if (key === 'iban' && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(v)) continue;
+        if (key === 'review_url' && !/^https:\/\/\S+$/i.test(v)) continue;
+        if (v !== before) change[key] = v;
+      }
+      const small = flagChange(c.small_business, s.small_business);
+      if (small !== null) change.small_business = small;
+      const vat = num(c.vat_rate);
+      if ((vat === 19 || vat === 7) && vat !== s.vat_rate) change.vat_rate = vat;
+      const days = num(c.payment_days);
+      if (days !== null && Number.isInteger(days) && days >= 0 && days <= 120 && days !== s.payment_days)
+        change.payment_days = days;
+      const validity = num(c.offer_validity_days);
+      if (
+        validity !== null &&
+        Number.isInteger(validity) &&
+        validity >= 1 &&
+        validity <= 365 &&
+        validity !== s.offer_validity_days
+      )
+        change.offer_validity_days = validity;
+      if (Object.keys(change).length === 0) continue;
+      out.push({ id: id(), kind: 'company_change', include: true, data: change });
+    } else if (a.type === 'open' && a.open) {
+      if (out.some((p) => p.kind === 'open')) continue;
+      const target = openTarget(a.open, known);
+      if (target) out.push({ id: id(), kind: 'open', include: true, data: target });
     }
   }
   return out;
+}
+
+/** Wohin „öffne …“ führt: Eintrag (Kurzzeichen, Nummer, Auftrag, Kunde) oder Bereich */
+export function openTarget(o: Obj, known: Known): { href: string; label: string } | null {
+  const ref = str(o.ref, 20)?.toUpperCase();
+  if (ref) {
+    const ev = known.refs?.[ref] ? known.events?.find((e) => e.key === known.refs?.[ref]) : undefined;
+    if (ev?.appointmentId) return { href: `/termine/${ev.appointmentId}`, label: `Termin „${ev.title}“` };
+    if (ev?.orderId) return { href: `/auftraege/${ev.orderId}`, label: `Auftrag „${ev.title}“` };
+    const todo = byRef(ref, known.todoRefs, known.todos);
+    if (todo) return { href: `/aufgaben/${todo.id}`, label: `To-do „${todo.title}“` };
+    const exp = byRef(ref, known.expenseRefs, known.expenses);
+    if (exp) return { href: `/finanzen/ausgabe/${exp.id}`, label: `Ausgabe „${exp.title}“` };
+    const post = byRef(ref, known.postRefs, known.posts);
+    if (post) return { href: `/social/${post.id}`, label: `Post „${post.title}“` };
+    const goal = byRef(ref, known.goalRefs, known.goals);
+    if (goal) return { href: `/aufgaben/ziele/${goal.id}`, label: `Ziel „${goal.title ?? goalLabel(goal)}“` };
+  }
+  const number = str(o.number, 40);
+  const doc = number ? known.documents.find((d) => normNumber(d.number) === normNumber(number)) : undefined;
+  if (doc) return { href: doc.order_id ? `/auftraege/${doc.order_id}` : '/finanzen', label: doc.number };
+  const customer = matchCustomer(str(o.customer_name, 200), known.customers);
+  const title = str(o.order_title, 200);
+  if (title) {
+    const order = matchOrder(title, customer?.id ?? null, known.orders);
+    if (order) return { href: `/auftraege/${order.id}`, label: `Auftrag „${order.title}“` };
+  }
+  if (customer) return { href: `/kunden/${customer.id}`, label: `Kunde ${customer.name}` };
+  const page = inList(o.page, Object.keys(PAGES) as PageKey[]);
+  return page ? { ...PAGES[page] } : null;
 }
 
 /** Kann der Vorschlag ausgeführt werden? (Zuordnung zu Kunde/Auftrag) */
@@ -786,6 +1315,17 @@ export function proposalProblem(p: Proposal, all: Proposal[]): string | null {
   }
   if (p.kind === 'order_price') {
     return p.order.existingId ? null : 'Wähle den Auftrag für diesen Preis.';
+  }
+  if (p.kind === 'order_delete') {
+    return p.order.existingId ? null : 'Wähle den Auftrag, der gelöscht werden soll.';
+  }
+  if (p.kind === 'order_change') {
+    return p.order.existingId ? null : 'Wähle den Auftrag, der geändert werden soll.';
+  }
+  if (p.kind === 'customer_delete') {
+    // jeder seiner Aufträge muss vorher mit gelöscht werden
+    const going = new Set(all.flatMap((x) => (x.kind === 'order_delete' && x.include ? [x.order.existingId] : [])));
+    return p.data.orderIds.every((o) => going.has(o)) ? null : 'Erst müssen alle seine Aufträge gelöscht werden.';
   }
   if (p.kind === 'todo') {
     if (p.customer.newRef && !included(p.customer.newRef)) return 'Der neue Kunde dafür ist abgewählt.';
@@ -825,6 +1365,10 @@ export function proposalLabel(p: Proposal): string {
   switch (p.kind) {
     case 'customer':
       return `Kunde ${p.data.name}`;
+    case 'customer_delete':
+      return `Kunde ${p.data.name} löschen`;
+    case 'order_delete':
+      return `Auftrag${p.order.title ? ` „${p.order.title}“` : ''}${p.customer.name ? ` (${p.customer.name})` : ''} löschen`;
     case 'order':
       return `Auftrag „${p.data.title}“${p.customer.name ? ` für ${p.customer.name}` : ''}`;
     case 'expense':
@@ -838,7 +1382,31 @@ export function proposalLabel(p: Proposal): string {
     case 'existing_pdf':
       return `PDF von ${p.data.number}`;
     case 'mark_paid':
-      return `${p.data.number} als bezahlt markieren`;
+      return p.data.paid ? `${p.data.number} als bezahlt markieren` : `${p.data.number} wieder auf offen setzen`;
+    case 'customer_change':
+      return p.data.name ? `Kunde ${p.customer.name} umbenennen in ${p.data.name}` : `Kunde ${p.customer.name} ändern`;
+    case 'order_change': {
+      const t = p.order.title ? ` „${p.order.title}“` : '';
+      const c = p.data;
+      if (c.cancelled === true) return `Auftrag${t} stornieren`;
+      if (c.completed === true) return `Auftrag${t} abschließen`;
+      if (c.cancelled === false) return `Auftrag${t} wieder aufnehmen`;
+      return `Auftrag${t} ändern`;
+    }
+    case 'expense_change':
+      return `Ausgabe „${p.expense.title}“ ${p.data.remove ? 'löschen' : 'ändern'}`;
+    case 'post_change':
+      return `Post „${p.post.title}“ ${p.data.remove ? 'löschen' : 'ändern'}`;
+    case 'goal_change': {
+      const what = `Ziel „${p.goal.title ?? goalLabel(p.goal)}“`;
+      if (p.data.remove) return `${what} löschen`;
+      if (p.data.archived === true) return `${what} archivieren`;
+      return `${what} ändern`;
+    }
+    case 'company_change':
+      return `Firmendaten ändern (${companyFields(p.data).join(', ')})`;
+    case 'open':
+      return `${p.data.label} öffnen`;
     case 'appointment':
       return `Termin „${p.data.title}“ (${whenLabel(p.data.starts_at, p.data.all_day)})`;
     case 'order_date':
@@ -867,6 +1435,31 @@ export function proposalLabel(p: Proposal): string {
 
 export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
 
+/** Bezeichnungen der Firmendaten (wie im Bereich Firma) */
+export const COMPANY_FIELD_LABEL: Record<keyof CompanyChange, string> = {
+  company_name: 'Firmenname',
+  owner_name: 'Inhaber/in',
+  street: 'Straße und Hausnummer',
+  zip: 'PLZ',
+  city: 'Ort',
+  phone: 'Telefon',
+  email: 'E-Mail',
+  website: 'Website',
+  tax_number: 'Steuernummer',
+  vat_id: 'USt-IdNr.',
+  bank_name: 'Bank',
+  iban: 'IBAN',
+  bic: 'BIC',
+  review_url: 'Link für Bewertungen',
+  small_business: 'Kleinunternehmerregelung',
+  vat_rate: 'Umsatzsteuersatz',
+  payment_days: 'Zahlungsziel',
+  offer_validity_days: 'Gültigkeit von Angeboten',
+};
+/** Welche Firmendaten sich ändern (Bezeichnungen) */
+export const companyFields = (c: CompanyChange): string[] =>
+  (Object.keys(c) as (keyof CompanyChange)[]).map((k) => COMPANY_FIELD_LABEL[k]);
+
 const formatPrice = (n: number) =>
   `${n.toLocaleString('de-DE', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} €`;
 
@@ -883,11 +1476,29 @@ export function goalLabel(g: GoalDraft): string {
   return `${g.title ?? 'Eigenes Ziel'} (${n})`;
 }
 
+/**
+ * Kann Nexy die Vorschläge sofort ausführen? Ja, wenn etwas ausgewählt ist
+ * und nirgends etwas fehlt (sonst wartet die Karte auf den Nutzer).
+ */
+export function runnableNow(
+  proposals: Proposal[],
+  doneIds: string[],
+  blockers: (p: Proposal, all: Proposal[]) => string[],
+): boolean {
+  const done = new Set(doneIds);
+  const chosen = proposals.filter((p) => p.include && !done.has(p.id));
+  return chosen.length > 0 && chosen.every((p) => blockers(p, proposals).length === 0);
+}
+
 /** Reihenfolge beim Ausführen: erst Kunden, dann Aufträge, dann Dokumente … */
 export const EXECUTION_ORDER: Proposal['kind'][] = [
+  // Firmendaten zuerst: neue Bankverbindung o. Ä. soll schon auf der Rechnung stehen
+  'company_change',
   'customer',
+  'customer_change',
   'order',
   'order_price',
+  'order_change',
   'appointment',
   'order_date',
   'appointment_change',
@@ -895,9 +1506,17 @@ export const EXECUTION_ORDER: Proposal['kind'][] = [
   'todo',
   'todo_change',
   'goal',
+  'goal_change',
   'expense',
+  'expense_change',
   'post',
+  'post_change',
   'mark_paid',
   'existing_pdf',
   'income_proof',
+  // erst wenn alles andere erledigt ist – erst die Aufträge, dann der Kunde
+  'order_delete',
+  'customer_delete',
+  // ganz zuletzt: die Seite öffnen (dort bleibt man)
+  'open',
 ];

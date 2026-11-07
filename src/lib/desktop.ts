@@ -6,13 +6,21 @@ import { Platform } from 'react-native';
  */
 export type DesktopBridge = {
   canShare: boolean;
+  /**
+   * PDF in Downloads/NEXORA ablegen und verschicken. "mail": neue E-Mail in
+   * Apple Mail mit PDF-Anhang (attached), sonst mailto: + PDF im Finder
+   * (reason: 'not_allowed' = Mac hat das Steuern von Mail nicht erlaubt).
+   * from: Absender – Mail nimmt das Konto mit dieser Adresse; gibt es keins,
+   * das Standard-Konto (senderMissing).
+   */
   sendFile: (payload: {
     bytes: Uint8Array;
     fileName: string;
-    via: 'open' | 'share';
+    via: 'open' | 'share' | 'mail';
     url?: string;
     text?: string;
-  }) => Promise<{ filePath: string }>;
+    from?: string;
+  }) => Promise<{ filePath: string; attached?: boolean; senderMissing?: boolean; reason?: string }>;
   /** Mikrofon-Freigabe des Mac anfragen (ältere Versionen der Mac-App haben das nicht) */
   askMicrophone?: () => Promise<boolean>;
   /**

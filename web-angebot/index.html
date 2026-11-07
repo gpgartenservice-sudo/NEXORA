@@ -1,0 +1,416 @@
+<!doctype html>
+<!--
+  NEXORA – Angebotsseite für Kunden (eine einzige Datei, ohne die App)
+
+  Der Kunde öffnet den Link aus der E-Mail (https://nexoranexy.de/?angebot=…),
+  sieht das Angebot und nimmt es an oder lehnt es ab. Die Daten kommen über die
+  Datenbank-Funktionen offer_view / offer_accept / offer_decline
+  (supabase/migrations/20261113090000_offer_links_mail.sql).
+
+  %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-hochladen.sh aus der
+  .env ein (öffentliche Daten, kein Geheimnis). Fertige Datei: dist-angebot/.
+  Inhalt und Texte entsprechen src/features/documents/offer-public-screen.tsx.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>Angebot</title>
+  <style>
+    :root {
+      --accent: #2FE39A;
+      --ink: #111214;
+      --muted: #5C6066;
+      --line: #E4E6E9;
+      --page: #F4F5F7;
+      --error: #C0392B;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.47 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    .card {
+      width: 100%;
+      max-width: 720px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } .card { padding: 18px; } }
+    h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.4px; }
+    p { margin: 0; }
+    .company { font-size: 20px; font-weight: 700; }
+    .logo { display: block; height: 56px; max-width: 260px; object-fit: contain; object-position: left center; }
+    .small { color: var(--muted); font-size: 13px; line-height: 1.46; }
+    .eyebrow { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 1.2px; }
+    .title { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+    .items { border-top: 1px solid var(--line); }
+    .item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .item-texts { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .item-title, .item-sum { font-weight: 600; }
+    .item-title { overflow-wrap: anywhere; }
+    .item-sum { white-space: nowrap; }
+    .totals { display: flex; flex-direction: column; gap: 6px; }
+    .line { display: flex; justify-content: space-between; gap: 12px; }
+    .strong { font-weight: 700; font-size: 17px; }
+    .box { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .box.ok { border-color: rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.12); }
+    .box-title { font-size: 16px; font-weight: 700; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    button {
+      flex: 1 1 auto;
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px 20px;
+      cursor: pointer;
+      min-height: 48px;
+    }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    label.field { color: var(--muted); font-size: 13px; font-weight: 600; }
+    input[type="text"], textarea {
+      width: 100%;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .confirm { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+    .confirm input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+    .problem { color: var(--error); font-size: 14px; }
+    .footer { display: flex; flex-wrap: wrap; gap: 8px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .footer a { color: var(--ink); font-size: 14px; }
+    .made { color: #9AA0A6; font-size: 12px; margin: 0; }
+    .loading { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="card" id="app" aria-live="polite">
+    <p class="loading">Angebot wird geladen …</p>
+  </main>
+  <p class="made">Erstellt mit NEXORA</p>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var SUPABASE_URL = '%%SUPABASE_URL%%';
+      var SUPABASE_KEY = '%%SUPABASE_KEY%%';
+
+      var ERRORS = {
+        invalid_name: 'Bitte geben Sie Ihren vollständigen Namen ein.',
+        expired: 'Dieses Angebot ist leider abgelaufen.',
+        already_accepted: 'Dieses Angebot wurde bereits angenommen.',
+        already_declined: 'Dieses Angebot wurde bereits abgelehnt.',
+        not_found: 'Dieses Angebot gibt es nicht mehr.',
+        failed: 'Das hat gerade nicht geklappt. Bitte versuchen Sie es noch einmal.'
+      };
+
+      var app = document.getElementById('app');
+      var token = new URLSearchParams(window.location.search).get('angebot') || '';
+      var validToken = /^[A-Za-z0-9_-]{32,64}$/.test(token);
+
+      var state = { offer: null, mode: 'none', name: '', confirm: false, note: '', busy: false, problem: null };
+
+      // ---------- Hilfen ----------
+
+      /** Element bauen – Texte immer als Text, nie als HTML (Daten kommen vom Nutzer) */
+      function el(tag, attrs) {
+        var node = document.createElement(tag);
+        if (attrs) {
+          Object.keys(attrs).forEach(function (k) {
+            var v = attrs[k];
+            if (v === null || v === undefined || v === false) return;
+            if (k === 'class') node.className = v;
+            else if (k.slice(0, 2) === 'on') node.addEventListener(k.slice(2), v);
+            else if (k === 'checked' || k === 'disabled' || k === 'value') node[k] = v;
+            else node.setAttribute(k, v === true ? '' : String(v));
+          });
+        }
+        for (var i = 2; i < arguments.length; i++) {
+          var c = arguments[i];
+          if (c === null || c === undefined || c === false || c === '') continue;
+          node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        }
+        return node;
+      }
+
+      function money(v) {
+        return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(v) || 0);
+      }
+
+      function num(v) {
+        return (Number(v) || 0).toLocaleString('de-DE');
+      }
+
+      /** "JJJJ-MM-TT" -> "TT.MM.JJJJ" */
+      function day(iso) {
+        if (!iso) return '';
+        var p = String(iso).slice(0, 10).split('-');
+        return p[2] + '.' + p[1] + '.' + p[0];
+      }
+
+      function todayIso() {
+        var d = new Date();
+        var p = function (n) { return String(n).padStart(2, '0'); };
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+      }
+
+      function answerOf(o) {
+        if (o.accepted_at) return { state: 'accepted', at: o.accepted_at, name: o.accepted_name };
+        if (o.declined_at) return { state: 'declined', at: o.declined_at };
+        if (o.valid_until && o.valid_until < todayIso()) return { state: 'expired' };
+        return { state: 'open' };
+      }
+
+      async function rpc(name, body) {
+        try {
+          var res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+            method: 'POST',
+            headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) return { error: res.status };
+          var text = await res.text();
+          return { data: text ? JSON.parse(text) : null };
+        } catch (e) {
+          return { error: String(e) };
+        }
+      }
+
+      async function load() {
+        var r = await rpc('offer_view', { p_token: token });
+        if (r.error) return 'failed';
+        if (!r.data) return 'missing';
+        state.offer = r.data;
+        return 'ready';
+      }
+
+      // ---------- Anzeige ----------
+
+      function message(title, text) {
+        app.replaceChildren(el('h1', null, title), el('p', null, text));
+      }
+
+      function line(label, value, strong) {
+        var cls = strong ? 'strong' : null;
+        return el('div', { class: 'line' }, el('span', { class: cls }, label), el('span', { class: cls }, value));
+      }
+
+      function render() {
+        var o = state.offer;
+        var d = o.data || {};
+        var s = d.seller || {};
+        var b = d.buyer || {};
+        var t = d.totals || {};
+        var items = Array.isArray(d.items) ? d.items : [];
+        var company = String(s.company_name || s.owner_name || '').trim();
+        var answer = answerOf(o);
+        var parts = [];
+
+        document.title = 'Angebot ' + (o.number || '') + (company ? ' – ' + company : '');
+
+        // Absender
+        var logo = o.logo;
+        if (logo && /^image\/(png|jpeg|webp|gif)$/.test(logo.mime) && /^[A-Za-z0-9+/=]+$/.test(logo.data || '')) {
+          parts.push(el('img', { class: 'logo', src: 'data:' + logo.mime + ';base64,' + logo.data, alt: 'Logo ' + company }));
+        } else if (company) {
+          parts.push(el('div', { class: 'company' }, company));
+        }
+        parts.push(el('p', { class: 'small' },
+          [company, s.street, [s.zip, s.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ')));
+
+        // Titel
+        parts.push(el('div', { class: 'title' },
+          el('span', { class: 'eyebrow' }, 'ANGEBOT'),
+          el('h1', null, String(o.number || '')),
+          el('p', null, 'vom ' + day(o.issued_on) + (o.valid_until ? ' · gültig bis ' + day(o.valid_until) : '')),
+          el('p', null, 'für ' + (b.company || b.name || ''))
+        ));
+
+        // Positionen
+        var list = el('div', { class: 'items' });
+        items.forEach(function (it) {
+          var qty = Number(it.quantity) || 0;
+          var price = Number(it.unit_price) || 0;
+          list.appendChild(el('div', { class: 'item' },
+            el('div', { class: 'item-texts' },
+              el('span', { class: 'item-title' }, String(it.description || '')),
+              it.details ? el('span', { class: 'small' }, String(it.details)) : null,
+              el('span', { class: 'small' }, num(qty) + ' ' + (it.unit || '') + ' × ' + money(price))
+            ),
+            el('span', { class: 'item-sum' }, money(qty * price))
+          ));
+        });
+        parts.push(list);
+
+        // Summen
+        var totals = el('div', { class: 'totals' });
+        if (Number(t.discount_amount) > 0) totals.appendChild(line('Rabatt ' + num(t.discount_percent) + ' %', '– ' + money(t.discount_amount)));
+        if (!d.small_business) {
+          totals.appendChild(line('Netto', money(t.net)));
+          totals.appendChild(line('zzgl. ' + num(t.vat_rate) + ' % USt', money(t.vat_amount)));
+        }
+        totals.appendChild(line(d.monthly ? 'Gesamt pro Monat' : 'Gesamt', money(t.gross), true));
+        if (d.small_business) totals.appendChild(el('p', { class: 'small' }, 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmer).'));
+        parts.push(totals);
+
+        // Antwort
+        if (answer.state === 'accepted') {
+          parts.push(el('div', { class: 'box ok', id: 'result' },
+            el('span', { class: 'box-title' }, '✓ Angenommen'),
+            el('p', null, 'am ' + day(answer.at) + (answer.name ? ' von ' + answer.name : '') + '. Vielen Dank! ' +
+              (s.owner_name || company || 'Wir') + ' meldet sich bei Ihnen.')
+          ));
+        } else if (answer.state === 'declined') {
+          parts.push(el('div', { class: 'box', id: 'result' },
+            el('span', { class: 'box-title' }, 'Abgelehnt'),
+            el('p', null, 'am ' + day(answer.at) + '. Danke für Ihre Rückmeldung.')
+          ));
+        } else if (answer.state === 'expired') {
+          parts.push(el('div', { class: 'box' },
+            el('span', { class: 'box-title' }, 'Abgelaufen'),
+            el('p', null, 'Dieses Angebot ist nicht mehr gültig. Bitte melden Sie sich für ein neues Angebot.')
+          ));
+        } else if (state.mode === 'accept') {
+          parts.push(acceptForm(o, d, t));
+        } else if (state.mode === 'decline') {
+          parts.push(declineForm(s));
+        } else {
+          parts.push(el('div', { class: 'actions' },
+            el('button', { type: 'button', class: 'primary', onclick: function () { setMode('accept'); } }, 'Angebot annehmen'),
+            el('button', { type: 'button', onclick: function () { setMode('decline'); } }, 'Ablehnen oder Rückfrage')
+          ));
+        }
+
+        if (state.problem) parts.push(el('p', { class: 'problem', role: 'alert' }, state.problem));
+
+        // Kontakt
+        var footer = el('div', { class: 'footer' });
+        footer.appendChild(el('span', { class: 'small' }, 'Das Angebot als PDF finden Sie im Anhang der E-Mail.'));
+        if (s.email) footer.appendChild(el('a', { href: 'mailto:' + encodeURIComponent(String(s.email)).replace(/%40/g, '@') }, String(s.email)));
+        if (s.phone) footer.appendChild(el('a', { href: 'tel:' + String(s.phone).replace(/[^\d+]/g, '') }, 'Tel. ' + s.phone));
+        parts.push(footer);
+
+        app.replaceChildren.apply(app, parts);
+      }
+
+      function acceptForm(o, d, t) {
+        var nameInput = el('input', {
+          type: 'text', id: 'name', name: 'name', autocomplete: 'name', maxlength: 100,
+          placeholder: 'Vor- und Nachname', value: state.name,
+          oninput: function (e) { state.name = e.target.value; }
+        });
+        var form = el('form', { novalidate: true, onsubmit: function (e) { e.preventDefault(); accept(); } },
+          el('label', { class: 'field', for: 'name' }, 'Ihr Name'),
+          nameInput,
+          el('label', { class: 'confirm' },
+            el('input', { type: 'checkbox', checked: state.confirm, onchange: function (e) { state.confirm = e.target.checked; } }),
+            el('span', null, 'Ich nehme das Angebot ' + (o.number || '') + ' über ' + money(t.gross) + (d.monthly ? ' pro Monat' : '') + ' verbindlich an.')
+          ),
+          el('div', { class: 'actions' },
+            el('button', { type: 'submit', class: 'primary', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Verbindlich annehmen'),
+            el('button', { type: 'button', disabled: state.busy, onclick: function () { setMode('none'); } }, 'Zurück')
+          )
+        );
+        setTimeout(function () { if (!state.busy && !state.name) nameInput.focus(); }, 0);
+        return form;
+      }
+
+      function declineForm(s) {
+        var contact = (s.phone ? ' (Tel. ' + s.phone + ')' : '') + (s.email ? ' oder per E-Mail an ' + s.email : '');
+        return el('form', { novalidate: true, onsubmit: function (e) { e.preventDefault(); decline(); } },
+          el('label', { class: 'field', for: 'note' }, 'Nachricht (optional)'),
+          el('textarea', {
+            id: 'note', name: 'note', maxlength: 1000, value: state.note,
+            placeholder: 'z. B. Frage zum Termin oder warum es nicht passt',
+            oninput: function (e) { state.note = e.target.value; }
+          }),
+          el('div', { class: 'actions' },
+            el('button', { type: 'submit', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Angebot ablehnen'),
+            el('button', { type: 'button', disabled: state.busy, onclick: function () { setMode('none'); } }, 'Zurück')
+          ),
+          el('p', { class: 'small' }, 'Nur eine Frage? Dann melden Sie sich lieber direkt' + contact + '.')
+        );
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        state.problem = null;
+        render();
+      }
+
+      // ---------- Annehmen / Ablehnen ----------
+
+      async function send(fn, body) {
+        state.busy = true;
+        state.problem = null;
+        render();
+        var r = await rpc(fn, body);
+        state.busy = false;
+        var err = r.error ? 'failed' : (r.data && r.data.error);
+        if (err) {
+          state.problem = ERRORS[err] || ERRORS.failed;
+          render();
+          return;
+        }
+        state.mode = 'none';
+        await load();
+        render();
+        var box = document.getElementById('result');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function accept() {
+        if (state.name.trim().length < 2) { state.problem = 'Bitte geben Sie Ihren Namen ein.'; return render(); }
+        if (!state.confirm) { state.problem = 'Bitte bestätigen Sie, dass Sie das Angebot verbindlich annehmen.'; return render(); }
+        send('offer_accept', { p_token: token, p_name: state.name.trim() });
+      }
+
+      function decline() {
+        send('offer_decline', { p_token: token, p_note: state.note.trim() });
+      }
+
+      // ---------- Start ----------
+
+      if (!token) {
+        message('Angebot ansehen', 'Bitte öffnen Sie den Link aus Ihrer E-Mail, um Ihr Angebot zu sehen.');
+      } else if (!validToken) {
+        message('Link ungültig', 'Dieses Angebot gibt es nicht (mehr) oder der Link ist unvollständig. Bitte fragen Sie direkt nach einem neuen Link.');
+      } else {
+        load().then(function (result) {
+          if (result === 'ready') render();
+          else if (result === 'missing') message('Link ungültig', 'Dieses Angebot gibt es nicht (mehr) oder der Link ist unvollständig. Bitte fragen Sie direkt nach einem neuen Link.');
+          else message('Gerade nicht erreichbar', 'Das Angebot konnte gerade nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten noch einmal.');
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

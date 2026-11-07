@@ -111,7 +111,8 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
     }
     let delivery: Delivery = {};
     if (how === 'pdf') await downloadPdf(pdf);
-    else if (how === 'mail') delivery = await openWith(pdf, mailtoUrl(customer.email, text.subject, text.body));
+    else if (how === 'mail')
+      delivery = await openWith(pdf, mailtoUrl(customer.email, text.subject, text.body), { from: seller.email });
     else if (how === 'whatsapp') delivery = await openWith(pdf, whatsappUrl(customer.phone, text.chat));
     else delivery = await shareFile(pdf, text.body, text.subject);
     if (delivery.error) {
@@ -129,8 +130,8 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
       note = ` Vermerkt: ${nextStage.label} vom ${formatDay(today)}, neue Frist bis ${formatDay(newDue)}.`;
     }
     setBusy(false);
-    const where = delivery.message
-      ? ` ${delivery.message}`
+    const where = delivery.message || delivery.note
+      ? ` ${delivery.message || delivery.note}`
       : delivery.pdf === 'finder'
         ? ' Das PDF ist im Finder markiert (Downloads › NEXORA) – zieh es in die Nachricht.'
         : how === 'pdf' || delivery.pdf === 'download'

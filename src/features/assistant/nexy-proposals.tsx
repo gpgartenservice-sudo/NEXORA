@@ -1,6 +1,9 @@
 import { router } from 'expo-router';
 import {
+  ArrowUpRight,
+  Ban,
   Briefcase,
+  Building,
   CalendarClock,
   CalendarPlus,
   CalendarX,
@@ -12,36 +15,54 @@ import {
   Goal as GoalIcon,
   ListChecks,
   Megaphone,
+  Pencil,
   Receipt,
+  RotateCcw,
+  Trash,
   UserRound,
+  UserX,
   Wallet,
   type LucideIcon,
 } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { clashes, DEFAULT_MINUTES, timeLabel, type CalendarEvent } from '@/features/appointments/appointment-logic';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { useCrm } from '@/features/crm/crm-provider';
+import { useDocuments } from '@/features/documents/documents-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { categoryLabel, incomeProofMonths, monthLabel } from '@/features/finance/finance-logic';
 import { shortDateTime } from '@/features/social/post-card';
 import { FORMATS, platformLabel } from '@/features/social/social-logic';
+import { PERIOD_LABEL } from '@/features/goals/goals-logic';
 import { toDate, toMs } from '@/lib/dates';
 
-import { goalLabel, proposalLabel, whenLabel, type Proposal } from './assistant-logic';
-import { useGuide } from './nexy-guide';
+import {
+  COMPANY_FIELD_LABEL,
+  goalLabel,
+  proposalLabel,
+  whenLabel,
+  type CompanyChange,
+  type Proposal,
+} from './assistant-logic';
 import { useNexy, type NexyMessage } from './nexy-provider';
 
 const REPEAT = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
+const METRIC_LABEL = { views: 'Aufrufe', likes: 'Likes', comments: 'Kommentare', shares: 'Geteilt', saves: 'Gespeichert' } as const;
+/** "2026-11-07" -> "07.11.2026" */
+const day = (d: string) => d.split('-').reverse().join('.');
 
 function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
   switch (p.kind) {
     case 'customer':
       return { icon: UserRound, kind: 'Neuer Kunde', title: p.data.name };
+    case 'customer_delete':
+      return { icon: UserX, kind: 'Kunde löschen', title: p.data.name };
+    case 'order_delete':
+      return { icon: Trash, kind: 'Auftrag löschen', title: p.order.title ?? 'Auftrag wählen' };
     case 'order':
       return { icon: Briefcase, kind: 'Auftrag', title: p.data.title };
     case 'expense':
@@ -59,7 +80,36 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
     case 'existing_pdf':
       return { icon: Download, kind: 'PDF erneut speichern', title: p.data.number };
     case 'mark_paid':
-      return { icon: CircleCheck, kind: 'Rechnung bezahlt', title: p.data.number };
+      return p.data.paid
+        ? { icon: CircleCheck, kind: 'Rechnung bezahlt', title: p.data.number }
+        : { icon: RotateCcw, kind: 'Rechnung wieder offen', title: p.data.number };
+    case 'customer_change':
+      return { icon: Pencil, kind: 'Kunde ändern', title: p.customer.name };
+    case 'order_change':
+      return {
+        icon: p.data.cancelled === true ? Ban : p.data.completed === true ? CircleCheck : Pencil,
+        kind:
+          p.data.cancelled === true
+            ? 'Auftrag stornieren'
+            : p.data.completed === true
+              ? 'Auftrag abschließen'
+              : 'Auftrag ändern',
+        title: p.order.title ?? 'Auftrag wählen',
+      };
+    case 'expense_change':
+      return { icon: p.data.remove ? Trash : Wallet, kind: p.data.remove ? 'Ausgabe löschen' : 'Ausgabe ändern', title: p.expense.title };
+    case 'post_change':
+      return { icon: p.data.remove ? Trash : Megaphone, kind: p.data.remove ? 'Post löschen' : 'Post ändern', title: p.post.title };
+    case 'goal_change':
+      return {
+        icon: p.data.remove ? Trash : GoalIcon,
+        kind: p.data.remove ? 'Ziel löschen' : p.data.archived === true ? 'Ziel archivieren' : 'Ziel ändern',
+        title: p.goal.title ?? goalLabel(p.goal),
+      };
+    case 'company_change':
+      return { icon: Building, kind: 'Firmendaten ändern', title: 'Firma' };
+    case 'open':
+      return { icon: ArrowUpRight, kind: 'Öffnen', title: p.data.label };
     case 'appointment':
       return { icon: CalendarPlus, kind: 'Neuer Termin', title: p.data.title };
     case 'order_date':
@@ -178,7 +228,85 @@ function rows(p: Proposal): [string, string][] {
     const m = incomeProofMonths(p.data.period);
     r.push(['Zeitraum', `${monthLabel(m[0])} bis ${monthLabel(m[m.length - 1])}`]);
   } else if (p.kind === 'mark_paid') {
-    r.push(['Status', 'wird als bezahlt markiert']);
+    r.push(['Status', p.data.paid ? 'wird als bezahlt markiert' : 'wird wieder auf offen gesetzt']);
+  } else if (p.kind === 'customer_change') {
+    const c = p.data;
+    const put = (label: string, v: string | null) => v !== null && r.push([label, v || 'wird geleert']);
+    put('Neuer Name', c.name);
+    put('Firma', c.company);
+    put('Telefon', c.phone);
+    put('E-Mail', c.email);
+    put('Anschrift', c.address);
+    put('Notiz', c.notes);
+  } else if (p.kind === 'order_change') {
+    const c = p.data;
+    if (p.customer.name) r.push(['Kunde', p.customer.name]);
+    const yes = (v: boolean) => (v ? 'ja' : 'nein');
+    if (c.title) r.push(['Neue Leistung', c.title]);
+    if (c.description !== null) r.push(['Beschreibung', c.description || 'wird geleert']);
+    if (c.meeting_done !== null) r.push(['Termin erledigt', yes(c.meeting_done)]);
+    if (c.offer_sent !== null) r.push(['Angebot verschickt', yes(c.offer_sent)]);
+    if (c.offer_accepted !== null) r.push(['Angebot angenommen', yes(c.offer_accepted)]);
+    if (c.completed !== null) r.push(['Abgeschlossen', yes(c.completed)]);
+    if (c.cancelled !== null) r.push(['Storniert', yes(c.cancelled)]);
+    if (c.discount_percent !== null) r.push(['Rabatt', `${c.discount_percent.toLocaleString('de-DE')} %`]);
+    if (c.contract_start !== null) r.push(['Vertragsstart', c.contract_start ? day(c.contract_start) : 'ohne']);
+    if (c.contract_end !== null) r.push(['Vertragsende', c.contract_end ? day(c.contract_end) : 'unbefristet']);
+    if (c.expenses !== null) r.push(['Ausgaben', formatEuro(c.expenses)]);
+    if (c.internal_notes !== null) r.push(['Interne Notiz', c.internal_notes || 'wird geleert']);
+  } else if (p.kind === 'expense_change') {
+    const c = p.data;
+    if (c.remove) r.push(['Bisher', `${formatEuro(p.expense.amount)} · ${REPEAT[p.expense.repeat]}`]);
+    if (c.title) r.push(['Neuer Titel', c.title]);
+    if (c.amount !== null) r.push(['Betrag', formatEuro(c.amount)]);
+    if (c.repeat) r.push(['Wie oft', REPEAT[c.repeat]]);
+    if (c.category) r.push(['Kategorie', categoryLabel(c.category)]);
+    if (c.spent_on) r.push(['Datum', day(c.spent_on)]);
+    if (c.ends_on !== null) r.push(['Letzte Zahlung', c.ends_on ? day(c.ends_on) : 'läuft weiter']);
+    if (c.notes !== null) r.push(['Notiz', c.notes || 'wird geleert']);
+  } else if (p.kind === 'post_change') {
+    const c = p.data;
+    if (c.title) r.push(['Neuer Titel', c.title]);
+    if (c.format) r.push(['Format', FORMATS.find((f) => f.key === c.format)?.label ?? c.format]);
+    if (c.platforms) r.push(['Plattformen', c.platforms.map(platformLabel).join(', ') || 'keine']);
+    if (c.steps) r.push(['Schritte', c.steps === 'ready' ? 'alle erledigt' : 'zurück auf Idee']);
+    if (c.planned_for !== null) r.push(['Geplant', c.planned_for ? shortDateTime(c.planned_for) : 'ohne Termin']);
+    if (c.published !== null) r.push(['Veröffentlicht', c.published ? 'ja' : 'nein']);
+    if (c.published_at) r.push(['Veröffentlicht am', shortDateTime(c.published_at)]);
+    if (c.script !== null) r.push(['Notizen', c.script || 'werden geleert']);
+    if (c.caption !== null) r.push(['Caption', c.caption || 'wird geleert']);
+    if (c.hashtags !== null) r.push(['Hashtags', c.hashtags || 'werden geleert']);
+    if (c.url !== null) r.push(['Link', c.url || 'wird entfernt']);
+    const m = Object.entries(c.metrics);
+    if (m.length) r.push(['Zahlen', m.map(([k, v]) => `${METRIC_LABEL[k as keyof typeof METRIC_LABEL]} ${v.toLocaleString('de-DE')}`).join(', ')]);
+  } else if (p.kind === 'goal_change') {
+    const c = p.data;
+    const g = p.goal;
+    if (c.title) r.push(['Neuer Name', c.title]);
+    if (c.target !== null) r.push(['Neues Ziel', g.kind === 'revenue' ? formatEuro(c.target) : c.target.toLocaleString('de-DE')]);
+    if (c.period && c.period !== 'once') r.push(['Zeitraum', PERIOD_LABEL[c.period]]);
+    if (c.progress !== null) r.push(['Schon erreicht', c.progress.toLocaleString('de-DE')]);
+    if (c.due_on !== null) r.push(['Bis', c.due_on ? day(c.due_on) : 'ohne Datum']);
+    if (c.archived !== null) r.push(['Archiviert', c.archived ? 'ja' : 'nein']);
+  } else if (p.kind === 'company_change') {
+    for (const [k, v] of Object.entries(p.data) as [keyof CompanyChange, unknown][]) {
+      r.push([
+        COMPANY_FIELD_LABEL[k],
+        typeof v === 'boolean'
+          ? v
+            ? 'ja'
+            : 'nein'
+          : v === null || v === ''
+            ? 'wird geleert'
+            : k === 'vat_rate'
+              ? `${v} %`
+              : k === 'payment_days' || k === 'offer_validity_days'
+                ? `${v} Tage`
+                : String(v),
+      ]);
+    }
+  } else if (p.kind === 'open') {
+    r.push(['Seite', p.data.label]);
   } else if (p.kind === 'appointment') {
     r.push([
       'Wann',
@@ -195,6 +323,8 @@ function rows(p: Proposal): [string, string][] {
     if (p.customer.name) r.push(['Kunde', p.customer.name]);
     r.push([p.data.before ? 'Neu' : 'Wann', whenLabel(p.data.at)]);
     if (p.data.before) r.push(['Bisher', whenLabel(p.data.before)]);
+  } else if (p.kind === 'order_delete') {
+    if (p.customer.name) r.push(['Kunde', p.customer.name]);
   } else if (p.kind === 'order_price') {
     if (p.customer.name) r.push(['Kunde', p.customer.name]);
     const monthly = (p.data.billing ?? p.data.beforeBilling) === 'monthly';
@@ -246,20 +376,10 @@ function rows(p: Proposal): [string, string][] {
 
 /** Vorschläge einer Nexy-Nachricht: an-/abwählen, fehlende Zuordnung wählen, ausführen. */
 export function NexyProposals({ message }: { message: NexyMessage }) {
-  const { updateProposal, execute, dismiss, executing, blockers } = useNexy();
-  const guide = useGuide();
-  // Ausführen – Nexy macht es dabei sichtbar in der App vor
-  const run = async () => {
-    if (!guide) {
-      await execute(message.id);
-      return;
-    }
-    await guide.live(async (play) => {
-      const outcome = await execute(message.id, play);
-      return outcome.ok ? 'Erledigt!' : 'Da hat etwas nicht geklappt – im Chat steht, woran es liegt.';
-    });
-  };
+  // Ausgeführt wird ohne Knopf: Nexy legt von selbst los (nexy-screen), sobald nichts mehr fehlt
+  const { updateProposal, executing, blockers } = useNexy();
   const { customers, orders } = useCrm();
+  const { documents } = useDocuments();
   const events = useCalendarEvents();
   const all = message.proposals ?? [];
   const done = new Set(message.doneIds ?? []);
@@ -278,15 +398,24 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
         const needsOrder =
           open &&
           p.include &&
-          (p.kind === 'document' || p.kind === 'order_date' || p.kind === 'order_price') &&
+          (p.kind === 'document' ||
+            p.kind === 'order_date' ||
+            p.kind === 'order_price' ||
+            p.kind === 'order_delete' ||
+            p.kind === 'order_change') &&
           !p.order.existingId &&
           !p.order.newRef;
+        // Angebote/Rechnungen eines Auftrags, der gelöscht wird (sie bleiben)
+        const keptDocs =
+          p.kind === 'order_delete' && !isDone && p.order.existingId
+            ? documents.filter((d) => d.order_id === p.order.existingId).map((d) => d.number)
+            : [];
         const orderChoices = needsOrder
           ? orders
               .filter(
                 (o) =>
                   (!p.customer.existingId || o.customer_id === p.customer.existingId) &&
-                  (p.kind === 'document' || !o.cancelled),
+                  (p.kind === 'document' || p.kind === 'order_delete' || p.kind === 'order_change' || !o.cancelled),
               )
               .slice(0, 10)
           : [];
@@ -327,6 +456,21 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
             {p.kind === 'customer' && p.duplicateOf && (
               <Text style={styles.small}>Diesen Kunden gibt es schon – er wird nicht doppelt angelegt.</Text>
             )}
+            {p.kind === 'customer_delete' && !isDone && open && p.include && (
+              <Text style={problems.length ? styles.warn : styles.small}>
+                {problems.length
+                  ? 'Mit Aufträgen lässt sich ein Kunde nicht löschen – lass seine Aufträge zum Löschen angehakt.'
+                  : p.data.orderIds.length
+                    ? `Vorher lösche ich ${p.data.orderIds.length === 1 ? 'seinen Auftrag' : `seine ${p.data.orderIds.length} Aufträge`}. Termine und To-dos bleiben, nur ohne Kunde.`
+                    : 'Termine und To-dos bleiben, nur ohne Kunde.'}
+              </Text>
+            )}
+            {keptDocs.length > 0 && (
+              <Text style={styles.small}>
+                {keptDocs.join(', ')} {keptDocs.length === 1 ? 'bleibt' : 'bleiben'} erhalten (Rechnungen lassen sich nicht
+                löschen).
+              </Text>
+            )}
             {p.kind === 'document' && p.data.docKind === 'invoice' && open && p.include && (
               <Text style={styles.small}>Bekommt eine feste Rechnungsnummer und ist danach nicht mehr änderbar.</Text>
             )}
@@ -354,7 +498,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
                   const o = orders.find((x) => x.id === id)!;
                   const c = customers.find((x) => x.id === o.customer_id);
                   updateProposal(message.id, p.id, (x) =>
-                    x.kind === 'document'
+                    x.kind === 'document' || x.kind === 'order_delete' || x.kind === 'order_change'
                       ? {
                           ...x,
                           order: { existingId: o.id, newRef: null, title: o.title },
@@ -401,7 +545,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
                 den neuen Preis ggf. ein neues Angebot erstellen.
               </Text>
             )}
-            {problems.length > 0 && !needsCustomer && !needsOrder && (
+            {problems.length > 0 && !needsCustomer && !needsOrder && p.kind !== 'customer_delete' && (
               <View style={styles.problem}>
                 <Notice>Dafür fehlt noch: {problems.join(', ')}.</Notice>
                 {sellerIssue && (
@@ -413,19 +557,11 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
         );
       })}
 
-      {open && (
-        <View style={styles.actions}>
-          <Button label="Verwerfen" variant="secondary" onPress={() => dismiss(message.id)} style={styles.flex} />
-          <Button
-            label={chosen.length ? `Ausführen (${chosen.length})` : 'Nichts ausgewählt'}
-            onPress={() => void run()}
-            loading={executing === message.id}
-            disabled={!chosen.length || blocked || (executing !== null && executing !== message.id)}
-            style={styles.flex}
-          />
-        </View>
+      {open && executing === message.id && <Text style={styles.small}>Ich bin dran …</Text>}
+      {open && executing !== message.id && blocked && (
+        <Text style={styles.small}>Sobald das geklärt ist, lege ich los.</Text>
       )}
-      {open && issues && <Text style={styles.small}>PDFs werden nach dem Ausführen direkt gespeichert.</Text>}
+      {open && issues && <Text style={styles.small}>PDFs werden direkt gespeichert.</Text>}
       {message.status === 'dismissed' && <Text style={styles.small}>Verworfen.</Text>}
       {!!message.error && message.proposals && <Notice tone="error">{message.error}</Notice>}
       {!!message.results?.length && (
@@ -524,8 +660,6 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { color: Colors.text, fontSize: 13 },
   problem: { gap: Spacing.xs },
-  actions: { flexDirection: 'row', gap: Spacing.md, flexWrap: 'wrap', marginTop: Spacing.xs },
-  flex: { flex: 1, minWidth: 150 },
   results: {
     gap: Spacing.sm,
     borderRadius: Radius.lg,

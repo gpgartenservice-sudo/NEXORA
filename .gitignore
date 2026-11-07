@@ -41,3 +41,10 @@ example
 # generated native folders
 /ios
 /android
+
+# fertige Angebotsseite (scripts/web-hochladen.sh)
+dist-angebot/
+
+# Mac-App als .dmg (npm run mac:dmg)
+.mac-app/
+release/

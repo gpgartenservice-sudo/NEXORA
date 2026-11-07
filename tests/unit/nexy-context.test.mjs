@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildNexyContext } from '../../src/features/assistant/nexy-context.ts';
+import { buildNexyContext, nexyExpenses, nexyPosts } from '../../src/features/assistant/nexy-context.ts';
 import { EMPTY_SELLER } from '../../src/features/documents/document-logic.ts';
 
 const TODAY = new Date(2026, 10, 3, 12);
@@ -110,4 +110,32 @@ test('Übersicht: Steuer-Orientierung (Rücklage, Kleinunternehmer-Grenze bzw. U
   assert.equal(regel.steuern.vorsteuer_erfasst, 22); // 11 Monate × 2 €
   assert.equal(regel.steuern.umsatzsteuer_zahllast_geschaetzt, 217.5);
   assert.equal(regel.steuern.kleinunternehmer_grenze, undefined);
+});
+
+test('Ausgaben und Posts mit Kurzzeichen: Abos zuerst bzw. zuletzt bearbeitet zuerst', () => {
+  const e = nexyExpenses([
+    { id: 'a', title: 'Flyer', amount: 49.9, category: 'marketing', repeat: 'once', spent_on: '2026-11-02', ends_on: null },
+    { id: 'b', title: 'Canva', amount: 11.99, category: 'software', repeat: 'monthly', spent_on: '2026-01-05', ends_on: '2026-12-31' },
+    { id: 'c', title: 'Bohrer', amount: 89, category: 'tools', repeat: 'once', spent_on: '2026-10-01', ends_on: null },
+  ]);
+  assert.deepEqual(e.refs, { E1: 'b', E2: 'a', E3: 'c' });
+  assert.deepEqual(e.entries[0], {
+    ref: 'E1',
+    titel: 'Canva',
+    betrag: 11.99,
+    wie_oft: 'monatlich',
+    kategorie: 'Software & Abos',
+    seit: '2026-01-05',
+    bis: '2026-12-31',
+  });
+  assert.equal(e.entries[1].datum, '2026-11-02');
+  assert.deepEqual(e.list.map((x) => x.id), ['b', 'a', 'c']);
+
+  const p = nexyPosts([
+    { id: 'p1', title: 'Alt', format: 'video', planned_for: null, published_at: null, updated_at: '2026-10-01T10:00:00Z' },
+    { id: 'p2', title: 'Neu', format: 'image', step_concept: true, step_produced: true, step_edited: true, step_caption: true, planned_for: null, published_at: null, updated_at: '2026-11-01T10:00:00Z' },
+  ]);
+  assert.deepEqual(p.refs, { P1: 'p2', P2: 'p1' });
+  assert.equal(p.entries[0].status, 'Bereit');
+  assert.equal(p.entries[1].format, 'Video');
 });

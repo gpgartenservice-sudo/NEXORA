@@ -324,6 +324,7 @@ function ExpenseEditor({
                   key={c.key}
                   onPress={() => setCategory(c.key)}
                   accessibilityRole="radio"
+                  accessibilityLabel={c.label}
                   accessibilityState={{ checked: active }}
                   aria-checked={active}
                   style={[styles.chip, active && styles.chipActive]}>

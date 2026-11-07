@@ -340,8 +340,8 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
         text: 'Tipp einfach auf einen der Vorschläge.',
       },
       {
-        title: 'Du hast das letzte Wort',
-        text: 'Bevor ich etwas anlege oder ändere, zeige ich dir einen Vorschlag – du bestätigst. Ich lege Kunden, Aufträge, Termine, To-dos und Ausgaben an, schreibe Angebote und Rechnungen und beantworte Fragen zu deinen Zahlen.',
+        title: 'Ich mach das für dich',
+        text: 'Ich erledige es direkt, und du siehst mir zu: Kunden, Aufträge, Termine, To-dos, Ziele und Ausgaben anlegen, ändern oder löschen, Angebote und Rechnungen schreiben, Seiten öffnen – und Fragen zu deinen Zahlen beantworten.',
       },
     ],
   },

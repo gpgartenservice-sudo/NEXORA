@@ -10,6 +10,7 @@
  * zweiten Terminal `npm run mac:dev`.
  */
 const { app, BrowserWindow, ipcMain, net, protocol, session, shell, ShareMenu, systemPreferences } = require('electron');
+const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -43,10 +44,82 @@ function serveDist(request) {
 
 // ---------------------------------------------------------------------------
 // Angebote/Rechnungen verschicken: PDF in Downloads/NEXORA ablegen, dann
-// E-Mail-Programm bzw. WhatsApp öffnen (PDF im Finder zeigen, zum
-// Reinziehen) oder das Teilen-Menü des Mac mit dem PDF als Anhang.
+// - E-Mail ("mail"): neue E-Mail in Apple Mail mit Empfänger, Betreff, Text
+//   und dem PDF als Anhang. Klappt das nicht (anderes Mail-Programm, keine
+//   Erlaubnis), wie "open": mailto: öffnen und das PDF im Finder zeigen.
+// - WhatsApp ("open"): Link öffnen, PDF im Finder zeigen (zum Reinziehen).
+// - "share": Teilen-Menü des Mac mit dem PDF als Anhang.
 // ---------------------------------------------------------------------------
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
+
+// Werte kommen als Argumente (argv) – nie in den Skript-Text eingesetzt.
+const MAIL_SCRIPT = `
+on run argv
+  set theRecipients to item 1 of argv
+  set theSubject to item 2 of argv
+  set theBody to item 3 of argv
+  set theFile to (POSIX file (item 4 of argv)) as alias
+  set theSender to item 5 of argv
+  tell application "Mail"
+    -- Absender: nur wenn ein Konto in Mail diese Adresse hat (sonst Standard-Konto)
+    set senderOk to false
+    if theSender is not "" then
+      repeat with acc in every account
+        if (email addresses of acc) contains theSender then set senderOk to true
+      end repeat
+    end if
+    set newMessage to make new outgoing message with properties {subject:theSubject, content:theBody & return & return}
+    tell newMessage
+      if senderOk then set sender to theSender
+      set visible to true
+      set AppleScript's text item delimiters to ","
+      repeat with addr in (text items of theRecipients)
+        if (contents of addr) is not "" then make new to recipient at end of to recipients with properties {address:(contents of addr)}
+      end repeat
+      set AppleScript's text item delimiters to ""
+      make new attachment with properties {file name:theFile} at after the last paragraph
+    end tell
+    activate
+  end tell
+  if theSender is not "" and not senderOk then return "ok-nosender"
+  return "ok"
+end run
+`;
+
+/** mailto:adresse?subject=…&body=… -> Teile */
+function parseMailto(url) {
+  const m = /^mailto:([^?]*)(?:\?(.*))?$/i.exec(String(url));
+  if (!m) return null;
+  const params = new URLSearchParams((m[2] ?? '').replace(/\+/g, '%2B'));
+  const to = decodeURIComponent(m[1])
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^[^\s@<>"]+@[^\s@<>"]+$/.test(s));
+  return { to, subject: params.get('subject') ?? '', body: (params.get('body') ?? '').replace(/\r\n/g, '\n') };
+}
+
+/**
+ * Neue E-Mail in Apple Mail mit Anhang, wenn möglich vom Konto mit der
+ * Absender-Adresse `from`. Ergebnis: { ok, senderMissing } oder { problem }.
+ */
+function composeInAppleMail(mail, filePath, from) {
+  if (process.platform !== 'darwin') return Promise.resolve({ problem: 'not_mac' });
+  return new Promise((resolve) => {
+    execFile(
+      'osascript',
+      ['-e', MAIL_SCRIPT, mail.to.join(','), mail.subject, mail.body, filePath, from],
+      // Beim ersten Mal fragt der Mac, ob NEXORA Mail steuern darf – Zeit lassen
+      { timeout: 120000 },
+      (error, stdout, stderr) => {
+        const out = String(stdout).trim();
+        if (!error && (out === 'ok' || out === 'ok-nosender')) return resolve({ ok: true, senderMissing: out === 'ok-nosender' });
+        const detail = `${error?.message ?? ''} ${stderr ?? ''}`;
+        console.warn('[Mail]', detail);
+        resolve({ problem: /-1743|not allowed|nicht erlaubt/i.test(detail) ? 'not_allowed' : 'failed' });
+      },
+    );
+  });
+}
 
 function fromApp(event) {
   const url = event.senderFrame?.url ?? '';
@@ -62,12 +135,13 @@ const allowedUrl = (url) => typeof url === 'string' && (url.startsWith('mailto:'
 
 ipcMain.handle('nexora:send-file', async (event, payload) => {
   if (!fromApp(event)) throw new Error('Nicht erlaubt');
-  const { bytes, fileName, via, url, text } = payload ?? {};
+  const { bytes, fileName, via, url, text, from } = payload ?? {};
   if (!ArrayBuffer.isView(bytes) || bytes.byteLength === 0 || bytes.byteLength > MAX_PDF_BYTES) {
     throw new Error('Ungültige Datei');
   }
   if (via === 'open' && !allowedUrl(url)) throw new Error('Ungültiger Link');
-  if (via !== 'open' && via !== 'share') throw new Error('Unbekannte Aktion');
+  if (via === 'mail' && !(typeof url === 'string' && url.startsWith('mailto:'))) throw new Error('Ungültiger Link');
+  if (via !== 'open' && via !== 'share' && via !== 'mail') throw new Error('Unbekannte Aktion');
 
   const dir = path.join(app.getPath('downloads'), 'NEXORA');
   await fs.promises.mkdir(dir, { recursive: true });
@@ -80,10 +154,19 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
     if (text) item.texts = [String(text)];
     const menu = new ShareMenu(item);
     menu.popup({ window: BrowserWindow.fromWebContents(event.sender) ?? undefined });
-  } else {
+    return { filePath };
+  }
+  if (via === 'mail') {
+    const mail = parseMailto(url);
+    const sender = typeof from === 'string' && /^[^\s@<>",]+@[^\s@<>",]+\.[^\s@<>",]+$/.test(from.trim()) ? from.trim() : '';
+    const result = mail ? await composeInAppleMail(mail, filePath, sender) : { problem: 'failed' };
+    if (result.ok) return { filePath, attached: true, senderMissing: result.senderMissing };
     await shell.openExternal(url);
     shell.showItemInFolder(filePath);
+    return { filePath, attached: false, reason: result.problem };
   }
+  await shell.openExternal(url);
+  shell.showItemInFolder(filePath);
   return { filePath };
 });
 

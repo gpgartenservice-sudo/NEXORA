@@ -10,6 +10,7 @@ import {
   validOfferToken,
   webBaseUrl,
   withOfferLink,
+  withOfferLinkChat,
 } from '../../src/features/documents/offer-link.ts';
 import { splitRecipients, validEmail } from '../../src/features/documents/mail-logic.ts';
 
@@ -48,6 +49,18 @@ test('Link und Text', () => {
   assert.ok(withLink.indexOf('https://x/?angebot=t') < withLink.indexOf('Mit freundlichen Grüßen'));
   assert.ok(withLink.startsWith('Guten Tag,'));
   assert.ok(withOfferLink('Hallo', 'https://x').endsWith('https://x'));
+});
+
+test('WhatsApp-Text mit Link: Link vor dem Gruß, Gruß bleibt am Ende', () => {
+  const chat = 'Guten Tag Peter, anbei mein Angebot A-1. Bei Fragen melden Sie sich gern! Viele Grüße, Lena';
+  const out = withOfferLinkChat(chat, 'https://x/?angebot=t');
+  assert.equal(
+    out,
+    'Guten Tag Peter, anbei mein Angebot A-1. Bei Fragen melden Sie sich gern!\n\n' +
+      'Sie können das Angebot auch online ansehen und mit einem Klick annehmen:\nhttps://x/?angebot=t\n\n' +
+      'Viele Grüße, Lena',
+  );
+  assert.ok(withOfferLinkChat('Hallo', 'https://x').endsWith('https://x'));
 });
 
 test('Antwort des Kunden', () => {

@@ -7,8 +7,9 @@ import { downloadPdf, type PreparedPdf } from './save-pdf';
  * E-Mail bzw. WhatsApp mit fertigem Text und legt das PDF bereit.
  *
  * Mac-Fenster: Über desktop/preload.js speichert die App das PDF in
- * Downloads/NEXORA und zeigt es im Finder (zum Reinziehen), "Teilen …"
- * öffnet das Teilen-Menü des Mac mit dem PDF als Anhang.
+ * Downloads/NEXORA. E-Mail öffnet Apple Mail mit dem PDF schon im Anhang
+ * (anderes Mail-Programm: PDF im Finder zum Reinziehen), WhatsApp zeigt das
+ * PDF im Finder, "Teilen …" öffnet das Teilen-Menü des Mac mit dem PDF.
  * Browser: Das PDF wird heruntergeladen.
  */
 
@@ -33,7 +34,8 @@ export function canShareFile(pdf: PreparedPdf): boolean {
   }
 }
 
-export type Delivery = { error?: string; pdf?: 'finder' | 'download'; message?: string };
+/** note: geklappt, aber mit Hinweis (z. B. anderer Absender) */
+export type Delivery = { error?: string; pdf?: 'finder' | 'download'; message?: string; note?: string };
 
 const failed = (e: unknown): Delivery => {
   console.warn('[Verschicken]', e);
@@ -47,10 +49,29 @@ const failed = (e: unknown): Delivery => {
  * Wichtig im Browser: bis zum Öffnen kein await, sonst blockiert der
  * Browser das neue Fenster.
  */
-export async function openWith(pdf: PreparedPdf, url: string): Promise<Delivery> {
+export async function openWith(pdf: PreparedPdf, url: string, opts: { from?: string | null } = {}): Promise<Delivery> {
   const d = desktop();
   if (d) {
     try {
+      // E-Mail: in Apple Mail gleich mit PDF im Anhang, vom Konto mit deiner Firmen-Adresse
+      if (url.startsWith('mailto:')) {
+        const from = opts.from?.trim() || undefined;
+        const r = await d.sendFile({ bytes: pdf.bytes, fileName: pdf.fileName, via: 'mail', url, from });
+        if (r.attached && r.senderMissing)
+          return {
+            note: `Die E-Mail ist in Apple Mail vorbereitet – das PDF hängt dran. Achtung: ${from} ist in Apple Mail nicht als Konto eingerichtet, deshalb steht oben bei „Von“ dein Standard-Konto. Dort umstellen – oder ${from} in Apple Mail hinzufügen (Mail › Einstellungen › Accounts), dann klappt es automatisch.`,
+          };
+        if (r.attached)
+          return {
+            message: `Die E-Mail ist in Apple Mail vorbereitet${from ? ` (von ${from})` : ''} – das PDF hängt schon dran. Du musst nur noch auf Senden klicken.`,
+          };
+        if (r.reason === 'not_allowed')
+          return {
+            error:
+              'NEXORA darf Apple Mail noch nicht steuern, deshalb fehlt der Anhang. Erlauben: Systemeinstellungen › Datenschutz & Sicherheit › Automation › „Mail“ einschalten. Bis dahin liegt das PDF im Finder bereit (Downloads › NEXORA) – zieh es in die E-Mail.',
+          };
+        return { pdf: 'finder' };
+      }
       await d.sendFile({ bytes: pdf.bytes, fileName: pdf.fileName, via: 'open', url });
       return { pdf: 'finder' };
     } catch (e) {

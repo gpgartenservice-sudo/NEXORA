@@ -31,11 +31,11 @@ import { useHover } from '@/hooks/use-hover';
 
 import { placeNexy, typingDelay, typingFrames, type GuideSpot, type GuideStep, type NexySpot } from './guide-logic';
 import { NexyAvatar, type NexyMood } from './nexy-avatar';
-import type { LivePlayer } from './nexy-provider';
+import { useNexy, type ExecuteOutcome, type LivePlayer } from './nexy-provider';
 import { speak, type Speech } from './voice';
 
 /**
- * Nexy macht es vor: Nach „Ausführen“ löst sich ihr Kopf aus dem Chat,
+ * Nexy macht es vor: Sobald sie weiß, was zu tun ist, löst sich ihr Kopf aus dem Chat,
  * gleitet nach unten rechts und erledigt dann alles sichtbar in der App –
  * sie geht zum Kunden, öffnet den Auftrag, tippt die Werte Buchstabe für
  * Buchstabe in die echten Felder und drückt auf Speichern. Erst dann wird
@@ -47,10 +47,13 @@ const SIZE = 64;
 const BUBBLE = { width: 300, height: 72 };
 const MOVE = 700;
 
-type Director = { play: LivePlayer; finish: (line: string) => Promise<void> };
+/** stay: auf der Seite bleiben statt zurück in den Chat (z. B. „öffne Finanzen“) */
+type Director = { play: LivePlayer; finish: (line: string, stay?: boolean) => Promise<void> };
+/** Schlusssatz – und ob Nexy auf der gerade gezeigten Seite bleibt */
+type Ending = string | { line: string; stay?: boolean };
 type GuideState = {
   /** Nexy zeigt live, was `work` tut; `work` gibt Nexys Schlusssatz zurück */
-  live: (work: (play: LivePlayer) => Promise<string>) => Promise<void>;
+  live: (work: (play: LivePlayer) => Promise<Ending>) => Promise<void>;
   running: boolean;
 };
 const Ctx = createContext<GuideState | null>(null);
@@ -78,7 +81,7 @@ export function GuideProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const live = useCallback(async (work: (play: LivePlayer) => Promise<string>) => {
+  const live = useCallback(async (work: (play: LivePlayer) => Promise<Ending>) => {
     const started = new Promise<Director | null>((resolve) => (waiting.current = resolve));
     count.current += 1;
     setSession(count.current);
@@ -86,11 +89,12 @@ export function GuideProvider({ children }: { children: ReactNode }) {
     const play: LivePlayer = async (steps) => {
       await director.current?.play(steps);
     };
-    let line = 'Erledigt!';
+    let ending: Ending = 'Erledigt!';
     try {
-      line = await work(play);
+      ending = await work(play);
     } finally {
-      await director.current?.finish(line);
+      const { line, stay } = typeof ending === 'string' ? { line: ending, stay: false } : ending;
+      await director.current?.finish(line, stay);
       director.current = null;
       waiting.current = null;
       setSession(null);
@@ -113,6 +117,29 @@ export function useGuide(): GuideState | null {
   return useContext(Ctx);
 }
 
+/**
+ * Vorschläge einer Nachricht ausführen – Nexy macht es dabei in der App vor.
+ * shown = Nexy hat es vorgeführt (und dabei schon „Erledigt!“ gesagt).
+ */
+export function useRunProposals() {
+  const guide = useGuide();
+  const { execute } = useNexy();
+  return useCallback(
+    async (messageId: string): Promise<ExecuteOutcome & { shown: boolean }> => {
+      if (!guide) return { ...(await execute(messageId)), shown: false };
+      let outcome: ExecuteOutcome = { ok: false, results: [], error: 'Nexy wurde unterbrochen.' };
+      await guide.live(async (play) => {
+        outcome = await execute(messageId, play);
+        if (!outcome.ok) return 'Da hat etwas nicht geklappt – im Chat steht, woran es liegt.';
+        // Seite geöffnet: dort bleiben
+        return outcome.stay ? { line: 'Bitte schön!', stay: true } : 'Erledigt!';
+      });
+      return { ...outcome, shown: true };
+    },
+    [guide, execute],
+  );
+}
+
 type Scene = {
   /** wechselt bei jeder neuen Stelle (Rahmen blendet neu ein) */
   ring: number;
@@ -133,6 +160,8 @@ type Hit = {
   remeasure: () => Promise<Rect | null>;
   scroll: (smooth: boolean) => void;
   input?: HTMLInputElement | HTMLTextAreaElement;
+  /** gefunden über die Beschriftung (für echte Klicks) */
+  el?: HTMLElement;
 };
 
 const rectOf = (el: Element): Rect => {
@@ -260,6 +289,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
         remeasure: async () => (el.isConnected ? rectOf(el) : null),
         scroll: (s) => el.scrollIntoView({ block: 'center', behavior: s ? 'smooth' : 'auto' }),
         input: el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : undefined,
+        el,
       };
     };
 
@@ -362,6 +392,19 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       await sleep(dur(560) || 120);
     };
 
+    /** Schalter/Auswahl wirklich anklicken (on: nur, wenn der Schalter anders steht) */
+    const pick = async (button: string, on?: boolean) => {
+      const hit = await locate({ button }, { timeout: 2200 });
+      if (stopped) return;
+      await point(hit);
+      if (!hit?.el) return;
+      setScene((s) => ({ ...s, pressed: true }));
+      scale.set(withSequence(withTiming(0.8, { duration: dur(110) }), withTiming(1, { duration: dur(200) })));
+      const checked = hit.el.getAttribute('aria-checked') === 'true';
+      if (on === undefined || checked !== on) hit.el.click();
+      await sleep(dur(560) || 120);
+    };
+
     const run = async (step: GuideStep) => {
       if (stopped) return;
       if (step.do === 'go') {
@@ -383,6 +426,8 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
         await setDate(step.field, step.value, step.withTime);
       } else if (step.do === 'press') {
         await press(step.button);
+      } else if (step.do === 'pick') {
+        await pick(step.button, step.on);
       }
     };
 
@@ -395,7 +440,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
           await run(step);
         }
       },
-      finish: async (text) => {
+      finish: async (text, stay) => {
         if (stopped) return;
         await talking;
         settled.current = null;
@@ -408,6 +453,12 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
         await talking;
         if (stopped) return;
         setScene((s) => ({ ...s, text: null }));
+        if (stay) {
+          // auf der geöffneten Seite bleiben – Nexy blendet sich aus
+          opacity.set(withTiming(0, { duration: dur(220) }));
+          await sleep(dur(240));
+          return;
+        }
         router.navigate('/assistent' as never);
         await sleep(dur(380) || 150);
         const home = await locate({ target: 'guide.nexy' }, { scroll: false, timeout: 1500 });

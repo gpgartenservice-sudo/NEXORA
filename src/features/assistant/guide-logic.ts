@@ -11,8 +11,18 @@
  */
 import type { Rect, Size } from '../tutorial/tutorial-logic';
 import { formatEuro } from '../crm/order-logic';
+import { categoryLabel } from '../finance/finance-logic';
+import { PERIOD_LABEL } from '../goals/goals-logic';
+import { FORMATS, PLATFORMS, stepsFor } from '../social/social-logic';
 
-import { goalLabel, whenLabel, type KnownEvent, type Proposal } from './assistant-logic';
+import {
+  COMPANY_TEXT_FIELDS,
+  goalLabel,
+  whenLabel,
+  type CompanyTextField,
+  type KnownEvent,
+  type Proposal,
+} from './assistant-logic';
 
 /**
  * Wo Nexy hinzeigt: eine markierte Stelle (TourTarget), ein Eingabefeld oder
@@ -30,7 +40,12 @@ export type GuideStep =
   /** Datum (JJJJ-MM-TT) bzw. Zeitpunkt (ISO) ins Datumsfeld setzen */
   | { do: 'date'; field: string; value: string | null; withTime: boolean }
   /** Nexy drückt auf den Knopf (gespeichert wird danach von Nexy selbst) */
-  | { do: 'press'; button: string };
+  | { do: 'press'; button: string }
+  /**
+   * Nexy klickt wirklich: Schalter bzw. Auswahl im Formular (damit es danach
+   * zeigt, was gespeichert wurde). on: Schalter nur umlegen, wenn er anders steht.
+   */
+  | { do: 'pick'; button: string; on?: boolean };
 
 type Named = { id: string; name: string };
 /** Auftrag mit seinem Kunden (falls bekannt) */
@@ -46,7 +61,9 @@ export const LABELS = {
     address: 'Adresse',
     notes: 'Notizen',
     save: 'Kunde anlegen',
+    update: 'Änderungen speichern',
     newOrder: '+ Neuer Auftrag',
+    remove: 'Kunde löschen',
   },
   newOrder: { title: 'Leistung', description: 'Beschreibung', price: 'Preis in €', save: 'Auftrag anlegen' },
   order: {
@@ -56,6 +73,19 @@ export const LABELS = {
     save: 'Änderungen speichern',
     offer: '+ Angebot',
     invoice: '+ Rechnung',
+    remove: 'Auftrag löschen',
+    title: 'Leistung',
+    description: 'Beschreibung',
+    discount: 'Rabatt in %',
+    contractStart: 'Start',
+    contractEnd: 'Ende',
+    meetingDone: 'Termin erledigt',
+    offerSent: 'Angebot verschickt',
+    offerAccepted: 'Angebot angenommen',
+    completed: 'Abgeschlossen',
+    cancelled: 'Storniert',
+    expenses: 'Ausgaben in €…',
+    notes: 'Interne Notizen',
   },
   appointment: {
     title: 'Was?',
@@ -78,9 +108,71 @@ export const LABELS = {
     save: 'Änderungen speichern',
     remove: 'To-do löschen',
   },
-  goal: { title: 'Name des Ziels', target: 'Ziel…', due: 'Bis wann? (optional)', save: 'Ziel speichern' },
-  expense: { title: 'Wofür?', amount: 'Betrag…', date: 'Datum', save: 'Ausgabe speichern' },
-  post: { title: 'Idee / Thema', script: 'Skript / Ablauf', planned: 'Geplant für', save: 'Idee speichern' },
+  goal: {
+    title: 'Name des Ziels',
+    target: 'Ziel…',
+    due: 'Bis wann? (optional)',
+    save: 'Ziel speichern',
+    progress: 'Schon erreicht',
+    archived: 'Archiviert (nicht mehr anzeigen)',
+    update: 'Änderungen speichern',
+    remove: 'Ziel löschen',
+  },
+  expense: {
+    title: 'Wofür?',
+    amount: 'Betrag…',
+    date: 'Datum',
+    save: 'Ausgabe speichern',
+    firstPayment: 'Erste Zahlung',
+    lastPayment: 'Letzte Zahlung',
+    once: 'Einmalig',
+    monthly: 'Monatlich',
+    yearly: 'Jährlich',
+    notes: 'Notiz',
+    update: 'Änderungen speichern',
+    remove: 'Ausgabe löschen',
+  },
+  post: {
+    title: 'Idee / Thema',
+    script: 'Skript / Ablauf',
+    planned: 'Geplant für',
+    save: 'Idee speichern',
+    notes: 'Notizen',
+    caption: 'Caption',
+    hashtags: 'Hashtags',
+    published: 'Veröffentlicht',
+    publishedAt: 'Veröffentlicht am',
+    url: 'Link zum Post',
+    views: 'Aufrufe',
+    likes: 'Likes',
+    comments: 'Kommentare',
+    shares: 'Geteilt',
+    saves: 'Gespeichert',
+    update: 'Änderungen speichern',
+    remove: 'Post löschen',
+  },
+  company: {
+    company_name: 'Firmenname',
+    owner_name: 'Inhaber/in',
+    street: 'Straße und Hausnummer',
+    zip: 'PLZ',
+    city: 'Ort',
+    phone: 'Telefon',
+    email: 'E-Mail',
+    website: 'Website',
+    tax_number: 'Steuernummer',
+    vat_id: 'USt-IdNr.',
+    bank_name: 'Bank',
+    iban: 'IBAN',
+    bic: 'BIC',
+    review_url: 'Link für Bewertungen',
+    paymentDays: 'Zahlungsziel (Tage)',
+    validity: 'Angebote gültig (Tage)',
+    smallBusiness: 'Kleinunternehmerregelung (§ 19 UStG)',
+    vat19: '19 %',
+    vat7: '7 % (ermäßigt)',
+    save: 'Firmendaten speichern',
+  },
 } as const;
 
 /** Betrag so, wie man ihn eintippt: 1250 bzw. 1250,50 */
@@ -94,6 +186,12 @@ const type = (field: string, text: string | null | undefined): GuideStep[] =>
   text?.trim() ? [{ do: 'type', field, text: text.trim() }] : [];
 const date = (field: string, value: string | null, withTime: boolean): GuideStep => ({ do: 'date', field, value, withTime });
 const press = (button: string): GuideStep => ({ do: 'press', button });
+const pick = (button: string, on?: boolean): GuideStep =>
+  on === undefined ? { do: 'pick', button } : { do: 'pick', button, on };
+/** Text ändern: null = nichts tun, '' = Feld leeren */
+const retype = (field: string, text: string | null): GuideStep[] => (text === null ? [] : [{ do: 'type', field, text }]);
+/** Schalter auf den neuen Stand bringen (null = bleibt) */
+const flip = (button: string, on: boolean | null): GuideStep[] => (on === null ? [] : [pick(button, on)]);
 
 type Of<K extends Proposal['kind']> = Extract<Proposal, { kind: K }>;
 
@@ -133,6 +231,22 @@ export function customerSteps(p: Of<'customer'>): GuideStep[] {
 
 export function customerDone(id: string): GuideStep[] {
   return [go(`/kunden/${id}`, 'replace'), show({ target: 'guide.customer' })];
+}
+
+// ——— Kunde löschen ———
+
+export function customerDeleteSteps(p: Of<'customer_delete'>): GuideStep[] {
+  const L = LABELS.customer;
+  return [
+    go(`/kunden/${p.data.customerId}`),
+    show({ target: 'guide.customer' }, `Ich lösche den Kunden ${p.data.name}.`),
+    show({ button: L.remove }),
+    press(L.remove),
+  ];
+}
+
+export function customerDeleteDone(): GuideStep[] {
+  return [go('/kunden')];
 }
 
 // ——— Neuer Auftrag ———
@@ -212,6 +326,18 @@ export function orderPriceSteps(p: Of<'order_price'>, order: GuideOrder): GuideS
     { do: 'type', field: L.price, text: euroText(p.data.price) },
     press(L.save),
   ];
+}
+
+// ——— Auftrag löschen ———
+
+export function orderDeleteSteps(order: GuideOrder): GuideStep[] {
+  const L = LABELS.order;
+  return [...toOrder(order), show({ button: L.remove }, `Ich lösche den Auftrag „${order.title}“.`), press(L.remove)];
+}
+
+/** danach zurück zum Kunden (wie in der App) */
+export function orderDeleteDone(customerId: string | null): GuideStep[] {
+  return customerId ? [go(`/kunden/${customerId}`), show({ target: 'guide.customer' })] : [go('/auftraege')];
 }
 
 // ——— Angebot/Rechnung, bezahlt, PDF ———
@@ -405,6 +531,185 @@ export function postSteps(p: Of<'post'>): GuideStep[] {
 
 export function postDone(id: string): GuideStep[] {
   return [go(`/social/${id}`, 'replace'), show({ target: 'guide.post' })];
+}
+
+// ——— Vorhandenes ändern und löschen ———
+
+export function customerChangeSteps(p: Of<'customer_change'>): GuideStep[] {
+  const L = LABELS.customer;
+  const c = p.data;
+  const fields: [string, string | null][] = [
+    [L.name, c.name],
+    [L.company, c.company],
+    [L.phone, c.phone],
+    [L.email, c.email],
+    [L.address, c.address],
+    [L.notes, c.notes],
+  ];
+  const first = fields.find(([, v]) => v !== null)?.[0] ?? L.name;
+  return [
+    go(`/kunden/${p.customer.id}`),
+    show({ field: first }, `Ich ändere die Kundendaten von ${p.customer.name}.`),
+    ...fields.flatMap(([field, v]) => retype(field, v)),
+    press(L.update),
+  ];
+}
+
+export function customerChangeDone(): GuideStep[] {
+  return [show({ target: 'guide.customer' })];
+}
+
+export function orderChangeSteps(p: Of<'order_change'>, order: GuideOrder): GuideStep[] {
+  const L = LABELS.order;
+  const c = p.data;
+  const say =
+    c.cancelled === true
+      ? `Ich storniere den Auftrag „${order.title}“.`
+      : c.completed === true
+        ? `Ich schließe den Auftrag „${order.title}“ ab.`
+        : c.cancelled === false
+          ? `Ich nehme den Auftrag „${order.title}“ wieder auf.`
+          : `Ich ändere den Auftrag „${order.title}“.`;
+  return [
+    ...toOrder(order),
+    show({ target: 'guide.order' }, say),
+    ...flip(L.meetingDone, c.meeting_done),
+    ...flip(L.offerSent, c.offer_sent),
+    ...flip(L.offerAccepted, c.offer_accepted),
+    ...flip(L.completed, c.completed),
+    ...flip(L.cancelled, c.cancelled),
+    ...(c.discount_percent !== null ? retype(L.discount, euroText(c.discount_percent)) : []),
+    ...(c.contract_start !== null ? [date(L.contractStart, c.contract_start || null, false)] : []),
+    ...(c.contract_end !== null ? [date(L.contractEnd, c.contract_end || null, false)] : []),
+    ...retype(L.title, c.title),
+    ...retype(L.description, c.description),
+    ...(c.expenses !== null ? retype(L.expenses, euroText(c.expenses)) : []),
+    ...retype(L.notes, c.internal_notes),
+    press(L.save),
+  ];
+}
+
+export function orderChangeDone(): GuideStep[] {
+  return [show({ target: 'guide.order' })];
+}
+
+const REPEAT_OPTION = { once: LABELS.expense.once, monthly: LABELS.expense.monthly, yearly: LABELS.expense.yearly };
+
+export function expenseChangeSteps(p: Of<'expense_change'>): GuideStep[] {
+  const L = LABELS.expense;
+  const e = p.expense;
+  const c = p.data;
+  const href = `/finanzen/ausgabe/${e.id}`;
+  if (c.remove) return [go(href), show({ button: L.remove }, `Ich lösche die Ausgabe „${e.title}“.`), press(L.remove)];
+  const repeat = c.repeat ?? e.repeat;
+  return [
+    go(href),
+    show({ target: 'guide.expense' }, `Ich ändere die Ausgabe „${e.title}“.`),
+    ...retype(L.title, c.title),
+    ...(c.amount !== null ? retype(L.amount, euroText(c.amount)) : []),
+    ...(c.repeat ? [pick(REPEAT_OPTION[c.repeat])] : []),
+    ...(c.spent_on ? [date(repeat === 'once' ? L.date : L.firstPayment, c.spent_on, false)] : []),
+    ...(c.ends_on !== null && repeat !== 'once' ? [date(L.lastPayment, c.ends_on || null, false)] : []),
+    ...(c.category ? [pick(categoryLabel(c.category))] : []),
+    ...retype(L.notes, c.notes),
+    press(L.update),
+  ];
+}
+
+export function expenseChangeDone(p: Of<'expense_change'>): GuideStep[] {
+  return p.data.remove ? [go('/finanzen')] : [show({ target: 'guide.expense' })];
+}
+
+export function postChangeSteps(p: Of<'post_change'>): GuideStep[] {
+  const L = LABELS.post;
+  const post = p.post;
+  const c = p.data;
+  const href = `/social/${post.id}`;
+  if (c.remove) return [go(href), show({ button: L.remove }, `Ich lösche den Post „${post.title}“.`), press(L.remove)];
+  const format = c.format ?? post.format;
+  const formatLabel = c.format ? FORMATS.find((f) => f.key === c.format)?.label : undefined;
+  const platforms = c.platforms
+    ? PLATFORMS.filter((x) => c.platforms!.includes(x.key) !== post.platforms.includes(x.key)).map((x) =>
+        pick(x.label, c.platforms!.includes(x.key)),
+      )
+    : [];
+  const metrics = (['views', 'likes', 'comments', 'shares', 'saves'] as const).flatMap((m) =>
+    c.metrics[m] !== undefined ? retype(L[m], String(c.metrics[m])) : [],
+  );
+  return [
+    go(href),
+    show({ target: 'guide.post' }, `Ich ändere den Post „${post.title}“.`),
+    ...retype(L.title, c.title),
+    ...(formatLabel ? [pick(formatLabel)] : []),
+    ...platforms,
+    ...(c.steps ? stepsFor(format).map((s) => pick(s.label, c.steps === 'ready')) : []),
+    ...retype(format === 'video' ? L.script : L.notes, c.script),
+    ...retype(L.caption, c.caption),
+    ...retype(L.hashtags, c.hashtags),
+    ...(c.planned_for !== null ? [date(L.planned, c.planned_for || null, true)] : []),
+    ...flip(L.published, c.published),
+    ...(c.published_at ? [date(L.publishedAt, c.published_at, true)] : []),
+    ...retype(L.url, c.url),
+    ...metrics,
+    press(L.update),
+  ];
+}
+
+export function postChangeDone(p: Of<'post_change'>): GuideStep[] {
+  return p.data.remove ? [go('/social')] : [show({ target: 'guide.post' })];
+}
+
+export function goalChangeSteps(p: Of<'goal_change'>): GuideStep[] {
+  const L = LABELS.goal;
+  const g = p.goal;
+  const c = p.data;
+  const name = g.title ?? goalLabel(g);
+  const href = `/aufgaben/ziele/${g.id}`;
+  if (c.remove) return [go(href), show({ button: L.remove }, `Ich lösche das Ziel „${name}“.`), press(L.remove)];
+  const amount = (n: number) => (g.kind === 'revenue' ? euroText(n) : String(n));
+  return [
+    go(href),
+    show(
+      { target: 'guide.goal' },
+      c.archived === true ? `Ich archiviere das Ziel „${name}“.` : `Ich ändere das Ziel „${name}“.`,
+    ),
+    ...retype(L.title, c.title),
+    ...(c.target !== null ? retype(L.target, amount(c.target)) : []),
+    ...(c.period && c.period !== 'once' ? [pick(PERIOD_LABEL[c.period])] : []),
+    ...(c.progress !== null ? retype(L.progress, String(c.progress)) : []),
+    ...(c.due_on !== null ? [date(L.due, c.due_on || null, false)] : []),
+    ...flip(L.archived, c.archived),
+    press(L.update),
+  ];
+}
+
+export function goalChangeDone(p: Of<'goal_change'>): GuideStep[] {
+  return p.data.remove || p.data.archived ? [go('/aufgaben?ansicht=ziele')] : [show({ target: 'guide.goal' })];
+}
+
+export function companyChangeSteps(p: Of<'company_change'>): GuideStep[] {
+  const L = LABELS.company;
+  const c = p.data;
+  const text = (COMPANY_TEXT_FIELDS as readonly CompanyTextField[]).filter((k) => k in c);
+  return [
+    go('/firma'),
+    show(text.length ? { field: L[text[0]] } : { button: L.save }, 'Ich ändere deine Firmendaten.'),
+    ...text.flatMap((k) => retype(L[k], c[k] ?? '')),
+    ...flip(L.smallBusiness, c.small_business ?? null),
+    ...(c.vat_rate ? [pick(c.vat_rate === 7 ? L.vat7 : L.vat19)] : []),
+    ...(c.payment_days !== undefined ? retype(L.paymentDays, String(c.payment_days)) : []),
+    ...(c.offer_validity_days !== undefined ? retype(L.validity, String(c.offer_validity_days)) : []),
+    press(L.save),
+  ];
+}
+
+export function companyChangeDone(): GuideStep[] {
+  return [show({ button: LABELS.company.save })];
+}
+
+/** Seite öffnen – dort bleibt man danach */
+export function openSteps(p: Of<'open'>): GuideStep[] {
+  return [show(undefined, `Ich öffne ${p.data.label}.`), go(p.data.href)];
 }
 
 export function incomeProofSteps(): GuideStep[] {

@@ -150,6 +150,12 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
   const [logo, setLogo] = useState<StoredLogo | null>(null);
   /** Geladene Logos nach id (auch ältere Versionen für ältere Dokumente) */
   const logoCache = useRef(new Map<string, LogoImage | null>());
+  // immer die neuesten Firmendaten – auch direkt nach dem Speichern (Nexy ändert
+  // z. B. die IBAN und schreibt gleich danach die Rechnung)
+  const sellerNow = useRef(seller);
+  useEffect(() => {
+    sellerNow.current = seller;
+  }, [seller]);
 
   useEffect(() => {
     let active = true;
@@ -190,7 +196,9 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
           };
         return { error: errorText(err, 'Die Firmendaten konnten nicht gespeichert werden.') };
       }
-      setSeller(toSeller(data as Record<string, unknown>));
+      const next = toSeller(data as Record<string, unknown>);
+      sellerNow.current = next;
+      setSeller(next);
       setHasSettings(true);
       setError(null);
       return {};
@@ -200,6 +208,7 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
 
   const issue = useCallback<State['issue']>(
     async (kind, order, customer, service) => {
+      const seller = sellerNow.current;
       const data = buildDocumentData(kind, seller, order, customer, service);
       const today = todayIso();
       const due = kind === 'invoice' ? addDays(today, seller.payment_days) : addDays(today, seller.offer_validity_days);
@@ -215,7 +224,7 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
       setDocuments((list) => [doc, ...list]);
       return { data: doc };
     },
-    [seller],
+    [],
   );
 
   const setPaid = useCallback(async (id: string, paid: boolean) => {

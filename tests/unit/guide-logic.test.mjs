@@ -7,12 +7,25 @@ import {
   LABELS,
   appointmentChangeSteps,
   appointmentSteps,
+  companyChangeSteps,
+  customerChangeSteps,
+  expenseChangeDone,
+  expenseChangeSteps,
+  goalChangeDone,
+  goalChangeSteps,
+  openSteps,
+  orderChangeSteps,
+  postChangeSteps,
+  customerDeleteDone,
+  customerDeleteSteps,
   customerDone,
   customerSteps,
   documentSteps,
   euroText,
   goalSteps,
   orderDateSteps,
+  orderDeleteDone,
+  orderDeleteSteps,
   orderDatesSteps,
   orderPriceSteps,
   orderSteps,
@@ -261,6 +274,7 @@ test('Jede Beschriftung, nach der Nexy sucht, steht wirklich im Formular', () =>
     goal: ['features/goals/goal-editor.tsx'],
     expense: ['features/finance/expense-editor.tsx'],
     post: ['features/social/post-editor.tsx'],
+    company: ['features/documents/company-screen.tsx'],
   };
   for (const [group, labels] of Object.entries(LABELS)) {
     const source = where[group].map(read).join('\n');
@@ -334,4 +348,205 @@ test('Position: schmales Fenster (Handy) – Blase passt in die Breite', () => {
   const p = placeNexy({ x: 16, y: 200, width: 328, height: 120 }, 56, { width: 360, height: 700 }, bubble);
   assert.ok(p.bubble.left >= 16 && p.bubble.left + p.bubble.width <= 360 - 16);
   assert.equal(placeNexy(null, 56, { width: 260, height: 500 }, bubble).bubble.width, 260 - 32);
+});
+
+test('Kunde löschen: zum Kunden, „Kunde löschen“ drücken, danach zur Kundenliste', () => {
+  const steps = customerDeleteSteps({
+    id: 'p1',
+    kind: 'customer_delete',
+    include: true,
+    data: { customerId: 'c7', name: 'Frau Berg', orders: 0 },
+  });
+  assert.deepEqual(steps[0], { do: 'go', href: '/kunden/c7' });
+  assert.deepEqual(steps[1].at, { target: 'guide.customer' });
+  assert.match(steps[1].say, /Frau Berg/);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Kunde löschen' });
+  assert.deepEqual(customerDeleteDone(), [{ do: 'go', href: '/kunden' }]);
+});
+
+test('Auftrag löschen: über den Kunden in den Auftrag, „Auftrag löschen“, zurück zum Kunden', () => {
+  const steps = orderDeleteSteps(order);
+  assert.deepEqual(steps.slice(0, 3), toOrder(order));
+  assert.match(steps.at(-2).say, /Hecke schneiden/);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Auftrag löschen' });
+  assert.deepEqual(orderDeleteDone('c1'), [
+    { do: 'go', href: '/kunden/c1' },
+    { do: 'show', at: { target: 'guide.customer' } },
+  ]);
+  assert.deepEqual(orderDeleteDone(null), [{ do: 'go', href: '/auftraege' }]);
+});
+
+// ——— Ändern und Löschen von Vorhandenem ———
+
+const picks = (steps) => steps.filter((s) => s.do === 'pick');
+const types = (steps) => steps.filter((s) => s.do === 'type').map((s) => [s.field, s.text]);
+
+test('Kunde ändern: in der Kundenakte die Felder neu tippen (leeren mit ""), dann speichern', () => {
+  const steps = customerChangeSteps({
+    id: 'p1',
+    kind: 'customer_change',
+    include: true,
+    customer: { id: 'c1', name: 'Frau Berg' },
+    data: { name: null, company: null, phone: '', email: 'berg@neu.de', address: null, notes: null },
+  });
+  assert.deepEqual(steps[0], { do: 'go', href: '/kunden/c1' });
+  assert.deepEqual(steps[1].at, { field: 'Telefon' });
+  assert.deepEqual(types(steps), [
+    ['Telefon', ''],
+    ['E-Mail', 'berg@neu.de'],
+  ]);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Änderungen speichern' });
+});
+
+test('Auftrag ändern: Schalter wirklich umlegen, Texte tippen, speichern', () => {
+  const steps = orderChangeSteps(
+    {
+      id: 'p1',
+      kind: 'order_change',
+      include: true,
+      customer: { existingId: 'c1', newRef: null, name: 'Frau Berg' },
+      order: { existingId: 'o1', newRef: null, title: 'Hecke schneiden' },
+      data: {
+        title: null,
+        description: null,
+        discount_percent: 10,
+        contract_start: null,
+        contract_end: null,
+        meeting_done: null,
+        offer_sent: null,
+        offer_accepted: true,
+        completed: null,
+        cancelled: true,
+        expenses: 45.9,
+        internal_notes: '',
+      },
+    },
+    order,
+  );
+  assert.deepEqual(steps.slice(0, 3), toOrder(order));
+  assert.match(steps[3].say, /storniere/);
+  assert.deepEqual(picks(steps), [
+    { do: 'pick', button: 'Angebot angenommen', on: true },
+    { do: 'pick', button: 'Storniert', on: true },
+  ]);
+  assert.deepEqual(types(steps), [
+    ['Rabatt in %', '10'],
+    ['Ausgaben in €…', '45,90'],
+    ['Interne Notizen', ''],
+  ]);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Änderungen speichern' });
+});
+
+const expense = {
+  id: 'e1',
+  title: 'Canva Pro',
+  amount: 11.99,
+  category: 'software',
+  repeat: 'monthly',
+  spent_on: '2026-01-05',
+  ends_on: null,
+  notes: null,
+};
+const noExpenseChange = { title: null, amount: null, category: null, repeat: null, spent_on: null, ends_on: null, notes: null, remove: false };
+
+test('Ausgabe ändern: Betrag, Auswahl anklicken, Abo-Ende – löschen über den Knopf', () => {
+  const p = (data) => ({ id: 'p1', kind: 'expense_change', include: true, expense, data: { ...noExpenseChange, ...data } });
+  const steps = expenseChangeSteps(p({ amount: 14.99, category: 'marketing', ends_on: '2026-12-31' }));
+  assert.deepEqual(steps[0], { do: 'go', href: '/finanzen/ausgabe/e1' });
+  assert.deepEqual(types(steps), [['Betrag…', '14,99']]);
+  assert.deepEqual(picks(steps), [{ do: 'pick', button: 'Werbung & Marketing' }]);
+  assert.ok(steps.some((s) => s.do === 'date' && s.field === 'Letzte Zahlung' && s.value === '2026-12-31'));
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Änderungen speichern' });
+  assert.deepEqual(expenseChangeDone(p({ amount: 1 })), [{ do: 'show', at: { target: 'guide.expense' } }]);
+  // einmalig: Datum heißt „Datum“, kein Abo-Ende
+  const once = expenseChangeSteps(p({ repeat: 'once', spent_on: '2026-11-01', ends_on: '' }));
+  assert.deepEqual(picks(once), [{ do: 'pick', button: 'Einmalig' }]);
+  assert.ok(once.some((s) => s.do === 'date' && s.field === 'Datum'));
+  assert.ok(!once.some((s) => s.do === 'date' && s.field === 'Letzte Zahlung'));
+  // löschen
+  const del = expenseChangeSteps(p({ remove: true }));
+  assert.deepEqual(del.at(-1), { do: 'press', button: 'Ausgabe löschen' });
+  assert.deepEqual(expenseChangeDone(p({ remove: true })), [{ do: 'go', href: '/finanzen' }]);
+});
+
+test('Post ändern: nur abweichende Plattformen anklicken, Schritte abhaken, Zahlen tippen', () => {
+  const post = { id: 'p1', title: 'Gründen', format: 'video', platforms: ['tiktok'], script: null, caption: null, hashtags: null, planned_for: null, published_at: null, url: null };
+  const data = {
+    title: null,
+    format: null,
+    platforms: ['tiktok', 'instagram'],
+    script: null,
+    caption: null,
+    hashtags: null,
+    planned_for: null,
+    steps: 'ready',
+    published: true,
+    published_at: null,
+    url: null,
+    metrics: { views: 1200 },
+    remove: false,
+  };
+  const steps = postChangeSteps({ id: 'x', kind: 'post_change', include: true, post, data });
+  assert.deepEqual(steps[0], { do: 'go', href: '/social/p1' });
+  assert.deepEqual(picks(steps), [
+    { do: 'pick', button: 'Instagram', on: true },
+    { do: 'pick', button: 'Skript', on: true },
+    { do: 'pick', button: 'Gedreht', on: true },
+    { do: 'pick', button: 'Geschnitten', on: true },
+    { do: 'pick', button: 'Caption', on: true },
+    { do: 'pick', button: 'Veröffentlicht', on: true },
+  ]);
+  assert.deepEqual(types(steps), [['Aufrufe', '1200']]);
+  const del = postChangeSteps({ id: 'x', kind: 'post_change', include: true, post, data: { ...data, remove: true } });
+  assert.deepEqual(del.at(-1), { do: 'press', button: 'Post löschen' });
+});
+
+test('Ziel ändern: Zielwert, Zeitraum anklicken, archivieren – danach zur Zielliste', () => {
+  const goal = { id: 'g1', kind: 'revenue', period: 'month', target: 3000, title: null, progress: 0, due_on: null, archived: false };
+  const data = { target: 4000, title: null, period: 'year', progress: null, due_on: null, archived: true, remove: false };
+  const p = { id: 'x', kind: 'goal_change', include: true, goal, data };
+  const steps = goalChangeSteps(p);
+  assert.deepEqual(steps[0], { do: 'go', href: '/aufgaben/ziele/g1' });
+  assert.match(steps[1].say, /archiviere/);
+  assert.deepEqual(types(steps), [['Ziel…', '4000']]);
+  assert.deepEqual(picks(steps), [
+    { do: 'pick', button: 'pro Jahr' },
+    { do: 'pick', button: 'Archiviert (nicht mehr anzeigen)', on: true },
+  ]);
+  assert.deepEqual(goalChangeDone(p), [{ do: 'go', href: '/aufgaben?ansicht=ziele' }]);
+});
+
+test('Firmendaten ändern: im Bereich Firma tippen, Schalter umlegen, speichern', () => {
+  const steps = companyChangeSteps({
+    id: 'x',
+    kind: 'company_change',
+    include: true,
+    data: { iban: 'DE89370400440532013000', website: null, small_business: false, vat_rate: 7, payment_days: 21 },
+  });
+  assert.deepEqual(steps[0], { do: 'go', href: '/firma' });
+  assert.deepEqual(steps[1].at, { field: 'Website' });
+  assert.deepEqual(types(steps), [
+    ['Website', ''],
+    ['IBAN', 'DE89370400440532013000'],
+    ['Zahlungsziel (Tage)', '21'],
+  ]);
+  assert.deepEqual(picks(steps), [
+    { do: 'pick', button: 'Kleinunternehmerregelung (§ 19 UStG)', on: false },
+    { do: 'pick', button: '7 % (ermäßigt)' },
+  ]);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Firmendaten speichern' });
+});
+
+test('Seite öffnen: Nexy sagt es und geht hin', () => {
+  assert.deepEqual(openSteps({ id: 'x', kind: 'open', include: true, data: { href: '/finanzen', label: 'Finanzen' } }), [
+    { do: 'show', say: 'Ich öffne Finanzen.' },
+    { do: 'go', href: '/finanzen' },
+  ]);
+});
+
+test('Auswahl-Knöpfe, die Nexy anklickt, haben eine Beschriftung', () => {
+  assert.ok(read('components/ui/segmented.tsx').includes('accessibilityLabel={o.label}'), 'Segmented');
+  assert.ok(read('features/finance/expense-editor.tsx').includes('accessibilityLabel={c.label}'), 'Kategorien');
+  assert.ok(read('features/social/post-editor.tsx').includes('accessibilityLabel={p.label}'), 'Plattformen');
+  assert.ok(read('components/ui/toggle-row.tsx').includes('accessibilityLabel={label}'), 'Schalter');
 });

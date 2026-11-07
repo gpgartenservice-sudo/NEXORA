@@ -204,6 +204,7 @@ function PostEditor({ post, planned = null }: { post?: SocialPost; planned?: str
                     onPress={() => togglePlatform(p.key)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: active }}
+                    aria-checked={active}
                     accessibilityLabel={p.label}
                     style={[styles.chip, active && styles.chipActive]}>
                     <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>

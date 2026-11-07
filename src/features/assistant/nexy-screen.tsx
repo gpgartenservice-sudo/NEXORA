@@ -39,6 +39,8 @@ import { useHover } from '@/hooks/use-hover';
 
 import { NexyAvatar, type NexyMood } from './nexy-avatar';
 import { NexyProposals } from './nexy-proposals';
+import { runnableNow } from './assistant-logic';
+import { useGuide, useRunProposals } from './nexy-guide';
 import { useNexy, type NexyMessage } from './nexy-provider';
 import { useVoiceMode, type VoiceMode, type VoicePhase } from './use-voice-mode';
 import { spokenReply } from './voice-logic';
@@ -87,12 +89,22 @@ const STARTERS = [
   'Erstell mir einen Einkommensnachweis für die letzten 3 Monate.',
   'Ich hab gestern 49,90 € für Flyer bezahlt.',
   'Trag mir Freitag 14 Uhr Steuerberatung ein.',
+  'Mein Canva-Abo kostet jetzt 14,99 € im Monat – ändere das bitte.',
   'Gib mir 3 TikTok-Ideen für mein Business.',
 ];
 
 /** Nexy – Chat mit dem KI-Assistenten. */
 export function NexyScreen() {
-  const { messages, thinking, send, reset } = useNexy();
+  const { messages, thinking, send, reset, blockers, executing } = useNexy();
+  const runProposals = useRunProposals();
+  const runLatest = useRef(runProposals);
+  // Führt Nexy gerade etwas vor, verlässt sie den Chat nur kurz – der Sprachmodus bleibt an
+  const guide = useGuide();
+  const guiding = useRef(false);
+  useEffect(() => {
+    runLatest.current = runProposals;
+    guiding.current = !!guide?.running;
+  });
   const { info } = usePlan();
   // Gratis: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
   const left = info && info.plan === 'free' ? info.usage.nexy.limit - info.usage.nexy.used : null;
@@ -111,11 +123,13 @@ export function NexyScreen() {
   // Neue Nachrichten von Nexy tippen sich ein; ältere stehen sofort da
   const [seen] = useState(() => new Set(messages.map((m) => m.id)));
   const [readIds] = useState(() => new Set(messages.map((m) => m.id)));
+  const [autoIds] = useState(() => new Set(messages.map((m) => m.id)));
 
-  // Bereich verlassen: Zuhören und Vorlesen aus
+  // Bereich verlassen: Zuhören und Vorlesen aus (nicht, während Nexy etwas vorführt)
   useFocusEffect(
     useCallback(
       () => () => {
+        if (guiding.current) return;
         stopVoice();
         stopReading();
       },
@@ -141,12 +155,41 @@ export function NexyScreen() {
   const lastNexy = [...messages].reverse().find((m) => m.role === 'nexy');
   const heroMood: NexyMood = voiceMood(voice.phase) ?? (voice.reading ? 'talking' : thinking ? 'thinking' : 'idle');
 
-  // "Vorlesen" an: neue Antworten werden vorgelesen (im Sprachmodus übernimmt das der Sprachmodus)
+  // Nexy legt sofort los, sobald sie weiß, was zu tun ist – ohne „Ausführen“.
+  // Fehlt noch etwas, wartet sie, bis es in der Karte geklärt ist (Kunde/Auftrag
+  // gewählt, Firmendaten ergänzt), und legt dann los. Im Sprachmodus übernimmt
+  // das der Sprachmodus.
+  const autoRun =
+    !!lastNexy &&
+    lastNexy.status === 'open' &&
+    !!lastNexy.proposals?.length &&
+    runnableNow(lastNexy.proposals, lastNexy.doneIds ?? [], blockers);
+  useEffect(() => {
+    if (!lastNexy || autoIds.has(lastNexy.id) || !autoRun || executing) return;
+    if (voice.active) {
+      // die neue Antwort führt der Sprachmodus selbst aus
+      autoIds.add(lastNexy.id);
+      return;
+    }
+    const id = lastNexy.id;
+    // kurz die Antwort lesen lassen, dann geht es los
+    const timer = setTimeout(() => {
+      if (autoIds.has(id)) return;
+      autoIds.add(id);
+      void runLatest.current(id);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [lastNexy, autoIds, autoRun, executing, voice.active]);
+
+  // "Vorlesen" an: neue Antworten werden vorgelesen (im Sprachmodus übernimmt das der Sprachmodus;
+  // legt Nexy gleich los, erzählt sie es bei der Vorführung)
   useEffect(() => {
     if (!lastNexy || readIds.has(lastNexy.id)) return;
     readIds.add(lastNexy.id);
-    if (readAloud && !voice.active && voice.canSpeak) read(lastNexy.error ? spokenReply(lastNexy) : lastNexy.text);
-  }, [lastNexy, readIds, readAloud, voice.active, voice.canSpeak, read]);
+    if (readAloud && !autoRun && !voice.active && voice.canSpeak) {
+      read(lastNexy.error ? spokenReply(lastNexy) : lastNexy.text);
+    }
+  }, [lastNexy, readIds, readAloud, autoRun, voice.active, voice.canSpeak, read]);
 
   const toggleReadAloud = () => {
     const on = !readAloud;
@@ -178,8 +221,8 @@ export function NexyScreen() {
               <Reveal delay={350}>
                 <Text style={styles.heroText}>
                   Erzähl mir, was ansteht – schreibend oder per Sprache. Ich lege Kunden, Aufträge und Ausgaben an,
-                  schreibe Angebote und Rechnungen als PDF und beantworte deine Fragen – du bestätigst, bevor etwas
-                  passiert.
+                  ändere oder lösche sie, schreibe Angebote und Rechnungen als PDF, öffne jede Seite und beantworte
+                  deine Fragen. Was ich mache, erledige ich direkt – du siehst mir dabei zu.
                 </Text>
               </Reveal>
               <TourTarget id="nexy.ideen">

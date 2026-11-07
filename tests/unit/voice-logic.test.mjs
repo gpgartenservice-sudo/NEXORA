@@ -151,3 +151,9 @@ test('Ja/Nein gilt nur für die Vorschläge der letzten Nexy-Nachricht', () => {
   assert.equal(pendingConfirmation([{ ...open, status: 'done' }]), null);
   assert.equal(pendingConfirmation([]), null);
 });
+
+test('Sprachantwort: legt Nexy gleich selbst los, fragt sie nicht nach Ja/Nein', () => {
+  const reply = { text: 'Mach ich – ich lege Frau Berg an.', proposals: [{}], status: 'open' };
+  assert.equal(spokenReply(reply, false), 'Mach ich – ich lege Frau Berg an.');
+  assert.match(spokenReply(reply), /Sag einfach ja oder nein\.$/);
+});

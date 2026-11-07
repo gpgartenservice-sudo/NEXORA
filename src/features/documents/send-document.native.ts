@@ -26,7 +26,7 @@ export function canShareFile(_pdf: PreparedPdf): boolean {
   return true;
 }
 
-export type Delivery = { error?: string; pdf?: 'finder' | 'download'; message?: string };
+export type Delivery = { error?: string; pdf?: 'finder' | 'download'; message?: string; note?: string };
 
 const failed = (e: unknown): Delivery => {
   console.warn('[Verschicken]', e);
@@ -39,7 +39,8 @@ async function sharePdf(pdf: PreparedPdf, title: string) {
 }
 
 /** E-Mail (Mail-App mit Anhang) bzw. WhatsApp (Text kopiert + Teilen-Menü) */
-export async function openWith(pdf: PreparedPdf, url: string): Promise<Delivery> {
+/** opts.from: Absender – am Handy wählt die Mail-App das Konto selbst */
+export async function openWith(pdf: PreparedPdf, url: string, _opts: { from?: string | null } = {}): Promise<Delivery> {
   try {
     const mail = parseMailto(url);
     if (mail) {

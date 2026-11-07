@@ -8,6 +8,7 @@ import { computeStatus, STATUS_LABEL } from '../crm/order-logic';
 import { missingSellerFields, sellerName, type DocumentData, type Seller } from '../documents/document-logic';
 import {
   addMonths,
+  categoryLabel,
   fixedCostsPerMonth,
   monthKey,
   monthRange,
@@ -16,7 +17,14 @@ import {
   type ExpenseFacts,
   type OrderMoney,
 } from '../finance/finance-logic';
-import { computePostStatus, dayKey, startOfWeek, type PostFacts } from '../social/social-logic';
+import {
+  computePostStatus,
+  dayKey,
+  FORMATS,
+  startOfWeek,
+  statusLabel,
+  type PostFacts,
+} from '../social/social-logic';
 import {
   DEFAULT_RESERVE_PERCENT,
   SMALL_BUSINESS_LIMIT,
@@ -78,8 +86,11 @@ export type ContextInput = {
   followups?: { document_id: string; kind: string; sent_on: string; new_due_on: string | null }[];
   /** offene To-dos (kurz, mit Kurzzeichen A1, A2 … zum Ändern) und ihre Gesamtzahl */
   todos?: { entries: Record<string, unknown>[]; open: number };
-  /** aktive Ziele mit Stand */
+  /** aktive Ziele mit Stand (mit Kurzzeichen Z1, Z2 … zum Ändern) */
   goals?: Record<string, unknown>[];
+  /** Ausgaben (mit Kurzzeichen E1 …) und Posts (P1 …) zum Ändern/Löschen – siehe nexyExpenses/nexyPosts */
+  expenseList?: Record<string, unknown>[];
+  postList?: Record<string, unknown>[];
   /** Steuer-Topf: % vom Gewinn (Firmendaten) */
   taxPercent?: number;
   today?: Date;
@@ -99,6 +110,8 @@ export function buildNexyContext({
   followups = [],
   todos = { entries: [], open: 0 },
   goals = [],
+  expenseList = [],
+  postList = [],
   taxPercent = DEFAULT_RESERVE_PERCENT,
   today = new Date(),
 }: ContextInput) {
@@ -207,6 +220,17 @@ export function buildNexyContext({
       .slice(0, 10)
       .map((d) => ({ nummer: d.number, kunde: d.data?.buyer?.name ?? null, betrag: d.total, datum: d.issued_on })),
     bezahlte_rechnungen_anzahl: documents.filter((d) => d.kind === 'invoice' && d.paid_at).length,
+    // die zuletzt bezahlten (z. B. um eine versehentlich bezahlt markierte wieder auf offen zu setzen)
+    bezahlte_rechnungen: documents
+      .filter((d) => d.kind === 'invoice' && d.paid_at)
+      .sort((a, b) => (b.paid_at ?? '').localeCompare(a.paid_at ?? ''))
+      .slice(0, 8)
+      .map((d) => ({
+        nummer: d.number,
+        kunde: d.data?.buyer?.name ?? null,
+        betrag: d.total,
+        bezahlt_am: (d.paid_at ?? '').slice(0, 10),
+      })),
     finanzen: {
       hinweis:
         'Einnahmen = abgeschlossene Aufträge (monatliche anteilig), Ausgaben = Auftrags- und allgemeine Ausgaben',
@@ -220,6 +244,8 @@ export function buildNexyContext({
     aufgaben: todos.entries.slice(0, 30),
     aufgaben_offen_gesamt: todos.open,
     ziele: goals.slice(0, 10),
+    ausgaben: expenseList,
+    posts: postList,
     social: {
       ideen: statusCount('idea'),
       in_arbeit: statusCount('in_progress'),
@@ -246,10 +272,70 @@ export function buildNexyContext({
   };
 
   // Notbremse für sehr große Konten: Listen kürzen, bis es passt
-  for (const key of ['kunden', 'auftraege', 'offene_rechnungen', 'aufgaben', 'termine'] as const) {
+  for (const key of ['posts', 'ausgaben', 'kunden', 'auftraege', 'offene_rechnungen', 'aufgaben', 'termine'] as const) {
     while (JSON.stringify(context).length > MAX_CHARS && context[key].length > 10) {
       (context[key] as unknown[]).splice(Math.floor(context[key].length / 2));
     }
   }
   return context;
+}
+
+const REPEAT_DE = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
+
+type ExpenseRow = {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  repeat: 'once' | 'monthly' | 'yearly';
+  spent_on: string;
+  ends_on: string | null;
+};
+
+/**
+ * Ausgaben mit Kurzzeichen (E1, E2 …), über die Nexy sie ändern oder löschen
+ * kann: regelmäßige zuerst, dann die neuesten. list = dieselben Einträge.
+ */
+export function nexyExpenses<T extends ExpenseRow>(expenses: T[], max = 25) {
+  const list = [...expenses]
+    .sort((a, b) => Number(b.repeat !== 'once') - Number(a.repeat !== 'once') || b.spent_on.localeCompare(a.spent_on))
+    .slice(0, max);
+  return {
+    list,
+    entries: list.map((e, i) => ({
+      ref: `E${i + 1}`,
+      titel: e.title,
+      betrag: e.amount,
+      wie_oft: REPEAT_DE[e.repeat],
+      kategorie: categoryLabel(e.category),
+      [e.repeat === 'once' ? 'datum' : 'seit']: e.spent_on,
+      ...(e.ends_on ? { bis: e.ends_on } : {}),
+    })),
+    refs: Object.fromEntries(list.map((e, i) => [`E${i + 1}`, e.id])) as Record<string, string>,
+  };
+}
+
+type PostRow = PostFacts & {
+  id: string;
+  title: string;
+  planned_for: string | null;
+  published_at: string | null;
+  updated_at: string;
+};
+
+/** Posts mit Kurzzeichen (P1, P2 …), zuletzt bearbeitete zuerst. list = dieselben Einträge. */
+export function nexyPosts<T extends PostRow>(posts: T[], max = 25) {
+  const list = [...posts].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, max);
+  return {
+    list,
+    entries: list.map((p, i) => ({
+      ref: `P${i + 1}`,
+      titel: p.title,
+      format: FORMATS.find((f) => f.key === p.format)?.label ?? p.format,
+      status: statusLabel(computePostStatus(p)),
+      ...(p.planned_for ? { geplant: localStamp(p.planned_for) } : {}),
+      ...(p.published_at ? { veroeffentlicht: localStamp(p.published_at) } : {}),
+    })),
+    refs: Object.fromEntries(list.map((p, i) => [`P${i + 1}`, p.id])) as Record<string, string>,
+  };
 }

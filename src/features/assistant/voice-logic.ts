@@ -336,15 +336,19 @@ export function speechChunks(text: string, max = 220): string[] {
 }
 
 /** Was Nexy im Sprachmodus zu einer Antwort sagt. */
-export function spokenReply(message: { text: string; error?: string; proposals?: unknown[]; status?: string }): string {
+/** `ask` = false: Nexy legt gleich selbst los, also nicht nach Ja/Nein fragen */
+export function spokenReply(
+  message: { text: string; error?: string; proposals?: unknown[]; status?: string },
+  ask = true,
+): string {
   if (message.error) {
     // nur der verständliche Teil, keine technischen Details
     return speechText(message.error.split(/\n\s*\n/)[0]);
   }
   const text = speechText(message.text);
-  if (message.proposals?.length && message.status === 'open') {
-    const ask = /\?\s*$/.test(text) ? '' : ' Soll ich das so machen?';
-    return `${text}${ask} Sag einfach ja oder nein.`.trim();
+  if (ask && message.proposals?.length && message.status === 'open') {
+    const question = /\?\s*$/.test(text) ? '' : ' Soll ich das so machen?';
+    return `${text}${question} Sag einfach ja oder nein.`.trim();
   }
   return text;
 }

@@ -4,6 +4,8 @@ import { useSharedValue, withTiming, type SharedValue } from 'react-native-reani
 import { useCrm } from '@/features/crm/crm-provider';
 
 import { transcribe } from './assistant-api';
+import { runnableNow } from './assistant-logic';
+import { useRunProposals } from './nexy-guide';
 import { useNexy } from './nexy-provider';
 import {
   blobToBase64,
@@ -29,11 +31,14 @@ const MAX_QUIET_ROUNDS = 2;
 
 /**
  * Sprachmodus: zuhören -> verstehen -> Nexy fragen -> vorlesen -> wieder zuhören.
- * "Ja"/"Nein" bestätigt bzw. verwirft offene Vorschläge, "Stopp" beendet.
+ * Vorschläge führt Nexy sofort aus und macht es dabei in der App vor (danach
+ * hört sie weiter zu); fehlte noch etwas, bestätigt bzw. verwirft "Ja"/"Nein"
+ * sie später. "Stopp" beendet.
  */
 export function useVoiceMode() {
   const nexy = useNexy();
   const crm = useCrm();
+  const runProposals = useRunProposals();
   const [phase, setPhase] = useState<VoicePhase>('off');
   const [heard, setHeard] = useState<string | null>(null);
   const [error, setError] = useState<VoiceError | null>(null);
@@ -43,10 +48,10 @@ export function useVoiceMode() {
   const readSpeech = useRef<Speech | null>(null);
 
   // immer aktuelle Werte für den laufenden Ablauf
-  const live = useRef({ nexy, crm });
+  const live = useRef({ nexy, crm, runProposals });
   useEffect(() => {
-    live.current = { nexy, crm };
-  }, [nexy, crm]);
+    live.current = { nexy, crm, runProposals };
+  }, [nexy, crm, runProposals]);
 
   const end = useCallback(
     (s: Session) => {
@@ -128,8 +133,9 @@ export function useVoiceMode() {
         }
         if (intent === 'confirm' && pending) {
           setPhase('working');
-          const outcome = await live.current.nexy.execute(pending.id);
-          await say(s, executedText(outcome));
+          const outcome = await live.current.runProposals(pending.id);
+          // nach der Vorführung hat Nexy schon „Erledigt!“ gesagt
+          if (!outcome.ok || !outcome.shown) await say(s, executedText(outcome));
           continue;
         }
         if (intent === 'cancel' && pending) {
@@ -142,9 +148,21 @@ export function useVoiceMode() {
         const reply = await live.current.nexy.send(said, { voice: true });
         if (!s.alive) break;
         if (!reply) continue;
-        await say(s, spokenReply(reply));
+        // Nexy legt sofort los, wenn nichts fehlt – sonst fragt sie wie bisher nach
+        const nexy = live.current.nexy;
+        const ready =
+          !reply.error &&
+          reply.status === 'open' &&
+          !!reply.proposals?.length &&
+          runnableNow(reply.proposals, reply.doneIds ?? [], nexy.blockers);
+        await say(s, spokenReply(reply, !ready));
         // Fehler (z. B. nicht eingerichtet): nicht endlos weiterfragen
         if (reply.error) break;
+        if (ready && s.alive) {
+          setPhase('working');
+          const outcome = await live.current.runProposals(reply.id);
+          if (!outcome.ok || !outcome.shown) await say(s, executedText(outcome));
+        }
       }
       end(s);
     },

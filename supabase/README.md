@@ -53,7 +53,7 @@ Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
 ## 4. Nexy (KI-Assistent) einrichten
 
-Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden, Aufträge, Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene anlegen, in Aufträge eintragen, verschieben, ändern, absagen), Preise in Aufträgen, To-dos (anlegen, ändern, abhaken) und Ziele. Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird erst, wenn du in der App bestätigst.
+Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden und Aufträge (anlegen, löschen – beim Kunden erst seine Aufträge; Angebote/Rechnungen bleiben), Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene anlegen, in Aufträge eintragen, verschieben, ändern, absagen), Preise in Aufträgen, To-dos (anlegen, ändern, abhaken) und Ziele, außerdem Ändern und Löschen von allem, was die App kann (Kundendaten, Aufträge mit Status und Storno, Ausgaben, Posts, Ziele, Firmendaten, Rechnung wieder auf offen) und das Öffnen jeder Seite. Damit Nexy Ausgaben, Posts und Ziele findet, bekommt sie davon die neuesten bzw. wichtigsten mit Kurzzeichen (E1, P1, Z1 …). Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird in der App – und zwar sofort, ohne Rückfrage: Nexy öffnet die Formulare, tippt alles sichtbar ein und speichert (mit Esc überspringst du die Vorführung). Nur wenn noch etwas fehlt (z. B. Anschrift für eine Rechnung), wartet der Vorschlag – sobald es geklärt ist, legt Nexy los. Im Sprachmodus macht Nexy es genauso vor und hört danach weiter zu.
 
 **1. API-Schlüssel holen**
 
@@ -93,7 +93,7 @@ Fertig – in der App links **Nexy** öffnen und losschreiben.
 
 ### Sprachmodus (mit Nexy sprechen)
 
-Im Eingabefeld von Nexy gibt es einen **Mikrofon-Knopf**. Dann hört Nexy zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge bestätigst du mit „Ja“ (oder verwirfst sie mit „Nein“), „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
+Im Eingabefeld von Nexy gibt es einen **Mikrofon-Knopf**. Dann hört Nexy zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge führt Nexy sofort aus und sagt danach, was erledigt ist. Fehlte noch etwas, bestätigst du später mit „Ja“ (oder verwirfst mit „Nein“). „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
 
 Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Gesprochen wird mit Nexys Stimme von **ElevenLabs** (Abschnitt „Nexys Stimme“ unten).
 
@@ -226,46 +226,29 @@ Gut zu wissen: Fotos werden vor dem Hochladen verkleinert (längste Seite 2000 p
 
 ## 9. Angebote online annehmen
 
-Dein Kunde bekommt einen Link, sieht das Angebot im Browser (mit deinem Logo), lädt das PDF und klickt **Angebot annehmen** (mit Name und Bestätigung) – oder lehnt mit einer Nachricht ab. Der Auftrag springt bei Annahme automatisch auf „Angebot angenommen“; im Auftrag steht „Online angenommen am … von …“.
+Dein Kunde bekommt einen Link, sieht das Angebot im Browser (mit deinem Logo; das PDF hat er im Anhang der E-Mail) und klickt **Angebot annehmen** (mit Name und Bestätigung) – oder lehnt mit einer Nachricht ab. Der Auftrag springt bei Annahme automatisch auf „Angebot angenommen“; im Auftrag steht „Online angenommen am … von …“.
 
 Einrichtung:
 
 1. Datenbank-Skript `20261113090000_offer_links_mail.sql` ausführen (Abschnitt 3).
-2. **NEXORA ins Internet stellen** – die Angebotsseite ist Teil der App. Zwei Wege:
-
-   **a) Auf deinem eigenen Webspace (z. B. webgo, IONOS, Strato)** – nichts Neues nötig:
-   1. Beim Hoster eine **Subdomain** anlegen, z. B. `app.deine-domain.de` (nicht in einen Unterordner wie `deine-domain.de/nexora` – die App braucht eine eigene Adresse).
-   2. Für die Subdomain **SSL/HTTPS einschalten** (bei den meisten Hostern ein Klick, „Let’s Encrypt“).
-   3. Web-Version bauen: im Projektordner `npx expo export --platform web` – das ergibt den Ordner `dist`.
-   4. Den **Inhalt** von `dist` (nicht den Ordner selbst) per FTP oder Dateimanager des Hosters in das Verzeichnis der Subdomain hochladen. Die Datei `.htaccess` gehört mit dazu (sie sorgt dafür, dass jede Adresse die App zeigt).
-   5. Test: `https://app.deine-domain.de` im Browser öffnen – die NEXORA-Startseite erscheint.
-
-   **b) Ohne eigenen Webspace und ohne Befehle: Netlify (kostenlos)**
-   1. Web-Version bauen (`npx expo export --platform web`, ergibt den Ordner `dist`) – oder die fertige Web-Version nehmen, die du bekommen hast.
-   2. Auf [app.netlify.com](https://app.netlify.com) kostenlos registrieren.
-   3. **Add new site → Deploy manually** und den Ordner (der, in dem `index.html` liegt) ins Browserfenster ziehen.
-   4. Nach ein paar Sekunden steht die Adresse da (z. B. `https://zufallsname-123.netlify.app`). Unter den Einstellungen der Seite lässt sich der Name ändern, z. B. in `gp-nexora` → `https://gp-nexora.netlify.app`.
-   5. Bei neuen Versionen: in Netlify unter **Deploys** den neuen Ordner wieder hineinziehen.
-
-   **c) Mit Expos eigenem Hosting (EAS Hosting, kostenloser Einstieg)**, im Projektordner:
-   ```bash
-   npx expo export --platform web
-   npx eas-cli@latest deploy --prod
+2. **Angebotsseite ins Internet stellen** – nur eine einzige Datei, nicht die App, in einem **Unterordner** deiner Domain (im Hauptordner liegt die NEXORA-Homepage). Wer die Adresse ohne Link aufruft, sieht nur „Bitte öffnen Sie den Link aus Ihrer E-Mail“:
+   1. Beim Hoster die Domain (z. B. `nexoranexy.de`) mit einem eigenen Ordner verbinden, z. B. `/home/www/nexoranexy.de`, und **SSL/HTTPS einschalten** („Let’s Encrypt“).
+   2. Im Projektordner `bash scripts/web-hochladen.sh` ausführen. Das Skript baut `dist-angebot/index.html` aus [`web-angebot/index.html`](../web-angebot/index.html) (setzt Supabase-Adresse und Publishable Key aus der `.env` ein) und lädt sie per SFTP in den Unterordner `Angebot` (aus `EXPO_PUBLIC_WEB_URL`, legt ihn bei Bedarf an). Beim ersten Mal fragt es Server, Benutzer und den Ordner der Domain ab, das Passwort jedes Mal. In den Hauptordner lädt es nie.
+      Ohne Skript: im Ordner der Domain einen Ordner `Angebot` anlegen (Groß-/Kleinschreibung wie in `EXPO_PUBLIC_WEB_URL`) und `dist-angebot/index.html` per Dateimanager des Hosters dort hinein hochladen.
+   3. Test: `https://nexoranexy.de/Angebot/` öffnen – „Angebot ansehen“ erscheint.
+3. Die Adresse in die `.env` der App eintragen (steht schon drin):
    ```
-   Beim ersten Mal fragt das Programm nach deinem Expo-Konto (kostenlos anlegen) und einem Namen; am Ende steht die Adresse, z. B. `https://nexora.expo.app`.
-3. Die Adresse in die `.env` der App eintragen (neue Zeile):
+   EXPO_PUBLIC_WEB_URL=https://nexoranexy.de/Angebot
    ```
-   EXPO_PUBLIC_WEB_URL=https://app.deine-domain.de
-   ```
-   Danach die Mac-App neu starten (`npm run mac`). Bei neuen Versionen von NEXORA Schritt 2 wiederholen, damit auch die Angebotsseite aktuell ist.
+   Danach die Mac-App neu starten (`npm run mac`). Ändert sich etwas an der Angebotsseite (`web-angebot/index.html`, Texte wie in `src/features/documents/offer-public-screen.tsx`), Schritt 2 wiederholen.
 
-Danach: im Auftrag beim Angebot **Senden → Link zum Annehmen** (Link wird kopiert, z. B. für WhatsApp) oder **Direkt senden** mit eingeschaltetem „Link zum Online-Annehmen“.
+Danach: im Auftrag beim Angebot **Senden → E-Mail** (bzw. WhatsApp oder Teilen …) – der Link zum Annehmen steht automatisch im Text, das PDF hängt an.
 
 Gut zu wissen: Wer den Link kennt, sieht nur dieses eine Angebot – nicht deine anderen Daten. Abgelaufene Angebote lassen sich nicht mehr annehmen. Die Online-Annahme ist eine verbindliche Zusage deines Kunden, ersetzt aber bei großen Aufträgen nicht unbedingt einen schriftlichen Vertrag.
 
 ## 10. E-Mails direkt verschicken
 
-Angebote, Rechnungen und Mahnungen gehen mit **Direkt senden** ohne Mail-Programm an den Kunden – mit PDF im Anhang. Absender ist dein Firmenname, Antworten landen bei der E-Mail-Adresse aus deinen Firmendaten. Ohne diese Einrichtung funktioniert alles andere trotzdem (PDF, eigenes Mail-Programm, WhatsApp, Link zum Annehmen).
+Mahnungen gehen mit **Direkt senden** ohne Mail-Programm an den Kunden – mit PDF im Anhang. Absender ist dein Firmenname, Antworten landen bei der E-Mail-Adresse aus deinen Firmendaten. Ohne diese Einrichtung funktioniert alles andere trotzdem (PDF, eigenes Mail-Programm, WhatsApp, Link zum Annehmen).
 
 Es gibt zwei Wege – **Weg A ist der einfachste, wenn du schon ein Postfach bei deinem Webhoster hast** (z. B. webgo, IONOS, Strato, All-Inkl).
 
