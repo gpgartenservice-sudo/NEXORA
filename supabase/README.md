@@ -232,13 +232,13 @@ Einrichtung:
 
 1. Datenbank-Skript `20261113090000_offer_links_mail.sql` ausführen (Abschnitt 3).
 2. **Angebotsseite ins Internet stellen** – nur eine einzige Datei, nicht die App, in einem **Unterordner** deiner Domain (im Hauptordner liegt die Lunaxora-Homepage). Wer die Adresse ohne Link aufruft, sieht nur „Bitte öffnen Sie den Link aus Ihrer E-Mail“:
-   1. Beim Hoster die Domain (z. B. `nexoranexy.de`) mit einem eigenen Ordner verbinden, z. B. `/home/www/nexoranexy.de`, und **SSL/HTTPS einschalten** („Let’s Encrypt“).
+   1. Beim Hoster die Domain (z. B. `lunaxora.de`) mit einem eigenen Ordner verbinden, z. B. `/home/www/lunaxora.de`, und **SSL/HTTPS einschalten** („Let’s Encrypt“).
    2. Im Projektordner `bash scripts/web-hochladen.sh` ausführen. Das Skript baut `dist-angebot/index.html` aus [`web-angebot/index.html`](../web-angebot/index.html) (setzt Supabase-Adresse und Publishable Key aus der `.env` ein) und lädt sie per SFTP in den Unterordner `Angebot` (aus `EXPO_PUBLIC_WEB_URL`, legt ihn bei Bedarf an). Beim ersten Mal fragt es Server, Benutzer und den Ordner der Domain ab, das Passwort jedes Mal. In den Hauptordner lädt es nie.
       Ohne Skript: im Ordner der Domain einen Ordner `Angebot` anlegen (Groß-/Kleinschreibung wie in `EXPO_PUBLIC_WEB_URL`) und `dist-angebot/index.html` per Dateimanager des Hosters dort hinein hochladen.
-   3. Test: `https://nexoranexy.de/Angebot/` öffnen – „Angebot ansehen“ erscheint.
+   3. Test: `https://lunaxora.de/Angebot/` öffnen – „Angebot ansehen“ erscheint.
 3. Die Adresse in die `.env` der App eintragen (steht schon drin):
    ```
-   EXPO_PUBLIC_WEB_URL=https://nexoranexy.de/Angebot
+   EXPO_PUBLIC_WEB_URL=https://lunaxora.de/Angebot
    ```
    Danach die Mac-App neu starten (`npm run mac`). Ändert sich etwas an der Angebotsseite (`web-angebot/index.html`, Texte wie in `src/features/documents/offer-public-screen.tsx`), Schritt 2 wiederholen.
 

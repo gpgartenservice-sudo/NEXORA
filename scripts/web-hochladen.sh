@@ -1,7 +1,7 @@
 #!/bin/bash
 # =====================================================================
 #  Lunaxora – Angebotsseite (nur die Seite zum Annehmen, NICHT die App)
-#  fertig machen und per SFTP in den Unterordner von nexoranexy.de hochladen
+#  fertig machen und per SFTP in den Unterordner von lunaxora.de hochladen
 #
 #  Aufruf (im Projektordner):   bash scripts/web-hochladen.sh
 #
@@ -9,13 +9,13 @@
 #    den Publishable Key aus der .env ein und legt das Ergebnis in
 #    dist-angebot/index.html ab (die kannst du auch selbst hochladen).
 #  - Der Unterordner kommt aus EXPO_PUBLIC_WEB_URL in der .env
-#    (https://nexoranexy.de/angebot -> Ordner "angebot"). Direkt in den
+#    (https://lunaxora.de/angebot -> Ordner "angebot"). Direkt in den
 #    Hauptordner lädt das Skript nie – dort liegt die Lunaxora-Homepage.
 #  - Fragt beim ersten Mal Server, Benutzer und den Ordner der Domain ab und
 #    merkt sie sich in ~/.nexora-upload.conf (OHNE Passwort).
 #  - Das Passwort fragt das Mac-Programm "sftp" selbst ab – es wird
 #    nirgends gespeichert.
-#  - Lädt nur in einen Ordner hoch, in dessen Pfad "nexora" vorkommt, damit
+#  - Lädt nur in einen Ordner hoch, in dessen Pfad "lunaxora" vorkommt, damit
 #    nie aus Versehen die Gartenservice-Seite überschrieben wird. Gibt es den
 #    Ordner der Domain auf dem Server nicht, bricht sftp ab, ohne etwas zu
 #    verändern; den Unterordner legt es bei Bedarf an.
@@ -35,11 +35,11 @@ SB_KEY="$(envval EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY)"
 printf '%s' "$SB_URL" | grep -Eq '^https://[A-Za-z0-9.-]+$' || { red "EXPO_PUBLIC_SUPABASE_URL fehlt oder ist ungültig in der .env."; exit 1; }
 printf '%s' "$SB_KEY" | grep -Eq '^[A-Za-z0-9._-]+$' || { red "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY fehlt oder ist ungültig in der .env."; exit 1; }
 
-# Unterordner aus der Web-Adresse: https://nexoranexy.de/angebot -> angebot
+# Unterordner aus der Web-Adresse: https://lunaxora.de/angebot -> angebot
 WEB_URL="$(envval EXPO_PUBLIC_WEB_URL)"; WEB_URL="${WEB_URL%/}"
 SUB="$(printf '%s' "$WEB_URL" | sed -E 's|^https://[^/]+/?||')"
 printf '%s' "$SUB" | grep -Eq '^[A-Za-z0-9-]+$' || {
-    red "EXPO_PUBLIC_WEB_URL in der .env muss auf einen Unterordner zeigen, z. B. https://nexoranexy.de/angebot"
+    red "EXPO_PUBLIC_WEB_URL in der .env muss auf einen Unterordner zeigen, z. B. https://lunaxora.de/angebot"
     red "(jetzt: \"$WEB_URL\") – in den Hauptordner wird nie hochgeladen, dort liegt die Homepage."
     exit 1
 }
@@ -59,12 +59,12 @@ if [ -z "$WEB_HOST" ] || [ -z "$WEB_USER" ] || [ -z "$WEB_DIR" ]; then
     WEB_HOST="${WEB_HOST:-s179.goserver.host}"
     read -r -p "  Benutzername: " WEB_USER
     echo "  Jetzt den Ordner, in dem deine HOMEPAGE liegt – nicht \"$SUB\", den hängt das Skript selbst an."
-    read -r -p "  Ordner der Domain nexoranexy.de [/home/www/nexoranexy.de]: " WEB_DIR
-    WEB_DIR="${WEB_DIR:-/home/www/nexoranexy.de}"
+    read -r -p "  Ordner der Domain lunaxora.de [/home/www/lunaxora.de]: " WEB_DIR
+    WEB_DIR="${WEB_DIR:-/home/www/lunaxora.de}"
     WEB_DIR="/${WEB_DIR#/}"; WEB_DIR="${WEB_DIR%/}"
     case "$(printf '%s' "$WEB_DIR" | tr '[:upper:]' '[:lower:]')" in
-        *nexora*) ;;
-        *) red "\"$WEB_DIR\" ist nicht der Ordner der Domain (im Pfad muss \"nexora\" vorkommen, z. B. /home/www/nexoranexy.de)."
+        *lunaxora*) ;;
+        *) red "\"$WEB_DIR\" ist nicht der Ordner der Domain (im Pfad muss \"lunaxora\" vorkommen, z. B. /home/www/lunaxora.de)."
            red "Nichts gespeichert – einfach das Skript neu starten."
            exit 1 ;;
     esac
@@ -73,8 +73,8 @@ if [ -z "$WEB_HOST" ] || [ -z "$WEB_USER" ] || [ -z "$WEB_DIR" ]; then
 fi
 
 case "$(printf '%s' "$WEB_DIR" | tr '[:upper:]' '[:lower:]')" in
-    *nexora*) ;;
-    *) red "Zielordner \"$WEB_DIR\" enthält nicht \"nexora\" – abgebrochen."
+    *lunaxora*) ;;
+    *) red "Zielordner \"$WEB_DIR\" enthält nicht \"lunaxora\" – abgebrochen."
        red "Einstellungen ändern: rm ~/.nexora-upload.conf und das Skript neu starten."
        exit 1 ;;
 esac
