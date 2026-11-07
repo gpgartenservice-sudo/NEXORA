@@ -37,7 +37,7 @@ export function TodoEditScreen() {
       </Screen>
     );
   }
-  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Nexy) -> frisch mit den neuen Werten
+  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Luna) -> frisch mit den neuen Werten
   return <TodoEditor key={JSON.stringify(todo)} todo={todo} />;
 }
 

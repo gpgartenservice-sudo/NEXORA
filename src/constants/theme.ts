@@ -2,7 +2,7 @@ import '@/global.css';
 import { Platform } from 'react-native';
 
 /**
- * NEXORA – Farben & Abstände.
+ * Lunaxora – Farben & Abstände.
  *
  * Logo und Grundlook sind schwarz-weiß. Die Akzentfarbe "Wachstums-Grün"
  * kommt nur dort zum Einsatz, wo etwas passiert: Hauptbuttons, Fortschritt,

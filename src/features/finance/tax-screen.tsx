@@ -153,7 +153,7 @@ export function TaxScreen() {
         }
         files[`Belege/${receiptNames.get(e.id)}`] = bytes;
       }
-      await download(zipSync(files, { level: 6 }), `NEXORA_Steuer_${year}.zip`, 'application/zip');
+      await download(zipSync(files, { level: 6 }), `Lunaxora_Steuer_${year}.zip`, 'application/zip');
       setMessage({
         tone: failed ? 'error' : 'success',
         text: failed
@@ -253,7 +253,7 @@ export function TaxScreen() {
                 <Row label="Vorsteuer aus Ausgaben (soweit eingetragen)" value={formatEuro(t.vat.input)} />
                 <Row label="Ans Finanzamt (geschätzt)" value={formatEuro(t.vat.payable)} strong />
                 <Text style={styles.hint}>
-                  Damit die Vorsteuer stimmt, trag bei Ausgaben die enthaltene Umsatzsteuer ein – bei Belegen füllt Nexy
+                  Damit die Vorsteuer stimmt, trag bei Ausgaben die enthaltene Umsatzsteuer ein – bei Belegen füllt Luna
                   das aus. Voranmeldungen macht deine Steuerberatung bzw. ELSTER.
                 </Text>
               </>

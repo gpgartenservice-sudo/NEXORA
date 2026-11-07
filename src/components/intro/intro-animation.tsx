@@ -49,14 +49,15 @@ export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }
   const { width: screenW, height: screenH } = useWindowDimensions();
 
   // Größe des Schriftzugs während der Animation
-  const wordW = Math.min(screenW * 0.72, 640);
+  const wordW = Math.min(screenW * 0.8, 730);
   const wordH = wordmarkHeight(wordW);
   const boxLeft = (screenW - wordW) / 2;
   const boxTop = (screenH - wordH) / 2;
   const frames = letterFrames(wordW);
-  const nFrame = frames[0];
-  // So weit muss das N anfangs nach rechts verschoben sein, um mittig zu stehen
-  const nCenterOffset = wordW / 2 - (nFrame.left + nFrame.width / 2);
+  // Der erste Buchstabe (L) erscheint allein in der Mitte, die anderen fallen danach
+  const firstFrame = frames[0];
+  // So weit muss das L anfangs nach rechts verschoben sein, um mittig zu stehen
+  const firstCenterOffset = wordW / 2 - (firstFrame.left + firstFrame.width / 2);
   // Fallhöhe: die Buchstaben starten komplett oberhalb des Fensters
   const dropDistance = boxTop + wordH + 60;
 
@@ -141,15 +142,15 @@ export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }
     };
   });
 
-  // --- Lichtschein hinter dem N (erscheint mit dem N, wandert mit nach links)
-  const nGlowSize = wordH * 3.4;
-  const nGlowStyle = useAnimatedStyle(() => {
-    const appear = easeOutCubic(progress(t.get(), T.N_IN_START, T.N_IN_END));
-    const slide = easeInOutCubic(progress(t.get(), T.N_SLIDE_START, T.N_SLIDE_END));
+  // --- Lichtschein hinter dem L (erscheint mit dem L, wandert mit nach links)
+  const firstGlowSize = wordH * 3.4;
+  const firstGlowStyle = useAnimatedStyle(() => {
+    const appear = easeOutCubic(progress(t.get(), T.FIRST_IN_START, T.FIRST_IN_END));
+    const slide = easeInOutCubic(progress(t.get(), T.FIRST_SLIDE_START, T.FIRST_SLIDE_END));
     return {
       opacity: appear * (0.32 - 0.22 * slide),
       transform: [
-        { translateX: (1 - slide) * nCenterOffset },
+        { translateX: (1 - slide) * firstCenterOffset },
         { scale: (0.85 + 0.55 * appear) - 0.4 * slide },
       ],
     };
@@ -163,15 +164,15 @@ export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }
     return { opacity: flash * (1 - exit) };
   });
 
-  // --- Das N
-  const nStyle = useAnimatedStyle(() => {
-    const appear = easeOutCubic(progress(t.get(), T.N_IN_START, T.N_IN_END));
-    const slide = easeInOutCubic(progress(t.get(), T.N_SLIDE_START, T.N_SLIDE_END));
+  // --- Das L
+  const firstStyle = useAnimatedStyle(() => {
+    const appear = easeOutCubic(progress(t.get(), T.FIRST_IN_START, T.FIRST_IN_END));
+    const slide = easeInOutCubic(progress(t.get(), T.FIRST_SLIDE_START, T.FIRST_SLIDE_END));
     return {
       opacity: appear,
       // erscheint groß in der Mitte und schrumpft beim Gleiten auf Schriftzug-Größe
       transform: [
-        { translateX: (1 - slide) * nCenterOffset },
+        { translateX: (1 - slide) * firstCenterOffset },
         { scale: (1.75 - 0.3 * appear) - 0.45 * slide },
       ],
     };
@@ -201,18 +202,19 @@ export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }
           style={[
             styles.abs,
             {
-              left: nFrame.left + nFrame.width / 2 - nGlowSize / 2,
-              top: wordH / 2 - nGlowSize / 2,
-              width: nGlowSize,
-              height: nGlowSize,
+              left: firstFrame.left + firstFrame.width / 2 - firstGlowSize / 2,
+              top: wordH / 2 - firstGlowSize / 2,
+              width: firstGlowSize,
+              height: firstGlowSize,
             },
-            nGlowStyle,
+            firstGlowStyle,
           ]}>
           <Image source={GLOW} style={styles.fill} contentFit="fill" />
         </Animated.View>
 
-        <Animated.View style={[styles.abs, { left: nFrame.left, width: nFrame.width, height: wordH }, nStyle]}>
-          <Image source={LETTER_IMAGES.N} style={styles.fill} contentFit="fill" />
+        <Animated.View
+          style={[styles.abs, { left: firstFrame.left, width: firstFrame.width, height: wordH }, firstStyle]}>
+          <Image source={LETTER_IMAGES[firstFrame.key]} style={styles.fill} contentFit="fill" />
         </Animated.View>
 
         {frames.slice(1).map((frame, i) => (

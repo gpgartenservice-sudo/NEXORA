@@ -5,7 +5,7 @@
  * vorher mit `expo export --platform web` gebaut). Keine node_modules:
  * desktop/main.js braucht nur Electron selbst.
  *
- * Danach baut electron-builder daraus NEXORA.app und die .dmg (Ordner release/,
+ * Danach baut electron-builder daraus Lunaxora.app und die .dmg (Ordner release/,
  * Einstellungen in electron-builder.config.js).
  */
 import fs from 'node:fs';
@@ -30,11 +30,11 @@ fs.writeFileSync(
   `${JSON.stringify(
     {
       name: 'nexora',
-      productName: 'NEXORA',
+      productName: 'Lunaxora',
       version: pkg.version,
-      description: 'NEXORA – die App für junge Unternehmer',
+      description: 'Lunaxora – die App für junge Unternehmer',
       main: 'desktop/main.js',
-      author: 'NEXORA',
+      author: 'Lunaxora',
       private: true,
     },
     null,

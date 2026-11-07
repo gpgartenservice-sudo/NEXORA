@@ -49,7 +49,7 @@ export function DirectMail({
   const [failure, setFailure] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const from = sellerName(seller) || 'NEXORA';
+  const from = sellerName(seller) || 'Lunaxora';
   const replyTo = seller.email && validEmail(seller.email) ? seller.email : null;
 
   const send = async () => {

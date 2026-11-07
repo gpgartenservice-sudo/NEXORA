@@ -1,5 +1,5 @@
 /**
- * Einführungen je Bereich: kurze Schritte, die Nexy erklärt. Ein Schritt mit
+ * Einführungen je Bereich: kurze Schritte, die Luna erklärt. Ein Schritt mit
  * `target` hebt die passende Stelle hervor (siehe <TourTarget id="…">);
  * `optional` = Schritt auslassen, wenn es die Stelle gerade nicht gibt
  * (z. B. Liste noch leer).
@@ -52,8 +52,8 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
     href: '/home',
     steps: [
       {
-        title: 'Willkommen bei NEXORA 👋',
-        text: 'Ich bin Nexy und zeig dir in jedem Bereich kurz, wie alles funktioniert. Über das ? oben kannst du jede Einführung später wiederholen.',
+        title: 'Willkommen bei Lunaxora 👋',
+        text: 'Ich bin Luna und zeig dir in jedem Bereich kurz, wie alles funktioniert. Über das ? oben kannst du jede Einführung später wiederholen.',
       },
       {
         target: 'home.today',
@@ -239,7 +239,7 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
       {
         target: 'firma.absender',
         title: 'Absender',
-        text: 'Name, Adresse und Kontakt stehen auf deinen Dokumenten. Fehlt etwas Wichtiges, sagt dir NEXORA Bescheid.',
+        text: 'Name, Adresse und Kontakt stehen auf deinen Dokumenten. Fehlt etwas Wichtiges, sagt dir Lunaxora Bescheid.',
       },
       {
         target: 'firma.steuern',
@@ -276,7 +276,7 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
       {
         target: 'finanzen.ausgaben',
         title: 'Ausgaben & Belege',
-        text: 'Trag Ausgaben ein oder fotografiere einfach den Beleg – Nexy liest Betrag, Datum und Kategorie aus.',
+        text: 'Trag Ausgaben ein oder fotografiere einfach den Beleg – Luna liest Betrag, Datum und Kategorie aus.',
       },
     ],
   },
@@ -325,7 +325,7 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
   },
   nexy: {
     id: 'nexy',
-    label: 'Nexy',
+    label: 'Luna',
     href: '/assistent',
     steps: [
       {

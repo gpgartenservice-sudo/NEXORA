@@ -1,5 +1,5 @@
 /**
- * NEXORA für den Mac (Electron).
+ * Lunaxora für den Mac (Electron).
  *
  * Die App selbst ist dieselbe Expo-App wie auf iPhone/Android – für den Mac
  * wird ihre Web-Version (Ordner dist/, erzeugt mit `expo export`) in einem
@@ -43,7 +43,7 @@ function serveDist(request) {
 }
 
 // ---------------------------------------------------------------------------
-// Angebote/Rechnungen verschicken: PDF in Downloads/NEXORA ablegen, dann
+// Angebote/Rechnungen verschicken: PDF in Downloads/Lunaxora ablegen, dann
 // - E-Mail ("mail"): neue E-Mail in Apple Mail mit Empfänger, Betreff, Text
 //   und dem PDF als Anhang. Klappt das nicht (anderes Mail-Programm, keine
 //   Erlaubnis), wie "open": mailto: öffnen und das PDF im Finder zeigen.
@@ -108,7 +108,7 @@ function composeInAppleMail(mail, filePath, from) {
     execFile(
       'osascript',
       ['-e', MAIL_SCRIPT, mail.to.join(','), mail.subject, mail.body, filePath, from],
-      // Beim ersten Mal fragt der Mac, ob NEXORA Mail steuern darf – Zeit lassen
+      // Beim ersten Mal fragt der Mac, ob Lunaxora Mail steuern darf – Zeit lassen
       { timeout: 120000 },
       (error, stdout, stderr) => {
         const out = String(stdout).trim();
@@ -143,7 +143,7 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
   if (via === 'mail' && !(typeof url === 'string' && url.startsWith('mailto:'))) throw new Error('Ungültiger Link');
   if (via !== 'open' && via !== 'share' && via !== 'mail') throw new Error('Unbekannte Aktion');
 
-  const dir = path.join(app.getPath('downloads'), 'NEXORA');
+  const dir = path.join(app.getPath('downloads'), 'Lunaxora');
   await fs.promises.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, safeFileName(fileName));
   await fs.promises.writeFile(filePath, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
@@ -171,7 +171,7 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
 });
 
 // ---------------------------------------------------------------------------
-// Termin in den Kalender: .ics-Datei in Downloads/NEXORA ablegen und mit dem
+// Termin in den Kalender: .ics-Datei in Downloads/Lunaxora ablegen und mit dem
 // Kalender des Mac öffnen (der fragt dann, in welchen Kalender).
 // ---------------------------------------------------------------------------
 const MAX_ICS_BYTES = 1024 * 1024;
@@ -187,7 +187,7 @@ ipcMain.handle('nexora:open-calendar-file', async (event, payload) => {
   if (typeof text !== 'string' || !text.startsWith('BEGIN:VCALENDAR') || Buffer.byteLength(text, 'utf8') > MAX_ICS_BYTES) {
     throw new Error('Ungültige Kalender-Datei');
   }
-  const dir = path.join(app.getPath('downloads'), 'NEXORA');
+  const dir = path.join(app.getPath('downloads'), 'Lunaxora');
   await fs.promises.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, safeIcsName(fileName));
   await fs.promises.writeFile(filePath, text, 'utf8');
@@ -197,7 +197,7 @@ ipcMain.handle('nexora:open-calendar-file', async (event, payload) => {
 });
 
 // ---------------------------------------------------------------------------
-// Mikrofon (Sprachmodus von Nexy): nur für die App selbst und nur Ton.
+// Mikrofon (Sprachmodus von Luna): nur für die App selbst und nur Ton.
 // Auf dem Mac fragt das System beim ersten Mal nach der Erlaubnis.
 // ---------------------------------------------------------------------------
 function isAppUrl(url) {
@@ -319,7 +319,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 620,
-    title: 'NEXORA',
+    title: 'Lunaxora',
     backgroundColor: '#000000',
     // Mac: keine graue Titelleiste, die Fensterknöpfe liegen direkt auf dem schwarzen Hintergrund
     titleBarStyle: 'hiddenInset',

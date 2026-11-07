@@ -124,7 +124,7 @@ export function LogoCard({ preview }: { preview: Seller }) {
             />
           </View>
           <Text style={styles.hint}>
-            PNG, JPG, SVG oder WebP – am besten mit durchsichtigem Hintergrund. Leere Ränder schneidet NEXORA automatisch
+            PNG, JPG, SVG oder WebP – am besten mit durchsichtigem Hintergrund. Leere Ränder schneidet Lunaxora automatisch
             ab. Bereits erstellte Angebote und Rechnungen behalten ihr bisheriges Logo.
           </Text>
           {logo && <TextLink label={busy === 'remove' ? 'Wird entfernt …' : 'Logo entfernen'} onPress={remove} />}

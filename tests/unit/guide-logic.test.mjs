@@ -1,4 +1,4 @@
-// Unit-Tests: Nexy macht es vor (Schritte je Aktion, Beschriftungen, Position). Start: npm run test:unit
+// Unit-Tests: Luna macht es vor (Schritte je Aktion, Beschriftungen, Position). Start: npm run test:unit
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -264,7 +264,7 @@ test('Beträge wie getippt, Tempo und Zwischenstände', () => {
   assert.equal(long.at(-1), 'x'.repeat(300));
 });
 
-test('Jede Beschriftung, nach der Nexy sucht, steht wirklich im Formular', () => {
+test('Jede Beschriftung, nach der Luna sucht, steht wirklich im Formular', () => {
   const where = {
     customer: ['features/crm/customer-form.tsx', 'features/crm/customer-new-screen.tsx', 'features/crm/customer-detail-screen.tsx'],
     newOrder: ['features/crm/order-new-screen.tsx'],
@@ -289,7 +289,7 @@ test('Jede Beschriftung, nach der Nexy sucht, steht wirklich im Formular', () =>
   }
 });
 
-test('Markierte Stellen, die Nexy anfährt, gibt es in den Seiten', () => {
+test('Markierte Stellen, die Luna anfährt, gibt es in den Seiten', () => {
   const all = [
     'features/crm/customer-detail-screen.tsx',
     'features/crm/order-detail-screen.tsx',
@@ -324,7 +324,7 @@ test('Markierte Stellen, die Nexy anfährt, gibt es in den Seiten', () => {
 test('Position: ohne Stelle unten rechts in der Ecke, Blase links daneben', () => {
   const p = placeNexy(null, 64, view, bubble);
   assert.deepEqual([p.x, p.y], [1200 - 64 - 32, 800 - 64 - 32]);
-  assert.ok(p.bubble.left + p.bubble.width <= p.x, 'Blase links von Nexy');
+  assert.ok(p.bubble.left + p.bubble.width <= p.x, 'Blase links von Luna');
   assert.equal(p.bubble.align, 'end');
 });
 
@@ -537,14 +537,14 @@ test('Firmendaten ändern: im Bereich Firma tippen, Schalter umlegen, speichern'
   assert.deepEqual(steps.at(-1), { do: 'press', button: 'Firmendaten speichern' });
 });
 
-test('Seite öffnen: Nexy sagt es und geht hin', () => {
+test('Seite öffnen: Luna sagt es und geht hin', () => {
   assert.deepEqual(openSteps({ id: 'x', kind: 'open', include: true, data: { href: '/finanzen', label: 'Finanzen' } }), [
     { do: 'show', say: 'Ich öffne Finanzen.' },
     { do: 'go', href: '/finanzen' },
   ]);
 });
 
-test('Auswahl-Knöpfe, die Nexy anklickt, haben eine Beschriftung', () => {
+test('Auswahl-Knöpfe, die Luna anklickt, haben eine Beschriftung', () => {
   assert.ok(read('components/ui/segmented.tsx').includes('accessibilityLabel={o.label}'), 'Segmented');
   assert.ok(read('features/finance/expense-editor.tsx').includes('accessibilityLabel={c.label}'), 'Kategorien');
   assert.ok(read('features/social/post-editor.tsx').includes('accessibilityLabel={p.label}'), 'Plattformen');

@@ -1,8 +1,8 @@
 /**
- * Nexy (Assistent): Die Server-Funktion (supabase/functions/assistant)
+ * Luna (Assistentin): Die Server-Funktion (supabase/functions/assistant)
  * liefert eine Antwort und Vorschläge. Hier werden die Vorschläge geprüft,
  * bereinigt und vorhandenen Kunden, Aufträgen und Dokumenten zugeordnet.
- * Ausgeführt wird sofort (Nexy macht es in der App vor) – nur wenn etwas
+ * Ausgeführt wird sofort (Luna macht es in der App vor) – nur wenn etwas
  * fehlt, wartet der Vorschlag, bis der Nutzer es ergänzt hat.
  *
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
@@ -110,7 +110,7 @@ export type AppointmentDraft = {
 };
 /** Termin im Auftrag: Erstgespräch oder Ausführung */
 export type DateField = 'meeting' | 'execution';
-/** Vorhandener Termin (aus Aufträgen oder eigener) – so, wie Nexy ihn kennt */
+/** Vorhandener Termin (aus Aufträgen oder eigener) – so, wie Luna ihn kennt */
 export type KnownEvent = {
   key: string;
   kind: 'meeting' | 'execution' | 'appointment';
@@ -124,7 +124,7 @@ export type KnownEvent = {
 };
 /** Neues To-do */
 export type TodoDraft = { title: string; due_on: string | null; notes: string | null; important: boolean };
-/** Vorhandenes To-do – so, wie Nexy es kennt */
+/** Vorhandenes To-do – so, wie Luna es kennt */
 export type KnownTodo = { id: string; title: string; due_on: string | null; important: boolean; done: boolean };
 /** Änderung an einem To-do (null = bleibt; due_on "" = Datum entfernen) */
 export type TodoChange = {
@@ -181,7 +181,7 @@ export type OrderChange = {
   internal_notes: string | null;
 };
 export type ExpenseRepeat = 'once' | 'monthly' | 'yearly';
-/** Vorhandene Ausgabe – so, wie Nexy sie kennt */
+/** Vorhandene Ausgabe – so, wie Luna sie kennt */
 export type KnownExpense = {
   id: string;
   title: string;
@@ -204,7 +204,7 @@ export type ExpenseChange = {
 };
 export type PostFormatKey = (typeof POST_FORMAT_KEYS)[number];
 export type PlatformKey = (typeof PLATFORM_KEYS)[number];
-/** Vorhandener Post – so, wie Nexy ihn kennt */
+/** Vorhandener Post – so, wie Luna ihn kennt */
 export type KnownPost = {
   id: string;
   title: string;
@@ -235,7 +235,7 @@ export type PostChange = {
   metrics: Partial<Record<PostMetric, number>>;
   remove: boolean;
 };
-/** Vorhandenes Ziel – so, wie Nexy es kennt */
+/** Vorhandenes Ziel – so, wie Luna es kennt */
 export type KnownGoal = {
   id: string;
   kind: GoalKind;
@@ -280,7 +280,7 @@ export type CompanyChange = Partial<Record<CompanyTextField, string | null>> & {
   payment_days?: number;
   offer_validity_days?: number;
 };
-/** Seiten, die Nexy öffnen kann */
+/** Seiten, die Luna öffnen kann */
 export const PAGES = {
   start: { href: '/home', label: 'Start' },
   kunden: { href: '/kunden', label: 'Kunden' },
@@ -312,7 +312,7 @@ export type OrderLink = { existingId: string | null; newRef: string | null; titl
 
 export type Proposal =
   | { id: string; kind: 'customer'; include: boolean; data: CustomerDraft; duplicateOf: string | null }
-  /** orderIds = seine Aufträge – die löscht Nexy vorher (mit Aufträgen lässt sich ein Kunde nicht löschen) */
+  /** orderIds = seine Aufträge – die löscht Luna vorher (mit Aufträgen lässt sich ein Kunde nicht löschen) */
   | { id: string; kind: 'customer_delete'; include: boolean; data: { customerId: string; name: string; orderIds: string[] } }
   | { id: string; kind: 'order_delete'; include: boolean; customer: CustomerLink; order: OrderLink }
   | { id: string; kind: 'order'; include: boolean; data: OrderDraft; customer: CustomerLink }
@@ -408,15 +408,15 @@ export type Known = {
   customers: ExistingCustomer[];
   orders: ExistingOrder[];
   documents: ExistingDocument[];
-  /** Termine, die Nexy mitgeschickt bekam, und ihre Kurzzeichen (T1 -> Termin) */
+  /** Termine, die Luna mitgeschickt bekam, und ihre Kurzzeichen (T1 -> Termin) */
   events?: KnownEvent[];
   refs?: Record<string, string>;
   /** eigene Termine (für das eingetragene Ende) */
   appointments?: { id: string; ends_at: string | null }[];
-  /** offene To-dos, die Nexy mitgeschickt bekam, und ihre Kurzzeichen (A1 -> To-do) */
+  /** offene To-dos, die Luna mitgeschickt bekam, und ihre Kurzzeichen (A1 -> To-do) */
   todos?: KnownTodo[];
   todoRefs?: Record<string, string>;
-  /** Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …), die Nexy mitgeschickt bekam */
+  /** Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …), die Luna mitgeschickt bekam */
   expenses?: KnownExpense[];
   expenseRefs?: Record<string, string>;
   posts?: KnownPost[];
@@ -1477,7 +1477,7 @@ export function goalLabel(g: GoalDraft): string {
 }
 
 /**
- * Kann Nexy die Vorschläge sofort ausführen? Ja, wenn etwas ausgewählt ist
+ * Kann Luna die Vorschläge sofort ausführen? Ja, wenn etwas ausgewählt ist
  * und nirgends etwas fehlt (sonst wartet die Karte auf den Nutzer).
  */
 export function runnableNow(

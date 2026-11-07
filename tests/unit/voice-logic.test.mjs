@@ -1,4 +1,4 @@
-// Unit-Tests: Sprachmodus von Nexy (Pausen-Erkennung, Befehle, Vorlesen). Start: npm run test:unit
+// Unit-Tests: Sprachmodus von Luna (Pausen-Erkennung, Befehle, Vorlesen). Start: npm run test:unit
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -70,7 +70,7 @@ test('Pausen-Erkennung: Pegel für die Anzeige 0..1', () => {
 });
 
 test('Sprachbefehle: Ja/Nein nur bei offenen Vorschlägen', () => {
-  for (const t of ['Ja', 'Ja, bitte!', 'Okay Nexy', 'Mach das.', 'Ja, mach das bitte', 'Passt so', 'Leg los', 'Genau', 'Jo', 'Alles klar'])
+  for (const t of ['Ja', 'Ja, bitte!', 'Okay Luna', 'Mach das.', 'Ja, mach das bitte', 'Passt so', 'Leg los', 'Genau', 'Jo', 'Alles klar'])
     assert.equal(voiceIntent(t, true), 'confirm', t);
   for (const t of ['Nein', 'Nee, lass es', 'Verwerfen', 'Abbrechen', 'Nein danke', 'Lieber nicht'])
     assert.equal(voiceIntent(t, true), 'cancel', t);
@@ -79,7 +79,7 @@ test('Sprachbefehle: Ja/Nein nur bei offenen Vorschlägen', () => {
 });
 
 test('Sprachbefehle: Stopp beendet immer, längere Sätze sind Nachrichten', () => {
-  for (const t of ['Stopp', 'Tschüss Nexy', 'Das war’s, danke', 'Sprachmodus beenden', 'Hör auf.'])
+  for (const t of ['Stopp', 'Tschüss Luna', 'Das war’s, danke', 'Sprachmodus beenden', 'Hör auf.'])
     assert.equal(voiceIntent(t, false), 'stop', t);
   assert.equal(voiceIntent('Stopp', true), 'stop');
   assert.equal(voiceIntent('Ja, und leg noch eine Ausgabe über 20 Euro an', true), 'message');
@@ -128,8 +128,8 @@ test('Antwort vorlesen: Vorschläge -> Rückfrage, Fehler ohne technische Detail
   );
   assert.equal(spokenReply({ text: 'Du hast 2 offene Rechnungen.' }), 'Du hast 2 offene Rechnungen.');
   assert.equal(
-    spokenReply({ text: 'x', error: 'Nexy konnte das gerade nicht auswerten.\n\nTechnische Details: 502 claude_error' }),
-    'Nexy konnte das gerade nicht auswerten.',
+    spokenReply({ text: 'x', error: 'Luna konnte das gerade nicht auswerten.\n\nTechnische Details: 502 claude_error' }),
+    'Luna konnte das gerade nicht auswerten.',
   );
 });
 
@@ -143,7 +143,7 @@ test('Nach dem Ausführen', () => {
   assert.match(executedText({ ok: false, results: [], error: '„Rechnung“: Dafür fehlt noch IBAN.' }), /^Das hat nicht ganz geklappt\. „Rechnung“: Dafür fehlt noch IBAN\.$/);
 });
 
-test('Ja/Nein gilt nur für die Vorschläge der letzten Nexy-Nachricht', () => {
+test('Ja/Nein gilt nur für die Vorschläge der letzten Luna-Nachricht', () => {
   const open = { id: 'n1', role: 'nexy', status: 'open', proposals: [{}] };
   assert.equal(pendingConfirmation([{ id: 'u1', role: 'user' }, open]), open);
   assert.equal(pendingConfirmation([open, { id: 'u2', role: 'user' }]), open);
@@ -152,7 +152,7 @@ test('Ja/Nein gilt nur für die Vorschläge der letzten Nexy-Nachricht', () => {
   assert.equal(pendingConfirmation([]), null);
 });
 
-test('Sprachantwort: legt Nexy gleich selbst los, fragt sie nicht nach Ja/Nein', () => {
+test('Sprachantwort: legt Luna gleich selbst los, fragt sie nicht nach Ja/Nein', () => {
   const reply = { text: 'Mach ich – ich lege Frau Berg an.', proposals: [{}], status: 'open' };
   assert.equal(spokenReply(reply, false), 'Mach ich – ich lege Frau Berg an.');
   assert.match(spokenReply(reply), /Sag einfach ja oder nein\.$/);

@@ -105,7 +105,7 @@ function SetForm({ set, onDone }: { set?: HashtagSet; onDone: () => void }) {
         error={errors.tags}
         hint={
           parsed.length
-            ? `${parsed.length} Hashtags · das # ergänzt NEXORA automatisch`
+            ? `${parsed.length} Hashtags · das # ergänzt Lunaxora automatisch`
             : 'Mit Leerzeichen oder Komma trennen'
         }
         placeholder="gründen startup selbstständig"

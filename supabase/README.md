@@ -10,7 +10,7 @@ Im Dashboard: **Authentication → Emails → Templates**
 
 | Vorlage | Betreff | Inhalt (Message body) |
 |---|---|---|
-| **Confirm signup** | `Dein Bestätigungscode für NEXORA` | kompletten Inhalt von [`templates/confirm-signup.html`](templates/confirm-signup.html) einfügen |
+| **Confirm signup** | `Dein Bestätigungscode für Lunaxora` | kompletten Inhalt von [`templates/confirm-signup.html`](templates/confirm-signup.html) einfügen |
 | **Reset password** | `Dein Code für ein neues Passwort` | kompletten Inhalt von [`templates/reset-password.html`](templates/reset-password.html) einfügen |
 
 Jeweils **Save changes** klicken.
@@ -47,19 +47,19 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261113090000_offer_links_mail.sql` | Angebote online annehmen (geheimer Link, Annehmen/Ablehnen ohne Anmeldung) und Versandprotokoll für E-Mails aus der App |
 | `20261114090000_tax.sql` | Steuern: Prozentsatz für den Steuer-Topf (Firmendaten) und enthaltene Umsatzsteuer bei Ausgaben (Vorsteuer) |
 | `20261115090000_tutorials.sql` | Einführungen: welche Bereiche schon erklärt wurden und ob sie automatisch erscheinen sollen (im Profil, damit es auf Mac und Handy gleich ist) |
-| `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis mit 20 Nexy-Nachrichten und 5 Belegen im Monat; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
+| `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis mit 20 Luna-Nachrichten und 5 Belegen im Monat; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
-## 4. Nexy (KI-Assistent) einrichten
+## 4. Luna (KI-Assistentin) einrichten
 
-Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden und Aufträge (anlegen, löschen – beim Kunden erst seine Aufträge; Angebote/Rechnungen bleiben), Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene anlegen, in Aufträge eintragen, verschieben, ändern, absagen), Preise in Aufträgen, To-dos (anlegen, ändern, abhaken) und Ziele, außerdem Ändern und Löschen von allem, was die App kann (Kundendaten, Aufträge mit Status und Storno, Ausgaben, Posts, Ziele, Firmendaten, Rechnung wieder auf offen) und das Öffnen jeder Seite. Damit Nexy Ausgaben, Posts und Ziele findet, bekommt sie davon die neuesten bzw. wichtigsten mit Kurzzeichen (E1, P1, Z1 …). Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird in der App – und zwar sofort, ohne Rückfrage: Nexy öffnet die Formulare, tippt alles sichtbar ein und speichert (mit Esc überspringst du die Vorführung). Nur wenn noch etwas fehlt (z. B. Anschrift für eine Rechnung), wartet der Vorschlag – sobald es geklärt ist, legt Nexy los. Im Sprachmodus macht Nexy es genauso vor und hört danach weiter zu.
+Luna schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer kurzen Übersicht deiner Kunden (nur Namen), Aufträge, offenen Rechnungen und Zahlen – an **Claude** (Anthropic). Zurück kommen eine Antwort, ggf. eine Rückfrage und Vorschläge: Kunden und Aufträge (anlegen, löschen – beim Kunden erst seine Aufträge; Angebote/Rechnungen bleiben), Ausgaben, Post-Ideen, Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als bezahlt markieren, Termine (eigene anlegen, in Aufträge eintragen, verschieben, ändern, absagen), Preise in Aufträgen, To-dos (anlegen, ändern, abhaken) und Ziele, außerdem Ändern und Löschen von allem, was die App kann (Kundendaten, Aufträge mit Status und Storno, Ausgaben, Posts, Ziele, Firmendaten, Rechnung wieder auf offen) und das Öffnen jeder Seite. Damit Luna Ausgaben, Posts und Ziele findet, bekommt sie davon die neuesten bzw. wichtigsten mit Kurzzeichen (E1, P1, Z1 …). Das passiert in einer kleinen **Server-Funktion** bei Supabase, damit der API-Schlüssel nie in der App steht. Die Funktion speichert nichts; gespeichert wird in der App – und zwar sofort, ohne Rückfrage: Luna öffnet die Formulare, tippt alles sichtbar ein und speichert (mit Esc überspringst du die Vorführung). Nur wenn noch etwas fehlt (z. B. Anschrift für eine Rechnung), wartet der Vorschlag – sobald es geklärt ist, legt Luna los. Im Sprachmodus macht Luna es genauso vor und hört danach weiter zu.
 
 **1. API-Schlüssel holen**
 
 1. Auf [console.anthropic.com](https://console.anthropic.com) anmelden bzw. registrieren.
 2. Unter **Billing** etwas Guthaben aufladen (z. B. 5 €).
-3. Unter **API Keys** → **Create Key** einen Schlüssel erstellen (Name z. B. `NEXORA`) und kopieren – er beginnt mit `sk-ant-`.
+3. Unter **API Keys** → **Create Key** einen Schlüssel erstellen (Name z. B. `Lunaxora`) und kopieren – er beginnt mit `sk-ant-`.
 
 > Den Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis (Schritt 3).
 
@@ -75,32 +75,32 @@ Nexy schickt deine Nachricht – zusammen mit dem bisherigen Gespräch und einer
 1. In **Edge Functions** den Bereich **Secrets** öffnen.
 2. Neues Geheimnis: Name `ANTHROPIC_API_KEY`, Wert = dein Schlüssel → **Save**.
 
-Fertig – in der App links **Nexy** öffnen und losschreiben.
+Fertig – in der App links **Luna** öffnen und losschreiben.
 
 **Neue Version der Funktion einspielen** (wenn sich `functions/assistant/index.ts` geändert hat): **Edge Functions → assistant → Code** öffnen, den Inhalt komplett durch die neue Datei ersetzen → **Deploy**. Die Geheimnisse bleiben erhalten.
 
-> Gut zu wissen (für Entwickler): Claude übersetzt Nexys Antwortformat in eine Grammatik mit Größengrenze („The compiled grammar is too large“). Deshalb hat das Format nur `reply`, `quick_replies` und `actions` (je `type` + `data` als JSON-Text); neue Vorschlagsarten kommen in `ACTION_FIELDS` und den Systemtext, nicht ins Format. Die Übersicht, die mitgeschickt wird, ist gedeckelt (App: 26.000 Zeichen, Funktion: 30.000).
+> Gut zu wissen (für Entwickler): Claude übersetzt Lunas Antwortformat in eine Grammatik mit Größengrenze („The compiled grammar is too large“). Deshalb hat das Format nur `reply`, `quick_replies` und `actions` (je `type` + `data` als JSON-Text); neue Vorschlagsarten kommen in `ACTION_FIELDS` und den Systemtext, nicht ins Format. Die Übersicht, die mitgeschickt wird, ist gedeckelt (App: 26.000 Zeichen, Funktion: 30.000).
 
 **Falls es nicht klappt**
 
 - Meldung „Server-Funktion „assistant“ fehlt“: Name in Schritt 2 genau `assistant` (klein geschrieben)?
-- Meldung „Anmeldung abgelaufen“ bzw. in den Logs `Invalid JWT`: In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) ausschalten. Die Funktion prüft selbst, ob ein angemeldeter NEXORA-Nutzer anfragt.
+- Meldung „Anmeldung abgelaufen“ bzw. in den Logs `Invalid JWT`: In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) ausschalten. Die Funktion prüft selbst, ob ein angemeldeter Lunaxora-Nutzer anfragt.
 - Fehler ansehen: **Edge Functions → assistant → Logs**.
 
-**Kosten:** Standardmäßig nutzt Nexy **Claude Opus 5.5** – grob 2–4 Cent pro Nachricht (Gespräch und Übersicht werden jedes Mal mitgeschickt). Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Gründlicher (langsamer, teurer) antwortet Nexy mit `ASSISTANT_EFFORT` = `medium`.
+**Kosten:** Standardmäßig nutzt Luna **Claude Opus 5.5** – grob 2–4 Cent pro Nachricht (Gespräch und Übersicht werden jedes Mal mitgeschickt). Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Gründlicher (langsamer, teurer) antwortet Luna mit `ASSISTANT_EFFORT` = `medium`.
 
 **Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen, Termine der nächsten Wochen mit Ort, offene To-dos, Ziele mit Stand) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
 
-### Sprachmodus (mit Nexy sprechen)
+### Sprachmodus (mit Luna sprechen)
 
-Im Eingabefeld von Nexy gibt es einen **Mikrofon-Knopf**. Dann hört Nexy zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge führt Nexy sofort aus und sagt danach, was erledigt ist. Fehlte noch etwas, bestätigst du später mit „Ja“ (oder verwirfst mit „Nein“). „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
+Im Eingabefeld von Luna gibt es einen **Mikrofon-Knopf**. Dann hört Luna zu, merkt an der Pause, wann du fertig bist, antwortet **laut** und hört danach wieder zu. Vorschläge führt Luna sofort aus und sagt danach, was erledigt ist. Fehlte noch etwas, bestätigst du später mit „Ja“ (oder verwirfst mit „Nein“). „Stopp“ bzw. „Tschüss“ beendet den Sprachmodus.
 
-Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Gesprochen wird mit Nexys Stimme von **ElevenLabs** (Abschnitt „Nexys Stimme“ unten).
+Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übernimmt deshalb **Groq** (Spracherkennung „Whisper“) – in derselben Server-Funktion `assistant`. Gesprochen wird mit Lunas Stimme von **ElevenLabs** (Abschnitt „Lunas Stimme“ unten).
 
 **1. Groq-Schlüssel holen**
 
 1. Auf [console.groq.com](https://console.groq.com) registrieren bzw. anmelden.
-2. Links **API Keys** → **Create API Key** (Name z. B. `NEXORA`) und den Schlüssel kopieren – er beginnt mit `gsk_`.
+2. Links **API Keys** → **Create API Key** (Name z. B. `Lunaxora`) und den Schlüssel kopieren – er beginnt mit `gsk_`.
 
 > Auch diesen Schlüssel **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
 
@@ -108,17 +108,17 @@ Claude versteht keine Sprachaufnahmen. Die Umwandlung von Sprache in Text übern
 
 **3. Neue Version der Funktion einspielen:** **Edge Functions → assistant → Code** → Inhalt komplett durch [`functions/assistant/index.ts`](functions/assistant/index.ts) ersetzen → **Deploy** (der Sprachmodus ist erst in der neuen Version drin).
 
-**Mac-App:** Beim ersten Start des Sprachmodus fragt macOS, ob NEXORA das Mikrofon benutzen darf → **Erlauben**. Falls versehentlich abgelehnt: **Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon** → NEXORA einschalten (beim Start über `npm run mac` heißt der Eintrag „Terminal“ bzw. „Electron“) und die App neu starten.
+**Mac-App:** Beim ersten Start des Sprachmodus fragt macOS, ob Lunaxora das Mikrofon benutzen darf → **Erlauben**. Falls versehentlich abgelehnt: **Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon** → Lunaxora einschalten (beim Start über `npm run mac` heißt der Eintrag „Terminal“ bzw. „Electron“) und die App neu starten.
 
 **Falls es nicht klappt:** Die App zeigt einen Hinweis, was fehlt („GROQ_API_KEY fehlt“, „alte Version der Server-Funktion“, „Mikrofon blockiert“). Details stehen unter **Edge Functions → assistant → Logs**. Optional: Geheimnis `TRANSCRIBE_MODEL` = `whisper-large-v3` (etwas genauer, etwas langsamer als der Standard `whisper-large-v3-turbo`).
 
 **Kosten:** Groq hat einen kostenlosen Einstieg mit Tageslimits; danach kostet die Spracherkennung nach Audio-Dauer nur einen Bruchteil eines Cents pro Nachricht (aktuelle Preise: groq.com/pricing). Dazu kommt wie beim Schreiben die Antwort von Claude.
 
-**Datenschutz:** Die Sprachaufnahme wird nur zur Umwandlung in Text an Groq (USA) übertragen; NEXORA speichert sie nicht. Auch das gehört in die Datenschutzerklärung.
+**Datenschutz:** Die Sprachaufnahme wird nur zur Umwandlung in Text an Groq (USA) übertragen; Lunaxora speichert sie nicht. Auch das gehört in die Datenschutzerklärung.
 
-### Nexys Stimme (ElevenLabs)
+### Lunas Stimme (ElevenLabs)
 
-Nexy spricht mit einer Stimme von **ElevenLabs** – beim Vorlesen, im Sprachmodus und wenn man Nexy anstupst – über dieselbe Server-Funktion `assistant` (Modus „speak“). Eine andere Stimme gibt es nicht: Ist ElevenLabs nicht eingerichtet oder gerade nicht erreichbar, bleibt Nexy stumm und zeigt im Nexy-Bereich den Grund. Gesprochen wird nur im Mac-Fenster und im Browser.
+Luna spricht mit einer Stimme von **ElevenLabs** – beim Vorlesen, im Sprachmodus und wenn man Luna anstupst – über dieselbe Server-Funktion `assistant` (Modus „speak“). Eine andere Stimme gibt es nicht: Ist ElevenLabs nicht eingerichtet oder gerade nicht erreichbar, bleibt Luna stumm und zeigt im Luna-Bereich den Grund. Gesprochen wird nur im Mac-Fenster und im Browser.
 
 **1. Konto und Stimme:** Auf [elevenlabs.io](https://elevenlabs.io) registrieren – für deutsche Stimmen aus der Bibliothek und die Nutzung in der App mindestens **Starter** (der Gratis-Tarif darf Bibliotheks-Stimmen nicht über die Schnittstelle nutzen und hat keine kommerzielle Lizenz). **Voices → Explore** → Filter **Language: German** → Stimme mit **+** speichern → unter **My Voices** bei der Stimme **⋯ → Copy voice ID**.
 
@@ -130,15 +130,15 @@ Nexy spricht mit einer Stimme von **ElevenLabs** – beim Vorlesen, im Sprachmod
 
 **4. Neue Version der Funktion einspielen:** **Edge Functions → assistant → Code** → Inhalt komplett durch [`functions/assistant/index.ts`](functions/assistant/index.ts) ersetzen → **Deploy**.
 
-**Prüfen:** In der App bei Nexy **Vorlesen** einschalten und etwas fragen. Klappt etwas nicht, zeigt Nexy über dem Eingabefeld den Grund („ELEVENLABS_API_KEY fehlt“, „alte Version der Server-Funktion“, „Credits aufgebraucht“ …). Details: **Edge Functions → assistant → Logs**.
+**Prüfen:** In der App bei Luna **Vorlesen** einschalten und etwas fragen. Klappt etwas nicht, zeigt Luna über dem Eingabefeld den Grund („ELEVENLABS_API_KEY fehlt“, „alte Version der Server-Funktion“, „Credits aufgebraucht“ …). Details: **Edge Functions → assistant → Logs**.
 
-**Kosten:** ElevenLabs rechnet nach Zeichen ab; eine vorgelesene Antwort (meist 300–500 Zeichen) kostet grob 1–3 Cent. Vorlesen zählt nicht als Nexy-Nachricht – Grenze sind die Credits des Schlüssels bzw. Tarifs (aktuelle Preise: elevenlabs.io/pricing). Die kurzen Ausrufe beim Anstupsen holt die App nur einmal pro Start.
+**Kosten:** ElevenLabs rechnet nach Zeichen ab; eine vorgelesene Antwort (meist 300–500 Zeichen) kostet grob 1–3 Cent. Vorlesen zählt nicht als Luna-Nachricht – Grenze sind die Credits des Schlüssels bzw. Tarifs (aktuelle Preise: elevenlabs.io/pricing). Die kurzen Ausrufe beim Anstupsen holt die App nur einmal pro Start.
 
-**Datenschutz:** Die vorzulesenden Antworten von Nexy (können Kundennamen und Beträge enthalten) gehen zur Umwandlung an ElevenLabs (USA). Auch das gehört in die Datenschutzerklärung.
+**Datenschutz:** Die vorzulesenden Antworten von Luna (können Kundennamen und Beträge enthalten) gehen zur Umwandlung an ElevenLabs (USA). Auch das gehört in die Datenschutzerklärung.
 
 ## 5. TikTok & Instagram verbinden
 
-Im Bereich **Social Media → Konten** verbindest du deine Konten. Danach holt NEXORA Follower, Likes und die Zahlen jedes Videos bzw. Beitrags (beim Öffnen automatisch, wenn der Stand älter als 6 Stunden ist), ordnet neue Videos der passenden Idee im Content-Board zu und überträgt Aufrufe, Likes, Kommentare, Geteilt und Gespeichert in den Post. NEXORA bekommt **nur Lese-Rechte** und postet nichts.
+Im Bereich **Social Media → Konten** verbindest du deine Konten. Danach holt Lunaxora Follower, Likes und die Zahlen jedes Videos bzw. Beitrags (beim Öffnen automatisch, wenn der Stand älter als 6 Stunden ist), ordnet neue Videos der passenden Idee im Content-Board zu und überträgt Aufrufe, Likes, Kommentare, Geteilt und Gespeichert in den Post. Lunaxora bekommt **nur Lese-Rechte** und postet nichts.
 
 Dafür brauchst du je Plattform eine (kostenlose) **Entwickler-App** – das ist der offizielle Weg, über den sich Nutzer bei TikTok bzw. Instagram anmelden. Die Zugangsdaten (Tokens) speichert die Server-Funktion **verschlüsselt** in der Datenbank.
 
@@ -148,7 +148,7 @@ Dafür brauchst du je Plattform eine (kostenlose) **Entwickler-App** – das ist
 
 1. **Edge Functions → Deploy a new function → Via Editor**, Name genau `social`.
 2. Den Beispiel-Code komplett durch den Inhalt von [`functions/social/index.ts`](functions/social/index.ts) ersetzen → **Deploy**.
-3. In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) **ausschalten**. Das ist hier Pflicht: Nach der Anmeldung leitet TikTok/Instagram den Browser zur Funktion zurück – ohne NEXORA-Anmeldung. Die Funktion prüft bei allen anderen Anfragen selbst, ob ein angemeldeter Nutzer fragt.
+3. In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) **ausschalten**. Das ist hier Pflicht: Nach der Anmeldung leitet TikTok/Instagram den Browser zur Funktion zurück – ohne Lunaxora-Anmeldung. Die Funktion prüft bei allen anderen Anfragen selbst, ob ein angemeldeter Nutzer fragt.
 
 Deine **Rückleitungs-Adresse** (brauchst du gleich bei TikTok und Instagram):
 
@@ -160,7 +160,7 @@ https://DEIN-PROJEKT.supabase.co/functions/v1/social/callback
 
 **3. TikTok**
 
-1. Auf [developers.tiktok.com](https://developers.tiktok.com) anmelden → **Manage apps** → vorhandene App öffnen oder **Connect an app** (neue App, z. B. „NEXORA“).
+1. Auf [developers.tiktok.com](https://developers.tiktok.com) anmelden → **Manage apps** → vorhandene App öffnen oder **Connect an app** (neue App, z. B. „Lunaxora“).
 2. Produkt **Login Kit** hinzufügen, dazu die Berechtigungen (Scopes) `user.info.basic`, `user.info.profile`, `user.info.stats` und `video.list` (die letzten drei gehören zur **Display API**).
 3. Bei Login Kit als Plattform **Web** wählen und als **Redirect URI** die Rückleitungs-Adresse von oben eintragen.
 4. Solange die App nicht von TikTok geprüft ist, läuft sie im **Sandbox**-Modus: Dort unter **Target users** dein eigenes TikTok-Konto hinzufügen – dann kannst du dich schon verbinden. Für andere Nutzer muss die App später zur Prüfung (**Submit for review**).
@@ -200,7 +200,7 @@ Der Bereich **Termine** zeigt Erstgespräche und Ausführungen aus deinen Auftr�
 Gut zu wissen:
 
 - Apple Kalender fragt je nach Einstellung alle 5 Minuten bis 1× pro Woche nach neuen Terminen (*Kalender → Einstellungen → Accounts → Abonnements*), Google Kalender meist alle paar Stunden – das lässt sich bei Google nicht beschleunigen.
-- Das Abo ist zum Lesen: Termine änderst du in NEXORA.
+- Das Abo ist zum Lesen: Termine änderst du in Lunaxora.
 - Wer den Link kennt, sieht deine Termine (mit Kunden und Adressen). Bei Bedarf in der App **Neuen Link erzeugen** – der alte funktioniert dann sofort nicht mehr.
 - Falls **Abo testen** „Schlüssel ungültig“ meldet: Geheimnis `NEXORA_PUBLISHABLE_KEY` = der Publishable Key aus der `.env` der App (der ist öffentlich und darf dort hin).
 
@@ -208,14 +208,14 @@ Gut zu wissen:
 
 Dafür reicht das Datenbank-Skript `20261110090000_invoice_followups.sql` (Abschnitt 3) – keine Server-Funktion nötig.
 
-- **Mahnen:** Ist eine Rechnung überfällig, erscheint **Mahnen** in Finanzen (offene Rechnungen), unter Termine → *Zu erledigen* und an der Rechnung im Auftrag. Die Stufen: **Zahlungserinnerung** (freundlich, ohne Gebühr) → **1. Mahnung** → **Letzte Mahnung**, jeweils mit neuer Frist (Vorschlag: 7 Tage) und bei den Mahnungen optional einer Mahngebühr. Das Schreiben gibt es als PDF im Briefkopf der Rechnung, per E-Mail oder WhatsApp mit fertigem Text. NEXORA merkt sich Stufe, Datum und Frist; die nächste Stufe ist erst nach Ablauf der Frist dran. Ein versehentlicher Vermerk lässt sich mit **Rückgängig** zurücknehmen.
-- **Nach der letzten Mahnung** zeigt NEXORA den Weg zum gerichtlichen Mahnverfahren ([online-mahnantrag.de](https://www.online-mahnantrag.de)).
+- **Mahnen:** Ist eine Rechnung überfällig, erscheint **Mahnen** in Finanzen (offene Rechnungen), unter Termine → *Zu erledigen* und an der Rechnung im Auftrag. Die Stufen: **Zahlungserinnerung** (freundlich, ohne Gebühr) → **1. Mahnung** → **Letzte Mahnung**, jeweils mit neuer Frist (Vorschlag: 7 Tage) und bei den Mahnungen optional einer Mahngebühr. Das Schreiben gibt es als PDF im Briefkopf der Rechnung, per E-Mail oder WhatsApp mit fertigem Text. Lunaxora merkt sich Stufe, Datum und Frist; die nächste Stufe ist erst nach Ablauf der Frist dran. Ein versehentlicher Vermerk lässt sich mit **Rückgängig** zurücknehmen.
+- **Nach der letzten Mahnung** zeigt Lunaxora den Weg zum gerichtlichen Mahnverfahren ([online-mahnantrag.de](https://www.online-mahnantrag.de)).
 - **Bewertung:** Bei bezahlten Rechnungen gibt es **Bewertung** – eine kurze Bitte per E-Mail oder WhatsApp mit deinem Link. Den Link trägst du unter **Firma → Bewertungen** ein (z. B. bei Google: im Google-Unternehmensprofil die Funktion zum Anfordern von Rezensionen öffnen und den Link kopieren).
 - Gebühren: Für eine Zahlungserinnerung keine, für Mahnungen nur die tatsächlichen Kosten (z. B. Porto – meist wenige Euro). Das ist kein Rechtsrat – bei größeren Beträgen lohnt eine kurze Beratung.
 
 ## 8. Belege
 
-**Finanzen → Beleg erfassen**: Foto oder PDF wählen (am Handy-Browser auch direkt die Kamera) – Nexy liest Betrag, Datum, Händler, Kategorie und ausgewiesene Umsatzsteuer aus und füllt die Ausgabe vor. Du prüfst und speicherst; der Beleg liegt dann im privaten Speicher. An jeder Ausgabe kann man einen Beleg ansehen, ersetzen, entfernen oder nachträglich anhängen.
+**Finanzen → Beleg erfassen**: Foto oder PDF wählen (am Handy-Browser auch direkt die Kamera) – Luna liest Betrag, Datum, Händler, Kategorie und ausgewiesene Umsatzsteuer aus und füllt die Ausgabe vor. Du prüfst und speicherst; der Beleg liegt dann im privaten Speicher. An jeder Ausgabe kann man einen Beleg ansehen, ersetzen, entfernen oder nachträglich anhängen.
 
 Einrichtung:
 
@@ -231,7 +231,7 @@ Dein Kunde bekommt einen Link, sieht das Angebot im Browser (mit deinem Logo; da
 Einrichtung:
 
 1. Datenbank-Skript `20261113090000_offer_links_mail.sql` ausführen (Abschnitt 3).
-2. **Angebotsseite ins Internet stellen** – nur eine einzige Datei, nicht die App, in einem **Unterordner** deiner Domain (im Hauptordner liegt die NEXORA-Homepage). Wer die Adresse ohne Link aufruft, sieht nur „Bitte öffnen Sie den Link aus Ihrer E-Mail“:
+2. **Angebotsseite ins Internet stellen** – nur eine einzige Datei, nicht die App, in einem **Unterordner** deiner Domain (im Hauptordner liegt die Lunaxora-Homepage). Wer die Adresse ohne Link aufruft, sieht nur „Bitte öffnen Sie den Link aus Ihrer E-Mail“:
    1. Beim Hoster die Domain (z. B. `nexoranexy.de`) mit einem eigenen Ordner verbinden, z. B. `/home/www/nexoranexy.de`, und **SSL/HTTPS einschalten** („Let’s Encrypt“).
    2. Im Projektordner `bash scripts/web-hochladen.sh` ausführen. Das Skript baut `dist-angebot/index.html` aus [`web-angebot/index.html`](../web-angebot/index.html) (setzt Supabase-Adresse und Publishable Key aus der `.env` ein) und lädt sie per SFTP in den Unterordner `Angebot` (aus `EXPO_PUBLIC_WEB_URL`, legt ihn bei Bedarf an). Beim ersten Mal fragt es Server, Benutzer und den Ordner der Domain ab, das Passwort jedes Mal. In den Hauptordner lädt es nie.
       Ohne Skript: im Ordner der Domain einen Ordner `Angebot` anlegen (Groß-/Kleinschreibung wie in `EXPO_PUBLIC_WEB_URL`) und `dist-angebot/index.html` per Dateimanager des Hosters dort hinein hochladen.
@@ -266,7 +266,7 @@ Es gibt zwei Wege – **Weg A ist der einfachste, wenn du schon ein Postfach bei
    > Das Passwort **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
 5. In der App unter **Firma** deine E-Mail-Adresse eintragen – dorthin gehen die Antworten deiner Kunden.
 
-Gut zu wissen: Supabase erlaubt keine Verbindungen über die Ports 25 und 587 – deshalb Port 465. Die verschickten E-Mails stehen nicht im „Gesendet“-Ordner deines Webmailers, sondern im Versandprotokoll in NEXORA (am Dokument: „Direkt verschickt am … an …“).
+Gut zu wissen: Supabase erlaubt keine Verbindungen über die Ports 25 und 587 – deshalb Port 465. Die verschickten E-Mails stehen nicht im „Gesendet“-Ordner deines Webmailers, sondern im Versandprotokoll in Lunaxora (am Dokument: „Direkt verschickt am … an …“).
 
 ### Weg B: über Resend
 
@@ -278,7 +278,7 @@ Gut zu wissen: Supabase erlaubt keine Verbindungen über die Ports 25 und 587 �
 5. **Edge Functions → Secrets**: `RESEND_API_KEY` = dein Schlüssel, `MAIL_FROM` = Absender-Adresse auf deiner Domain (z. B. `angebote@deine-domain.de`).
 6. In der App unter **Firma** deine E-Mail-Adresse eintragen.
 
-Ist `SMTP_HOST` gesetzt, nimmt NEXORA Weg A.
+Ist `SMTP_HOST` gesetzt, nimmt Lunaxora Weg A.
 
 Zum Schutz: höchstens 3 Empfänger pro E-Mail, nur PDFs als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag. Jede verschickte E-Mail steht im Versandprotokoll.
 
@@ -292,7 +292,7 @@ Gut zu wissen: Alle Zahlen sind eine grobe Orientierung aus deinen Aufträgen un
 
 ## 12. Abo (Gratis / Pro)
 
-Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten Öffnen **14 Tage Pro gratis** (auch bestehende Nutzer). Danach gilt **Gratis**: 20 Nexy-Nachrichten und 5 ausgelesene Belege im Monat, PDFs mit dem kleinen Hinweis „Erstellt mit NEXORA“. **Pro** (9,99 €/Monat): bis 300 Nachrichten/Belege, E-Mails direkt aus NEXORA, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok/Instagram verbinden, Kalender-Abo. Übersicht in der App: **Profil → Abo**.
+Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten Öffnen **14 Tage Pro gratis** (auch bestehende Nutzer). Danach gilt **Gratis**: 20 Luna-Nachrichten und 5 ausgelesene Belege im Monat, PDFs mit dem kleinen Hinweis „Erstellt mit Lunaxora“. **Pro** (9,99 €/Monat): bis 300 Nachrichten/Belege, E-Mails direkt aus Lunaxora, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok/Instagram verbinden, Kalender-Abo. Übersicht in der App: **Profil → Abo**.
 
 Einrichtung:
 

@@ -258,7 +258,7 @@ function PostEditor({ post, planned = null }: { post?: SocialPost; planned?: str
             onChangeText={setHashtags}
             placeholder="gründen startup motivation"
             autoCapitalize="none"
-            hint="Das # ergänzt NEXORA automatisch."
+            hint="Das # ergänzt Lunaxora automatisch."
           />
           {sets.length > 0 && (
             <View style={styles.setRow}>

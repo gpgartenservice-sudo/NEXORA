@@ -315,11 +315,11 @@ export function parseTarget(input: string, allowZero = false): number | null | '
 }
 
 // ---------------------------------------------------------------------------
-// Für Nexy
+// Für Luna
 // ---------------------------------------------------------------------------
 
 /**
- * Offene To-dos für Nexy mit Kurzzeichen (A1, A2 …), über das Nexy sie
+ * Offene To-dos für Luna mit Kurzzeichen (A1, A2 …), über das Luna sie
  * ändern kann; `refs` übersetzt es zurück.
  */
 export function nexyTodos(
@@ -347,7 +347,7 @@ export function nexyTodos(
   return { entries, refs, open: todos.filter((t) => !t.done).length };
 }
 
-/** Aktive Ziele mit Stand für Nexy */
+/** Aktive Ziele mit Stand für Luna */
 export function nexyGoals(goals: Goal[], data: GoalData, now: Date = new Date(), max = 10) {
   return goals
     .filter((g) => !g.archived)

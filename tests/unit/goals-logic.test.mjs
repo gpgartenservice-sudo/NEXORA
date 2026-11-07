@@ -241,7 +241,7 @@ test('Eigenes Ziel: Fortschritt von Hand, Termin', () => {
   assert.equal(goalProgress({ ...g, due_on: null }, data, NOW).hint, 'Noch 6');
 });
 
-test('Für Nexy: offene To-dos mit Kurzzeichen, Ziele mit Stand', () => {
+test('Für Luna: offene To-dos mit Kurzzeichen, Ziele mit Stand', () => {
   const { entries, refs, open } = nexyTodos(
     [
       todo({ id: 't1', title: 'Steuer', due_on: '2026-11-06', important: true, customer_id: 'c1' }),

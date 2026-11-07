@@ -54,7 +54,7 @@ export async function showLastCrash() {
   if (!crash?.text) return;
   const when = new Date(crash.at).toLocaleString('de-DE');
   Alert.alert(
-    'NEXORA ist zuletzt abgestürzt',
+    'Lunaxora ist zuletzt abgestürzt',
     `Am ${when}. Schick den Fehlertext bitte weiter – dann lässt sich das beheben.\n\n${crash.text.slice(0, 400)}`,
     [{ text: 'Fehlertext kopieren', onPress: () => void copyText(`${when}\n${crash.text}`) }, { text: 'OK' }],
   );

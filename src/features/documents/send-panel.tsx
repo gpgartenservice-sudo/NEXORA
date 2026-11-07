@@ -27,7 +27,7 @@ type Props = {
 type Message = { tone: 'info' | 'success' | 'error'; text: string };
 
 const WHERE = {
-  finder: 'Das PDF ist im Finder markiert (Downloads › NEXORA)',
+  finder: 'Das PDF ist im Finder markiert (Downloads › Lunaxora)',
   download: 'Das PDF wurde heruntergeladen',
 };
 

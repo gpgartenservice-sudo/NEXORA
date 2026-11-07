@@ -1,8 +1,8 @@
 /**
- * Nexy macht es vor – reine Logik (ohne App, mit Unit-Tests): Bevor Nexy etwas
+ * Luna macht es vor – reine Logik (ohne App, mit Unit-Tests): Bevor Luna etwas
  * speichert, geht sie in der App dorthin, wo man es selbst eintragen würde,
  * tippt die Werte sichtbar in die echten Felder und drückt auf Speichern.
- * Hier steht, welche Schritte das für jede Aktion sind und wo Nexy neben
+ * Hier steht, welche Schritte das für jede Aktion sind und wo Luna neben
  * der gerade gezeigten Stelle steht.
  *
  * Felder und Knöpfe werden über ihre Beschriftung gefunden (wie ein Mensch
@@ -25,7 +25,7 @@ import {
 } from './assistant-logic';
 
 /**
- * Wo Nexy hinzeigt: eine markierte Stelle (TourTarget), ein Eingabefeld oder
+ * Wo Luna hinzeigt: eine markierte Stelle (TourTarget), ein Eingabefeld oder
  * ein Knopf (über die Beschriftung; endet sie auf „…“, reicht der Anfang).
  */
 export type GuideSpot = { target: string } | { field: string } | { button: string };
@@ -33,16 +33,16 @@ export type GuideSpot = { target: string } | { field: string } | { button: strin
 export type GuideStep =
   /** Seite öffnen (push = neue Seite obendrauf, replace = statt der aktuellen) */
   | { do: 'go'; href: string; mode?: 'push' | 'replace' }
-  /** Nexy geht zur Stelle, die leuchtet; mit `say` sagt sie etwas dazu */
+  /** Luna geht zur Stelle, die leuchtet; mit `say` sagt sie etwas dazu */
   | { do: 'show'; at?: GuideSpot; say?: string }
   /** Buchstabe für Buchstabe ins Feld tippen ('' = Feld leeren) */
   | { do: 'type'; field: string; text: string }
   /** Datum (JJJJ-MM-TT) bzw. Zeitpunkt (ISO) ins Datumsfeld setzen */
   | { do: 'date'; field: string; value: string | null; withTime: boolean }
-  /** Nexy drückt auf den Knopf (gespeichert wird danach von Nexy selbst) */
+  /** Luna drückt auf den Knopf (gespeichert wird danach von Luna selbst) */
   | { do: 'press'; button: string }
   /**
-   * Nexy klickt wirklich: Schalter bzw. Auswahl im Formular (damit es danach
+   * Luna klickt wirklich: Schalter bzw. Auswahl im Formular (damit es danach
    * zeigt, was gespeichert wurde). on: Schalter nur umlegen, wenn er anders steht.
    */
   | { do: 'pick'; button: string; on?: boolean };
@@ -383,7 +383,7 @@ export function appointmentDone(id: string): GuideStep[] {
   return [go(`/termine/${id}`, 'replace'), show({ target: 'guide.appointment' })];
 }
 
-/** Was eine Terminänderung ist (für Nexys Satz) */
+/** Was eine Terminänderung ist (für Lunas Satz) */
 export function changeWhat(ev: KnownEvent): string {
   const kind = ev.kind === 'meeting' ? 'Erstgespräch' : ev.kind === 'execution' ? 'Ausführung' : 'Termin';
   return `${kind} „${ev.title}“`;
@@ -449,7 +449,7 @@ export function todoSteps(p: Of<'todo'>): GuideStep[] {
 }
 
 export function todoDone(id: string): GuideStep[] {
-  // Schnelleingabe wieder leeren (gespeichert hat Nexy selbst)
+  // Schnelleingabe wieder leeren (gespeichert hat Luna selbst)
   return [{ do: 'type', field: LABELS.todo.quick, text: '' }, go(`/aufgaben/${id}`), show({ target: 'guide.todo' })];
 }
 
@@ -716,7 +716,7 @@ export function incomeProofSteps(): GuideStep[] {
   return [go('/finanzen'), show(undefined, 'Ich erstelle deinen Einkommensnachweis.')];
 }
 
-/** Wie lange Nexy pro Buchstabe braucht: kurze Wörter gemütlich, lange Texte zügig (insgesamt ≤ ~1,6 s) */
+/** Wie lange Luna pro Buchstabe braucht: kurze Wörter gemütlich, lange Texte zügig (insgesamt ≤ ~1,6 s) */
 export function typingDelay(length: number): number {
   if (length <= 0) return 0;
   return Math.max(10, Math.min(55, Math.round(1600 / length)));
@@ -733,18 +733,18 @@ export function typingFrames(text: string, maxFrames = 60): string[] {
   return frames;
 }
 
-// ——— Wo Nexy steht ———
+// ——— Wo Luna steht ———
 
 export type NexySpot = {
-  /** Nexy (linke obere Ecke) */
+  /** Luna (linke obere Ecke) */
   x: number;
   y: number;
-  /** Sprechblase; `align`: Blase rückt an Nexy heran (end = rechts bündig) */
+  /** Sprechblase; `align`: Blase rückt an Luna heran (end = rechts bündig) */
   bubble: { left: number; top: number; width: number; align: 'start' | 'end' };
 };
 
 /**
- * Wo Nexy steht: rechts neben der Stelle, sonst links davon, bei breiten
+ * Wo Luna steht: rechts neben der Stelle, sonst links davon, bei breiten
  * Stellen unten rechts auf der Kante. Ohne Stelle: unten rechts in der Ecke.
  * Die Sprechblase kommt auf die freie Seite (nicht auf die Stelle).
  */

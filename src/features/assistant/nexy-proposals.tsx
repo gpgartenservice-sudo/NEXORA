@@ -374,9 +374,9 @@ function rows(p: Proposal): [string, string][] {
   return r;
 }
 
-/** Vorschläge einer Nexy-Nachricht: an-/abwählen, fehlende Zuordnung wählen, ausführen. */
+/** Vorschläge einer Luna-Nachricht: an-/abwählen, fehlende Zuordnung wählen, ausführen. */
 export function NexyProposals({ message }: { message: NexyMessage }) {
-  // Ausgeführt wird ohne Knopf: Nexy legt von selbst los (nexy-screen), sobald nichts mehr fehlt
+  // Ausgeführt wird ohne Knopf: Luna legt von selbst los (nexy-screen), sobald nichts mehr fehlt
   const { updateProposal, executing, blockers } = useNexy();
   const { customers, orders } = useCrm();
   const { documents } = useDocuments();
@@ -478,7 +478,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
               <Picker
                 label="Für welchen Kunden?"
                 items={customers.slice(0, 12).map((c) => ({ id: c.id, label: c.name }))}
-                empty="Du hast noch keine Kunden – nenn Nexy den Namen."
+                empty="Du hast noch keine Kunden – nenn Luna den Namen."
                 onPick={(id, label) =>
                   updateProposal(message.id, p.id, (x) =>
                     x.kind === 'order' ? { ...x, customer: { existingId: id, newRef: null, name: label } } : x,
@@ -493,7 +493,7 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
                   id: o.id,
                   label: `${o.title} · ${customers.find((c) => c.id === o.customer_id)?.name ?? ''}`,
                 }))}
-                empty="Dazu gibt es noch keinen Auftrag – sag Nexy, worum es geht."
+                empty="Dazu gibt es noch keinen Auftrag – sag Luna, worum es geht."
                 onPick={(id) => {
                   const o = orders.find((x) => x.id === id)!;
                   const c = customers.find((x) => x.id === o.customer_id);

@@ -6,7 +6,7 @@ import { speechAudio, type SpeechAudioResult } from './assistant-api';
 import { createSpeechDetector, speechChunks, speechText, type DetectorOptions } from './voice-logic';
 
 /**
- * Sprachmodus von Nexy – Mikrofon, Aufnahme mit Pausen-Erkennung, Vorlesen.
+ * Sprachmodus von Luna – Mikrofon, Aufnahme mit Pausen-Erkennung, Vorlesen.
  *
  * Läuft im Mac-Fenster und im Browser (Web-APIs). Die Aufnahme bleibt im
  * Speicher und geht nur zur Umwandlung in Text an die Server-Funktion.
@@ -27,12 +27,12 @@ export function voiceSupported(): boolean {
   return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined' && !!audioContextClass();
 }
 
-/** Kann die App hier vorlesen? (Mac-Fenster und Browser – Nexys Stimme kommt von ElevenLabs) */
+/** Kann die App hier vorlesen? (Mac-Fenster und Browser – Lunas Stimme kommt von ElevenLabs) */
 export function speechSupported(): boolean {
   return Platform.OS === 'web' && typeof window !== 'undefined' && typeof Audio !== 'undefined';
 }
 
-// Mikrofon offen (Sprachmodus): dann keine Ausrufe beim Anstupsen – sonst hört Nexy sich selbst
+// Mikrofon offen (Sprachmodus): dann keine Ausrufe beim Anstupsen – sonst hört Luna sich selbst
 let micOpen = false;
 
 // ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ let micOpen = false;
 const MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
 
 const MAC_DENIED =
-  'NEXORA darf das Mikrofon nicht benutzen. Erlaube es unter Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon und starte die App danach neu.';
+  'Lunaxora darf das Mikrofon nicht benutzen. Erlaube es unter Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon und starte die App danach neu.';
 const BROWSER_DENIED =
   'Der Browser hat das Mikrofon blockiert. Erlaube es über das Symbol links in der Adressleiste und versuch es noch einmal.';
 
@@ -194,8 +194,8 @@ export function blobToBase64(blob: Blob): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Vorlesen – Nexys Stimme von ElevenLabs (über die Server-Funktion). Eine
-// andere Stimme gibt es nicht: Geht ElevenLabs nicht, bleibt Nexy stumm und
+// Vorlesen – Lunas Stimme von ElevenLabs (über die Server-Funktion). Eine
+// andere Stimme gibt es nicht: Geht ElevenLabs nicht, bleibt Luna stumm und
 // meldet den Grund.
 // ---------------------------------------------------------------------------
 
@@ -298,7 +298,7 @@ export function speak(text: string, options: SpeakOptions = {}): Speech {
       const result = await next;
       if (cancelled) break;
       if (!result.audio) {
-        options.onError?.(result.error ?? 'Nexys Stimme hat nicht geantwortet.', !!result.notSetUp);
+        options.onError?.(result.error ?? 'Lunas Stimme hat nicht geantwortet.', !!result.notSetUp);
         break;
       }
       // das nächste Stück schon holen, während dieses läuft
@@ -313,8 +313,8 @@ export function speak(text: string, options: SpeakOptions = {}): Speech {
 }
 
 /**
- * Kurzer Ausruf beim Anstupsen von Nexy. Unterbricht nichts: nicht, während
- * Nexy eine Antwort vorliest oder das Mikrofon offen ist. Fehler bleiben still.
+ * Kurzer Ausruf beim Anstupsen von Luna. Unterbricht nichts: nicht, während
+ * Luna eine Antwort vorliest oder das Mikrofon offen ist. Fehler bleiben still.
  */
 export function speakReaction(text: string) {
   if (!speechSupported() || micOpen) return;

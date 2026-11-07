@@ -156,7 +156,7 @@ function TodosView() {
           <Card>
             <Text style={styles.emptyTitle}>{done.length ? 'Alles erledigt. Stark! 🎉' : 'Noch keine To-dos'}</Text>
             <Text style={styles.body}>
-              Schreib oben auf, was ansteht – oder sag es Nexy, z. B. „Erinner mich Freitag an die Steuer“.
+              Schreib oben auf, was ansteht – oder sag es Luna, z. B. „Erinner mich Freitag an die Steuer“.
             </Text>
           </Card>
         </Reveal>

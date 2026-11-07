@@ -54,7 +54,7 @@ export function PlanProvider({ userId, children }: { userId: string; children: R
 
   const pro = missing || !info || isPro(info.plan);
 
-  // Gratis: „Erstellt mit NEXORA“ unten auf den PDFs
+  // Gratis: „Erstellt mit Lunaxora“ unten auf den PDFs
   useEffect(() => {
     setPdfBranding(!pro);
   }, [pro]);

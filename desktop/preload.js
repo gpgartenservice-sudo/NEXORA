@@ -1,7 +1,7 @@
 /**
  * Brücke zwischen App und Mac: Die App darf nur genau diese Funktionen
  * aufrufen – PDF bereitlegen + E-Mail/WhatsApp öffnen bzw. Teilen-Menü,
- * die Mikrofon-Freigabe des Mac anfragen (Sprachmodus von Nexy),
+ * die Mikrofon-Freigabe des Mac anfragen (Sprachmodus von Luna),
  * das Anmeldefenster für TikTok/Instagram öffnen und einen Termin im
  * Kalender des Mac öffnen.
  */

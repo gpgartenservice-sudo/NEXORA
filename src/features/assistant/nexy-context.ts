@@ -1,5 +1,5 @@
 /**
- * Was Nexy über das Business des Nutzers weiß: eine kompakte Übersicht,
+ * Was Luna über das Business des Nutzers weiß: eine kompakte Übersicht,
  * die mit jeder Nachricht mitgeschickt wird. Bewusst sparsam – keine
  * Telefonnummern, E-Mails oder Anschriften von Kunden.
  */
@@ -293,7 +293,7 @@ type ExpenseRow = {
 };
 
 /**
- * Ausgaben mit Kurzzeichen (E1, E2 …), über die Nexy sie ändern oder löschen
+ * Ausgaben mit Kurzzeichen (E1, E2 …), über die Luna sie ändern oder löschen
  * kann: regelmäßige zuerst, dann die neuesten. list = dieselben Einträge.
  */
 export function nexyExpenses<T extends ExpenseRow>(expenses: T[], max = 25) {

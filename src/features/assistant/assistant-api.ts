@@ -15,7 +15,7 @@ export type AskResult = {
 };
 
 const SETUP =
-  'Nexy ist noch nicht eingerichtet: Die Server-Funktion „assistant“ fehlt in Supabase (Anleitung: supabase/README.md, Abschnitt „Assistent“).';
+  'Luna ist noch nicht eingerichtet: Die Server-Funktion „assistant“ fehlt in Supabase (Anleitung: supabase/README.md, Abschnitt „Assistent“).';
 
 export type HistoryEntry = { role: 'user' | 'nexy'; text: string };
 
@@ -41,7 +41,7 @@ async function httpFailure(error: unknown): Promise<HttpFailure | null> {
 
 const technical = (f: HttpFailure) => `${f.status} ${f.code ?? ''}${f.detail ? ` – ${f.detail}` : ''}`.trim();
 
-/** Nachricht an Nexy (Server-Funktion) – mit bisherigem Gespräch und Übersicht über das Business. */
+/** Nachricht an Luna (Server-Funktion) – mit bisherigem Gespräch und Übersicht über das Business. */
 export async function askAssistant(
   text: string,
   history: HistoryEntry[] = [],
@@ -57,7 +57,7 @@ export async function askAssistant(
     if (http.status === 404) return { error: SETUP, notSetUp: true };
     if (http.code === 'missing_api_key') {
       return {
-        error: 'Nexy ist fast eingerichtet: In Supabase fehlt noch das Geheimnis ANTHROPIC_API_KEY.',
+        error: 'Luna ist fast eingerichtet: In Supabase fehlt noch das Geheimnis ANTHROPIC_API_KEY.',
         notSetUp: true,
       };
     }
@@ -69,24 +69,24 @@ export async function askAssistant(
     if (http.status === 401) return { error: 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.' };
     if (http.status === 429)
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
-    if (http.code === 'refused') return { error: 'Dabei kann Nexy nicht helfen. Formulier es bitte anders.' };
+    if (http.code === 'refused') return { error: 'Dabei kann Luna nicht helfen. Formulier es bitte anders.' };
     if (http.code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
     if (http.code === 'quota_exceeded')
       return {
-        error: `Deine ${http.limit ?? 20} Gratis-Nachrichten an Nexy sind für diesen Monat aufgebraucht. Mit NEXORA Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
+        error: `Deine ${http.limit ?? 20} Gratis-Nachrichten an Luna sind für diesen Monat aufgebraucht. Mit Lunaxora Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
         quota: true,
       };
     return {
-      error: `Nexy konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${technical(http)}`,
+      error: `Luna konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${technical(http)}`,
     };
   }
   if (error instanceof FunctionsFetchError) {
     return {
       error:
-        'Keine Verbindung zu Nexy. Prüfe deine Internetverbindung – oder ob die Server-Funktion „assistant“ in Supabase eingerichtet ist.',
+        'Keine Verbindung zu Luna. Prüfe deine Internetverbindung – oder ob die Server-Funktion „assistant“ in Supabase eingerichtet ist.',
     };
   }
-  return { error: `Nexy hat nicht geantwortet.\n\nTechnische Details: ${String(error.message ?? error)}` };
+  return { error: `Luna hat nicht geantwortet.\n\nTechnische Details: ${String(error.message ?? error)}` };
 }
 
 export type TranscribeResult = { text?: string; error?: string; notSetUp?: boolean };
@@ -133,7 +133,7 @@ export async function transcribe(audio: string, mime: string, hints: string[] = 
     };
   }
   if (error instanceof FunctionsFetchError) {
-    return { error: 'Keine Verbindung zu Nexy. Prüfe deine Internetverbindung.' };
+    return { error: 'Keine Verbindung zu Luna. Prüfe deine Internetverbindung.' };
   }
   return {
     error: `Die Spracherkennung hat nicht geantwortet.\n\nTechnische Details: ${String(error.message ?? error)}`,
@@ -191,7 +191,7 @@ export async function speechAudio(text: string, signal?: AbortSignal): Promise<S
 
 export type ReceiptResult = { data?: ReceiptReading; error?: string; notSetUp?: boolean; quota?: boolean };
 
-/** Beleg (Foto/PDF als Base64) von Nexy lesen lassen (Server-Funktion, Modus "receipt"). */
+/** Beleg (Foto/PDF als Base64) von Luna lesen lassen (Server-Funktion, Modus "receipt"). */
 export async function readReceipt(file: string, mime: string): Promise<ReceiptResult> {
   const { data, error } = await supabase.functions.invoke('assistant', { body: { mode: 'receipt', file, mime } });
   if (!error) return { data: (data?.receipt ?? null) as ReceiptReading };
@@ -201,7 +201,7 @@ export async function readReceipt(file: string, mime: string): Promise<ReceiptRe
     if (http.status === 404) return { error: SETUP, notSetUp: true };
     if (http.code === 'missing_api_key')
       return {
-        error: 'Nexy ist fast eingerichtet: In Supabase fehlt noch das Geheimnis ANTHROPIC_API_KEY.',
+        error: 'Luna ist fast eingerichtet: In Supabase fehlt noch das Geheimnis ANTHROPIC_API_KEY.',
         notSetUp: true,
       };
     if (http.code === 'invalid_api_key')
@@ -221,17 +221,17 @@ export async function readReceipt(file: string, mime: string): Promise<ReceiptRe
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'quota_exceeded')
       return {
-        error: `Deine ${http.limit ?? 5} Gratis-Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit NEXORA Pro liest Nexy weiter.`,
+        error: `Deine ${http.limit ?? 5} Gratis-Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit Lunaxora Pro liest Luna weiter.`,
         quota: true,
       };
     if (http.code === 'file_too_large') return { error: 'Die Datei ist zu groß zum Lesen (höchstens 6 MB).' };
     if (http.code === 'unsupported_file' || http.code === 'invalid_file')
-      return { error: 'Diese Datei kann Nexy nicht lesen. Bitte ein Foto (JPG/PNG) oder eine PDF nehmen.' };
+      return { error: 'Diese Datei kann Luna nicht lesen. Bitte ein Foto (JPG/PNG) oder eine PDF nehmen.' };
     return {
-      error: `Nexy konnte den Beleg gerade nicht lesen – trag die Ausgabe einfach selbst ein.\n\nTechnische Details: ${technical(http)}`,
+      error: `Luna konnte den Beleg gerade nicht lesen – trag die Ausgabe einfach selbst ein.\n\nTechnische Details: ${technical(http)}`,
     };
   }
   if (error instanceof FunctionsFetchError)
-    return { error: 'Keine Verbindung zu Nexy. Prüfe deine Internetverbindung.' };
-  return { error: `Nexy hat nicht geantwortet.\n\nTechnische Details: ${String(error.message ?? error)}` };
+    return { error: 'Keine Verbindung zu Luna. Prüfe deine Internetverbindung.' };
+  return { error: `Luna hat nicht geantwortet.\n\nTechnische Details: ${String(error.message ?? error)}` };
 }

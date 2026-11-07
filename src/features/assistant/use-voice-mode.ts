@@ -30,8 +30,8 @@ const BYES = ['Alles klar, bis gleich!', 'Okay, ich bin da, wenn du mich brauchs
 const MAX_QUIET_ROUNDS = 2;
 
 /**
- * Sprachmodus: zuhören -> verstehen -> Nexy fragen -> vorlesen -> wieder zuhören.
- * Vorschläge führt Nexy sofort aus und macht es dabei in der App vor (danach
+ * Sprachmodus: zuhören -> verstehen -> Luna fragen -> vorlesen -> wieder zuhören.
+ * Vorschläge führt Luna sofort aus und macht es dabei in der App vor (danach
  * hört sie weiter zu); fehlte noch etwas, bestätigt bzw. verwirft "Ja"/"Nein"
  * sie später. "Stopp" beendet.
  */
@@ -72,9 +72,9 @@ export function useVoiceMode() {
     if (session.current) end(session.current);
   }, [end]);
 
-  // Nexys Stimme ging nicht (z. B. ElevenLabs nicht eingerichtet) – Grund im Nexy-Bereich zeigen
+  // Lunas Stimme ging nicht (z. B. ElevenLabs nicht eingerichtet) – Grund im Luna-Bereich zeigen
   const speechFailed = useCallback((text: string, setup: boolean) => {
-    setError({ text: `Nexy kann gerade nicht sprechen: ${text}`, setup });
+    setError({ text: `Luna kann gerade nicht sprechen: ${text}`, setup });
   }, []);
 
   const say = useCallback(async (s: Session, text: string) => {
@@ -134,7 +134,7 @@ export function useVoiceMode() {
         if (intent === 'confirm' && pending) {
           setPhase('working');
           const outcome = await live.current.runProposals(pending.id);
-          // nach der Vorführung hat Nexy schon „Erledigt!“ gesagt
+          // nach der Vorführung hat Luna schon „Erledigt!“ gesagt
           if (!outcome.ok || !outcome.shown) await say(s, executedText(outcome));
           continue;
         }
@@ -148,7 +148,7 @@ export function useVoiceMode() {
         const reply = await live.current.nexy.send(said, { voice: true });
         if (!s.alive) break;
         if (!reply) continue;
-        // Nexy legt sofort los, wenn nichts fehlt – sonst fragt sie wie bisher nach
+        // Luna legt sofort los, wenn nichts fehlt – sonst fragt sie wie bisher nach
         const nexy = live.current.nexy;
         const ready =
           !reply.error &&

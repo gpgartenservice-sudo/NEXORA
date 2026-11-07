@@ -167,7 +167,7 @@ export function OnboardingFlow() {
             {/* key = Schritt: bei jedem Wechsel spielen die Einblend-Effekte neu ab */}
             <Animated.View key={step} style={[styles.stepBody, leaveStyle]}>
               {step === 'name' && (
-                <StepLayout title="Wie dürfen wir dich nennen?" subtitle="So sprechen wir dich in NEXORA an.">
+                <StepLayout title="Wie dürfen wir dich nennen?" subtitle="So sprechen wir dich in Lunaxora an.">
                   <Reveal delay={420}>
                     <TextField
                       label="Dein Vorname"
@@ -290,7 +290,7 @@ export function OnboardingFlow() {
               {step === 'done' && (
                 <View style={styles.done}>
                   <SuccessBurst />
-                  <AnimatedTitle text={`Dein NEXORA ist bereit, ${firstName}.`} style={styles.title} delay={450} />
+                  <AnimatedTitle text={`Dein Lunaxora ist bereit, ${firstName}.`} style={styles.title} delay={450} />
                   <Reveal delay={800}>
                     <Text style={styles.subtitle}>Wir haben alles auf dich eingestellt.</Text>
                   </Reveal>

@@ -136,7 +136,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
   const customer = customerById(order.customer_id);
   const [initial, setInitial] = useState(() => toDraft(order));
   const [draft, setDraft] = useState(initial);
-  // Von außen geändert (z. B. hat Nexy gerade gespeichert)? Dann die neuen Werte
+  // Von außen geändert (z. B. hat Luna gerade gespeichert)? Dann die neuen Werte
   // übernehmen – nur eigene, noch nicht gespeicherte Eingaben bleiben stehen.
   const fresh = toDraft(order);
   const freshKey = JSON.stringify(fresh);
@@ -182,7 +182,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
     }
     setSaving(true);
     // Nur geänderte Felder speichern – so überschreibt das Formular nichts, was
-    // inzwischen anderswo geändert wurde (z. B. Angebot online angenommen, Nexy).
+    // inzwischen anderswo geändert wurde (z. B. Angebot online angenommen, Luna).
     const payload = (d: Draft) => {
       const m = d.billing === 'monthly';
       return {

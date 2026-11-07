@@ -50,7 +50,7 @@ test('Testphase zählt wie Pro, Tage aufgerundet', () => {
 
 test('Verbleibende Gratis-Nachrichten/Belege', () => {
   const p = parsePlan(raw());
-  assert.equal(quotaText(p, 'nexy'), 'Noch 3 von 20 Nexy-Nachrichten in diesem Monat');
+  assert.equal(quotaText(p, 'nexy'), 'Noch 3 von 20 Luna-Nachrichten in diesem Monat');
   assert.equal(quotaText(p, 'receipt'), 'Noch 0 von 5 Belegen zum Auslesen in diesem Monat');
   assert.equal(quotaText(parsePlan(raw({ plan: 'pro' })), 'nexy'), null);
 });
@@ -66,5 +66,5 @@ test('Server sagt „nur mit Pro“ (Datenbank PT402 bzw. Text)', async () => {
   assert.equal(isProRequired({ code: 'P0001', message: 'pro_required' }), true);
   assert.equal(isProRequired({ code: '42501', message: 'permission denied' }), false);
   assert.equal(isProRequired(null), false);
-  assert.match(proRequiredText('dunning'), /^„1\. Mahnung und letzte Mahnung“ gibt es mit NEXORA Pro\./);
+  assert.match(proRequiredText('dunning'), /^„1\. Mahnung und letzte Mahnung“ gibt es mit Lunaxora Pro\./);
 });

@@ -19,7 +19,7 @@ const GLOW = require('@/assets/images/glow.png');
 const SIZE = 168;
 const RINGS = 3;
 
-/** Abschluss-Effekt: das N springt herein, Lichtringe pulsieren nach außen. */
+/** Abschluss-Effekt: das L springt herein, Lichtringe pulsieren nach außen. */
 export function SuccessBurst() {
   const pop = useSharedValue(0);
   const wave = useSharedValue(0);
@@ -29,7 +29,7 @@ export function SuccessBurst() {
     wave.set(withDelay(350, withRepeat(withTiming(1, { duration: 2400, easing: Easing.linear }), -1)));
   }, [pop, wave]);
 
-  // Proportionen des N wie im Schriftzug
+  // Proportionen des ersten Buchstabens (L) wie im Schriftzug
   const n = LETTER_LAYOUT[0];
   const nHeight = 64;
   const nWidth = (n.width * WORDMARK_ASPECT_RATIO) * nHeight;
@@ -49,7 +49,7 @@ export function SuccessBurst() {
         <Ring key={i} wave={wave} offset={i / RINGS} />
       ))}
       <Animated.View style={[{ width: nWidth, height: nHeight }, nStyle]}>
-        <Image source={LETTER_IMAGES.N} style={styles.fill} contentFit="fill" />
+        <Image source={LETTER_IMAGES[n.key]} style={styles.fill} contentFit="fill" />
       </Animated.View>
     </View>
   );

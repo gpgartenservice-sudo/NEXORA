@@ -1,5 +1,5 @@
 /**
- * NEXORA – E-Mails direkt aus der App verschicken (Supabase Edge Function "mail")
+ * Lunaxora – E-Mails direkt aus der App verschicken (Supabase Edge Function "mail")
  *
  * Angebote, Rechnungen, Zahlungserinnerungen und Mahnungen gehen mit PDF im
  * Anhang an den Kunden – entweder über dein eigenes Postfach (SMTP, z. B. bei
@@ -7,7 +7,7 @@
  * Firma (Name) mit der Adresse aus MAIL_FROM; Antworten des Kunden landen bei
  * deiner eigenen E-Mail-Adresse (Antwort-an).
  *
- * Nur angemeldete NEXORA-Nutzer; höchstens 3 Empfänger je E-Mail, nur PDFs
+ * Nur angemeldete Lunaxora-Nutzer; höchstens 3 Empfänger je E-Mail, nur PDFs
  * als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag je Nutzer.
  * Jeder Versand wird im Protokoll (Tabelle email_log) vermerkt – mit den
  * Rechten des Nutzers.
@@ -88,7 +88,7 @@ export function cleanName(v: unknown): string {
           .replace(/\s+/g, ' ')
           .trim()
       : '';
-  return s.slice(0, 80) || 'NEXORA';
+  return s.slice(0, 80) || 'Lunaxora';
 }
 
 /** Eingaben prüfen -> fertige Nachricht oder Fehlercode */

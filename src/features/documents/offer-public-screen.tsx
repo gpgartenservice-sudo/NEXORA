@@ -13,7 +13,7 @@ import { downloadPdf, pdfSupported, preparePdf } from './save-pdf';
 /**
  * Öffentliche Angebotsseite (ohne Anmeldung): Kunde sieht das Angebot über
  * den geheimen Link, lädt das PDF und nimmt an oder lehnt ab.
- * Bewusst hell und neutral – es ist das Angebot des Selbstständigen, nicht NEXORA.
+ * Bewusst hell und neutral – es ist das Angebot des Selbstständigen, nicht Lunaxora.
  */
 
 type OfferView = {
@@ -305,7 +305,7 @@ export function OfferPublicScreen() {
           )}
         </View>
       </View>
-      <Text style={styles.madeWith}>Erstellt mit NEXORA</Text>
+      <Text style={styles.madeWith}>Erstellt mit Lunaxora</Text>
     </Page>
   );
 }

@@ -17,7 +17,8 @@ import { Wordmark } from '@/components/brand/wordmark';
 import { AnimatedTitle, Reveal, RevealProvider } from '@/components/motion/reveal';
 import { Colors, Spacing } from '@/constants/theme';
 
-export const AUTH_LOGO_WIDTH = 190;
+// Schriftzug LUNAXORA ist länger als der alte – breiter, damit die Buchstaben gleich hoch bleiben
+export const AUTH_LOGO_WIDTH = 216;
 const GLOW = require('@/assets/images/glow.png');
 
 type Props = {

@@ -39,7 +39,7 @@ export async function renderTaxYearPdf(input: TaxYearPdf): Promise<Uint8Array> {
   const name = sellerName(seller);
   pdf.setTitle(`Jahresübersicht ${year}`);
   pdf.setAuthor(seller.owner_name || name);
-  pdf.setCreator('NEXORA');
+  pdf.setCreator('Lunaxora');
   pdf.setLanguage('de-DE');
 
   const right = A4.w - M.right;
@@ -92,7 +92,7 @@ export async function renderTaxYearPdf(input: TaxYearPdf): Promise<Uint8Array> {
     y -= 18;
   };
 
-  const intro = `Übersicht der Einnahmen und Ausgaben aus selbstständiger Tätigkeit${partial ? ` vom 1. Januar bis heute` : ''} – erstellt mit NEXORA als Arbeitshilfe für die Steuerberatung. Einnahmen = abgeschlossene Aufträge (Monatsverträge anteilig), Ausgaben = allgemeine Ausgaben und Ausgaben bei Aufträgen.`;
+  const intro = `Übersicht der Einnahmen und Ausgaben aus selbstständiger Tätigkeit${partial ? ` vom 1. Januar bis heute` : ''} – erstellt mit Lunaxora als Arbeitshilfe für die Steuerberatung. Einnahmen = abgeschlossene Aufträge (Monatsverträge anteilig), Ausgaben = allgemeine Ausgaben und Ausgaben bei Aufträgen.`;
   for (const line of wrap(intro, regular, 10, width)) {
     text(page, line, M.left, y, 10);
     y -= 14;
@@ -161,7 +161,7 @@ export async function renderTaxYearPdf(input: TaxYearPdf): Promise<Uint8Array> {
   }
 
   newPageIfNeeded(60);
-  const note = `${receipts} ${receipts === 1 ? 'Beleg ist' : 'Belege sind'} in NEXORA gespeichert (im ZIP-Export als Dateien dabei). Alle Angaben ohne Gewähr – die Steuerberatung prüft und ergänzt (z. B. Abschreibungen, private Anteile, Zahlungszeitpunkte).`;
+  const note = `${receipts} ${receipts === 1 ? 'Beleg ist' : 'Belege sind'} in Lunaxora gespeichert (im ZIP-Export als Dateien dabei). Alle Angaben ohne Gewähr – die Steuerberatung prüft und ergänzt (z. B. Abschreibungen, private Anteile, Zahlungszeitpunkte).`;
   for (const line of wrap(note, regular, 9, width)) {
     text(page, line, M.left, y, 9, regular, MUTED);
     y -= 13;

@@ -106,7 +106,7 @@ export default function ProfileScreen() {
               <Text style={styles.cardTitle}>Abo</Text>
               <Text style={styles.firmText} testID="profile-plan">
                 {plan.missing || !plan.info
-                  ? 'NEXORA Gratis und Pro im Vergleich'
+                  ? 'Lunaxora Gratis und Pro im Vergleich'
                   : `${planLabel(plan.info, now)}${quota ? ` · ${quota}` : ''}`}
               </Text>
             </View>
@@ -119,7 +119,7 @@ export default function ProfileScreen() {
         <Card>
           <Text style={styles.cardTitle}>Einführungen</Text>
           <Text style={styles.firmText}>
-            Nexy erklärt dir jeden Bereich beim ersten Besuch. Über das ? oben auf jeder Seite kannst du sie jederzeit
+            Luna erklärt dir jeden Bereich beim ersten Besuch. Über das ? oben auf jeder Seite kannst du sie jederzeit
             wiederholen. Gesehen: {seen} von {total}.
           </Text>
           <ToggleRow
@@ -148,7 +148,7 @@ export default function ProfileScreen() {
             />
           </View>
           {resetDone && (
-            <Text style={styles.firmText}>Erledigt – beim nächsten Besuch zeigt Nexy jeden Bereich wieder.</Text>
+            <Text style={styles.firmText}>Erledigt – beim nächsten Besuch zeigt Luna jeden Bereich wieder.</Text>
           )}
         </Card>
       </Reveal>

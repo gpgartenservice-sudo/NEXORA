@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NEXORA",
+    "name": "Lunaxora",
     "slug": "nexora",
     "version": "0.1.0",
     "orientation": "default",
@@ -10,10 +10,10 @@
     "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "de.nexora.app"
+      "bundleIdentifier": "de.lunaxora.app"
     },
     "android": {
-      "package": "de.nexora.app",
+      "package": "de.lunaxora.app",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,7 +25,7 @@
     "web": {
       "output": "single",
       "favicon": "./assets/images/favicon.png",
-      "name": "NEXORA",
+      "name": "Lunaxora",
       "backgroundColor": "#000000"
     },
     "plugins": [
@@ -43,8 +43,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "NEXORA öffnet deine Fotos, damit du Belege und dein Logo auswählen kannst.",
-          "cameraPermission": "NEXORA nutzt die Kamera, damit du Belege fotografieren kannst – Nexy liest sie dann aus.",
+          "photosPermission": "Lunaxora öffnet deine Fotos, damit du Belege und dein Logo auswählen kannst.",
+          "cameraPermission": "Lunaxora nutzt die Kamera, damit du Belege fotografieren kannst – Luna liest sie dann aus.",
           "microphonePermission": false
         }
       ]

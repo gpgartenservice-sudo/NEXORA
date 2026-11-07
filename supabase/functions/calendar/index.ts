@@ -1,5 +1,5 @@
 /**
- * NEXORA – Kalender-Abo (Supabase Edge Function "calendar")
+ * Lunaxora – Kalender-Abo (Supabase Edge Function "calendar")
  *
  * GET .../functions/v1/calendar?token=…  ->  alle Termine als Kalender (.ics)
  * für Apple Kalender, Google Kalender oder Outlook (Abo per Link).
@@ -147,10 +147,10 @@ export function feedToIcs(feed: Feed, now: number): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//NEXORA//Kalender-Abo//DE',
+    'PRODID:-//Lunaxora//Kalender-Abo//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${icsText(`${feed.name || 'NEXORA'} – Termine`)}`,
+    `X-WR-CALNAME:${icsText(`${feed.name || 'Lunaxora'} – Termine`)}`,
     'X-WR-TIMEZONE:Europe/Berlin',
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
     'X-PUBLISHED-TTL:PT1H',
@@ -215,7 +215,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     status: 200,
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': 'inline; filename="nexora-termine.ics"',
+      'Content-Disposition': 'inline; filename="lunaxora-termine.ics"',
       'Cache-Control': 'private, max-age=300',
       'Access-Control-Allow-Origin': '*',
     },

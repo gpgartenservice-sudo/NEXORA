@@ -1,5 +1,5 @@
 /**
- * Hinweis „Erstellt mit NEXORA“ unten auf PDFs (Gratis-Abo). Eigene kleine
+ * Hinweis „Erstellt mit Lunaxora“ unten auf PDFs (Gratis-Abo). Eigene kleine
  * Datei, damit die App den Schalter setzen kann, ohne die PDF-Bibliothek zu laden.
  */
 let branding = false;
@@ -12,4 +12,4 @@ export function pdfBranding(): boolean {
   return branding;
 }
 
-export const BRANDING_TEXT = 'Erstellt mit NEXORA – der App für junge Selbstständige';
+export const BRANDING_TEXT = 'Erstellt mit Lunaxora – der App für junge Selbstständige';

@@ -35,13 +35,13 @@ export type ProFeature =
 
 /** Kurzname für Hinweise („… gibt es mit Pro“) */
 export const FEATURE_LABEL: Record<ProFeature, string> = {
-  direct_mail: 'E-Mails direkt aus NEXORA',
+  direct_mail: 'E-Mails direkt aus Lunaxora',
   offer_link: 'Angebote online annehmen lassen',
   dunning: '1. Mahnung und letzte Mahnung',
   tax_zip: 'Steuer-Export als ZIP',
   social_connect: 'TikTok & Instagram verbinden',
   calendar_feed: 'Kalender-Abo',
-  no_branding: 'PDFs ohne „Erstellt mit NEXORA“',
+  no_branding: 'PDFs ohne „Erstellt mit Lunaxora“',
 };
 
 /** Vergleich Gratis / Pro (für die Abo-Seite) */
@@ -52,15 +52,15 @@ export const COMPARISON: { label: string; free: string | boolean; pro: string | 
   { label: 'Einkommensnachweis', free: true, pro: true },
   { label: 'Social-Media-Planung', free: true, pro: true },
   { label: 'Zahlungserinnerung', free: true, pro: true },
-  { label: 'Nexy-Nachrichten pro Monat', free: '20', pro: 'unbegrenzt*' },
-  { label: 'Belege von Nexy auslesen lassen', free: '5 / Monat', pro: 'unbegrenzt*' },
+  { label: 'Luna-Nachrichten pro Monat', free: '20', pro: 'unbegrenzt*' },
+  { label: 'Belege von Luna auslesen lassen', free: '5 / Monat', pro: 'unbegrenzt*' },
   { label: FEATURE_LABEL.direct_mail, free: false, pro: true },
   { label: FEATURE_LABEL.offer_link, free: false, pro: true },
   { label: FEATURE_LABEL.dunning, free: false, pro: true },
   { label: FEATURE_LABEL.tax_zip, free: false, pro: true },
   { label: FEATURE_LABEL.social_connect, free: false, pro: true },
   { label: FEATURE_LABEL.calendar_feed, free: false, pro: true },
-  { label: 'PDFs ohne „Erstellt mit NEXORA“', free: false, pro: true },
+  { label: 'PDFs ohne „Erstellt mit Lunaxora“', free: false, pro: true },
 ];
 
 /** Hat der Server mit „nur mit Pro“ geantwortet? (Datenbank: Fehler PT402 / Funktion: 402) */
@@ -70,7 +70,7 @@ export function isProRequired(error: { code?: string; message?: string } | null 
 
 /** Hinweis, wenn eine Pro-Funktion im Gratis-Abo benutzt wird */
 export function proRequiredText(feature: ProFeature): string {
-  return `„${FEATURE_LABEL[feature]}“ gibt es mit NEXORA Pro. Deine Testphase ist vorbei – unter Profil → Abo siehst du, was Pro kann.`;
+  return `„${FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Pro. Deine Testphase ist vorbei – unter Profil → Abo siehst du, was Pro kann.`;
 }
 
 /** Testphase zählt wie Pro */
@@ -116,13 +116,13 @@ export function planLabel(info: PlanInfo, now: Date): string {
   return 'Gratis';
 }
 
-/** „Noch 3 von 20 Nexy-Nachrichten im November“ (nur bei Gratis, sonst null) */
+/** „Noch 3 von 20 Luna-Nachrichten im November“ (nur bei Gratis, sonst null) */
 export function quotaText(info: PlanInfo, kind: QuotaKind): string | null {
   if (info.plan !== 'free') return null;
   const { used, limit } = info.usage[kind];
   const left = Math.max(0, limit - used);
   const what =
-    kind === 'nexy' ? (limit === 1 ? 'Nexy-Nachricht' : 'Nexy-Nachrichten') : limit === 1 ? 'Beleg' : 'Belegen';
+    kind === 'nexy' ? (limit === 1 ? 'Luna-Nachricht' : 'Luna-Nachrichten') : limit === 1 ? 'Beleg' : 'Belegen';
   return kind === 'nexy'
     ? `Noch ${left} von ${limit} ${what} in diesem Monat`
     : `Noch ${left} von ${limit} ${what} zum Auslesen in diesem Monat`;

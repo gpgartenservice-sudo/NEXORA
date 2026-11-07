@@ -93,7 +93,7 @@ export type NexyResult = { label: string; href?: string; note?: string };
 
 /** Ergebnis von "Ausführen" – stay: eine Seite wurde geöffnet, dort bleiben */
 export type ExecuteOutcome = { ok: boolean; results: NexyResult[]; error?: string; stay?: boolean };
-/** Nexy macht es in der App vor (vor bzw. nach jeder Aktion); fertig, wenn gezeigt */
+/** Luna macht es in der App vor (vor bzw. nach jeder Aktion); fertig, wenn gezeigt */
 export type LivePlayer = (steps: GuideStep[]) => Promise<void>;
 
 export type NexyMessage = {
@@ -108,7 +108,7 @@ export type NexyMessage = {
   doneIds?: string[];
   results?: NexyResult[];
   error?: string;
-  /** Fehlermeldung, weil Nexy noch nicht eingerichtet ist */
+  /** Fehlermeldung, weil Luna noch nicht eingerichtet ist */
   notSetUp?: boolean;
   /** Gratis-Grenze erreicht (Hinweis auf Pro) */
   quota?: boolean;
@@ -120,10 +120,10 @@ type State = {
   messages: NexyMessage[];
   thinking: boolean;
   executing: string | null;
-  /** Nachricht an Nexy; liefert Nexys Antwort (null bei leerem Text) */
+  /** Nachricht an Luna; liefert Lunas Antwort (null bei leerem Text) */
   send: (text: string, options?: { voice?: boolean }) => Promise<NexyMessage | null>;
   updateProposal: (messageId: string, proposalId: string, change: (p: Proposal) => Proposal) => void;
-  /** `live`: Nexy zeigt dabei in der App, wie sie alles einträgt */
+  /** `live`: Luna zeigt dabei in der App, wie sie alles einträgt */
   execute: (messageId: string, live?: LivePlayer) => Promise<ExecuteOutcome>;
   dismiss: (messageId: string) => void;
   reset: () => void;
@@ -160,7 +160,7 @@ function historyOf(messages: NexyMessage[]): HistoryEntry[] {
     });
 }
 
-/** Nexy: Gespräch (bleibt beim Wechseln der Bereiche erhalten) und Ausführen der Vorschläge. */
+/** Luna: Gespräch (bleibt beim Wechseln der Bereiche erhalten) und Ausführen der Vorschläge. */
 export function NexyProvider({ children }: { children: ReactNode }) {
   const crm = useCrm();
   const docs = useDocuments();
@@ -198,14 +198,14 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const before = latest.current;
       setMessages((list) => [...list, { id: nextId(), role: 'user', text, voice: options?.voice || undefined }]);
       setThinking(true);
-      // Termine mit Kurzzeichen (T1, T2 …): darüber kann Nexy sie ändern
+      // Termine mit Kurzzeichen (T1, T2 …): darüber kann Luna sie ändern
       const events = nexyEvents(calendar, new Date());
       // offene To-dos mit Kurzzeichen (A1, A2 …) und Ziele mit Stand
       const todoCtx = nexyTodos(goals.todos, {
         customer: (id) => crm.customers.find((c) => c.id === id)?.name ?? null,
         order: (id) => crm.orders.find((o) => o.id === id)?.title ?? null,
       });
-      // Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …) mit Kurzzeichen: darüber ändert/löscht Nexy sie
+      // Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …) mit Kurzzeichen: darüber ändert/löscht Luna sie
       const expenseCtx = nexyExpenses(finance.expenses);
       const postCtx = nexyPosts(social.posts);
       const activeGoals = goals.goals.filter((g) => !g.archived).slice(0, 10);
@@ -374,7 +374,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const newOrders = new Map<string, Order>();
       // in diesem Durchgang geänderte Aufträge (z. B. neuer Preis vor der Rechnung)
       const changedOrders = new Map<string, Order>();
-      // Nexy macht es vor: vor jeder Aktion hingehen und eintippen, danach zeigen
+      // Luna macht es vor: vor jeder Aktion hingehen und eintippen, danach zeigen
       const show = async (steps: GuideStep[]) => {
         if (live && steps.length) await live(steps);
       };
@@ -431,7 +431,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             p.customer.existingId ?? (p.customer.newRef ? newCustomers.get(p.customer.newRef)?.id : undefined);
           if (!customerId) return finish(`Für „${p.data.title}“ fehlt der Kunde.`);
           await show(orderSteps(p, named(customerOf(customerId))));
-          // Termine trägt Nexy sichtbar im Auftrag nach (wie man es selbst machen würde)
+          // Termine trägt Luna sichtbar im Auftrag nach (wie man es selbst machen würde)
           const dates = { meeting_at: p.data.meeting_at, execution_at: p.data.execution_at };
           const later = !!live && !!(dates.meeting_at || dates.execution_at);
           const { data, error } = await crm.createOrder({

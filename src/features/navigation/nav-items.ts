@@ -146,9 +146,9 @@ export const NAV_ITEMS: NavItem[] = [
       'Kunden, Aufträge und Ausgaben anlegen',
       'Angebote, Rechnungen und Nachweise als PDF',
     ],
-    label: 'Nexy',
+    label: 'Luna',
     icon: NexyGlyph,
-    description: 'Dein KI-Assistent: beantwortet Fragen, legt Einträge an und erstellt PDFs – du bestätigst.',
+    description: 'Deine KI-Assistentin: beantwortet Fragen, legt Einträge an und erstellt PDFs – du bestätigst.',
     mobileTab: true,
   },
   {

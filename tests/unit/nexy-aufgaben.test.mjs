@@ -1,4 +1,4 @@
-// Unit-Tests: Nexy – To-dos, Ziele, Preise in Aufträgen. Start: npm run test:unit
+// Unit-Tests: Luna – To-dos, Ziele, Preise in Aufträgen. Start: npm run test:unit
 process.env.TZ = 'Europe/Berlin';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -171,7 +171,7 @@ test('Ausführen: Preis vor Dokumenten, To-dos/Ziele nach Kunden und Aufträgen'
   for (const k of ['todo', 'todo_change', 'goal']) assert.ok(i(k) > i('order') && i(k) > i('customer'), k);
 });
 
-test('Übersicht für Nexy: Aufgaben und Ziele, gedeckelt', () => {
+test('Übersicht für Luna: Aufgaben und Ziele, gedeckelt', () => {
   const entries = Array.from({ length: 50 }, (_, k) => ({ ref: `A${k + 1}`, was: `Aufgabe ${k + 1}` }));
   const c = buildNexyContext({
     seller: EMPTY_SELLER,

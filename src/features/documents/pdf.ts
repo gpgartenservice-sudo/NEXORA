@@ -80,7 +80,7 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
   const name = sellerName(s);
   pdf.setTitle(`${isInvoice ? 'Rechnung' : 'Angebot'} ${doc.number}`);
   pdf.setAuthor(name);
-  pdf.setCreator('NEXORA');
+  pdf.setCreator('Lunaxora');
   pdf.setLanguage('de-DE');
 
   let page = pdf.addPage([A4.w, A4.h]);

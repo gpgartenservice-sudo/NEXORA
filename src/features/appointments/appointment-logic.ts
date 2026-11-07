@@ -345,7 +345,7 @@ export function toIcs(events: CalendarEvent[], options: { name?: string; now?: D
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//NEXORA//Termine//DE',
+    'PRODID:-//Lunaxora//Termine//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     ...(options.name ? [`X-WR-CALNAME:${icsText(options.name)}`] : []),
@@ -382,7 +382,7 @@ export function icsFileName(e: CalendarEvent): string {
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 60);
-  return `Termin_${dayKey(e.start)}_${safe || 'NEXORA'}.ics`;
+  return `Termin_${dayKey(e.start)}_${safe || 'Lunaxora'}.ics`;
 }
 
 /** Link, der den Termin in Google Kalender zum Speichern öffnet */
@@ -412,7 +412,7 @@ export function feedUrls(supabaseUrl: string, token: string) {
   };
 }
 
-/** Zeitpunkt in lokaler Zeit: "JJJJ-MM-TTTHH:MM" (bzw. nur "JJJJ-MM-TT") – so rechnet Nexy */
+/** Zeitpunkt in lokaler Zeit: "JJJJ-MM-TTTHH:MM" (bzw. nur "JJJJ-MM-TT") – so rechnet Luna */
 export function localStamp(iso: string, dateOnly = false): string {
   const d = new Date(iso);
   const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -432,8 +432,8 @@ export type NexyEvent = {
 };
 
 /**
- * Termine für Nexy: von vor 3 Tagen (nur noch nicht erledigte) bis in `days`
- * Tagen. Jeder Termin bekommt ein Kurzzeichen (T1, T2 …), über das Nexy ihn
+ * Termine für Luna: von vor 3 Tagen (nur noch nicht erledigte) bis in `days`
+ * Tagen. Jeder Termin bekommt ein Kurzzeichen (T1, T2 …), über das Luna ihn
  * ändern kann; `refs` übersetzt es zurück in den Termin.
  */
 export function nexyEvents(

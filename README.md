@@ -1,10 +1,10 @@
-# NEXORA
+# Lunaxora
 
 Die App für junge Unternehmer – von der Motivation bis zur kompletten Verwaltung des eigenen Unternehmens.
 
 Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-Version ist die Web-Version der App in einem eigenen Fenster (Electron).
 
-▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4) · [Nexy](docs/media/nexy-preview.mp4) · [Nexy-Sprachmodus](docs/media/nexy-sprache-preview.mp4) · [Termine](docs/media/termine-preview.mp4)
+▶️ Videos: [Start-Animation](docs/media/intro-preview.mp4) · [Registrierung & Onboarding](docs/media/onboarding-preview.mp4) · [Fahrplan](docs/media/fahrplan-preview.mp4) · [Kunden & Aufträge](docs/media/kunden-auftraege-preview.mp4) · [Luna](docs/media/nexy-preview.mp4) · [Luna-Sprachmodus](docs/media/nexy-sprache-preview.mp4) · [Termine](docs/media/termine-preview.mp4)
 
 ---
 
@@ -14,7 +14,7 @@ Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-V
 
 1. **Node.js installieren:** auf [nodejs.org](https://nodejs.org) die **LTS**-Version herunterladen und installieren.
 2. **GitHub Desktop installieren:** [desktop.github.com](https://desktop.github.com), mit dem GitHub-Konto anmelden (das Repository ist privat, deshalb braucht es den Login).
-3. In GitHub Desktop: **File → Clone Repository** → `gpgartenservice-sudo/NEXORA` auswählen → **Clone**.
+3. In GitHub Desktop: **File → Clone Repository** → `gpgartenservice-sudo/Lunaxora` auswählen → **Clone**.
 4. Oben bei **Current Branch** den Branch `claude/bold-planck-2y07zy` auswählen.
 5. **Repository → Open in Terminal** (öffnet das Terminal direkt im Projektordner).
 6. Abhängigkeiten installieren (dauert beim ersten Mal 1–3 Minuten):
@@ -53,12 +53,12 @@ npm run mac
 npm run mac:dmg
 ```
 
-Baut die App und packt sie in `release/NEXORA-<version>-arm64.dmg` (dauert ein paar Minuten, ca. 120 MB). Die .dmg doppelklicken und **NEXORA** in **Programme** ziehen – danach startet sie wie jede andere App aus dem Launchpad/Dock, ohne Terminal.
+Baut die App und packt sie in `release/Lunaxora-<version>-arm64.dmg` (dauert ein paar Minuten, ca. 120 MB). Die .dmg doppelklicken und **Lunaxora** in **Programme** ziehen – danach startet sie wie jede andere App aus dem Launchpad/Dock, ohne Terminal.
 
 - Gilt für Macs mit Apple-Chip (M1 und neuer).
 - Die installierte App speichert getrennt von `npm run mac` – beim ersten Start einmal anmelden.
 - Neuer Stand: `version` in `package.json` hochzählen, `npm run mac:dmg`, neue .dmg installieren (alte App ersetzen).
-- Die App ist nur „ad hoc“ signiert (kein Apple-Entwicklerkonto). Auf dem eigenen Mac startet sie normal. Auf **anderen** Macs meldet macOS beim ersten Öffnen „nicht verifizierter Entwickler“: Rechtsklick auf NEXORA → **Öffnen** (oder Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“). Ohne diese Meldung geht es nur mit Apple Developer ID (99 €/Jahr) und Notarisierung.
+- Die App ist nur „ad hoc“ signiert (kein Apple-Entwicklerkonto). Auf dem eigenen Mac startet sie normal. Auf **anderen** Macs meldet macOS beim ersten Öffnen „nicht verifizierter Entwickler“: Rechtsklick auf Lunaxora → **Öffnen** (oder Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“). Ohne diese Meldung geht es nur mit Apple Developer ID (99 €/Jahr) und Notarisierung.
 - Einstellungen: `electron-builder.config.js`, Vorbereitung: `scripts/mac-app.mjs`.
 
 ### Alternativ: im Browser
@@ -72,7 +72,7 @@ npm run web
 ### Auf dem Handy (iPhone/Android)
 
 1. Auf dem Handy die App **Expo Go** laden (App Store bzw. Google Play).
-2. Auf dem Mac im NEXORA-Ordner:
+2. Auf dem Mac im Lunaxora-Ordner:
    ```bash
    npm start
    ```
@@ -80,7 +80,7 @@ npm run web
 
 Am Handy funktionieren auch PDFs (Angebote, Rechnungen, Mahnungen, Einkommensnachweis, Steuer-Unterlagen) – sie gehen über das **Teilen-Menü** („In Dateien sichern“, WhatsApp, AirDrop …). **E-Mail** öffnet die Mail-App mit dem PDF schon im Anhang; bei **WhatsApp** wird der Text kopiert und das PDF geteilt. **Belege** direkt mit der Kamera fotografieren oder aus Fotos/Dateien wählen, **Logo** aus den Fotos, Termine als Kalender-Datei teilen.
 
-Noch nur auf dem Mac/im Browser: Sprachmodus von Nexy und TikTok/Instagram verbinden.
+Noch nur auf dem Mac/im Browser: Sprachmodus von Luna und TikTok/Instagram verbinden.
 
 ---
 
@@ -102,8 +102,8 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/features/roadmap/` | Gründer-Fahrplan: **Inhalte in `content.ts`**, Seite, Abhaken |
 | `src/features/dashboard/` | Texte fürs Dashboard (Fokus je Phase, Impuls des Tages) |
 | `src/features/crm/` | Kunden & Aufträge – **Status- und Umsatzlogik in `order-logic.ts`** |
-| `src/features/assistant/` | Nexy – **Vorschläge prüfen/zuordnen in `assistant-logic.ts`**, Übersicht für die KI in `nexy-context.ts`, Figur in `nexy-avatar.tsx`, Sprachmodus in `use-voice-mode.ts` (Pausen-Erkennung, Sprachbefehle, Vorlesetext: `voice-logic.ts`; Mikrofon/Stimme: `voice.ts`) |
-| `supabase/functions/assistant/` | Server-Funktion von Nexy (Claude; Spracherkennung über Groq Whisper), läuft bei Supabase |
+| `src/features/assistant/` | Luna – **Vorschläge prüfen/zuordnen in `assistant-logic.ts`**, Übersicht für die KI in `nexy-context.ts`, Figur in `nexy-avatar.tsx`, Sprachmodus in `use-voice-mode.ts` (Pausen-Erkennung, Sprachbefehle, Vorlesetext: `voice-logic.ts`; Mikrofon/Stimme: `voice.ts`) |
+| `supabase/functions/assistant/` | Server-Funktion von Luna (Claude; Spracherkennung über Groq Whisper), läuft bei Supabase |
 | `supabase/functions/social/` | Server-Funktion für TikTok & Instagram (Anmeldung, verschlüsselte Zugangsdaten, Zahlen abholen) |
 | `src/features/appointments/` | Termine – **Termine aus Aufträgen + eigene, Überschneidungen, offene Punkte, Route, .ics in `appointment-logic.ts`** |
 | `supabase/functions/mail/` | Server-Funktion für E-Mails aus der App (Resend, PDF-Anhang, Bremse, Versandprotokoll) |
@@ -129,11 +129,13 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 | `src/components/auth/` | Anmeldeformular und Eingabefelder |
 | `src/components/brand/` | Schriftzug aus Einzelbuchstaben |
 | `src/constants/theme.ts` | Farben, Abstände, Rundungen |
-| `assets/brand/` | Original-Logodateien |
+| `assets/brand/` | Original-Logodateien (Schriftzug LUNAXORA, das L, Icon-Vorlage) |
 | `assets/images/logo/` | Einzelbuchstaben (erzeugt von `tools/build-logo-letters.py`) |
-| `assets/images/icon.png` | App-Icon (flach, quadratisch – die Rundung macht das System) |
+| `assets/images/icon.png` | App-Icon (flach, quadratisch – die Rundung macht das System); dieses und die anderen Icons erzeugt `tools/build-app-icons.py` aus dem L |
+
+Neues Logo: Dateien in `assets/brand/` ersetzen, dann `python3 tools/build-logo-letters.py` und `python3 tools/build-app-icons.py` (brauchen `pip install pillow numpy scipy`).
 | `desktop/main.js` | Mac-Fenster (Electron) |
-| `desktop/preload.js` | Brücke App ↔ Mac (PDF in Downloads/NEXORA ablegen, Mail/WhatsApp öffnen, Teilen-Menü) |
+| `desktop/preload.js` | Brücke App ↔ Mac (PDF in Downloads/Lunaxora ablegen, Mail/WhatsApp öffnen, Teilen-Menü) |
 
 ## Stand
 
@@ -148,27 +150,27 @@ Einmalige Einrichtung (E-Mail-Vorlagen mit Code usw.): siehe [`supabase/README.m
 - ✅ Aufträge: Status aktualisiert sich automatisch, einmalig oder monatlich, Rabatt, realisierter/anstehender Umsatz
 - ✅ Bereich „Firma“: Logo (wird automatisch zugeschnitten), Briefkopf-Vorschau, Absender, Kleinunternehmer/USt, Steuernummer, Bankverbindung, Fristen, Muster-Rechnung als PDF
 - ✅ Angebote & Rechnungen als PDF aus jedem Auftrag – mit eigenem Logo: fortlaufende Nummern, Pflichtangaben, als bezahlt markieren
-- ✅ Angebote & Rechnungen verschicken: **E-Mail**, **WhatsApp** oder **Teilen …** – fertiger Text, das PDF im Anhang (Mac: E-Mail öffnet Apple Mail mit dem PDF schon dran; beim ersten Mal fragt der Mac, ob NEXORA Mail steuern darf) und bei Angeboten der Link, mit dem der Kunde online annimmt; Angebot als verschickt markieren
+- ✅ Angebote & Rechnungen verschicken: **E-Mail**, **WhatsApp** oder **Teilen …** – fertiger Text, das PDF im Anhang (Mac: E-Mail öffnet Apple Mail mit dem PDF schon dran; beim ersten Mal fragt der Mac, ob Lunaxora Mail steuern darf) und bei Angeboten der Link, mit dem der Kunde online annimmt; Angebot als verschickt markieren
 - ✅ Finanzen: Einnahmen, Ausgaben und Gewinn pro Monat/Jahr, Verlauf der letzten 12 Monate, offene Rechnungen, Ausgaben (auch wiederkehrend), Fixkosten, Einkommensnachweis als PDF
 - ✅ Social Media: Content-Board (Status aus erledigten Schritten je Format), Wochenplan, Zahlen pro Post mit Interaktionsrate, Hashtag-Sets, Caption-Zähler, Text kopieren
-- ✅ TikTok & Instagram verbinden (Social Media → Konten): Anmeldung über TikTok/Instagram (Mac-App: eigenes Fenster), Follower und Follower-Verlauf, Videos/Beiträge mit Aufrufen, Likes, Kommentaren, Geteilt, Gespeichert; neue Videos werden automatisch der passenden Idee zugeordnet (sonst Vorschlag oder „Als Post übernehmen“) und ihre Zahlen landen im Post; Abgleich automatisch alle 6 Stunden beim Öffnen; Nexy kennt die Follower. Einrichtung: `supabase/README.md`, Abschnitt 5
-- ✅ Nexy (KI-Assistent) mit animierter Figur (schaut der Maus nach, freut sich bei Hover, Stupser mit Funken und Sprechblase, wird schläfrig): Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt; Termine: eigene Termine ohne Auftrag anlegen, Erstgespräch/Ausführung in bestehende Aufträge eintragen, Termine verschieben, ändern, als erledigt markieren oder absagen (mit Hinweis bei Überschneidungen); Preise in Aufträge eintragen; To-dos und Ziele; ändert und löscht alles, was die App kann (Kunden, Aufträge inkl. Status/Storno, Ausgaben, Posts, Ziele, Firmendaten, Rechnung wieder offen) und öffnet jede Seite – Nexy führt jede Aktion sichtbar in der App vor. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
-- ✅ Nexy-Sprachmodus: Mikrofon-Knopf, Nexy hört zu (Schallringe + Pegel), merkt an der Pause, wann du fertig bist, antwortet laut mit deutscher Systemstimme (Mund bewegt sich) und hört wieder zu; „Ja“/„Nein“ bestätigt bzw. verwirft Vorschläge, „Stopp“ beendet; „Fertig“, „Unterbrechen“, Schalter „Vorlesen“ auch fürs Schreiben. Spracherkennung über Groq (Geheimnis `GROQ_API_KEY`, siehe `supabase/README.md`)
-- ✅ Termine: Woche (Spalten am Mac, Tagesliste am Handy) und Liste mit Erstgesprächen, Ausführungen und eigenen Terminen; Überschneidungen; offene Punkte (Erstgespräch erledigt?, Termin vereinbaren, Ausführung planen, Auftrag abschließen); Tagesroute in Google Maps ab Firmenadresse; Termin in Apple/Google Kalender übernehmen; Kalender-Abo (alle Termine automatisch im Kalender, auch am Handy); „Heute & morgen“ auf der Startseite; Nexy kennt die nächsten Termine. Einrichtung: `supabase/README.md`, Abschnitt 6
-- ✅ Zahlungserinnerungen & Mahnungen: überfällige Rechnungen in Finanzen, Termine und im Auftrag; Zahlungserinnerung → 1. Mahnung → letzte Mahnung mit neuer Frist und optionaler Mahngebühr; als PDF im Briefkopf, per E-Mail oder WhatsApp; Verlauf mit Rückgängig; danach Hinweis auf den Online-Mahnantrag; Nexy kennt den Mahnstand. Bewertungsbitte bei bezahlten Rechnungen mit eigenem Bewertungs-Link (Firma → Bewertungen). Einrichtung: `supabase/README.md`, Abschnitt 7
-- ✅ To-dos & Ziele: To-dos mit Fälligkeit (Überfällig, Heute, Nächste 7 Tage, Später, Ohne Datum), wichtig, optional zu Kunde/Auftrag; Ziele für Umsatz (Monat/Jahr), neue Kunden, abgeschlossene Aufträge und veröffentlichte Posts (Woche/Monat/Jahr) zählen automatisch aus den echten Zahlen mit – mit „Im Plan“/„Hinterher“; eigene Ziele zum Selbstzählen; „Heute zu tun“ und Ziele auf der Startseite. Nexy legt To-dos an („Erinner mich Freitag …“), ändert und hakt sie ab, legt Ziele an und trägt Preise in Aufträge ein. Einrichtung: SQL-Skript `20261111090000_todos_goals.sql`
-- ✅ Belege: Foto oder PDF – Nexy liest Betrag, Datum, Händler, Kategorie und Umsatzsteuer aus und füllt die Ausgabe vor; Beleg sicher im privaten Speicher, an jeder Ausgabe ansehen/ersetzen/entfernen; Hinweis auf doppelt erfasste Belege; „Speichern & nächster Beleg“. Einrichtung: `supabase/README.md`, Abschnitt 8
+- ✅ TikTok & Instagram verbinden (Social Media → Konten): Anmeldung über TikTok/Instagram (Mac-App: eigenes Fenster), Follower und Follower-Verlauf, Videos/Beiträge mit Aufrufen, Likes, Kommentaren, Geteilt, Gespeichert; neue Videos werden automatisch der passenden Idee zugeordnet (sonst Vorschlag oder „Als Post übernehmen“) und ihre Zahlen landen im Post; Abgleich automatisch alle 6 Stunden beim Öffnen; Luna kennt die Follower. Einrichtung: `supabase/README.md`, Abschnitt 5
+- ✅ Luna (KI-Assistentin) mit animierter Figur (schaut der Maus nach, freut sich bei Hover, Stupser mit Funken und Sprechblase, wird schläfrig): Gespräch mit Rückfragen und Schnellantworten, kennt Kunden, Aufträge, offene Rechnungen und Zahlen; legt Kunden/Aufträge/Ausgaben/Post-Ideen an, erstellt Angebote, Rechnungen und Einkommensnachweis als PDF, markiert Rechnungen als bezahlt; Termine: eigene Termine ohne Auftrag anlegen, Erstgespräch/Ausführung in bestehende Aufträge eintragen, Termine verschieben, ändern, als erledigt markieren oder absagen (mit Hinweis bei Überschneidungen); Preise in Aufträge eintragen; To-dos und Ziele; ändert und löscht alles, was die App kann (Kunden, Aufträge inkl. Status/Storno, Ausgaben, Posts, Ziele, Firmendaten, Rechnung wieder offen) und öffnet jede Seite – Luna führt jede Aktion sichtbar in der App vor. Server-Funktion `supabase/functions/assistant` (Einrichtung: `supabase/README.md`)
+- ✅ Luna-Sprachmodus: Mikrofon-Knopf, Luna hört zu (Schallringe + Pegel), merkt an der Pause, wann du fertig bist, antwortet laut mit deutscher Systemstimme (Mund bewegt sich) und hört wieder zu; „Ja“/„Nein“ bestätigt bzw. verwirft Vorschläge, „Stopp“ beendet; „Fertig“, „Unterbrechen“, Schalter „Vorlesen“ auch fürs Schreiben. Spracherkennung über Groq (Geheimnis `GROQ_API_KEY`, siehe `supabase/README.md`)
+- ✅ Termine: Woche (Spalten am Mac, Tagesliste am Handy) und Liste mit Erstgesprächen, Ausführungen und eigenen Terminen; Überschneidungen; offene Punkte (Erstgespräch erledigt?, Termin vereinbaren, Ausführung planen, Auftrag abschließen); Tagesroute in Google Maps ab Firmenadresse; Termin in Apple/Google Kalender übernehmen; Kalender-Abo (alle Termine automatisch im Kalender, auch am Handy); „Heute & morgen“ auf der Startseite; Luna kennt die nächsten Termine. Einrichtung: `supabase/README.md`, Abschnitt 6
+- ✅ Zahlungserinnerungen & Mahnungen: überfällige Rechnungen in Finanzen, Termine und im Auftrag; Zahlungserinnerung → 1. Mahnung → letzte Mahnung mit neuer Frist und optionaler Mahngebühr; als PDF im Briefkopf, per E-Mail oder WhatsApp; Verlauf mit Rückgängig; danach Hinweis auf den Online-Mahnantrag; Luna kennt den Mahnstand. Bewertungsbitte bei bezahlten Rechnungen mit eigenem Bewertungs-Link (Firma → Bewertungen). Einrichtung: `supabase/README.md`, Abschnitt 7
+- ✅ To-dos & Ziele: To-dos mit Fälligkeit (Überfällig, Heute, Nächste 7 Tage, Später, Ohne Datum), wichtig, optional zu Kunde/Auftrag; Ziele für Umsatz (Monat/Jahr), neue Kunden, abgeschlossene Aufträge und veröffentlichte Posts (Woche/Monat/Jahr) zählen automatisch aus den echten Zahlen mit – mit „Im Plan“/„Hinterher“; eigene Ziele zum Selbstzählen; „Heute zu tun“ und Ziele auf der Startseite. Luna legt To-dos an („Erinner mich Freitag …“), ändert und hakt sie ab, legt Ziele an und trägt Preise in Aufträge ein. Einrichtung: SQL-Skript `20261111090000_todos_goals.sql`
+- ✅ Belege: Foto oder PDF – Luna liest Betrag, Datum, Händler, Kategorie und Umsatzsteuer aus und füllt die Ausgabe vor; Beleg sicher im privaten Speicher, an jeder Ausgabe ansehen/ersetzen/entfernen; Hinweis auf doppelt erfasste Belege; „Speichern & nächster Beleg“. Einrichtung: `supabase/README.md`, Abschnitt 8
 - ✅ Angebot online annehmen: geheimer Link pro Angebot – Kunde sieht das Angebot im Browser (mit Logo), lädt das PDF, nimmt verbindlich an (Name + Bestätigung) oder lehnt mit Nachricht ab; Auftrag springt automatisch weiter, im Auftrag „Online angenommen am … von …“. Einrichtung: `supabase/README.md`, Abschnitt 9
-- ✅ Direkt senden (nur noch bei Mahnungen): per E-Mail mit PDF direkt aus NEXORA (über das eigene Postfach per SMTP, z. B. webgo, oder Resend), Text anpassbar, Antworten an die eigene Adresse, Versandprotokoll; Speichern im Auftrag überschreibt nur noch geänderte Felder. Einrichtung: `supabase/README.md`, Abschnitt 10
-- ✅ Steuern: Steuer-Topf (wie viel zurücklegen, Prozent wählbar), Kleinunternehmer-Grenze mit Warnung bzw. geschätzte Umsatzsteuer mit Vorsteuer aus Ausgaben, Export für die Steuerberatung (ZIP mit Jahresübersicht-PDF, CSV-Listen und Belegen); Nexy kennt die Zahlen. Einrichtung: `supabase/README.md`, Abschnitt 11
-- ✅ Einführungen: Nexy erklärt jeden Bereich beim ersten Besuch in 2–5 kurzen Schritten und hebt die wichtigen Stellen hervor; für neue Nutzer startet auf der Startseite ein Rundgang durch alle Bereiche nacheinander. Jederzeit über das „?“ neben der Überschrift wiederholbar, im Profil an-/abschaltbar und „Rundgang starten“. Ohne SQL-Skript `20261115090000_tutorials.sql` merkt sich der Browser/Mac den Stand
+- ✅ Direkt senden (nur noch bei Mahnungen): per E-Mail mit PDF direkt aus Lunaxora (über das eigene Postfach per SMTP, z. B. webgo, oder Resend), Text anpassbar, Antworten an die eigene Adresse, Versandprotokoll; Speichern im Auftrag überschreibt nur noch geänderte Felder. Einrichtung: `supabase/README.md`, Abschnitt 10
+- ✅ Steuern: Steuer-Topf (wie viel zurücklegen, Prozent wählbar), Kleinunternehmer-Grenze mit Warnung bzw. geschätzte Umsatzsteuer mit Vorsteuer aus Ausgaben, Export für die Steuerberatung (ZIP mit Jahresübersicht-PDF, CSV-Listen und Belegen); Luna kennt die Zahlen. Einrichtung: `supabase/README.md`, Abschnitt 11
+- ✅ Einführungen: Luna erklärt jeden Bereich beim ersten Besuch in 2–5 kurzen Schritten und hebt die wichtigen Stellen hervor; für neue Nutzer startet auf der Startseite ein Rundgang durch alle Bereiche nacheinander. Jederzeit über das „?“ neben der Überschrift wiederholbar, im Profil an-/abschaltbar und „Rundgang starten“. Ohne SQL-Skript `20261115090000_tutorials.sql` merkt sich der Browser/Mac den Stand
 - ✅ Handy-App (iPhone/Android): PDFs, Mahnungen, Steuer-Export und Einkommensnachweis über das Teilen-Menü, E-Mail mit PDF-Anhang aus der Mail-App, Belege mit der Kamera, Logo aus den Fotos, Kopieren, Kalender-Datei – ausprobieren mit Expo Go (siehe oben). Noch nicht am Handy: Sprachmodus, TikTok/Instagram verbinden
-- ✅ Abo Gratis/Pro: 14 Tage Pro-Test, danach Gratis (20 Nexy-Nachrichten, 5 Belege/Monat, PDFs mit „Erstellt mit NEXORA“) oder Pro (9,99 €/Monat: unbegrenzt*, Direkt senden, Online-Angebote, Mahnungen, Steuer-ZIP, TikTok/Instagram, Kalender-Abo); Grenzen und Pro-Funktionen prüft der Server; Abo-Seite unter Profil → Abo. Bezahlen folgt. Einrichtung: `supabase/README.md`, Abschnitt 12
+- ✅ Abo Gratis/Pro: 14 Tage Pro-Test, danach Gratis (20 Luna-Nachrichten, 5 Belege/Monat, PDFs mit „Erstellt mit Lunaxora“) oder Pro (9,99 €/Monat: unbegrenzt*, Direkt senden, Online-Angebote, Mahnungen, Steuer-ZIP, TikTok/Instagram, Kalender-Abo); Grenzen und Pro-Funktionen prüft der Server; Abo-Seite unter Profil → Abo. Bezahlen folgt. Einrichtung: `supabase/README.md`, Abschnitt 12
 - ⏳ Bankkonto verbinden (Knopf in Finanzen zeigt „kommt bald“): Zahlungseingänge und Ausgaben automatisch übernehmen
 - ✅ Akzentfarbe: Wachstums-Grün (#2FE39A) für Buttons, Fortschritt, Haken und Erfolge
 - ⏳ Logo als SVG
 
-> Die Bundle-ID `de.nexora.app` in `app.json` ist ein Platzhalter und muss vor der ersten Veröffentlichung im App Store auf eine eigene Domain angepasst werden.
+> Die Bundle-ID `de.lunaxora.app` in `app.json` ist ein Platzhalter und muss vor der ersten Veröffentlichung im App Store auf eine eigene Domain angepasst werden.
 
 ## Für Entwickler
 

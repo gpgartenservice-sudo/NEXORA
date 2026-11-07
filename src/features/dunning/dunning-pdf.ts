@@ -32,7 +32,7 @@ export async function renderReminderPdf(input: ReminderPdf): Promise<Uint8Array>
   const name = sellerName(s);
   pdf.setTitle(`${stage.label} – Rechnung ${doc.number}`);
   pdf.setAuthor(name);
-  pdf.setCreator('NEXORA');
+  pdf.setCreator('Lunaxora');
   pdf.setLanguage('de-DE');
 
   const page = pdf.addPage([A4.w, A4.h]);

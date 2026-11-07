@@ -69,7 +69,7 @@ export function AccountsView() {
     <View style={styles.wrap}>
       <Text style={styles.intro}>
         Verbinde deine Konten – dann kommen Follower, Aufrufe und Likes automatisch, und neue Videos landen bei der
-        passenden Idee. Du meldest dich direkt bei TikTok bzw. Instagram an; NEXORA liest nur deine Zahlen und postet
+        passenden Idee. Du meldest dich direkt bei TikTok bzw. Instagram an; Lunaxora liest nur deine Zahlen und postet
         nichts.
       </Text>
 

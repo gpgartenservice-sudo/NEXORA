@@ -22,7 +22,7 @@ export type PreparedReceipt = {
   /** Inhalt zum Hochladen */
   body: Blob | Uint8Array;
   mime: ReceiptMime;
-  /** Inhalt als Base64 (für das Lesen durch Nexy) */
+  /** Inhalt als Base64 (für das Lesen durch Luna) */
   base64: string;
   /** Vorschau (nur Bilder) */
   previewUrl: string | null;

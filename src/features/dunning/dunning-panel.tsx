@@ -53,7 +53,7 @@ function parseFee(text: string): number | null {
 /**
  * Zahlung anmahnen: nächste Stufe (Erinnerung -> 1. Mahnung -> letzte Mahnung) mit
  * neuer Frist, optionaler Gebühr, fertigem Text und PDF. Beim Verschicken wird die
- * Stufe vermerkt – so weiß NEXORA, wann die nächste dran ist.
+ * Stufe vermerkt – so weiß Lunaxora, wann die nächste dran ist.
  */
 export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer: Customer }) {
   const { followups, record, remove, error: setupError } = useFollowups();
@@ -133,7 +133,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
     const where = delivery.message || delivery.note
       ? ` ${delivery.message || delivery.note}`
       : delivery.pdf === 'finder'
-        ? ' Das PDF ist im Finder markiert (Downloads › NEXORA) – zieh es in die Nachricht.'
+        ? ' Das PDF ist im Finder markiert (Downloads › Lunaxora) – zieh es in die Nachricht.'
         : how === 'pdf' || delivery.pdf === 'download'
           ? savesViaShareSheet
             ? ' Im Teilen-Menü sichern oder verschicken.'
@@ -155,7 +155,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
       {setupError === 'setup' && (
         <Notice tone="error">
           Das Datenbank-Skript fürs Mahnwesen fehlt noch (20261110090000_invoice_followups.sql). PDF und Texte gehen
-          trotzdem – NEXORA kann sich die Stufen aber noch nicht merken.
+          trotzdem – Lunaxora kann sich die Stufen aber noch nicht merken.
         </Notice>
       )}
 
@@ -211,7 +211,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
           <Text style={styles.text}>{ABOUT[nextStage.kind]}</Text>
           {!pro && nextStage.kind !== 'reminder' && !recorded && (
             <Text style={styles.hint} testID="dunning-pro">
-              Mahnungen gibt es mit NEXORA Pro – die Zahlungserinnerung bleibt kostenlos.
+              Mahnungen gibt es mit Lunaxora Pro – die Zahlungserinnerung bleibt kostenlos.
             </Text>
           )}
           {!recorded && (
@@ -311,7 +311,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
           <Text style={styles.hint}>
             {recorded
               ? 'Schon vermerkt – du kannst sie hier noch über einen anderen Weg schicken.'
-              : 'Sobald du das Schreiben erstellst oder verschickst, merkt sich NEXORA die Stufe und die neue Frist.'}
+              : 'Sobald du das Schreiben erstellst oder verschickst, merkt sich Lunaxora die Stufe und die neue Frist.'}
           </Text>
         </View>
       )}

@@ -40,12 +40,12 @@ export function PlanScreen() {
     <Screen maxWidth={760}>
       <PageHeader
         title="Dein Abo"
-        subtitle="NEXORA Gratis oder Pro – was drin ist."
+        subtitle="Lunaxora Gratis oder Pro – was drin ist."
         back={{ label: 'Profil', onPress: back }}
       />
       {feature && (
         <View testID="plan-feature">
-          <Notice>„{FEATURE_LABEL[feature]}“ gibt es mit NEXORA Pro.</Notice>
+          <Notice>„{FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Pro.</Notice>
         </View>
       )}
       {missing && (
@@ -73,7 +73,7 @@ export function PlanScreen() {
             </Text>
             <UsageRow
               kind="nexy"
-              label="Nexy-Nachrichten diesen Monat"
+              label="Luna-Nachrichten diesen Monat"
               used={info.usage.nexy.used}
               limit={info.usage.nexy.limit}
             />
@@ -102,7 +102,7 @@ export function PlanScreen() {
             </View>
           ))}
           <Text style={styles.hint}>
-            * faire Nutzung: bis {PRO_LIMITS.nexy} Nexy-Nachrichten und {PRO_LIMITS.receipt} Belege im Monat.
+            * faire Nutzung: bis {PRO_LIMITS.nexy} Luna-Nachrichten und {PRO_LIMITS.receipt} Belege im Monat.
           </Text>
         </Card>
       </Reveal>
@@ -111,7 +111,7 @@ export function PlanScreen() {
         <Card style={styles.offer}>
           <View style={styles.offerHead}>
             <Sparkles size={20} color={Colors.accent} />
-            <Text style={styles.offerTitle}>NEXORA Pro</Text>
+            <Text style={styles.offerTitle}>Lunaxora Pro</Text>
           </View>
           <Text style={styles.price}>
             {formatPrice(PRICE_MONTH)} <Text style={styles.per}>im Monat</Text>

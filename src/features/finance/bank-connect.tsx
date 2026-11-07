@@ -15,11 +15,11 @@ export function BankComingSoon({ onClose }: { onClose: () => void }) {
       title="Bankkonto verbinden"
       intro="Verbinde dein Geschäftskonto – dann musst du vieles nicht mehr selbst eintragen:"
       points={[
-        'Bezahlte Rechnungen erkennt NEXORA automatisch am Zahlungseingang',
+        'Bezahlte Rechnungen erkennt Lunaxora automatisch am Zahlungseingang',
         'Abbuchungen werden als Ausgaben vorgeschlagen – mit passender Kategorie',
         'Dein echter Kontostand direkt hier in den Finanzen',
       ]}
-      safety="Sicher: Du meldest dich direkt bei deiner Bank an, NEXORA sieht nie dein Passwort und kann nur lesen – keine Überweisungen."
+      safety="Sicher: Du meldest dich direkt bei deiner Bank an, Lunaxora sieht nie dein Passwort und kann nur lesen – keine Überweisungen."
       onClose={onClose}
     />
   );

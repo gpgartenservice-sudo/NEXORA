@@ -1,4 +1,4 @@
-// Unit-Tests: Übersicht, die Nexy mitbekommt. Start: npm run test:unit
+// Unit-Tests: Übersicht, die Luna mitbekommt. Start: npm run test:unit
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 

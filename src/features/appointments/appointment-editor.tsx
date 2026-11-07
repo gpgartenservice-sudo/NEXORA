@@ -65,7 +65,7 @@ export function AppointmentEditScreen() {
       </Screen>
     );
   }
-  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Nexy) -> frisch mit den neuen Werten
+  // Schlüssel aus dem Inhalt: von außen geändert (z. B. Luna) -> frisch mit den neuen Werten
   return <AppointmentEditor key={JSON.stringify(appointment)} appointment={appointment} />;
 }
 

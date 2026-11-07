@@ -1,4 +1,4 @@
-# NEXORA (Web): jede Adresse zeigt die App – Dateien, die es gibt, werden direkt ausgeliefert
+# Lunaxora (Web): jede Adresse zeigt die App – Dateien, die es gibt, werden direkt ausgeliefert
 DirectoryIndex index.html
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f

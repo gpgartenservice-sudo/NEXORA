@@ -45,7 +45,7 @@ type State = {
   close: () => void;
   /** Nicht mehr automatisch zeigen */
   stopAuto: () => void;
-  /** Automatische Einführungen kurz zurückhalten (z. B. solange Nexy etwas zeigt) */
+  /** Automatische Einführungen kurz zurückhalten (z. B. solange Luna etwas zeigt) */
   holdAuto: (on: boolean) => void;
   setOff: (off: boolean) => void;
   /** Alle Einführungen wieder als „neu“ markieren */

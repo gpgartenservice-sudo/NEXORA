@@ -64,7 +64,7 @@ function saveReadAloud(on: boolean) {
   }
 }
 
-/** Wie Nexy im Sprachmodus aussieht */
+/** Wie Luna im Sprachmodus aussieht */
 function voiceMood(phase: VoicePhase): NexyMood | null {
   if (phase === 'listening') return 'listening';
   if (phase === 'speaking') return 'talking';
@@ -79,7 +79,7 @@ const VOICE_STATUS: Record<VoicePhase, string> = {
   transcribing: 'Ich höre genau hin …',
   thinking: 'Ich denke nach …',
   working: 'Ich erledige das …',
-  speaking: 'Nexy spricht …',
+  speaking: 'Luna spricht …',
 };
 
 const STARTERS = [
@@ -93,12 +93,12 @@ const STARTERS = [
   'Gib mir 3 TikTok-Ideen für mein Business.',
 ];
 
-/** Nexy – Chat mit dem KI-Assistenten. */
+/** Luna – Chat mit der KI-Assistentin. */
 export function NexyScreen() {
   const { messages, thinking, send, reset, blockers, executing } = useNexy();
   const runProposals = useRunProposals();
   const runLatest = useRef(runProposals);
-  // Führt Nexy gerade etwas vor, verlässt sie den Chat nur kurz – der Sprachmodus bleibt an
+  // Führt Luna gerade etwas vor, verlässt sie den Chat nur kurz – der Sprachmodus bleibt an
   const guide = useGuide();
   const guiding = useRef(false);
   useEffect(() => {
@@ -120,12 +120,12 @@ export function NexyScreen() {
   const scroll = useRef<ScrollViewInstance>(null);
   const [text, setText] = useState('');
   useAreaTutorial('nexy');
-  // Neue Nachrichten von Nexy tippen sich ein; ältere stehen sofort da
+  // Neue Nachrichten von Luna tippen sich ein; ältere stehen sofort da
   const [seen] = useState(() => new Set(messages.map((m) => m.id)));
   const [readIds] = useState(() => new Set(messages.map((m) => m.id)));
   const [autoIds] = useState(() => new Set(messages.map((m) => m.id)));
 
-  // Bereich verlassen: Zuhören und Vorlesen aus (nicht, während Nexy etwas vorführt)
+  // Bereich verlassen: Zuhören und Vorlesen aus (nicht, während Luna etwas vorführt)
   useFocusEffect(
     useCallback(
       () => () => {
@@ -155,7 +155,7 @@ export function NexyScreen() {
   const lastNexy = [...messages].reverse().find((m) => m.role === 'nexy');
   const heroMood: NexyMood = voiceMood(voice.phase) ?? (voice.reading ? 'talking' : thinking ? 'thinking' : 'idle');
 
-  // Nexy legt sofort los, sobald sie weiß, was zu tun ist – ohne „Ausführen“.
+  // Luna legt sofort los, sobald sie weiß, was zu tun ist – ohne „Ausführen“.
   // Fehlt noch etwas, wartet sie, bis es in der Karte geklärt ist (Kunde/Auftrag
   // gewählt, Firmendaten ergänzt), und legt dann los. Im Sprachmodus übernimmt
   // das der Sprachmodus.
@@ -182,7 +182,7 @@ export function NexyScreen() {
   }, [lastNexy, autoIds, autoRun, executing, voice.active]);
 
   // "Vorlesen" an: neue Antworten werden vorgelesen (im Sprachmodus übernimmt das der Sprachmodus;
-  // legt Nexy gleich los, erzählt sie es bei der Vorführung)
+  // legt Luna gleich los, erzählt sie es bei der Vorführung)
   useEffect(() => {
     if (!lastNexy || readIds.has(lastNexy.id)) return;
     readIds.add(lastNexy.id);
@@ -204,7 +204,7 @@ export function NexyScreen() {
         ref={scroll}
         style={styles.scroll}
         contentContainerStyle={{ paddingTop: top, paddingBottom: Spacing.xl }}
-        // Begrüßung bleibt oben (Nexy im Blick), im Gespräch zur neuesten Nachricht
+        // Begrüßung bleibt oben (Luna im Blick), im Gespräch zur neuesten Nachricht
         onContentSizeChange={() => messages.length > 0 && scroll.current?.scrollToEnd({ animated: true })}>
         <View style={[styles.inner, { paddingHorizontal: pad }]}>
           {messages.length === 0 ? (
@@ -217,7 +217,7 @@ export function NexyScreen() {
                   <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
                 </TourTarget>
               </Reveal>
-              <AnimatedTitle text="Hey, ich bin Nexy." style={styles.heroTitle} delay={150} />
+              <AnimatedTitle text="Hey, ich bin Luna." style={styles.heroTitle} delay={150} />
               <Reveal delay={350}>
                 <Text style={styles.heroText}>
                   Erzähl mir, was ansteht – schreibend oder per Sprache. Ich lege Kunden, Aufträge und Ausgaben an,
@@ -241,8 +241,8 @@ export function NexyScreen() {
                 <NexyAvatar size={34} mood={heroMood} interactive level={voice.level} />
               </TourTarget>
               <View style={styles.headTexts}>
-                <Text style={styles.headTitle}>Nexy</Text>
-                <Text style={styles.headSub}>Dein KI-Assistent</Text>
+                <Text style={styles.headTitle}>Luna</Text>
+                <Text style={styles.headSub}>Deine KI-Assistentin</Text>
               </View>
               {voice.canSpeak && (
                 <Pressable
@@ -301,10 +301,10 @@ export function NexyScreen() {
             <Animated.View
               entering={FadeInDown.duration(220)}
               style={styles.nexyRow}
-              accessibilityLabel="Nexy denkt nach">
+              accessibilityLabel="Luna denkt nach">
               <NexyAvatar size={30} mood="thinking" />
               <View style={styles.thinkingBubble}>
-                <Text style={styles.thinkingText}>Nexy denkt nach</Text>
+                <Text style={styles.thinkingText}>Luna denkt nach</Text>
                 <Dots />
               </View>
             </Animated.View>
@@ -332,11 +332,11 @@ export function NexyScreen() {
             <TextInput
               value={text}
               onChangeText={(v) => setText(v.slice(0, MAX))}
-              placeholder="Schreib Nexy …"
+              placeholder="Schreib Luna …"
               placeholderTextColor={Colors.textFaint}
               multiline
               onKeyPress={onKeyPress}
-              accessibilityLabel="Nachricht an Nexy"
+              accessibilityLabel="Nachricht an Luna"
               style={styles.input}
               selectionColor={Colors.text}
             />
@@ -365,7 +365,7 @@ export function NexyScreen() {
         <Text style={styles.foot}>
           {voice.active
             ? 'Sag „Ja“ oder „Nein“ zu Vorschlägen und „Stopp“ zum Beenden. Deine Aufnahme wird nur in Text umgewandelt (Groq) und nicht gespeichert.'
-            : `${Platform.OS === 'web' && wide ? 'Enter zum Senden · Shift + Enter für neue Zeile · ' : ''}Nexy nutzt Claude (Anthropic): Deine Nachricht und eine Übersicht deiner Kunden, Aufträge und Zahlen werden dafür übertragen.`}
+            : `${Platform.OS === 'web' && wide ? 'Enter zum Senden · Shift + Enter für neue Zeile · ' : ''}Luna nutzt Claude (Anthropic): Deine Nachricht und eine Übersicht deiner Kunden, Aufträge und Zahlen werden dafür übertragen.`}
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -397,12 +397,12 @@ function NexyRow({
         </View>
         {m.quota && (
           <View style={styles.quotaAction}>
-            <ActionChip icon={Sparkles} label="NEXORA Pro ansehen" onPress={() => openPlanScreen()} />
+            <ActionChip icon={Sparkles} label="Lunaxora Pro ansehen" onPress={() => openPlanScreen()} />
           </View>
         )}
         {m.notSetUp && (
           <Card>
-            <Text style={styles.setupTitle}>Nexy einrichten (einmalig)</Text>
+            <Text style={styles.setupTitle}>Luna einrichten (einmalig)</Text>
             <Text style={styles.setupText}>
               1. API-Schlüssel bei console.anthropic.com erstellen.{'\n'}2. In Supabase die Server-Funktion „assistant“
               anlegen (Code: supabase/functions/assistant/index.ts).{'\n'}3. Den Schlüssel dort als Geheimnis
@@ -452,7 +452,7 @@ function MicButton({ onPress, disabled }: { onPress: () => void; disabled: boole
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel="Mit Nexy sprechen"
+      accessibilityLabel="Mit Luna sprechen"
       {...hoverProps}
       style={[styles.send, styles.mic, hovered && styles.micHover, disabled && styles.sendOff]}>
       <Mic size={18} color={Colors.onAccent} strokeWidth={2.4} />
@@ -460,7 +460,7 @@ function MicButton({ onPress, disabled }: { onPress: () => void; disabled: boole
   );
 }
 
-/** Sprachmodus: Nexy hört zu / denkt / spricht – ersetzt das Eingabefeld */
+/** Sprachmodus: Luna hört zu / denkt / spricht – ersetzt das Eingabefeld */
 function VoicePanel({ voice }: { voice: VoiceMode }) {
   const { phase } = voice;
   const mood = voiceMood(phase) ?? 'idle';
@@ -501,7 +501,7 @@ function VoicePanel({ voice }: { voice: VoiceMode }) {
             onPress={voice.next}
             accessibilityRole="button"
             style={styles.voiceSkip}
-            accessibilityLabel={phase === 'listening' ? 'Fertig, jetzt senden' : 'Nexy unterbrechen'}>
+            accessibilityLabel={phase === 'listening' ? 'Fertig, jetzt senden' : 'Luna unterbrechen'}>
             <Text style={styles.voiceSkipText}>{phase === 'listening' ? 'Fertig' : 'Unterbrechen'}</Text>
           </Pressable>
         )}
@@ -519,7 +519,7 @@ function VoicePanel({ voice }: { voice: VoiceMode }) {
 
 const BAR_WEIGHTS = [0.45, 0.8, 1, 0.7, 0.4];
 
-/** Kleine Pegelanzeige: zeigt, dass Nexy dich hört */
+/** Kleine Pegelanzeige: zeigt, dass Luna dich hört */
 function LevelBars({ level }: { level: SharedValue<number> }) {
   return (
     <View style={styles.bars} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

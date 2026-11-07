@@ -2,12 +2,14 @@ import { LETTER_LAYOUT, WORDMARK_ASPECT_RATIO, type LetterKey } from './letter-l
 
 /** Die einzelnen Buchstaben des Schriftzugs (aus tools/build-logo-letters.py). */
 export const LETTER_IMAGES: Record<LetterKey, number> = {
+  L: require('@/assets/images/logo/letter-l.png'),
+  U: require('@/assets/images/logo/letter-u.png'),
   N: require('@/assets/images/logo/letter-n.png'),
-  E: require('@/assets/images/logo/letter-e.png'),
+  A: require('@/assets/images/logo/letter-a.png'),
   X: require('@/assets/images/logo/letter-x.png'),
   O: require('@/assets/images/logo/letter-o.png'),
   R: require('@/assets/images/logo/letter-r.png'),
-  A: require('@/assets/images/logo/letter-a.png'),
+  A2: require('@/assets/images/logo/letter-a2.png'),
 };
 
 export type LetterFrame = { key: LetterKey; left: number; width: number };

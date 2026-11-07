@@ -1,6 +1,6 @@
 #!/bin/bash
 # =====================================================================
-#  NEXORA – Angebotsseite (nur die Seite zum Annehmen, NICHT die App)
+#  Lunaxora – Angebotsseite (nur die Seite zum Annehmen, NICHT die App)
 #  fertig machen und per SFTP in den Unterordner von nexoranexy.de hochladen
 #
 #  Aufruf (im Projektordner):   bash scripts/web-hochladen.sh
@@ -10,7 +10,7 @@
 #    dist-angebot/index.html ab (die kannst du auch selbst hochladen).
 #  - Der Unterordner kommt aus EXPO_PUBLIC_WEB_URL in der .env
 #    (https://nexoranexy.de/angebot -> Ordner "angebot"). Direkt in den
-#    Hauptordner lädt das Skript nie – dort liegt die NEXORA-Homepage.
+#    Hauptordner lädt das Skript nie – dort liegt die Lunaxora-Homepage.
 #  - Fragt beim ersten Mal Server, Benutzer und den Ordner der Domain ab und
 #    merkt sie sich in ~/.nexora-upload.conf (OHNE Passwort).
 #  - Das Passwort fragt das Mac-Programm "sftp" selbst ab – es wird

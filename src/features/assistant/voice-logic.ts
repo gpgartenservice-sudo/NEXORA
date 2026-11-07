@@ -1,5 +1,5 @@
 /**
- * Sprachmodus von Nexy – reine Logik (ohne Browser), damit sie sich testen lässt:
+ * Sprachmodus von Luna – reine Logik (ohne Browser), damit sie sich testen lässt:
  * Pausen-Erkennung, Sprachbefehle, Aufräumen von erkanntem und vorzulesendem Text.
  */
 
@@ -116,8 +116,8 @@ const normalize = (text: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Füllwörter, die an einem Befehl nichts ändern ("Ja, bitte Nexy")
-const FILLER = /\b(bitte|nexy|danke|gerne|gern|doch|mal|einfach|so|jetzt|nun|also|ok|okay|ja|klar|genau)\b/g;
+// Füllwörter, die an einem Befehl nichts ändern ("Ja, bitte Luna")
+const FILLER = /\b(bitte|luna|nexy|danke|gerne|gern|doch|mal|einfach|so|jetzt|nun|also|ok|okay|ja|klar|genau)\b/g;
 
 const CONFIRM = new Set([
   'ja',
@@ -230,7 +230,7 @@ const STOP = new Set([
 
 /**
  * Was will der Nutzer mit diesem Satz? Nur kurze, eindeutige Sätze gelten als
- * Befehl – "Ja, und leg noch eine Ausgabe an" geht als Nachricht an Nexy.
+ * Befehl – "Ja, und leg noch eine Ausgabe an" geht als Nachricht an Luna.
  * Ja/Nein zählen nur, wenn Vorschläge auf Bestätigung warten.
  */
 export function voiceIntent(text: string, hasOpenProposals: boolean): VoiceIntent {
@@ -335,8 +335,8 @@ export function speechChunks(text: string, max = 220): string[] {
   return chunks;
 }
 
-/** Was Nexy im Sprachmodus zu einer Antwort sagt. */
-/** `ask` = false: Nexy legt gleich selbst los, also nicht nach Ja/Nein fragen */
+/** Was Luna im Sprachmodus zu einer Antwort sagt. */
+/** `ask` = false: Luna legt gleich selbst los, also nicht nach Ja/Nein fragen */
 export function spokenReply(
   message: { text: string; error?: string; proposals?: unknown[]; status?: string },
   ask = true,
@@ -353,7 +353,7 @@ export function spokenReply(
   return text;
 }
 
-/** Was Nexy nach dem Ausführen per Sprache sagt. */
+/** Was Luna nach dem Ausführen per Sprache sagt. */
 export function executedText(outcome: { ok: boolean; results: { label: string }[]; error?: string }): string {
   if (!outcome.ok) return speechText(`Das hat nicht ganz geklappt. ${(outcome.error ?? '').split(/\n\s*\n/)[0]}`);
   const labels = outcome.results.map((r) => r.label);
@@ -370,7 +370,7 @@ export function executedText(outcome: { ok: boolean; results: { label: string }[
 type ChatMessage = { id: string; role: 'user' | 'nexy'; status?: string; proposals?: unknown[] };
 
 /**
- * Die Vorschläge der LETZTEN Nexy-Nachricht, wenn sie noch auf Bestätigung warten.
+ * Die Vorschläge der LETZTEN Luna-Nachricht, wenn sie noch auf Bestätigung warten.
  * Ältere offene Vorschläge zählen nicht – sonst würde ein "Ja" auf eine spätere
  * Frage aus Versehen alte Vorschläge ausführen.
  */

@@ -9,7 +9,7 @@ type Props = {
 };
 
 /**
- * Der NEXORA-Schriftzug, zusammengesetzt aus den einzelnen Buchstaben –
+ * Der Lunaxora-Schriftzug, zusammengesetzt aus den einzelnen Buchstaben –
  * dadurch sieht er Pixel für Pixel genauso aus wie am Ende der
  * Start-Animation.
  */
@@ -19,7 +19,7 @@ export function Wordmark({ width, style }: Props) {
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="NEXORA"
+      accessibilityLabel="Lunaxora"
       style={[{ width, height }, style]}>
       {letterFrames(width).map((f) => (
         <Image

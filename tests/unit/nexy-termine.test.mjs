@@ -1,4 +1,4 @@
-// Unit-Tests: Nexy legt Termine an, trägt sie in Aufträge ein und ändert sie. Start: npm run test:unit
+// Unit-Tests: Luna legt Termine an, trägt sie in Aufträge ein und ändert sie. Start: npm run test:unit
 process.env.TZ = 'Europe/Berlin';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -15,7 +15,7 @@ const orders = [
   { id: 'o2', title: 'Website', customer_id: 'c2', meeting_at: null, execution_at: null },
   { id: 'o3', title: 'Website alt', customer_id: 'c2', meeting_at: null, execution_at: null, cancelled: true },
 ];
-// Termine, wie Nexy sie bekam (T1 = Erstgespräch o1, T2 = eigener Termin, T3 = ganztägig, T4 = Ausführung)
+// Termine, wie Luna sie bekam (T1 = Erstgespräch o1, T2 = eigener Termin, T3 = ganztägig, T4 = Ausführung)
 const events = [
   { key: 'meeting-o1', kind: 'meeting', title: 'Hecke schneiden', start: '2026-11-05T08:00:00.000Z', end: '2026-11-05T09:00:00.000Z', allDay: false, orderId: 'o1', appointmentId: null, done: false },
   { key: 'appointment-a1', kind: 'appointment', title: 'Steuerberatung', start: '2026-11-06T13:00:00.000Z', end: '2026-11-06T14:30:00.000Z', allDay: false, orderId: null, appointmentId: 'a1', done: false },

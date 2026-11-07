@@ -150,7 +150,7 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
   const [logo, setLogo] = useState<StoredLogo | null>(null);
   /** Geladene Logos nach id (auch ältere Versionen für ältere Dokumente) */
   const logoCache = useRef(new Map<string, LogoImage | null>());
-  // immer die neuesten Firmendaten – auch direkt nach dem Speichern (Nexy ändert
+  // immer die neuesten Firmendaten – auch direkt nach dem Speichern (Luna ändert
   // z. B. die IBAN und schreibt gleich danach die Rechnung)
   const sellerNow = useRef(seller);
   useEffect(() => {

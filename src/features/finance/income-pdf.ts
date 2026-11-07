@@ -30,7 +30,7 @@ export async function renderIncomeProofPdf({ seller, logo, rows, createdOn = tod
   const range = from === to ? monthLabel(from) : `${monthLabel(from)} bis ${monthLabel(to)}`;
   pdf.setTitle(`Einkommensnachweis ${range}`);
   pdf.setAuthor(person);
-  pdf.setCreator('NEXORA');
+  pdf.setCreator('Lunaxora');
   pdf.setLanguage('de-DE');
 
   const page = pdf.addPage([A4.w, A4.h]);
@@ -114,7 +114,7 @@ export async function renderIncomeProofPdf({ seller, logo, rows, createdOn = tod
   page.drawLine({ start: { x: M.left, y: M.bottom + 6 }, end: { x: right, y: M.bottom + 6 }, thickness: 0.4, color: LINE });
   text(
     page,
-    'Selbst erstellte Übersicht (NEXORA) – keine Bescheinigung des Finanzamts oder einer Steuerberatung.',
+    'Selbst erstellte Übersicht (Lunaxora) – keine Bescheinigung des Finanzamts oder einer Steuerberatung.',
     M.left,
     M.bottom - 6,
     7.5,

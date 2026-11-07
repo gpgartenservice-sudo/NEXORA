@@ -1,3 +1,5 @@
+import { LETTER_LAYOUT } from '@/components/brand/letter-layout';
+
 /**
  * Ablauf der Start-Animation – alle Zeiten in Millisekunden.
  *
@@ -6,27 +8,28 @@
  * Ablauf hier zentral feinjustieren, und "Überspringen" ist nur ein Sprung
  * der Zeitleiste.
  *
- *   0      schwarzer Bildschirm
- *   N_IN   das N erscheint in der Mitte
- *   N_SLIDE das N gleitet nach links an seinen Platz im Schriftzug
- *   DROP   E, X, O, R, A fallen nacheinander von oben an ihren Platz
- *   IMPACT der letzte Buchstabe landet – kurzer Ruck + Lichtblitz
- *   EXIT   der Schriftzug fliegt nach oben an seinen Platz im Anmelde-Screen
+ *   0           schwarzer Bildschirm
+ *   FIRST_IN    der erste Buchstabe (L) erscheint in der Mitte
+ *   FIRST_SLIDE das L gleitet nach links an seinen Platz im Schriftzug
+ *   DROP        U, N, A, X, O, R, A fallen nacheinander von oben an ihren Platz
+ *   IMPACT      der letzte Buchstabe landet – kurzer Ruck + Lichtblitz
+ *   EXIT        der Schriftzug fliegt nach oben an seinen Platz im Anmelde-Screen
  */
 export const T = {
-  N_IN_START: 300,
-  N_IN_END: 1200,
-  N_SLIDE_START: 1550,
-  N_SLIDE_END: 2400,
+  FIRST_IN_START: 300,
+  FIRST_IN_END: 1200,
+  FIRST_SLIDE_START: 1550,
+  FIRST_SLIDE_END: 2400,
   DROP_START: 1850,
-  DROP_STAGGER: 130,
+  // 7 fallende Buchstaben – etwas dichter hintereinander, damit das Intro nicht länger wird
+  DROP_STAGGER: 100,
   DROP_DURATION: 520,
   HOLD_AFTER_IMPACT: 1100,
   EXIT_DURATION: 1000,
 } as const;
 
-/** Anzahl der fallenden Buchstaben (E, X, O, R, A). */
-export const FALLING_LETTERS = 5;
+/** Anzahl der fallenden Buchstaben (alle außer dem ersten). */
+export const FALLING_LETTERS = LETTER_LAYOUT.length - 1;
 
 export const IMPACT = T.DROP_START + (FALLING_LETTERS - 1) * T.DROP_STAGGER + T.DROP_DURATION;
 export const EXIT_START = IMPACT + T.HOLD_AFTER_IMPACT;

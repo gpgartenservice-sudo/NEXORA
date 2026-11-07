@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 export type DesktopBridge = {
   canShare: boolean;
   /**
-   * PDF in Downloads/NEXORA ablegen und verschicken. "mail": neue E-Mail in
+   * PDF in Downloads/Lunaxora ablegen und verschicken. "mail": neue E-Mail in
    * Apple Mail mit PDF-Anhang (attached), sonst mailto: + PDF im Finder
    * (reason: 'not_allowed' = Mac hat das Steuern von Mail nicht erlaubt).
    * from: Absender – Mail nimmt das Konto mit dieser Adresse; gibt es keins,

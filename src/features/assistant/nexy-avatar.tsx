@@ -44,7 +44,7 @@ const REACTIONS = ['Hihi!', 'Das kitzelt!', 'Hey du!', 'Na, was steht an?', 'Ich
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
 /**
- * Nexy – die Figur des Assistenten: leuchtende Kugel mit großen Augen,
+ * Luna – die Figur der Assistentin: leuchtende Kugel mit großen Augen,
  * Bäckchen, Mund und Antenne.
  *
  * - Schaut der Maus hinterher, beugt sich bei Nähe zu ihr und macht große Augen
@@ -53,8 +53,8 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
  * - Nachdenken: Punkte kreisen, Mund "o"; erledigt: strahlt
  * - Zuhören: große Augen, Schallringe und Antenne folgen der Stimme
  * - Sprechen: der Mund bewegt sich
- * - Ohne Mausbewegung wird Nexy irgendwann schläfrig – und wacht wieder auf
- * - Bei "Bewegung reduzieren" bleibt Nexy ruhig
+ * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
+ * - Bei "Bewegung reduzieren" bleibt Luna ruhig
  */
 export function NexyAvatar({
   size: S = 40,
@@ -406,7 +406,7 @@ export function NexyAvatar({
   const mouthW = S * 0.15;
 
   const content = (
-    <View ref={ref} style={{ width: S, height: S }} accessibilityRole="image" accessibilityLabel="Nexy">
+    <View ref={ref} style={{ width: S, height: S }} accessibilityRole="image" accessibilityLabel="Luna">
       {/* Schatten am Boden (nur große Figur) */}
       {S >= 80 && (
         <Animated.View
@@ -618,7 +618,7 @@ export function NexyAvatar({
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       accessibilityRole="button"
-      accessibilityLabel="Nexy anstupsen"
+      accessibilityLabel="Luna anstupsen"
       style={styles.press}>
       {content}
     </Pressable>
@@ -688,7 +688,7 @@ function TalkMouth({ open, w, s }: { open: SharedValue<number>; w: number; s: nu
   );
 }
 
-/** Ring um Nexy beim Zuhören – wird mit der Stimme größer und heller */
+/** Ring um Luna beim Zuhören – wird mit der Stimme größer und heller */
 function SoundRing({
   index,
   size: S,
@@ -752,7 +752,7 @@ function Sparkle({ index, size: S, burst }: { index: number; size: number; burst
   );
 }
 
-/** Mini-Nexy als Symbol (z. B. in der Seitenleiste) – passt zu den übrigen Symbolen. */
+/** Mini-Luna als Symbol (z. B. in der Seitenleiste) – passt zu den übrigen Symbolen. */
 export function NexyGlyph({
   size = 18,
   color = Colors.text,

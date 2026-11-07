@@ -35,12 +35,12 @@ import { useNexy, type ExecuteOutcome, type LivePlayer } from './nexy-provider';
 import { speak, type Speech } from './voice';
 
 /**
- * Nexy macht es vor: Sobald sie weiß, was zu tun ist, löst sich ihr Kopf aus dem Chat,
+ * Luna macht es vor: Sobald sie weiß, was zu tun ist, löst sich ihr Kopf aus dem Chat,
  * gleitet nach unten rechts und erledigt dann alles sichtbar in der App –
  * sie geht zum Kunden, öffnet den Auftrag, tippt die Werte Buchstabe für
  * Buchstabe in die echten Felder und drückt auf Speichern. Erst dann wird
  * gespeichert. Am Ende „Erledigt!“ und zurück in den Chat.
- * Esc oder „Überspringen“: Nexy speichert den Rest ohne Vorführung.
+ * Esc oder „Überspringen“: Luna speichert den Rest ohne Vorführung.
  */
 
 const SIZE = 64;
@@ -49,10 +49,10 @@ const MOVE = 700;
 
 /** stay: auf der Seite bleiben statt zurück in den Chat (z. B. „öffne Finanzen“) */
 type Director = { play: LivePlayer; finish: (line: string, stay?: boolean) => Promise<void> };
-/** Schlusssatz – und ob Nexy auf der gerade gezeigten Seite bleibt */
+/** Schlusssatz – und ob Luna auf der gerade gezeigten Seite bleibt */
 type Ending = string | { line: string; stay?: boolean };
 type GuideState = {
-  /** Nexy zeigt live, was `work` tut; `work` gibt Nexys Schlusssatz zurück */
+  /** Luna zeigt live, was `work` tut; `work` gibt Lunas Schlusssatz zurück */
   live: (work: (play: LivePlayer) => Promise<Ending>) => Promise<void>;
   running: boolean;
 };
@@ -118,8 +118,8 @@ export function useGuide(): GuideState | null {
 }
 
 /**
- * Vorschläge einer Nachricht ausführen – Nexy macht es dabei in der App vor.
- * shown = Nexy hat es vorgeführt (und dabei schon „Erledigt!“ gesagt).
+ * Vorschläge einer Nachricht ausführen – Luna macht es dabei in der App vor.
+ * shown = Luna hat es vorgeführt (und dabei schon „Erledigt!“ gesagt).
  */
 export function useRunProposals() {
   const guide = useGuide();
@@ -127,7 +127,7 @@ export function useRunProposals() {
   return useCallback(
     async (messageId: string): Promise<ExecuteOutcome & { shown: boolean }> => {
       if (!guide) return { ...(await execute(messageId)), shown: false };
-      let outcome: ExecuteOutcome = { ok: false, results: [], error: 'Nexy wurde unterbrochen.' };
+      let outcome: ExecuteOutcome = { ok: false, results: [], error: 'Luna wurde unterbrochen.' };
       await guide.live(async (play) => {
         outcome = await execute(messageId, play);
         if (!outcome.ok) return 'Da hat etwas nicht geklappt – im Chat steht, woran es liegt.';
@@ -144,7 +144,7 @@ type Scene = {
   /** wechselt bei jeder neuen Stelle (Rahmen blendet neu ein) */
   ring: number;
   rect: Rect | null;
-  /** Nexy drückt gerade auf diese Stelle */
+  /** Luna drückt gerade auf diese Stelle */
   pressed: boolean;
   text: string | null;
   /** wechselt bei jedem neuen Satz */
@@ -215,14 +215,14 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
     live.current = { view, reduce, targets: tutorial?.targets, onReady };
   }, [view, reduce, tutorial?.targets, onReady]);
 
-  // Keine Einführung dazwischen, solange Nexy vorführt (kommt beim nächsten Besuch)
+  // Keine Einführung dazwischen, solange Luna vorführt (kommt beim nächsten Besuch)
   const holdAuto = tutorial?.holdAuto;
   useEffect(() => {
     holdAuto?.(true);
     return () => holdAuto?.(false);
   }, [holdAuto]);
 
-  // Stelle, an der Nexy gerade steht (für Scrollen/Fenstergröße)
+  // Stelle, an der Luna gerade steht (für Scrollen/Fenstergröße)
   const settled = useRef<(() => Promise<Rect | null>) | null>(null);
 
   const origin = useCallback(async () => {
@@ -315,7 +315,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       return null;
     };
 
-    /** Nexy geht zur Stelle (oder in die Ecke), die Stelle leuchtet */
+    /** Luna geht zur Stelle (oder in die Ecke), die Stelle leuchtet */
     const point = async (hit: Hit | null) => {
       settled.current = null;
       const spot = placeNexy(hit?.rect ?? null, SIZE, live.current.view, BUBBLE);
@@ -332,7 +332,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       }
     };
 
-    /** Satz zeigen und sagen – läuft weiter, während Nexy tippt; der nächste Satz wartet */
+    /** Satz zeigen und sagen – läuft weiter, während Luna tippt; der nächste Satz wartet */
     const sayLine = async (text: string, mood: NexyMood = 'talking') => {
       await talking;
       if (stopped) return;
@@ -386,7 +386,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       if (stopped) return;
       await point(hit);
       if (!hit) return;
-      // Nexy tippt drauf, der Rahmen blitzt
+      // Luna tippt drauf, der Rahmen blitzt
       setScene((s) => ({ ...s, pressed: true }));
       scale.set(withSequence(withTiming(0.8, { duration: dur(110) }), withTiming(1, { duration: dur(200) })));
       await sleep(dur(560) || 120);
@@ -454,7 +454,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
         if (stopped) return;
         setScene((s) => ({ ...s, text: null }));
         if (stay) {
-          // auf der geöffneten Seite bleiben – Nexy blendet sich aus
+          // auf der geöffneten Seite bleiben – Luna blendet sich aus
           opacity.set(withTiming(0, { duration: dur(220) }));
           await sleep(dur(240));
           return;
@@ -472,7 +472,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
     };
 
     void (async () => {
-      // Nexys Kopf löst sich aus dem Chat und gleitet nach unten rechts
+      // Lunas Kopf löst sich aus dem Chat und gleitet nach unten rechts
       const home = await locate({ target: 'guide.nexy' }, { scroll: false, timeout: 0 });
       const corner = placeNexy(null, SIZE, live.current.view, BUBBLE);
       if (home) {
@@ -504,7 +504,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
     pulse.set(withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) }), -1, true));
   }, [reduce, pulse]);
 
-  // Seite scrollt / Fenster ändert sich: Rahmen und Nexy mitführen
+  // Seite scrollt / Fenster ändert sich: Rahmen und Luna mitführen
   useEffect(() => {
     if (!web || typeof window === 'undefined') return;
     let frame = 0;
@@ -532,7 +532,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
     };
   }, [x, y]);
 
-  // Überspringen: zurück in den Chat, Nexy speichert den Rest ohne Vorführung
+  // Überspringen: zurück in den Chat, Luna speichert den Rest ohne Vorführung
   const skip = useCallback(() => {
     router.navigate('/assistent' as never);
     onStop();
@@ -558,7 +558,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
 
   return (
     <View ref={root} style={StyleSheet.absoluteFill} testID="nexy-guide">
-      {/* Klicks abfangen, solange Nexy vorführt */}
+      {/* Klicks abfangen, solange Luna vorführt */}
       <View style={StyleSheet.absoluteFill} />
 
       {hole && (
@@ -606,7 +606,7 @@ function SkipButton({ onPress }: { onPress: () => void }) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Nexys Vorführung überspringen"
+      accessibilityLabel="Lunas Vorführung überspringen"
       {...hoverProps}
       style={[styles.skip, hovered && styles.skipHover]}>
       <Text style={[styles.skipText, hovered && styles.skipTextHover]}>Überspringen</Text>

@@ -135,7 +135,7 @@ test('Tagesroute in Google Maps', () => {
 
 test('Kalender-Datei (.ics): gültig, maskiert, umgebrochen', () => {
   const ev = buildEvents([order({ meeting_at: '2026-11-05T08:00:00.000Z' })], customers, [appt({ id: 'a2', title: 'Urlaub; Strand, Sonne', starts_at: '2026-11-04T23:00:00.000Z', all_day: true, notes: 'Zeile 1\nZeile 2' })]);
-  const ics = toIcs(ev, { name: 'Lena Design – NEXORA', now: new Date('2026-11-03T10:00:00Z') });
+  const ics = toIcs(ev, { name: 'Lena Design – Lunaxora', now: new Date('2026-11-03T10:00:00Z') });
   assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'));
   assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
   assert.ok(ics.includes('UID:meeting-o1@nexora'));
@@ -146,7 +146,7 @@ test('Kalender-Datei (.ics): gültig, maskiert, umgebrochen', () => {
   assert.ok(ics.includes('SUMMARY:Urlaub\\; Strand\\, Sonne'));
   assert.ok(ics.includes('DESCRIPTION:Zeile 1\\nZeile 2'));
   assert.ok(ics.includes('DTSTAMP:20261103T100000Z'));
-  assert.ok(ics.includes('X-WR-CALNAME:Lena Design – NEXORA'));
+  assert.ok(ics.includes('X-WR-CALNAME:Lena Design – Lunaxora'));
   for (const line of ics.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, line);
   assert.equal(icsText('a\\b'), 'a\\\\b');
 });
@@ -184,7 +184,7 @@ test('Abo-Link: zufällig, URL-sicher, lang genug', () => {
   assert.ok(urls.google.startsWith('https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2F'));
 });
 
-test('Für Nexy: Termine mit Kurzzeichen, lokale Zeit, ohne erledigte vergangene', () => {
+test('Für Luna: Termine mit Kurzzeichen, lokale Zeit, ohne erledigte vergangene', () => {
   const ev = buildEvents(
     [
       order({ meeting_at: '2026-11-05T08:00:00.000Z' }),

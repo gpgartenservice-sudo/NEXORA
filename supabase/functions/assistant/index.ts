@@ -1,7 +1,7 @@
 /**
- * NEXORA – Nexy, der KI-Assistent (Supabase Edge Function "assistant")
+ * Lunaxora – Luna, die KI-Assistentin (Supabase Edge Function "assistant")
  *
- * Nexy führt ein Gespräch mit dem Nutzer: beantwortet Fragen (auch zu den
+ * Luna führt ein Gespräch mit dem Nutzer: beantwortet Fragen (auch zu den
  * eigenen Zahlen), fragt nach, wenn etwas fehlt, und schlägt Aktionen vor –
  * Kunden, Aufträge, Ausgaben, Posts, Ziele und To-dos (anlegen, ändern,
  * löschen), Angebote/Rechnungen als PDF, Einkommensnachweis, Rechnung als
@@ -64,7 +64,7 @@ const ELEVENLABS_TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 const MAX_SPEAK_TEXT = 1000;
 // Hilft Whisper bei Fachwörtern und Namen
 const VOCABULARY =
-  'NEXORA, Nexy, Angebot, Rechnung, Auftrag, Kunde, Ausgabe, Einkommensnachweis, Kleinunternehmer, Termin, Erstgespräch, Ausführung, TikTok, Instagram.';
+  'Lunaxora, Luna, Angebot, Rechnung, Auftrag, Kunde, Ausgabe, Einkommensnachweis, Kleinunternehmer, Termin, Erstgespräch, Ausführung, TikTok, Instagram.';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -239,7 +239,7 @@ const Receipt = z.object({
   note: Text,
 });
 
-const RECEIPT_SYSTEM = `Du liest Belege für NEXORA, eine App für Selbstständige in Deutschland: Kassenbons, Quittungen, Rechnungen, Tankbelege, Abo-Rechnungen.
+const RECEIPT_SYSTEM = `Du liest Belege für Lunaxora, eine App für Selbstständige in Deutschland: Kassenbons, Quittungen, Rechnungen, Tankbelege, Abo-Rechnungen.
 Gib zurück:
 - is_receipt: false, wenn das Bild/PDF kein Beleg ist oder unlesbar – dann alles andere leer bzw. null und in note kurz, warum.
 - merchant: Händler/Firma (wie auf dem Beleg, kurz).
@@ -300,7 +300,7 @@ async function readReceipt(body: Body, deps: Deps): Promise<Response> {
 }
 
 // Fest (ohne Datum oder Nutzerdaten), damit der Anfang der Anfrage gleich bleibt
-const SYSTEM = `Du bist Nexy, der Assistent in NEXORA – einer App für junge Selbstständige und Gründer in Deutschland.
+const SYSTEM = `Du bist Luna, die Assistentin in Lunaxora – einer App für junge Selbstständige und Gründer in Deutschland.
 Du sprichst Deutsch, duzt den Nutzer und bist freundlich, klar und motivierend – wie ein erfahrener Gründer-Kumpel. Antworte kurz und auf den Punkt (meist 1–4 Sätze, Listen nur wenn sie helfen).
 
 Was du kannst:
@@ -355,7 +355,7 @@ type Deps = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-/** Ist der Aufrufer ein angemeldeter NEXORA-Nutzer? (Prüfung beim Supabase-Auth-Server) */
+/** Ist der Aufrufer ein angemeldeter Lunaxora-Nutzer? (Prüfung beim Supabase-Auth-Server) */
 async function signedIn(req: Request, deps: Deps): Promise<boolean> {
   const auth = req.headers.get('Authorization');
   const apikey = req.headers.get('apikey');
@@ -366,7 +366,7 @@ async function signedIn(req: Request, deps: Deps): Promise<boolean> {
 }
 
 /**
- * Gratis-Grenze: eine Nexy-Nachricht bzw. einen Beleg verbrauchen (Datenbank-
+ * Gratis-Grenze: eine Luna-Nachricht bzw. einen Beleg verbrauchen (Datenbank-
  * Funktion consume_quota, Skript 20261116090000_plans.sql). Fehlt das Skript
  * oder ist die Datenbank kurz nicht erreichbar, geht es ohne Grenze weiter.
  */
@@ -410,13 +410,13 @@ async function refundQuota(req: Request, deps: Deps, kind: 'nexy' | 'receipt') {
 
 const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
-/** Bisheriges Gespräch als Text (nur Nutzer/Nexy, gekürzt) */
+/** Bisheriges Gespräch als Text (nur Nutzer/Luna, gekürzt) */
 function historyText(history: unknown): string {
   if (!Array.isArray(history)) return '';
   return history
     .slice(-MAX_HISTORY)
     .filter((h) => h && typeof h.text === 'string' && (h.role === 'user' || h.role === 'nexy'))
-    .map((h) => `${h.role === 'user' ? 'Nutzer' : 'Nexy'}: ${String(h.text).slice(0, MAX_HISTORY_ENTRY)}`)
+    .map((h) => `${h.role === 'user' ? 'Nutzer' : 'Luna'}: ${String(h.text).slice(0, MAX_HISTORY_ENTRY)}`)
     .join('\n');
 }
 
@@ -508,7 +508,7 @@ async function transcribe(body: Body, deps: Deps): Promise<Response> {
   return json(200, { text: transcriptText(data) });
 }
 
-/** Text -> gesprochene Sprache (ElevenLabs, MP3). Zählt nicht als Nexy-Nachricht. */
+/** Text -> gesprochene Sprache (ElevenLabs, MP3). Zählt nicht als Luna-Nachricht. */
 async function speak(body: Body, deps: Deps): Promise<Response> {
   const key = deps.env('ELEVENLABS_API_KEY');
   if (!key) return json(500, { error: 'missing_elevenlabs_key' });
@@ -570,7 +570,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   return res;
 }
 
-/** Gespräch mit Nexy: Antwort + Vorschläge */
+/** Gespräch mit Luna: Antwort + Vorschläge */
 async function chat(body: Body, deps: Deps): Promise<Response> {
   const apiKey = deps.env('ANTHROPIC_API_KEY');
   if (!apiKey) return json(500, { error: 'missing_api_key' });
@@ -620,7 +620,7 @@ async function chat(body: Body, deps: Deps): Promise<Response> {
       // kurze Fehlerbeschreibung mitgeben, damit man in der App sieht, was los ist (ohne Schlüssel o. Ä.)
       return json(502, { error: 'claude_error', status: error.status, detail: String(error.message).slice(0, 300) });
     }
-    console.error('Nexy', error);
+    console.error('Luna', error);
     return json(500, { error: 'unexpected' });
   }
 }

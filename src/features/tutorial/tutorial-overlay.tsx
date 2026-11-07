@@ -37,7 +37,7 @@ const reducedMotion = () =>
   typeof window !== 'undefined' &&
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/** Abdunkeln, Stelle hervorheben, Erklär-Karte mit Nexy. */
+/** Abdunkeln, Stelle hervorheben, Erklär-Karte mit Luna. */
 export function TutorialOverlay({ active, version }: { active: ActiveTutorial; version: number }) {
   const { targets, step, finish, close, stopAuto } = useTutorial();
   const view = useWindowDimensions();

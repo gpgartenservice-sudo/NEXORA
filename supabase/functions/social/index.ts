@@ -1,8 +1,8 @@
 /**
- * NEXORA – TikTok & Instagram verbinden (Supabase Edge Function "social")
+ * Lunaxora – TikTok & Instagram verbinden (Supabase Edge Function "social")
  *
  * - Anmeldung über die offiziellen Login-Seiten von TikTok bzw. Instagram (OAuth).
- *   NEXORA bekommt nur Lese-Rechte: Profil, Follower, Videos/Posts und deren Zahlen.
+ *   Lunaxora bekommt nur Lese-Rechte: Profil, Follower, Videos/Posts und deren Zahlen.
  * - Die Zugangsdaten (Tokens) werden verschlüsselt in der Datenbank gespeichert;
  *   entschlüsseln kann sie nur diese Funktion (Schlüssel aus dem App-Secret der Plattform).
  * - "sync" holt Profilzahlen und die neuesten Videos/Posts und speichert sie mit den
@@ -680,7 +680,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
       }
       return new Response(null, { status: 302, headers: { Location: back.toString() } });
     }
-    return text(200, 'NEXORA: Die Anmeldung ist abgeschlossen. Du kannst dieses Fenster schließen und in der App weitermachen.');
+    return text(200, 'Lunaxora: Die Anmeldung ist abgeschlossen. Du kannst dieses Fenster schließen und in der App weitermachen.');
   }
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 

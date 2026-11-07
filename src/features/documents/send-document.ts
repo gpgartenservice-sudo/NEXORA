@@ -7,7 +7,7 @@ import { downloadPdf, type PreparedPdf } from './save-pdf';
  * E-Mail bzw. WhatsApp mit fertigem Text und legt das PDF bereit.
  *
  * Mac-Fenster: Über desktop/preload.js speichert die App das PDF in
- * Downloads/NEXORA. E-Mail öffnet Apple Mail mit dem PDF schon im Anhang
+ * Downloads/Lunaxora. E-Mail öffnet Apple Mail mit dem PDF schon im Anhang
  * (anderes Mail-Programm: PDF im Finder zum Reinziehen), WhatsApp zeigt das
  * PDF im Finder, "Teilen …" öffnet das Teilen-Menü des Mac mit dem PDF.
  * Browser: Das PDF wird heruntergeladen.
@@ -68,7 +68,7 @@ export async function openWith(pdf: PreparedPdf, url: string, opts: { from?: str
         if (r.reason === 'not_allowed')
           return {
             error:
-              'NEXORA darf Apple Mail noch nicht steuern, deshalb fehlt der Anhang. Erlauben: Systemeinstellungen › Datenschutz & Sicherheit › Automation › „Mail“ einschalten. Bis dahin liegt das PDF im Finder bereit (Downloads › NEXORA) – zieh es in die E-Mail.',
+              'Lunaxora darf Apple Mail noch nicht steuern, deshalb fehlt der Anhang. Erlauben: Systemeinstellungen › Datenschutz & Sicherheit › Automation › „Mail“ einschalten. Bis dahin liegt das PDF im Finder bereit (Downloads › Lunaxora) – zieh es in die E-Mail.',
           };
         return { pdf: 'finder' };
       }

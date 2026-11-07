@@ -17,7 +17,7 @@ export type ReceiptState =
 
 type Props = {
   receipt: ReceiptState;
-  /** Nexy liest gerade */
+  /** Luna liest gerade */
   reading: boolean;
   /** Beleg-Modus: groß oben, mit Erklärung */
   prominent?: boolean;
@@ -73,7 +73,7 @@ export function ReceiptCard({ receipt, reading, prominent, onPick, onRemove, onV
                 ? 'Wird beim Speichern sicher abgelegt – nur du kannst ihn sehen.'
                 : 'Sicher abgelegt – nur du kannst ihn sehen.'
               : prominent
-                ? 'Foto oder PDF – Nexy liest Betrag, Datum und Kategorie aus. Du prüfst und speicherst.'
+                ? 'Foto oder PDF – Luna liest Betrag, Datum und Kategorie aus. Du prüfst und speicherst.'
                 : 'Foto oder PDF zur Ausgabe ablegen – praktisch für die Steuer.'}
           </Text>
         </View>
@@ -100,7 +100,7 @@ export function ReceiptCard({ receipt, reading, prominent, onPick, onRemove, onV
             {reading ? (
               <View style={styles.reading}>
                 <ActivityIndicator size="small" color={Colors.accent} />
-                <Text style={styles.readingText}>Nexy liest den Beleg …</Text>
+                <Text style={styles.readingText}>Luna liest den Beleg …</Text>
               </View>
             ) : (
               <View style={styles.chips}>

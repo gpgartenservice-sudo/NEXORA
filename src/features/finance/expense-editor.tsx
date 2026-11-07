@@ -41,7 +41,7 @@ export function ExpenseNewScreen() {
   return <ExpenseEditor />;
 }
 
-/** Beleg erfassen (Route /finanzen/beleg): Beleg wählen, Nexy füllt die Ausgabe aus */
+/** Beleg erfassen (Route /finanzen/beleg): Beleg wählen, Luna füllt die Ausgabe aus */
 export function ReceiptNewScreen() {
   const { n } = useLocalSearchParams<{ n?: string }>();
   return <ExpenseEditor key={n ?? 'beleg'} receiptMode nextKey={String(Number(n ?? 0) + 1)} />;
@@ -106,7 +106,7 @@ function ExpenseEditor({
   const parsedVat = parseEuro(vat);
   const duplicate = possibleDuplicate(expenses, typeof parsed === 'number' ? parsed : null, spentOn, expense?.id);
 
-  /** Beleg wählen; bei einer neuen Ausgabe liest Nexy ihn gleich aus */
+  /** Beleg wählen; bei einer neuen Ausgabe liest Luna ihn gleich aus */
   const pick = async (camera: boolean) => {
     const file = await pickReceiptFile(camera);
     if (!file) return;

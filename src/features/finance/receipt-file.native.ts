@@ -1,7 +1,7 @@
 /**
  * Belege in der Handy-App (iPhone/Android): Foto mit der Kamera, aus den
  * Fotos oder als PDF aus „Dateien“ – Fotos werden verkleinert, dann liest
- * Nexy den Beleg und er landet im privaten Speicher. Mac/Browser: receipt-file.ts.
+ * Luna den Beleg und er landet im privaten Speicher. Mac/Browser: receipt-file.ts.
  */
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -27,7 +27,7 @@ export type PreparedReceipt = {
   /** Inhalt zum Hochladen */
   body: Blob | Uint8Array;
   mime: ReceiptMime;
-  /** Inhalt als Base64 (für das Lesen durch Nexy) */
+  /** Inhalt als Base64 (für das Lesen durch Luna) */
   base64: string;
   /** Vorschau (nur Bilder) */
   previewUrl: string | null;
@@ -59,7 +59,7 @@ export async function pickReceiptFile(camera = false): Promise<PickedReceipt | n
     if (!permission.granted) {
       Alert.alert(
         'Kamera nicht erlaubt',
-        'Damit du Belege fotografieren kannst, erlaube NEXORA die Kamera in den Einstellungen deines Handys.',
+        'Damit du Belege fotografieren kannst, erlaube Lunaxora die Kamera in den Einstellungen deines Handys.',
       );
       return null;
     }

@@ -6,14 +6,14 @@
  * Signatur: ohne Apple-Entwickler-Zertifikat wird die App nur „ad hoc“
  * signiert. Auf dem eigenen Mac startet sie ganz normal. Auf anderen Macs
  * meldet macOS beim ersten Öffnen „nicht verifizierter Entwickler“ – dann
- * Rechtsklick auf NEXORA › Öffnen (bzw. Systemeinstellungen › Datenschutz &
+ * Rechtsklick auf Lunaxora › Öffnen (bzw. Systemeinstellungen › Datenschutz &
  * Sicherheit › „Trotzdem öffnen“). Für eine Weitergabe ohne diese Meldung
  * braucht es eine Apple Developer ID und Notarisierung.
  */
 module.exports = {
-  appId: 'de.nexoranexy.app',
-  productName: 'NEXORA',
-  copyright: 'NEXORA',
+  appId: 'de.lunaxora.app',
+  productName: 'Lunaxora',
+  copyright: 'Lunaxora',
   directories: { app: '.mac-app', output: 'release' },
   // electron-builder lässt jeden Ordner „node_modules“ weg – auch dist/assets/node_modules,
   // wo Bilder von Expo Router/React Navigation liegen (Zurück-Pfeil, Schließen …). Die zweite
@@ -34,13 +34,13 @@ module.exports = {
     notarize: false,
     // Texte für die Nachfragen von macOS
     extendInfo: {
-      NSMicrophoneUsageDescription: 'NEXORA braucht das Mikrofon, damit du mit Nexy sprechen kannst.',
+      NSMicrophoneUsageDescription: 'Lunaxora braucht das Mikrofon, damit du mit Luna sprechen kannst.',
       NSAppleEventsUsageDescription:
-        'NEXORA bereitet E-Mails mit Angeboten und Rechnungen in Apple Mail vor – mit dem PDF im Anhang.',
+        'Lunaxora bereitet E-Mails mit Angeboten und Rechnungen in Apple Mail vor – mit dem PDF im Anhang.',
     },
   },
   dmg: {
-    title: 'NEXORA',
-    artifactName: 'NEXORA-${version}-${arch}.dmg',
+    title: 'Lunaxora',
+    artifactName: 'Lunaxora-${version}-${arch}.dmg',
   },
 };

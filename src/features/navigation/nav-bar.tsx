@@ -41,7 +41,7 @@ export function NavBar({ wide, children, ...rest }: NavBarProps) {
   return (
     <View {...rest} style={[styles.sidebar, { paddingTop: Platform.OS === 'web' ? 52 : insets.top + Spacing.lg }]}>
       <View style={styles.brand}>
-        <Wordmark width={116} />
+        <Wordmark width={132} />
       </View>
       <View style={styles.sideList}>{main}</View>
       <View style={styles.sideFooter}>{footer}</View>
