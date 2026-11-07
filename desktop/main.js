@@ -251,6 +251,22 @@ function validCallbackUrl(url) {
   }
 }
 
+/** Vollbild verlassen und warten, bis macOS mit der Animation fertig ist. */
+function leaveFullScreen(win) {
+  if (!win || win.isDestroyed() || !win.isFullScreen()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      win.removeListener('leave-full-screen', done);
+      resolve();
+    };
+    // falls macOS das Ereignis nicht schickt, trotzdem weitermachen
+    const timer = setTimeout(done, 2000);
+    win.once('leave-full-screen', done);
+    win.setFullScreen(false);
+  });
+}
+
 ipcMain.handle('nexora:open-auth-window', async (event, options) => {
   if (!fromApp(event)) throw new Error('Nicht erlaubt');
   const { url, callbackUrl } = options ?? {};
@@ -262,8 +278,12 @@ ipcMain.handle('nexora:open-auth-window', async (event, options) => {
   // Die Anmeldeseite braucht weder Mikrofon noch Kamera noch sonstige Rechte
   ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
 
+  const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+  // Im Vollbild ginge das Anmeldefenster in einem eigenen Vollbild-Bereich auf –
+  // deshalb vorher zurück aufs normale Fenster, dann liegt die Anmeldung sichtbar davor.
+  await leaveFullScreen(parent);
+
   return new Promise((resolve) => {
-    const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const win = new BrowserWindow({
       width: 520,
       height: 760,
