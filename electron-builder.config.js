@@ -15,7 +15,10 @@ module.exports = {
   productName: 'NEXORA',
   copyright: 'NEXORA',
   directories: { app: '.mac-app', output: 'release' },
-  files: ['**/*'],
+  // electron-builder lässt jeden Ordner „node_modules“ weg – auch dist/assets/node_modules,
+  // wo Bilder von Expo Router/React Navigation liegen (Zurück-Pfeil, Schließen …). Die zweite
+  // Regel holt genau diesen Ordner wieder rein.
+  files: ['**/*', 'dist/assets/node_modules/**/*'],
   asar: true,
   // desktop/main.js braucht nur Electron und Node selbst – keine node_modules.
   // Ohne das würde electron-builder alle Pakete des Projekts mit einpacken (~780 MB).
