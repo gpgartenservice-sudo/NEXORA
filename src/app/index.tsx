@@ -1,6 +1,6 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, type HostInstance } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet, useWindowDimensions, View, type HostInstance } from 'react-native';
 import {
   Extrapolation,
   interpolate,
@@ -49,11 +49,22 @@ function WelcomeScreen() {
   const logoTarget = useSharedValue<LogoTarget | null>(null);
   const logoSlot = useRef<HostInstance>(null);
 
-  const measureLogoSlot = () => {
+  const measureLogoSlot = useCallback(() => {
     logoSlot.current?.measureInWindow((x, y, width) => {
       if (width > 0) logoTarget.set({ x, y, width });
     });
-  };
+  }, [logoTarget]);
+
+  // Fenster mitten im Intro größer/kleiner (z. B. Vollbild): Das Logo im
+  // Anmelde-Screen rückt dann an eine andere Stelle – onLayout merkt das nicht,
+  // weil der Platzhalter gleich groß bleibt. Also neu messen, sonst fliegt der
+  // Schriftzug an die alte Stelle und springt erst am Ende an die richtige.
+  const { width: windowW, height: windowH } = useWindowDimensions();
+  useEffect(() => {
+    if (introDone) return;
+    const frame = requestAnimationFrame(measureLogoSlot);
+    return () => cancelAnimationFrame(frame);
+  }, [windowW, windowH, introDone, measureLogoSlot]);
 
   // Angemeldet: der Schriftzug fliegt nicht in den Anmelde-Screen, sondern blendet aus
   useEffect(() => {

@@ -29,7 +29,7 @@ Eine Codebasis für **Mac, iPhone und Android** (Expo / React Native). Die Mac-V
 npm run mac
 ```
 
-Das baut die App und öffnet sie in einem eigenen Mac-Fenster.
+Das baut die App und öffnet sie in einem eigenen Mac-Fenster – im Vollbild (zurück aufs normale Fenster: grüner Knopf oben links oder `Ctrl + Cmd + F`).
 
 - **Intro überspringen:** irgendwo hinklicken oder `Esc` / `Enter` drücken.
 - **Intro nochmal sehen:** `Cmd + R` (lädt das Fenster neu).

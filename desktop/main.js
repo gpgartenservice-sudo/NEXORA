@@ -323,6 +323,8 @@ function createWindow() {
     backgroundColor: '#000000',
     // Mac: keine graue Titelleiste, die Fensterknöpfe liegen direkt auf dem schwarzen Hintergrund
     titleBarStyle: 'hiddenInset',
+    // Startet im Vollbild (grüner Knopf / Ctrl+Cmd+F schaltet zurück aufs normale Fenster)
+    fullscreen: true,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
