@@ -221,6 +221,11 @@ export type Mail = { subject: string; text: string; html: string };
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+/** Warum jemand die E-Mail bekommt (steht in jeder E-Mail, senkt Spam-Meldungen) */
+const WHY = 'Du bekommst diese E-Mail, weil diese Adresse auf lunaxora.de für die Warteliste eingetragen wurde.';
+/** Bitte, den Absender zu speichern – Kontakte zählen bei Gmail, GMX & Co. als gutes Zeichen */
+const SAVE_SENDER = 'Damit unsere E-Mails sicher bei dir ankommen, speichere diese Absenderadresse am besten in deinen Kontakten.';
+
 /** Text + HTML aus Absätzen; {button} wird im HTML zum Knopf, im Text zur Zeile mit Link */
 function compose(o: {
   subject: string;
@@ -233,6 +238,7 @@ function compose(o: {
   const foot = [
     'LUNAXORA · lunaxora.de',
     ...(o.imprint ? [o.imprint] : []),
+    WHY,
     `Du willst keine E-Mails mehr von uns? Austragen: ${o.leave}`,
   ];
   const text = [
@@ -270,6 +276,7 @@ function compose(o: {
     '</td></tr><tr><td style="padding:16px 28px 26px;border-top:1px solid #e5e5ea;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#6e6e73">' +
     'LUNAXORA · lunaxora.de' +
     (o.imprint ? `<br>${esc(o.imprint)}` : '') +
+    `<br>${esc(WHY)}` +
     `<br>Du willst keine E-Mails mehr von uns? <a href="${esc(o.leave)}" style="color:#6e6e73">Austragen</a>` +
     '</td></tr></table></td></tr></table></body></html>';
   return { subject: o.subject, text, html };
@@ -277,13 +284,11 @@ function compose(o: {
 
 export function confirmMail(o: { link: string; leave: string; imprint: string; bonusLeft: number; slots: number }): Mail {
   return compose({
-    subject: 'Bitte bestätige deinen Platz auf der Warteliste',
+    subject: 'Bitte bestätige deine Anmeldung zur Lunaxora-Warteliste',
     paras: [
-      'schön, dass du bei LUNAXORA dabei sein willst! Bitte bestätige deine E-Mail-Adresse – erst dann stehst du auf der Warteliste:',
+      'schön, dass du bei LUNAXORA dabei sein willst. Bitte bestätige deine E-Mail-Adresse – erst dann stehst du auf der Warteliste:',
       '{button}',
-      ...(o.bonusLeft > 0
-        ? [`Die ersten ${o.slots} bestätigten Plätze bekommen 3 Monate Pro kostenlos – also am besten gleich bestätigen.`]
-        : []),
+      ...(o.bonusLeft > 0 ? [`Die ersten ${o.slots} bestätigten Plätze bekommen 3 Monate Pro kostenlos.`] : []),
       'Du hast dich nicht eingetragen? Dann ignoriere diese E-Mail einfach. Ohne Bestätigung löschen wir deine Adresse nach 30 Tagen.',
     ],
     button: { label: 'Platz bestätigen', url: o.link },
@@ -294,16 +299,17 @@ export function confirmMail(o: { link: string; leave: string; imprint: string; b
 
 const bonusLine = (bonus: boolean, slots: number) =>
   bonus
-    ? `Du gehörst zu den ersten ${slots}: Für dich sind 3 Monate Pro kostenlos reserviert. Registrier dich zum Start einfach mit dieser E-Mail-Adresse in der App – dann schalten wir dir Pro frei.`
+    ? `Dein Platz gehört zu den ersten ${slots}, deshalb bekommst du 3 Monate Pro kostenlos. Registrier dich zum Start einfach mit dieser E-Mail-Adresse in der App – dann schalten wir dir Pro frei.`
     : 'Die Plätze mit 3 Monaten Pro sind leider schon vergeben. Zum Start kannst du trotzdem 14 Tage alle Pro-Funktionen kostenlos testen.';
 
 export function welcomeMail(o: { place: number; bonus: boolean; slots: number; leave: string; imprint: string }): Mail {
   return compose({
-    subject: `Du bist auf der Warteliste – Platz ${o.place}`,
+    subject: 'Willkommen auf der Lunaxora-Warteliste',
     paras: [
-      `du hast es geschafft: Du stehst auf der Warteliste von LUNAXORA – auf Platz ${o.place}.`,
+      `danke für deine Bestätigung – du stehst jetzt auf der Warteliste von LUNAXORA, auf Platz ${o.place}.`,
       bonusLine(o.bonus, o.slots),
       'Sobald LUNAXORA für iPhone, Android und Mac erscheint, schreiben wir dir.',
+      SAVE_SENDER,
     ],
     leave: o.leave,
     imprint: o.imprint,
@@ -312,11 +318,12 @@ export function welcomeMail(o: { place: number; bonus: boolean; slots: number; l
 
 export function alreadyMail(o: { place: number; bonus: boolean; slots: number; leave: string; imprint: string }): Mail {
   return compose({
-    subject: 'Du stehst schon auf der Warteliste',
+    subject: 'Du stehst schon auf der Lunaxora-Warteliste',
     paras: [
       `du stehst schon auf der Warteliste von LUNAXORA – auf Platz ${o.place}. Du musst nichts weiter tun.`,
       bonusLine(o.bonus, o.slots),
       'Sobald LUNAXORA für iPhone, Android und Mac erscheint, schreiben wir dir.',
+      SAVE_SENDER,
     ],
     leave: o.leave,
     imprint: o.imprint,
@@ -338,13 +345,13 @@ const b64url = (bytes: Uint8Array) => base64(bytes).replace(/\+/g, '-').replace(
 const wrap76 = (b64: string) => b64.replace(/.{1,76}/g, '$&\r\n').replace(/\r\n$/, '');
 const ascii = (s: string) => /^[\x20-\x7e]*$/.test(s);
 
-/** Kopfzeilen-Text mit Umlauten (RFC 2047), in Stücken ≤ 75 Zeichen */
+/** Kopfzeilen-Text mit Umlauten (RFC 2047): Stücke à 64 Zeichen, so bleibt auch "Subject: " + Stück unter 76 */
 export function encodeWord(s: string): string {
   if (ascii(s)) return s;
   const words: string[] = [];
   let chunk = '';
   for (const ch of s) {
-    if (utf8.encode(chunk + ch).length > 45) {
+    if (utf8.encode(chunk + ch).length > 39) {
       words.push(chunk);
       chunk = '';
     }

@@ -164,6 +164,12 @@ test('Eintragen: Bestätigungs-E-Mail mit Knopf, Austragen-Link und Anbieter-Ang
   assert.match(text, /Musterstraße 1/);
   assert.match(html, new RegExp(`href="https://lunaxora\\.de/#bestaetigen=${TOK}"`));
   assert.match(html, />Platz bestätigen</);
+  // gegen Spam-Filter: Marke im Betreff, kein Drängeln, Grund für die E-Mail im Fuß
+  assert.match(mime, /^Subject: =\?UTF-8\?B\?/m);
+  assert.equal(confirmMail({ link: 'l', leave: 'l', imprint: '', bonusLeft: 1, slots: 20 }).subject, 'Bitte bestätige deine Anmeldung zur Lunaxora-Warteliste');
+  assert.doesNotMatch(text, /am besten gleich|!/);
+  assert.match(text, /Du bekommst diese E-Mail, weil diese Adresse auf lunaxora\.de für die Warteliste eingetragen wurde\./);
+  assert.match(html, /Du bekommst diese E-Mail, weil diese Adresse auf lunaxora\.de für die Warteliste eingetragen wurde\./);
 });
 
 test('Eintragen: ohne freie Pro-Plätze kein Bonus-Versprechen in der E-Mail', () => {
@@ -181,8 +187,10 @@ test('Eintragen: schon bestätigt -> Erinnerung mit Platz statt neuer Bestätigu
   assert.deepEqual(await res.json(), { ok: true });
   const [text] = decodeParts(smtp.sent[0]);
   assert.match(text, /schon auf der Warteliste von LUNAXORA – auf Platz 4/);
-  assert.match(text, /ersten 20: Für dich sind 3 Monate Pro kostenlos reserviert/);
+  assert.match(text, /Dein Platz gehört zu den ersten 20, deshalb bekommst du 3 Monate Pro kostenlos/);
+  assert.match(text, /speichere diese Absenderadresse am besten in deinen Kontakten/);
   assert.doesNotMatch(text, /bestaetigen=/);
+  assert.equal(alreadyMail({ place: 4, bonus: true, slots: 20, leave: 'l', imprint: '' }).subject, 'Du stehst schon auf der Lunaxora-Warteliste');
 });
 
 test('Eintragen: Bremse, Bots, ungültige Adresse, zu viele Anmeldungen', async () => {
@@ -261,7 +269,10 @@ test('Bestätigen: Platz, Bonus und Willkommens-E-Mail (nur beim ersten Klick)',
 
 test('Willkommens-E-Mail ohne Bonus nennt den normalen Pro-Test', () => {
   const m = welcomeMail({ place: 31, bonus: false, slots: 20, leave: 'https://x/#austragen=t', imprint: '' });
-  assert.equal(m.subject, 'Du bist auf der Warteliste – Platz 31');
+  assert.equal(m.subject, 'Willkommen auf der Lunaxora-Warteliste');
+  assert.match(m.text, /du stehst jetzt auf der Warteliste von LUNAXORA, auf Platz 31\./);
+  assert.match(m.text, /speichere diese Absenderadresse am besten in deinen Kontakten/);
+  assert.doesNotMatch(m.text, /geschafft|reserviert/);
   assert.match(m.text, /schon vergeben\. Zum Start kannst du trotzdem 14 Tage alle Pro-Funktionen kostenlos testen/);
   assert.doesNotMatch(alreadyMail({ place: 31, bonus: false, slots: 20, leave: 'l', imprint: '' }).text, /reserviert/);
 });
@@ -335,6 +346,22 @@ test('MIME: Betreff mit Umlauten, Text und HTML als Alternative, Punkt-Zeilen si
     messageId: '<abc@lunaxora.de>',
   });
   assert.match(mime, /^Subject: =\?UTF-8\?B\?/m);
+  // RFC 2047: Zeilen mit kodierten Wörtern höchstens 76 Zeichen – auch bei langem Betreff
+  const long = buildMime({
+    from: 'emails@lunaxora.de',
+    to: 'a@b.de',
+    mail: { ...mail, subject: 'Bitte bestätige deine Anmeldung zur Lunaxora-Warteliste – äöü ß € 🙂 noch mehr Text' },
+    unsubscribe: `${FN}?leave=${TOK}`,
+    date: new Date('2026-11-07T12:00:00Z'),
+    messageId: '<abc@lunaxora.de>',
+  });
+  const subj = long.split('\r\n\r\n')[0].match(/^Subject: [^\r]*(?:\r\n [^\r]*)*/m)[0];
+  for (const line of subj.split('\r\n')) assert.ok(line.length <= 76, line);
+  const decoded = subj
+    .replace(/^Subject: /, '')
+    .split('\r\n ')
+    .map((w) => Buffer.from(w.match(/^=\?UTF-8\?B\?(.*)\?=$/)[1], 'base64'));
+  assert.equal(Buffer.concat(decoded).toString('utf8'), 'Bitte bestätige deine Anmeldung zur Lunaxora-Warteliste – äöü ß € 🙂 noch mehr Text');
   assert.match(mime, /Content-Type: multipart\/alternative; boundary="lx-abclunaxorade"/);
   assert.match(mime, /Content-Type: text\/plain; charset=UTF-8/);
   assert.match(mime, /Content-Type: text\/html; charset=UTF-8/);

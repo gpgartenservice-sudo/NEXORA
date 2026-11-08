@@ -367,6 +367,11 @@ Meldet die Website „Das hat leider nicht geklappt“, steht der Grund meist un
 
 Statt des webgo-Postfachs geht auch Resend (Abschnitt 10, Weg B): dann nur `RESEND_API_KEY` und `WAITLIST_FROM` = `emails@lunaxora.de` setzen, ohne `WAITLIST_SMTP_…`. Die E-Mails gehen dann über Resend (USA) – das gehört dann in die Datenschutzerklärung.
 
+**E-Mails landen im Spam-Ordner?** Stand 08.11.2026 ist die Technik in Ordnung: mail-tester.com gibt 10/10. SPF, DKIM (webgo signiert mit `d=lunaxora.de`, Selektor `dkim`, auch die `List-Unsubscribe`-Kopfzeilen) und DMARC stehen auf `pass`, und der webgo-Server `185.30.32.179` steht auf keiner Sperrliste. Der Grund ist die junge Domain: Gmail, GMX und Outlook kennen lunaxora.de noch nicht. Das bessert sich mit der Zeit, wenn regelmäßig Mails rausgehen, niemand sie als Spam meldet und Empfänger sie aus dem Spam holen („Kein Spam“) bzw. `emails@lunaxora.de` in ihre Kontakte speichern. Website und Willkommens-E-Mail bitten darum.
+- Nachprüfen: auf [mail-tester.com](https://www.mail-tester.com) die angezeigte Adresse auf der Website in die Warteliste eintragen und den Bericht öffnen. Danach den unbestätigten Eintrag im Table Editor löschen.
+- Optional, für Rückmeldungen der großen Anbieter: den DMARC-Eintrag bei webgo (DNS von lunaxora.de, Name `_dmarc`) auf `v=DMARC1; p=quarantine; rua=mailto:emails@lunaxora.de` ändern. Dann schicken Google & Co. tägliche Berichte an dieses Postfach.
+- Bleibt es nach einigen Wochen beim Spam-Ordner, lohnt ein eigener Versanddienst statt des geteilten webgo-Servers (z. B. Resend, siehe oben, oder Brevo).
+
 **Die ersten 20 ansehen** (SQL Editor des Wartelisten-Projekts):
 
 ```sql
