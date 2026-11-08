@@ -93,8 +93,9 @@ export function MetricsView({ posts }: { posts: SocialPost[] }) {
         </Card>
       )}
       <Text style={styles.footnote}>
-        Interaktionsrate = (Likes + Kommentare + Geteilt + Gespeichert) ÷ Aufrufe. Die Zahlen trägst du selbst ein – die
-        automatische Verbindung zu TikTok & Instagram kommt bald.
+        Interaktionsrate = (Likes + Kommentare + Geteilt + Gespeichert) ÷ Aufrufe. Hast du TikTok oder Instagram unter
+        „Konten“ verbunden, holt Lunaxora die Zahlen deiner Videos automatisch und trägt sie beim passenden Post ein. Bei
+        allen anderen Posts trägst du sie selbst ein.
       </Text>
     </View>
   );

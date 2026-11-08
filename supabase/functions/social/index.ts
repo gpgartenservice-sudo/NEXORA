@@ -30,6 +30,14 @@ const INSTAGRAM_SCOPES = 'instagram_business_basic,instagram_business_manage_ins
 const TIKTOK_PROFILE_FIELDS =
   'open_id,avatar_url,display_name,username,profile_deep_link,follower_count,following_count,likes_count,video_count';
 const TIKTOK_BASIC_FIELDS = 'open_id,avatar_url,display_name';
+/**
+ * Bestätigungsdateien von TikTok (Developer-Portal › URL properties): TikTok prüft damit, dass die
+ * Rückleitungs-Adresse uns gehört. Dateiname → Inhalt, genau wie in der heruntergeladenen Datei.
+ * Nicht geheim – die Datei ist absichtlich öffentlich abrufbar.
+ */
+const TIKTOK_VERIFICATION = new Map<string, string>([
+  ['tiktok8dNMQMbxTA4JNvPNsbsLdmVIDnjddSwV.txt', 'tiktok-developers-site-verification=8dNMQMbxTA4JNvPNsbsLdmVIDnjddSwV'],
+]);
 const TIKTOK_VIDEO_FIELDS =
   'id,title,video_description,create_time,cover_image_url,share_url,view_count,like_count,comment_count,share_count';
 const TIKTOK_PAGES = 3; // je 20 Videos
@@ -668,6 +676,9 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   // Rückleitung von TikTok/Instagram (ohne Anmeldung – im Browserfenster der Anmeldung)
   if (req.method === 'GET') {
     const url = new URL(req.url);
+    // z. B. …/social/callback/tiktok….txt oder …/social/tiktok….txt
+    const verification = TIKTOK_VERIFICATION.get(url.pathname.split('/').pop() ?? '');
+    if (verification) return text(200, verification);
     if (!url.pathname.replace(/\/+$/, '').endsWith('/callback')) return text(404, 'Nicht gefunden');
     const state = url.searchParams.get('state') ?? '';
     const payload = state ? await readState(state, secretFor, now) : null;
