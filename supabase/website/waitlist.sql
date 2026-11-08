@@ -1,8 +1,8 @@
 -- Lunaxora: Warteliste auf der Website (lunaxora.de)
 --
--- Einmalig im Supabase-Dashboard ausführen: SQL Editor -> New query ->
+-- Läuft in einem eigenen Supabase-Projekt nur für die Website (foqjsghohiykixqtruwq), nicht im
+-- Projekt der App. Einmalig im Supabase-Dashboard ausführen: SQL Editor -> New query ->
 -- diesen kompletten Inhalt einfügen -> Run. Zweimal ausführen schadet nicht.
--- Voraussetzung für waitlist_grant_bonus (unten): Skript 20261116090000_plans.sql.
 --
 -- So funktioniert es:
 -- * Besucher tragen auf lunaxora.de ihre E-Mail-Adresse ein. Die Server-Funktion
@@ -10,7 +10,9 @@
 --   emails@lunaxora.de mit "Platz bestätigen" (Double-Opt-in).
 -- * Erst nach der Bestätigung steht die Adresse auf der Warteliste und bekommt ihren
 --   Platz (1, 2, 3 …). Die ersten 20 bestätigten Plätze (waitlist_counter.bonus_slots)
---   bekommen 3 Monate Pro kostenlos – freigeschaltet mit waitlist_grant_bonus().
+--   bekommen 3 Monate Pro kostenlos – das schaltet ihr zum Start von Hand in der App frei
+--   (Liste: supabase/README.md, Abschnitt 14). Liegt bewusst nicht in migrations/ (das sind die
+--   Skripte der App).
 --   Plätze werden nicht neu vergeben. Ausnahme: Trägt sich der zuletzt vergebene
 --   Platz wieder aus, bevor jemand nach ihm bestätigt hat, wird seine Nummer wieder frei
 --   (so verbraucht z. B. ein eigener Test mit Bestätigen + Austragen keinen Pro-Platz).
@@ -40,7 +42,7 @@ create table if not exists public.waitlist (
   confirmed_at timestamptz,                   -- Zeitpunkt der Bestätigung (Nachweis)
   mail_sent_at timestamptz,                   -- letzte E-Mail an die Adresse (Bremse)
   mails_sent integer not null default 0 check (mails_sent >= 0),
-  bonus_granted_at timestamptz,               -- 3 Monate Pro freigeschaltet
+  bonus_granted_at timestamptz,               -- 3 Monate Pro freigeschaltet (von Hand eintragen)
   check ((status = 'confirmed') = (place is not null and confirmed_at is not null))
 );
 
@@ -255,53 +257,8 @@ as $$
   where c.id;
 $$;
 
--- Zum Start: 3 Monate Pro für alle bestätigten Bonus-Plätze, die sich schon mit
--- derselben E-Mail-Adresse in der App registriert haben. Im SQL Editor ausführen:
---   select public.waitlist_grant_bonus();
--- Ergebnis = Anzahl neu freigeschalteter Nutzer. Beliebig oft wiederholbar (z. B. jede
--- Woche nach dem Start) – jeder bekommt die 3 Monate nur einmal. Wer schon dauerhaft
--- Pro hat (z. B. ihr selbst), bleibt dauerhaft Pro. Ein laufendes Pro von Hand wird um
--- 3 Monate verlängert. Ein laufendes bezahltes Abo (App Store, Google Play, Karte) wird nicht
--- angefasst – diese Plätze bleiben offen, bis das Abo endet (dann beim nächsten Lauf).
-create or replace function public.waitlist_grant_bonus()
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_count integer;
-begin
-  with eligible as (
-    select w.id as wid, u.id as uid
-    from public.waitlist w
-    join auth.users u on lower(u.email) = w.email
-    where w.status = 'confirmed' and w.bonus and w.bonus_granted_at is null
-  ), granted as (
-    insert into public.subscriptions as s (user_id, status, source, current_period_end, updated_at)
-    select e.uid, 'active', 'manual', now() + interval '3 months', now() from eligible e
-    on conflict (user_id) do update
-      set status = 'active',
-          source = 'manual',
-          current_period_end = greatest(coalesce(s.current_period_end, now()), now()) + interval '3 months',
-          updated_at = now()
-      where not (s.status = 'active' and s.current_period_end is null)
-        and not (s.source in ('apple', 'google', 'stripe') and s.status in ('active', 'canceled')
-                 and s.current_period_end > now())
-    returning s.user_id
-  ), marked as (
-    update public.waitlist w set bonus_granted_at = now()
-    from eligible e
-    where w.id = e.wid
-      and (e.uid in (select g.user_id from granted g)
-           or exists (select 1 from public.subscriptions s2
-                      where s2.user_id = e.uid and s2.status = 'active' and s2.current_period_end is null))
-    returning e.uid
-  )
-  select count(*) into v_count from marked m where m.uid in (select g.user_id from granted g);
-  return v_count;
-end;
-$$;
+-- Frühere Fassung hatte eine automatische Pro-Freischaltung; die gibt es hier nicht (von Hand).
+drop function if exists public.waitlist_grant_bonus();
 
 revoke all on function public.waitlist_cleanup() from public, anon, authenticated;
 revoke all on function public.waitlist_join(text, text, text, text) from public, anon, authenticated;
@@ -309,7 +266,6 @@ revoke all on function public.waitlist_mail_failed(text, text) from public, anon
 revoke all on function public.waitlist_confirm(text) from public, anon, authenticated;
 revoke all on function public.waitlist_leave(text) from public, anon, authenticated;
 revoke all on function public.waitlist_stats() from public, anon, authenticated;
-revoke all on function public.waitlist_grant_bonus() from public, anon, authenticated, service_role;
 grant execute on function public.waitlist_cleanup() to service_role;
 grant execute on function public.waitlist_join(text, text, text, text) to service_role;
 grant execute on function public.waitlist_mail_failed(text, text) to service_role;

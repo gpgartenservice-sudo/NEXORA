@@ -48,7 +48,6 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261114090000_tax.sql` | Steuern: Prozentsatz für den Steuer-Topf (Firmendaten) und enthaltene Umsatzsteuer bei Ausgaben (Vorsteuer) |
 | `20261115090000_tutorials.sql` | Einführungen: welche Bereiche schon erklärt wurden und ob sie automatisch erscheinen sollen (im Profil, damit es auf Mac und Handy gleich ist) |
 | `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis mit 20 Luna-Nachrichten und 5 Belegen im Monat; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
-| `20261117090000_waitlist.sql` | Warteliste auf der Website lunaxora.de: E-Mail-Adressen mit Bestätigung per Klick, fortlaufende Plätze, die ersten 20 bekommen 3 Monate Pro (nur die Server-Funktion `waitlist` hat Zugriff) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -320,24 +319,26 @@ Vor dem Start mit echten Nutzern braucht ihr einen eigenen Versand (**Authentica
 
 ## 14. Warteliste auf der Website (lunaxora.de)
 
+> **Eigenes Projekt:** Die Warteliste läuft in einem eigenen Supabase-Projekt nur für die Website – `foqjsghohiykixqtruwq` (Pascals Konto, Frankfurt) –, **nicht** im Projekt der App (`txifgiuxecaphmaucmdf`). Alle Schritte in diesem Abschnitt also in diesem Projekt machen.
+
 Auf lunaxora.de gibt es den Knopf **Auf die Warteliste**. Besucher geben ihre E-Mail-Adresse ein und bekommen eine E-Mail von `emails@lunaxora.de` mit **Platz bestätigen**. Der Link führt zurück auf die Website, dort noch ein Klick – erst dann stehen sie auf der Warteliste (Double-Opt-in) und bekommen ihren Platz. Die **ersten 20 bestätigten Plätze bekommen 3 Monate Pro kostenlos**, die Website zeigt „Noch X Plätze frei“. In jeder E-Mail steht ein Link zum **Austragen**, der den Eintrag löscht. Unbestätigte Adressen werden nach 30 Tagen gelöscht.
 
 **Vorher nötig:** Die Website verlinkt im Fuß und im Formular auf `impressum.html` und `datenschutz.html` (im selben Ordner wie die Website). Diese zwei Seiten müsst ihr anlegen, bevor die Website mit dem Knopf online geht – wer E-Mail-Adressen sammelt, braucht beides. Was in die Datenschutzerklärung gehört, steht unten unter **Datenschutz**.
 
 **Reihenfolge einhalten:** Erst Schritt 1–5, dann hochladen (Schritt 6), dann zu Ende testen (Schritt 7). Sonst sehen Besucher einen Knopf, der noch nicht funktioniert.
 
-1. **Datenbank:** Skript [`migrations/20261117090000_waitlist.sql`](migrations/20261117090000_waitlist.sql) ausführen (Abschnitt 3). Es richtet auch das stündliche Aufräumen ein (Erweiterung pg_cron). Prüfen in einer neuen Abfrage: `select jobname, schedule from cron.job where jobname = 'lunaxora-waitlist-cleanup';` – es muss eine Zeile mit `17 * * * *` erscheinen. Kommt ein Fehler oder keine Zeile, fehlt pg_cron (**Database → Extensions → pg_cron** einschalten und das Skript noch einmal ausführen); ohne pg_cron wird nur bei jeder Anmeldung und Bestätigung aufgeräumt.
+1. **Datenbank:** Im SQL Editor des Wartelisten-Projekts den kompletten Inhalt von [`website/waitlist.sql`](website/waitlist.sql) einfügen → **Run** (nicht im App-Projekt, deshalb liegt es auch nicht bei den App-Skripten in `migrations/`). Es richtet auch das stündliche Aufräumen ein (Erweiterung pg_cron). Prüfen in einer neuen Abfrage: `select jobname, schedule from cron.job where jobname = 'lunaxora-waitlist-cleanup';` – es muss eine Zeile mit `17 * * * *` erscheinen. Kommt ein Fehler oder keine Zeile, fehlt pg_cron (**Database → Extensions → pg_cron** einschalten und das Skript noch einmal ausführen); ohne pg_cron wird nur bei jeder Anmeldung und Bestätigung aufgeräumt.
 2. **Postfach:** Im webgo-Kundenbereich (WebCP) das Postfach `emails@lunaxora.de` anlegen, mit eigenem Passwort. Beim Postfach unter den Einstellungen für Mailprogramme nachsehen: **Postausgangsserver (SMTP)** (bei webgo z. B. `s179.goserver.host`) und **Benutzername** (bei webgo entweder die E-Mail-Adresse oder ein Postfachname wie `web123p1`).
 3. **Funktion:** **Edge Functions → Deploy a new function → Via Editor**, Name genau `waitlist`, Inhalt von [`functions/waitlist/index.ts`](functions/waitlist/index.ts) → **Deploy**. Danach in den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) **ausschalten**: Besucher der Website sind nicht angemeldet. Geschützt ist alles durch die geheimen Links in den E-Mails und die Bremsen in der Datenbank.
 4. **Edge Functions → Secrets**:
-   - `WAITLIST_SMTP_HOST` = Postausgangsserver, **genau so geschrieben wie bei webgo** (ohne diesen Eintrag nimmt die Funktion `SMTP_HOST` aus Abschnitt 10)
+   - `WAITLIST_SMTP_HOST` = Postausgangsserver, **genau so geschrieben wie bei webgo**
    - `WAITLIST_SMTP_USER` = Benutzername aus Schritt 2
    - `WAITLIST_SMTP_PASS` = Passwort dieses Postfachs
    - `WAITLIST_FROM` = `emails@lunaxora.de` (nur nötig, wenn der Benutzername keine E-Mail-Adresse ist, z. B. `web123p1`)
    - `WAITLIST_IMPRINT` = eure Anbieter-Angaben für den Fuß jeder E-Mail, z. B. `Lunaxora · Vorname Nachname · Straße 1 · 12345 Ort` (gehört in geschäftliche E-Mails; dieselben Angaben wie im Impressum)
    - optional `WAITLIST_PAGE_URL`, falls die Website nicht unter `https://lunaxora.de/` liegt; dorthin führen die Links in den E-Mails
    > Das Passwort **niemals** in die App, ins Repository oder in einen Chat schreiben – nur in Supabase als Geheimnis.
-5. **Verbindung und Versand testen:** Im Browser `https://txifgiuxecaphmaucmdf.supabase.co/functions/v1/waitlist` öffnen. Erscheint `{"bonus_left":20,"bonus_slots":20}`, ist alles verbunden. Erscheint stattdessen eine Meldung wie `{"error":"…"}` oder `Missing authorization header`, steht die Lösung in der Tabelle unten. Dann die neue Website-Datei (`index.html` mit dem Knopf) lokal im Browser öffnen und dich mit einer eigenen Adresse eintragen. Kommt die E-Mail von `emails@lunaxora.de` an, klappt der Versand. **Den Link in der E-Mail noch nicht anklicken:** er führt auf lunaxora.de, wo noch die alte Seite liegt.
+5. **Verbindung und Versand testen:** Im Browser `https://foqjsghohiykixqtruwq.supabase.co/functions/v1/waitlist` öffnen. Erscheint `{"bonus_left":20,"bonus_slots":20}`, ist alles verbunden. Erscheint stattdessen eine Meldung wie `{"error":"…"}` oder `Missing authorization header`, steht die Lösung in der Tabelle unten. Dann die neue Website-Datei (`index.html` mit dem Knopf) lokal im Browser öffnen und dich mit einer eigenen Adresse eintragen. Kommt die E-Mail von `emails@lunaxora.de` an, klappt der Versand. **Den Link in der E-Mail noch nicht anklicken:** er führt auf lunaxora.de, wo noch die alte Seite liegt.
 6. **Website hochladen:** die neue Website-Datei wie bisher als `index.html` in den Hauptordner von lunaxora.de, dazu `impressum.html` und `datenschutz.html`.
 7. **Zu Ende testen:** In der Test-E-Mail auf **Platz bestätigen** klicken, auf der Website noch einmal **Platz bestätigen** – es erscheint Platz 1 und die Willkommens-E-Mail kommt. Dann in der E-Mail auf **Austragen** klicken und bestätigen. Weil sich der letzte Platz wieder ausgetragen hat, wird er frei: Die Funktions-Adresse aus Schritt 5 zeigt wieder `{"bonus_left":20,"bonus_slots":20}`.
 
@@ -355,7 +356,7 @@ Meldet die Website „Das hat leider nicht geklappt“, steht der Grund meist un
 |---|---|
 | `Missing authorization header` / `Invalid JWT` (die Funktion schreibt dann nichts in die Logs) | **Verify JWT** der Funktion ausschalten (Schritt 3) |
 | `missing_sql` | Skript aus Schritt 1 fehlt |
-| `missing_mail_login` | `WAITLIST_SMTP_USER` / `WAITLIST_SMTP_PASS` (bzw. `RESEND_API_KEY`) fehlen oder sind falsch geschrieben – oder `WAITLIST_SMTP_HOST` fehlt und `SMTP_HOST` aus Abschnitt 10 auch |
+| `missing_mail_login` | `WAITLIST_SMTP_HOST`, `WAITLIST_SMTP_USER` oder `WAITLIST_SMTP_PASS` (bzw. `RESEND_API_KEY`) fehlen oder sind falsch geschrieben |
 | `missing_mail_from` | Benutzername ist keine E-Mail-Adresse: `WAITLIST_FROM` = `emails@lunaxora.de` setzen |
 | `smtp_auth_failed` | Benutzername oder Passwort des Postfachs falsch |
 | `smtp_connect_failed` / `smtp_timeout` | `WAITLIST_SMTP_HOST` falsch geschrieben oder Port 465 nicht freigeschaltet |
@@ -366,21 +367,32 @@ Meldet die Website „Das hat leider nicht geklappt“, steht der Grund meist un
 
 Statt des webgo-Postfachs geht auch Resend (Abschnitt 10, Weg B): dann nur `RESEND_API_KEY` und `WAITLIST_FROM` = `emails@lunaxora.de` setzen, ohne `WAITLIST_SMTP_…`. Die E-Mails gehen dann über Resend (USA) – das gehört dann in die Datenschutzerklärung.
 
-**Warteliste ansehen** (SQL Editor):
+**Die ersten 20 ansehen** (SQL Editor des Wartelisten-Projekts):
 
 ```sql
-select place, email, bonus, confirmed_at from public.waitlist where status = 'confirmed' order by place;
+select place, email, confirmed_at, bonus_granted_at
+from public.waitlist where status = 'confirmed' and bonus order by place;
 ```
 
-**Zum Start: 3 Monate Pro freischalten.** Sobald sich die Bonus-Plätze mit derselben E-Mail-Adresse in der App registriert haben, im SQL Editor ausführen:
+Alle bestätigten Plätze: dieselbe Abfrage ohne `and bonus`.
+
+**Zum Start: 3 Monate Pro von Hand freischalten.** Sobald sich jemand aus der Liste mit derselben E-Mail-Adresse in der App registriert hat, im SQL Editor **des App-Projekts** (`txifgiuxecaphmaucmdf`, Abschnitt 12) ausführen – E-Mail-Adresse anpassen:
 
 ```sql
-select public.waitlist_grant_bonus();
+insert into public.subscriptions (user_id, status, source, current_period_end)
+select id, 'active', 'manual', now() + interval '3 months' from auth.users where email = 'person@beispiel.de'
+on conflict (user_id) do update set status = 'active', source = 'manual', current_period_end = now() + interval '3 months';
 ```
 
-Das Ergebnis ist die Zahl der neu freigeschalteten Nutzer. Ihr könnt den Befehl beliebig oft wiederholen (z. B. jede Woche nach dem Start), jeder bekommt die 3 Monate nur einmal. Wer schon dauerhaft Pro hat (ihr selbst), bleibt dauerhaft Pro; ein laufendes Pro von Hand wird um 3 Monate verlängert. Wer schon ein bezahltes Abo (App Store, Google Play, Karte) hat, wird nicht angefasst und bekommt die 3 Monate beim ersten Lauf nach Ende des Abos. Die Anzahl der Bonus-Plätze steht in `public.waitlist_counter.bonus_slots` (Standard 20). Plätze werden nicht neu vergeben, wenn sich jemand austrägt – außer es war der zuletzt vergebene Platz und noch niemand hat danach bestätigt.
+Danach im Wartelisten-Projekt festhalten, dass es erledigt ist:
 
-**Datenschutz** (Stoff für die Datenschutzerklärung): Gespeichert werden E-Mail-Adresse, Platz auf der Warteliste und ob er zu den ersten 20 gehört, Zeitpunkt der Anmeldung, der Bestätigung und der Pro-Freischaltung, die Fassung des Hinweises im Formular und die Zahl der verschickten E-Mails (als Nachweis der Einwilligung). Gegen Missbrauch wird je Anmeldung ein verschlüsselter, nicht umkehrbarer Fingerabdruck der IP-Adresse gespeichert; er wird nach einer Stunde nicht mehr gebraucht und beim nächsten stündlichen Aufräumen gelöscht (ohne pg_cron bei der nächsten Anmeldung). Zum Start werden die Adressen der Bonus-Plätze mit den App-Konten abgeglichen, um 3 Monate Pro freizuschalten. Die Website fragt beim Laden die Zahl der freien Plätze bei Supabase (Frankfurt) ab, dabei sieht Supabase die IP-Adresse des Besuchers. Die E-Mails gehen über euer webgo-Postfach (bzw. Resend, falls ihr den Weg nehmt). Unbestätigte Adressen werden nach 30 Tagen gelöscht, „Austragen“ löscht sofort.
+```sql
+update public.waitlist set bonus_granted_at = now() where email = 'person@beispiel.de';
+```
+
+Die Anzahl der Bonus-Plätze steht in `public.waitlist_counter.bonus_slots` (Standard 20). Plätze werden nicht neu vergeben, wenn sich jemand austrägt – außer es war der zuletzt vergebene Platz und noch niemand hat danach bestätigt.
+
+**Datenschutz** (Stoff für die Datenschutzerklärung): Gespeichert werden E-Mail-Adresse, Platz auf der Warteliste und ob er zu den ersten 20 gehört, Zeitpunkt der Anmeldung, der Bestätigung und der Pro-Freischaltung, die Fassung des Hinweises im Formular und die Zahl der verschickten E-Mails (als Nachweis der Einwilligung). Gegen Missbrauch wird je Anmeldung ein verschlüsselter, nicht umkehrbarer Fingerabdruck der IP-Adresse gespeichert; er wird nach einer Stunde nicht mehr gebraucht und beim nächsten stündlichen Aufräumen gelöscht (ohne pg_cron bei der nächsten Anmeldung). Zum Start werden die Adressen der Bonus-Plätze von Hand mit den App-Konten abgeglichen, um 3 Monate Pro freizuschalten. Die Website fragt beim Laden die Zahl der freien Plätze bei Supabase (Frankfurt) ab, dabei sieht Supabase die IP-Adresse des Besuchers. Die E-Mails gehen über euer webgo-Postfach (bzw. Resend, falls ihr den Weg nehmt). Unbestätigte Adressen werden nach 30 Tagen gelöscht, „Austragen“ löscht sofort.
 
 ## Sicherheit
 

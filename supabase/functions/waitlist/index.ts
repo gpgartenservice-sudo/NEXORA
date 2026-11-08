@@ -15,7 +15,7 @@
  *   GET  ?leave=<token> -> Weiterleitung zur Website (#austragen=…), die vor dem Löschen fragt
  *   hp = verstecktes Feld (Bots füllen es aus), ms = Millisekunden seit dem Öffnen des Formulars.
  *
- * Datenbank: Skript supabase/migrations/20261117090000_waitlist.sql.
+ * Datenbank: Skript supabase/website/waitlist.sql (eigenes Supabase-Projekt der Website, nicht das der App).
  * Einrichtung: supabase/README.md, Abschnitt "Warteliste auf der Website".
  * Geheimnisse (Supabase -> Edge Functions -> Secrets):
  *   WAITLIST_SMTP_USER   Benutzername des Postfachs emails@lunaxora.de (bei webgo: Adresse oder Postfachname wie web123p1)
