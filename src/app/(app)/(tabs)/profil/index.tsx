@@ -106,7 +106,7 @@ export default function ProfileScreen() {
               <Text style={styles.cardTitle}>Abo</Text>
               <Text style={styles.firmText} testID="profile-plan">
                 {plan.missing || !plan.info
-                  ? 'Lunaxora Gratis und Pro im Vergleich'
+                  ? 'Lunaxora Starter und Pro im Vergleich'
                   : `${planLabel(plan.info, now)}${quota ? ` · ${quota}` : ''}`}
               </Text>
             </View>

@@ -1,7 +1,8 @@
 /**
- * Abo (Gratis / Pro) – reine Logik (ohne App/Netz, mit Unit-Tests).
+ * Abo (Starter / Pro) – reine Logik (ohne App/Netz, mit Unit-Tests).
  * Die verbindlichen Grenzen prüft der Server (Skript 20261116090000_plans.sql,
  * Funktionen "assistant" und "mail"); die App zeigt sie nur an.
+ * Starter heißt in der Datenbank weiterhin "free" (früher „Gratis“).
  */
 import { toIso, toMs } from '../../lib/dates';
 
@@ -18,8 +19,12 @@ export type PlanInfo = {
   usage: Record<QuotaKind, Usage>;
 };
 
-export const PRICE_MONTH = 9.99;
-export const PRICE_YEAR = 99;
+/** Starter im Monat */
+export const PRICE_STARTER = 9.99;
+/** Pro im Monat */
+export const PRICE_MONTH = 59.99;
+/** Pro im Jahr */
+export const PRICE_YEAR = 599.99;
 export const TRIAL_DAYS = 14;
 export const FREE_LIMITS: Record<QuotaKind, number> = { nexy: 20, receipt: 5 };
 export const PRO_LIMITS: Record<QuotaKind, number> = { nexy: 300, receipt: 300 };
@@ -44,7 +49,12 @@ export const FEATURE_LABEL: Record<ProFeature, string> = {
   no_branding: 'PDFs ohne „Erstellt mit Lunaxora“',
 };
 
-/** Vergleich Gratis / Pro (für die Abo-Seite) */
+/** Ersparnis von Pro jährlich gegenüber 12 Monaten Pro (auf Cent gerundet) */
+export function yearSaving(): number {
+  return Math.round((PRICE_MONTH * 12 - PRICE_YEAR) * 100) / 100;
+}
+
+/** Vergleich Starter / Pro (für die Abo-Seite) */
 export const COMPARISON: { label: string; free: string | boolean; pro: string | boolean }[] = [
   { label: 'Kunden, Aufträge, Termine, To-dos & Ziele', free: true, pro: true },
   { label: 'Angebote & Rechnungen als PDF mit Logo', free: true, pro: true },
@@ -68,7 +78,7 @@ export function isProRequired(error: { code?: string; message?: string } | null 
   return !!error && (error.code === 'PT402' || /pro_required/.test(error.message ?? ''));
 }
 
-/** Hinweis, wenn eine Pro-Funktion im Gratis-Abo benutzt wird */
+/** Hinweis, wenn eine Pro-Funktion im Starter-Abo benutzt wird */
 export function proRequiredText(feature: ProFeature): string {
   return `„${FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Pro. Deine Testphase ist vorbei – unter Profil → Abo siehst du, was Pro kann.`;
 }
@@ -106,17 +116,17 @@ export function trialDaysLeft(info: PlanInfo, now: Date): number | null {
   return ms > 0 ? Math.ceil(ms / 86_400_000) : 0;
 }
 
-/** „Pro“, „Pro-Test · noch 12 Tage“, „Gratis“ */
+/** „Pro“, „Pro-Test · noch 12 Tage“, „Starter“ */
 export function planLabel(info: PlanInfo, now: Date): string {
   if (info.plan === 'pro') return 'Pro';
   if (info.plan === 'trial') {
     const d = trialDaysLeft(info, now) ?? 0;
     return `Pro-Test · noch ${d} ${d === 1 ? 'Tag' : 'Tage'}`;
   }
-  return 'Gratis';
+  return 'Starter';
 }
 
-/** „Noch 3 von 20 Luna-Nachrichten im November“ (nur bei Gratis, sonst null) */
+/** „Noch 3 von 20 Luna-Nachrichten im November“ (nur bei Starter, sonst null) */
 export function quotaText(info: PlanInfo, kind: QuotaKind): string | null {
   if (info.plan !== 'free') return null;
   const { used, limit } = info.usage[kind];

@@ -110,7 +110,7 @@ export type NexyMessage = {
   error?: string;
   /** Fehlermeldung, weil Luna noch nicht eingerichtet ist */
   notSetUp?: boolean;
-  /** Gratis-Grenze erreicht (Hinweis auf Pro) */
+  /** Starter-Grenze erreicht (Hinweis auf Pro) */
   quota?: boolean;
   /** per Sprache gesagt */
   voice?: boolean;

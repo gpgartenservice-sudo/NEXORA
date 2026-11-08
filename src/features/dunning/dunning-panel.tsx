@@ -86,7 +86,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
 
   /** PDF erzeugen, verschicken, beim ersten Mal vermerken */
   const run = async (how: 'pdf' | 'mail' | 'whatsapp' | 'share') => {
-    // 1. und letzte Mahnung: nur mit Pro (Zahlungserinnerung bleibt gratis)
+    // 1. und letzte Mahnung: nur mit Pro (Zahlungserinnerung gibt es auch mit Starter)
     if (nextStage && nextStage.kind !== 'reminder' && !recorded && !gate('dunning')) return;
     if (!input || !text || !nextStage) {
       setMessage({
@@ -211,7 +211,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
           <Text style={styles.text}>{ABOUT[nextStage.kind]}</Text>
           {!pro && nextStage.kind !== 'reminder' && !recorded && (
             <Text style={styles.hint} testID="dunning-pro">
-              Mahnungen gibt es mit Lunaxora Pro – die Zahlungserinnerung bleibt kostenlos.
+              Mahnungen gibt es mit Lunaxora Pro – die Zahlungserinnerung ist auch in Starter dabei.
             </Text>
           )}
           {!recorded && (

@@ -11,7 +11,7 @@ export type AskResult = {
   data?: RawResult;
   error?: string;
   notSetUp?: boolean;
-  /** Gratis-Grenze erreicht */ quota?: boolean;
+  /** Starter-Grenze erreicht */ quota?: boolean;
 };
 
 const SETUP =
@@ -73,7 +73,7 @@ export async function askAssistant(
     if (http.code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
     if (http.code === 'quota_exceeded')
       return {
-        error: `Deine ${http.limit ?? 20} Gratis-Nachrichten an Luna sind für diesen Monat aufgebraucht. Mit Lunaxora Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
+        error: `Deine ${http.limit ?? 20} Luna-Nachrichten im Starter-Abo sind für diesen Monat aufgebraucht. Mit Lunaxora Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
         quota: true,
       };
     return {
@@ -221,7 +221,7 @@ export async function readReceipt(file: string, mime: string): Promise<ReceiptRe
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'quota_exceeded')
       return {
-        error: `Deine ${http.limit ?? 5} Gratis-Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit Lunaxora Pro liest Luna weiter.`,
+        error: `Deine ${http.limit ?? 5} Belege zum Auslesen im Starter-Abo sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit Lunaxora Pro liest Luna weiter.`,
         quota: true,
       };
     if (http.code === 'file_too_large') return { error: 'Die Datei ist zu groß zum Lesen (höchstens 6 MB).' };

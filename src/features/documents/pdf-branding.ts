@@ -1,5 +1,5 @@
 /**
- * Hinweis „Erstellt mit Lunaxora“ unten auf PDFs (Gratis-Abo). Eigene kleine
+ * Hinweis „Erstellt mit Lunaxora“ unten auf PDFs (Starter-Abo). Eigene kleine
  * Datei, damit die App den Schalter setzen kann, ohne die PDF-Bibliothek zu laden.
  */
 let branding = false;

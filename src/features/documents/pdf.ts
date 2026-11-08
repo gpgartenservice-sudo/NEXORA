@@ -281,7 +281,7 @@ export function drawFooter(p: PDFPage, s: Seller, regular: PDFFont) {
         p.drawText(safe(l), { x: M.left + i * colW, y: top - j * 10, size: 7.5, font: regular, color: MUTED }),
       );
   });
-  // Gratis-Abo: kleiner Hinweis ganz unten
+  // Starter-Abo: kleiner Hinweis ganz unten
   if (pdfBranding()) {
     const t = safe(BRANDING_TEXT);
     p.drawText(t, { x: (A4.w - regular.widthOfTextAtSize(t, 6.5)) / 2, y: 14, size: 6.5, font: regular, color: MUTED });
