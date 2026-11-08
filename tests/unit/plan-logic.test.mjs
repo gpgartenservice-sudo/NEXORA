@@ -1,4 +1,4 @@
-// Unit-Tests: Abo (Gratis/Pro). Start: npm run test:unit
+// Unit-Tests: Abo (Starter/Pro). Start: npm run test:unit
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -44,18 +44,18 @@ test('Testphase zählt wie Pro, Tage aufgerundet', () => {
   assert.equal(planLabel(t, NOW), 'Pro-Test · noch 12 Tage');
   assert.equal(planLabel(parsePlan(raw({ plan: 'trial', trial_ends_at: '2026-11-03T20:00:00Z' })), NOW), 'Pro-Test · noch 1 Tag');
   assert.equal(planLabel(parsePlan(raw({ plan: 'pro' })), NOW), 'Pro');
-  assert.equal(planLabel(parsePlan(raw()), NOW), 'Gratis');
+  assert.equal(planLabel(parsePlan(raw()), NOW), 'Starter');
   assert.equal(trialDaysLeft(parsePlan(raw()), NOW), null);
 });
 
-test('Verbleibende Gratis-Nachrichten/Belege', () => {
+test('Verbleibende Starter-Nachrichten/Belege', () => {
   const p = parsePlan(raw());
   assert.equal(quotaText(p, 'nexy'), 'Noch 3 von 20 Luna-Nachrichten in diesem Monat');
   assert.equal(quotaText(p, 'receipt'), 'Noch 0 von 5 Belegen zum Auslesen in diesem Monat');
   assert.equal(quotaText(parsePlan(raw({ plan: 'pro' })), 'nexy'), null);
 });
 
-test('Vergleich: Pro kann alles, Gratis hat die Grundfunktionen', () => {
+test('Vergleich: Pro kann alles, Starter hat die Grundfunktionen', () => {
   assert.ok(COMPARISON.every((r) => r.pro !== false));
   assert.ok(COMPARISON.filter((r) => r.free === true).length >= 5);
 });
@@ -67,4 +67,17 @@ test('Server sagt „nur mit Pro“ (Datenbank PT402 bzw. Text)', async () => {
   assert.equal(isProRequired({ code: '42501', message: 'permission denied' }), false);
   assert.equal(isProRequired(null), false);
   assert.match(proRequiredText('dunning'), /^„1\. Mahnung und letzte Mahnung“ gibt es mit Lunaxora Pro\./);
+});
+
+test('Preise: Starter 9,99 €, Pro 59,99 € bzw. 599,99 € im Jahr (wie auf lunaxora.de)', async () => {
+  const { PRICE_STARTER, PRICE_MONTH, PRICE_YEAR, yearSaving, formatPrice } = await import(
+    '../../src/features/plan/plan-logic.ts'
+  );
+  const eur = (n) => formatPrice(n).replace(/\s/g, ' ');
+  assert.equal(eur(PRICE_STARTER), '9,99 €');
+  assert.equal(eur(PRICE_MONTH), '59,99 €');
+  assert.equal(eur(PRICE_YEAR), '599,99 €');
+  // 12 × 59,99 = 719,88 → 119,89 € gespart (knapp unter zwei Monaten, daher kein „zwei Monate geschenkt“)
+  assert.equal(yearSaving(), 119.89);
+  assert.equal(eur(yearSaving()), '119,89 €');
 });

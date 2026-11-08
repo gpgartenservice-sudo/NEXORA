@@ -18,7 +18,7 @@ type State = {
 const Ctx = createContext<State | null>(null);
 const MISSING = ['PGRST202', 'PGRST205', '42883', '42P01'];
 
-/** Abo des angemeldeten Nutzers (Gratis / Testphase / Pro) und Verbrauch im Monat. */
+/** Abo des angemeldeten Nutzers (Starter / Testphase / Pro) und Verbrauch im Monat. */
 export function PlanProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [info, setInfo] = useState<PlanInfo | null>(null);
   const [missing, setMissing] = useState(false);
@@ -54,7 +54,7 @@ export function PlanProvider({ userId, children }: { userId: string; children: R
 
   const pro = missing || !info || isPro(info.plan);
 
-  // Gratis: „Erstellt mit Lunaxora“ unten auf den PDFs
+  // Starter: „Erstellt mit Lunaxora“ unten auf den PDFs
   useEffect(() => {
     setPdfBranding(!pro);
   }, [pro]);

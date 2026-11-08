@@ -106,7 +106,7 @@ export function NexyScreen() {
     guiding.current = !!guide?.running;
   });
   const { info } = usePlan();
-  // Gratis: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
+  // Starter: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
   const left = info && info.plan === 'free' ? info.usage.nexy.limit - info.usage.nexy.used : null;
   const quotaHint = left !== null && left <= 5 && info ? quotaText(info, 'nexy') : null;
   const voice = useVoiceMode();

@@ -19,16 +19,18 @@ import {
   formatPrice,
   planLabel,
   PRICE_MONTH,
+  PRICE_STARTER,
   PRICE_YEAR,
   PRO_LIMITS,
   type ProFeature,
   type QuotaKind,
+  yearSaving,
 } from './plan-logic';
 import { usePlan } from './plan-provider';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/profil'));
 
-/** Abo: aktueller Stand, Verbrauch, Vergleich Gratis/Pro, Pro holen. */
+/** Abo: aktueller Stand, Verbrauch, Vergleich Starter/Pro, Pro holen. */
 export function PlanScreen() {
   const { funktion } = useLocalSearchParams<{ funktion?: string }>();
   const feature = funktion && funktion in FEATURE_LABEL ? (funktion as ProFeature) : null;
@@ -40,7 +42,7 @@ export function PlanScreen() {
     <Screen maxWidth={760}>
       <PageHeader
         title="Dein Abo"
-        subtitle="Lunaxora Gratis oder Pro – was drin ist."
+        subtitle="Lunaxora Starter oder Pro – was drin ist."
         back={{ label: 'Profil', onPress: back }}
       />
       {feature && (
@@ -64,12 +66,12 @@ export function PlanScreen() {
             </Text>
             <Text style={styles.body}>
               {info.plan === 'trial' && info.trial_ends_at
-                ? `Du testest alle Pro-Funktionen bis zum ${formatDay(info.trial_ends_at.slice(0, 10))}. Danach geht es mit Gratis weiter – deine Daten bleiben.`
+                ? `Du testest alle Pro-Funktionen bis zum ${formatDay(info.trial_ends_at.slice(0, 10))}. Danach wählst du Starter oder Pro – deine Daten bleiben.`
                 : info.plan === 'pro'
                   ? info.current_period_end
                     ? `Läuft bis zum ${formatDay(info.current_period_end.slice(0, 10))} und verlängert sich automatisch.`
                     : 'Alle Funktionen freigeschaltet. Danke für deine Unterstützung!'
-                  : 'Die wichtigsten Funktionen bleiben kostenlos. Mit Pro sparst du dir Arbeit.'}
+                  : 'Starter enthält die wichtigsten Funktionen. Mit Pro sparst du dir Arbeit.'}
             </Text>
             <UsageRow
               kind="nexy"
@@ -91,8 +93,18 @@ export function PlanScreen() {
         <Card>
           <View style={styles.head}>
             <View style={[styles.col, styles.colLabel]} />
-            <Text style={[styles.col, styles.colHead]}>Gratis</Text>
-            <Text style={[styles.col, styles.colHead, styles.proHead]}>Pro</Text>
+            <View style={styles.col}>
+              <Text style={styles.colHead}>Starter</Text>
+              <Text style={styles.colPrice} testID="plan-price-starter">
+                {formatPrice(PRICE_STARTER)}
+              </Text>
+            </View>
+            <View style={styles.col}>
+              <Text style={[styles.colHead, styles.proHead]}>Pro</Text>
+              <Text style={styles.colPrice} testID="plan-price-pro">
+                {formatPrice(PRICE_MONTH)}
+              </Text>
+            </View>
           </View>
           {COMPARISON.map((row) => (
             <View key={row.label} style={styles.row}>
@@ -102,7 +114,8 @@ export function PlanScreen() {
             </View>
           ))}
           <Text style={styles.hint}>
-            * faire Nutzung: bis {PRO_LIMITS.nexy} Luna-Nachrichten und {PRO_LIMITS.receipt} Belege im Monat.
+            Preise im Monat. * faire Nutzung: bis {PRO_LIMITS.nexy} Luna-Nachrichten und {PRO_LIMITS.receipt} Belege
+            im Monat.
           </Text>
         </Card>
       </Reveal>
@@ -117,8 +130,8 @@ export function PlanScreen() {
             {formatPrice(PRICE_MONTH)} <Text style={styles.per}>im Monat</Text>
           </Text>
           <Text style={styles.body}>
-            oder {formatPrice(PRICE_YEAR)} im Jahr – zwei Monate geschenkt. Jederzeit kündbar, deine Daten bleiben immer
-            deine.
+            oder {formatPrice(PRICE_YEAR)} im Jahr – du sparst {formatPrice(yearSaving())}. Jederzeit kündbar, deine
+            Daten bleiben immer deine.
           </Text>
           {info?.plan !== 'pro' && <Button label="Pro holen" onPress={() => setAsked(true)} />}
           {asked && (
@@ -184,7 +197,15 @@ const styles = StyleSheet.create({
   },
   col: { width: 64, alignItems: 'center', textAlign: 'center' },
   colLabel: { flex: 1, width: undefined, alignItems: 'flex-start', textAlign: 'left' },
-  colHead: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
+  colHead: { color: Colors.textMuted, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  colPrice: {
+    color: Colors.textFaint,
+    fontSize: 11.5,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+    marginTop: 2,
+  },
   proHead: { color: Colors.accent },
   rowLabel: { color: Colors.text, fontSize: 14, lineHeight: 19, paddingRight: Spacing.sm },
   cellText: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
