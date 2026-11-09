@@ -163,13 +163,22 @@ test('Eintragen: Bestätigungs-E-Mail mit Knopf, Austragen-Link und Anbieter-Ang
   assert.match(text, new RegExp(`Austragen: https://lunaxora\\.de/#austragen=${TOK}`));
   assert.match(text, /Musterstraße 1/);
   assert.match(html, new RegExp(`href="https://lunaxora\\.de/#bestaetigen=${TOK}"`));
-  assert.match(html, />Platz bestätigen</);
+  assert.match(html, />Platz bestätigen&nbsp;&#8594;</);
+  // Gestaltung: dunkel wie lunaxora.de, Logo + App-Icon als eingebettete Bilder (nichts von fremden Servern)
+  assert.match(html, /<meta name="color-scheme" content="dark">/);
+  assert.match(html, /src="cid:lx-logo@lunaxora\.de"/);
+  assert.match(html, /src="cid:lx-icon@lunaxora\.de"/);
+  assert.doesNotMatch(html, /src="https?:/);
+  assert.match(mime, /^Content-Type: multipart\/related; type="multipart\/alternative";\r\n boundary="lxr-[A-Za-z0-9]+"\r\n/m);
+  assert.match(mime, /^Content-ID: <lx-logo@lunaxora\.de>/m);
+  assert.match(mime, /^Content-ID: <lx-icon@lunaxora\.de>/m);
+  assert.match(text, /^Nur noch ein Klick\r\n\r\nHallo,\r\n/);
   // gegen Spam-Filter: Marke im Betreff, kein Drängeln, Grund für die E-Mail im Fuß
   assert.match(mime, /^Subject: =\?UTF-8\?B\?/m);
   assert.equal(confirmMail({ link: 'l', leave: 'l', imprint: '', bonusLeft: 1, slots: 20 }).subject, 'Bitte bestätige deine Anmeldung zur Lunaxora-Warteliste');
   assert.doesNotMatch(text, /am besten gleich|!/);
   assert.match(text, /Du bekommst diese E-Mail, weil diese Adresse auf lunaxora\.de für die Warteliste eingetragen wurde\./);
-  assert.match(html, /Du bekommst diese E-Mail, weil diese Adresse auf lunaxora\.de für die Warteliste eingetragen wurde\./);
+  assert.match(html, /Du bekommst diese E-Mail, weil diese Adresse auf <a href="https:\/\/lunaxora\.de"[^>]*>lunaxora\.de<\/a> für die Warteliste eingetragen wurde\./);
 });
 
 test('Eintragen: ohne freie Pro-Plätze kein Bonus-Versprechen in der E-Mail', () => {
@@ -368,6 +377,65 @@ test('MIME: Betreff mit Umlauten, Text und HTML als Alternative, Punkt-Zeilen si
   const [text, html] = decodeParts(mime);
   assert.equal(text, 'Zeile\r\n.Punkt');
   assert.equal(html, '<p>x</p>');
+});
+
+test('MIME: Bilder als cid:-Anhänge (multipart/related um Text + HTML)', () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
+  const mime = buildMime({
+    from: 'emails@lunaxora.de',
+    to: 'a@b.de',
+    mail: { subject: 'x', text: 't', html: '<img src="cid:i@x">', inline: [{ cid: 'i@x', filename: 'i.png', type: 'image/png', base64: png }] },
+    unsubscribe: `${FN}?leave=${TOK}`,
+    date: new Date('2026-11-07T12:00:00Z'),
+    messageId: '<abc@lunaxora.de>',
+  });
+  const head = mime.split('\r\n\r\n')[0];
+  assert.match(head, /^Content-Type: multipart\/related; type="multipart\/alternative";\r\n boundary="lxr-abclunaxorade"$/m);
+  assert.doesNotMatch(head, /multipart\/alternative; boundary/);
+  // Reihenfolge: related -> alternative (Text, HTML) -> Bild, alles sauber geschlossen
+  const order = ['--lxr-abclunaxorade', 'multipart/alternative; boundary="lx-abclunaxorade"', 'text/plain', 'text/html', '--lx-abclunaxorade--', 'Content-ID: <i@x>', '--lxr-abclunaxorade--'];
+  let at = 0;
+  for (const o of order) {
+    const i = mime.indexOf(o, at);
+    assert.ok(i >= at, `${o} fehlt oder steht falsch`);
+    at = i + o.length;
+  }
+  assert.match(mime, /Content-Disposition: inline; filename="i\.png"/);
+  const [text, html, img] = decodeParts(mime);
+  assert.equal(text, 't');
+  assert.equal(html, '<img src="cid:i@x">');
+  assert.equal(Buffer.from(img, 'utf8').length > 0, true);
+  assert.ok(mime.endsWith('--lxr-abclunaxorade--\r\n'));
+});
+
+test('E-Mails: Bilder echt (PNG), jeder Text genau einmal, kein "!" im sichtbaren Text', async () => {
+  const { MAIL_IMAGES } = await import('../../supabase/functions/waitlist/index.ts');
+  assert.deepEqual(MAIL_IMAGES.map((i) => i.cid), ['lx-logo@lunaxora.de', 'lx-icon@lunaxora.de']);
+  for (const i of MAIL_IMAGES) {
+    const b = Buffer.from(i.base64, 'base64');
+    assert.equal(b.subarray(1, 4).toString('latin1'), 'PNG');
+    assert.ok(b.length < 12000, `${i.filename} zu groß`);
+  }
+  const o = { leave: 'https://lunaxora.de/#austragen=t', imprint: 'A · B' };
+  const mails = [
+    confirmMail({ ...o, link: 'https://lunaxora.de/#bestaetigen=t', bonusLeft: 3, slots: 20 }),
+    welcomeMail({ ...o, place: 7, bonus: true, slots: 20 }),
+    welcomeMail({ ...o, place: 27, bonus: false, slots: 20 }),
+    alreadyMail({ ...o, place: 7, bonus: true, slots: 20 }),
+  ];
+  for (const m of mails) {
+    const visible = m.html.replace(/<!--[\s\S]*?-->/g, '').replace(/<!doctype html>/i, '').replace(/<[^>]+>/g, ' ');
+    assert.doesNotMatch(visible, /!/);
+    assert.doesNotMatch(m.text, /!/);
+    assert.equal(m.html.match(/Du bekommst diese E-Mail, weil/g).length, 1);
+    assert.equal(m.html.match(/>Austragen</g).length, 1);
+    assert.ok(Buffer.byteLength(m.html) < 30000);
+  }
+  // Platz groß in der Kachel und im Satz, Willkommen ohne Bonus mit Test-Hinweis statt Geschenk
+  assert.match(mails[1].html, />7<\/p>/);
+  assert.match(mails[2].html, />14 Tage Pro testen</);
+  assert.doesNotMatch(mails[2].html, />3 Monate Pro kostenlos</);
+  assert.match(mails[1].html, /Du stehst auf Platz 7 der Warteliste\./);
 });
 
 test('HTML der E-Mails: Anbieter-Angaben werden maskiert', () => {
