@@ -35,6 +35,8 @@ const RESEND_URL = 'https://api.resend.com/emails';
 export const CONSENT = 'website-2026-11-07';
 /** Bots schicken das Formular schneller ab, als ein Mensch tippt */
 const MIN_FILL_MS = 1500;
+/** Höchstdauer für eine E-Mail. Der Mailserver von webgo braucht manchmal über 12 s; die Website wartet 30 s. */
+const MAIL_DEADLINE_MS = 25000;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +69,7 @@ type Deps = {
   randomBytes?: (n: number) => Uint8Array;
   /** Arbeit nach der Antwort zu Ende bringen (Supabase: EdgeRuntime.waitUntil; Tests: ohne = abwarten) */
   waitUntil?: (p: Promise<unknown>) => void;
-  /** Höchstdauer für eine E-Mail beim Eintragen (die Website bricht nach 15 s ab) */
+  /** Höchstdauer für eine E-Mail (Standard MAIL_DEADLINE_MS; die Website bricht nach 30 s ab) */
   mailDeadlineMs?: number;
 };
 
@@ -920,7 +922,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
               slots: row.o_slots,
             });
       try {
-        await sendMailWithin(deps.mailDeadlineMs ?? 12000, deps, cfg, email, mail, row.o_token);
+        await sendMailWithin(deps.mailDeadlineMs ?? MAIL_DEADLINE_MS, deps, cfg, email, mail, row.o_token);
       } catch (e) {
         // Bremse zurücknehmen, damit man es gleich noch einmal versuchen kann. Lehnt der Mailserver
         // die Empfänger-Adresse ab, zählt der Versuch für den Anschluss trotzdem (gegen Durchprobieren).
@@ -950,7 +952,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
         if ('error' in mailCfg) console.error('waitlist welcome mail', mailCfg.error);
         else {
           const sending = sendMailWithin(
-            deps.mailDeadlineMs ?? 12000,
+            deps.mailDeadlineMs ?? MAIL_DEADLINE_MS,
             deps,
             { ...base, ...mailCfg },
             row.o_email,
