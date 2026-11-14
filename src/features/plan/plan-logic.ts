@@ -1,12 +1,13 @@
 /**
- * Abo (Gratis / Pro) – reine Logik (ohne App/Netz, mit Unit-Tests).
- * Die verbindlichen Grenzen prüft der Server (Skript 20261116090000_plans.sql,
- * Funktionen "assistant" und "mail"); die App zeigt sie nur an.
+ * Abo (Gratis / Pro / Business) – reine Logik (ohne App/Netz, mit Unit-Tests).
+ * Die verbindlichen Grenzen prüft der Server (Skripte 20261116090000_plans.sql und
+ * 20261117090000_plan_tiers.sql, Funktionen "assistant" und "mail"); die App zeigt sie nur an.
  */
 import { toIso, toMs } from '../../lib/dates';
 
-export type PlanKind = 'free' | 'trial' | 'pro';
-export type QuotaKind = 'nexy' | 'receipt';
+export type PlanKind = 'free' | 'trial' | 'pro' | 'business';
+export type QuotaKind = 'nexy' | 'receipt' | 'voice';
+export type PaidTier = 'pro' | 'business';
 export type Usage = { used: number; limit: number };
 
 export type PlanInfo = {
@@ -18,11 +19,19 @@ export type PlanInfo = {
   usage: Record<QuotaKind, Usage>;
 };
 
-export const PRICE_MONTH = 9.99;
-export const PRICE_YEAR = 99;
+/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt – Kostenrechnung November 2026, Luna auf Sonnet 5.5 */
+export const PRICES: Record<PaidTier, { month: number; year: number }> = {
+  pro: { month: 14.99, year: 149 },
+  business: { month: 29.99, year: 299 },
+};
 export const TRIAL_DAYS = 14;
-export const FREE_LIMITS: Record<QuotaKind, number> = { nexy: 20, receipt: 5 };
-export const PRO_LIMITS: Record<QuotaKind, number> = { nexy: 300, receipt: 300 };
+/** Grenzen je Kalendermonat – gleiche Zahlen wie nexora_limit() in 20261117090000_plan_tiers.sql */
+export const LIMITS: Record<PlanKind, Record<QuotaKind, number>> = {
+  free: { nexy: 15, receipt: 3, voice: 30 },
+  trial: { nexy: 50, receipt: 20, voice: 70 },
+  pro: { nexy: 100, receipt: 50, voice: 120 },
+  business: { nexy: 200, receipt: 150, voice: 220 },
+};
 
 export type ProFeature =
   | 'direct_mail'
@@ -39,28 +48,34 @@ export const FEATURE_LABEL: Record<ProFeature, string> = {
   offer_link: 'Angebote online annehmen lassen',
   dunning: '1. Mahnung und letzte Mahnung',
   tax_zip: 'Steuer-Export als ZIP',
-  social_connect: 'TikTok & Instagram verbinden',
+  social_connect: 'TikTok verbinden',
   calendar_feed: 'Kalender-Abo',
   no_branding: 'PDFs ohne „Erstellt mit Lunaxora“',
 };
 
-/** Vergleich Gratis / Pro (für die Abo-Seite) */
-export const COMPARISON: { label: string; free: string | boolean; pro: string | boolean }[] = [
-  { label: 'Kunden, Aufträge, Termine, To-dos & Ziele', free: true, pro: true },
-  { label: 'Angebote & Rechnungen als PDF mit Logo', free: true, pro: true },
-  { label: 'Finanzen, Steuer-Topf, Kleinunternehmer-Grenze', free: true, pro: true },
-  { label: 'Einkommensnachweis', free: true, pro: true },
-  { label: 'Social-Media-Planung', free: true, pro: true },
-  { label: 'Zahlungserinnerung', free: true, pro: true },
-  { label: 'Luna-Nachrichten pro Monat', free: '20', pro: 'unbegrenzt*' },
-  { label: 'Belege von Luna auslesen lassen', free: '5 / Monat', pro: 'unbegrenzt*' },
-  { label: FEATURE_LABEL.direct_mail, free: false, pro: true },
-  { label: FEATURE_LABEL.offer_link, free: false, pro: true },
-  { label: FEATURE_LABEL.dunning, free: false, pro: true },
-  { label: FEATURE_LABEL.tax_zip, free: false, pro: true },
-  { label: FEATURE_LABEL.social_connect, free: false, pro: true },
-  { label: FEATURE_LABEL.calendar_feed, free: false, pro: true },
-  { label: 'PDFs ohne „Erstellt mit Lunaxora“', free: false, pro: true },
+type Cell = string | boolean;
+const both = (free: Cell, pro: Cell, business: Cell = pro) => ({ free, pro, business });
+const perMonth = (k: QuotaKind) => both(String(LIMITS.free[k]), String(LIMITS.pro[k]), String(LIMITS.business[k]));
+
+/** Vergleich Gratis / Pro / Business (für die Abo-Seite; \u00AD = Trennstelle für schmale Handys) */
+export const COMPARISON: ({ label: string } & Record<'free' | PaidTier, Cell>)[] = [
+  { label: 'Kunden, Aufträge, Termine, To-dos & Ziele', ...both(true, true) },
+  { label: 'Fahrplan für den Start in die Selbst\u00ADständigkeit', ...both(true, true) },
+  { label: 'Angebote & Rechnungen als PDF mit Logo', ...both(true, true) },
+  { label: 'Finanzen, Steuer-Topf, Klein\u00ADunternehmer-Grenze', ...both(true, true) },
+  { label: 'Einkommens\u00ADnachweis', ...both(true, true) },
+  { label: 'Social-Media-Planung mit Zahlen & Hashtags', ...both(true, true) },
+  { label: 'Zahlungs\u00ADerinnerung', ...both(true, true) },
+  { label: 'Luna-Nachrichten pro Monat', ...perMonth('nexy') },
+  { label: 'Belege von Luna auslesen lassen (pro Monat)', ...perMonth('receipt') },
+  { label: 'Luna liest vor (Antworten pro Monat, ca.)', ...perMonth('voice') },
+  { label: FEATURE_LABEL.direct_mail, ...both(false, true) },
+  { label: FEATURE_LABEL.offer_link, ...both(false, true) },
+  { label: FEATURE_LABEL.dunning, ...both(false, true) },
+  { label: FEATURE_LABEL.tax_zip, ...both(false, true) },
+  { label: FEATURE_LABEL.social_connect, ...both(false, true) },
+  { label: FEATURE_LABEL.calendar_feed, ...both(false, true) },
+  { label: 'PDFs ohne „Erstellt mit Lunaxora“', ...both(false, true) },
 ];
 
 /** Hat der Server mit „nur mit Pro“ geantwortet? (Datenbank: Fehler PT402 / Funktion: 402) */
@@ -73,7 +88,7 @@ export function proRequiredText(feature: ProFeature): string {
   return `„${FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Pro. Deine Testphase ist vorbei – unter Profil → Abo siehst du, was Pro kann.`;
 }
 
-/** Testphase zählt wie Pro */
+/** Testphase und Business zählen wie Pro (alle Pro-Funktionen) */
 export const isPro = (plan: PlanKind) => plan !== 'free';
 
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
@@ -83,19 +98,20 @@ const date = (v: unknown) => (typeof v === 'string' ? toIso(v) : null);
 export function parsePlan(raw: unknown): PlanInfo | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  if (r.plan !== 'free' && r.plan !== 'trial' && r.plan !== 'pro') return null;
+  const plan = r.plan;
+  if (plan !== 'free' && plan !== 'trial' && plan !== 'pro' && plan !== 'business') return null;
   const usage = (r.usage ?? {}) as Record<string, Record<string, unknown> | undefined>;
   const u = (k: QuotaKind): Usage => ({
     used: Math.max(0, num(usage[k]?.used, 0)),
-    limit: Math.max(0, num(usage[k]?.limit, r.plan === 'free' ? FREE_LIMITS[k] : PRO_LIMITS[k])),
+    limit: Math.max(0, num(usage[k]?.limit, LIMITS[plan][k])),
   });
   return {
-    plan: r.plan,
+    plan,
     status: typeof r.status === 'string' ? r.status : '',
     trial_ends_at: date(r.trial_ends_at),
     current_period_end: date(r.current_period_end),
     month: typeof r.month === 'string' ? r.month : '',
-    usage: { nexy: u('nexy'), receipt: u('receipt') },
+    usage: { nexy: u('nexy'), receipt: u('receipt'), voice: u('voice') },
   };
 }
 
@@ -106,8 +122,9 @@ export function trialDaysLeft(info: PlanInfo, now: Date): number | null {
   return ms > 0 ? Math.ceil(ms / 86_400_000) : 0;
 }
 
-/** „Pro“, „Pro-Test · noch 12 Tage“, „Gratis“ */
+/** „Business“, „Pro“, „Pro-Test · noch 12 Tage“, „Gratis“ */
 export function planLabel(info: PlanInfo, now: Date): string {
+  if (info.plan === 'business') return 'Business';
   if (info.plan === 'pro') return 'Pro';
   if (info.plan === 'trial') {
     const d = trialDaysLeft(info, now) ?? 0;
@@ -116,16 +133,35 @@ export function planLabel(info: PlanInfo, now: Date): string {
   return 'Gratis';
 }
 
-/** „Noch 3 von 20 Luna-Nachrichten im November“ (nur bei Gratis, sonst null) */
-export function quotaText(info: PlanInfo, kind: QuotaKind): string | null {
-  if (info.plan !== 'free') return null;
+/** „Noch 3 von 15 Luna-Nachrichten in diesem Monat“ (gilt für jedes Abo – alle haben Grenzen) */
+export function quotaText(info: PlanInfo, kind: QuotaKind): string {
   const { used, limit } = info.usage[kind];
   const left = Math.max(0, limit - used);
+  if (kind === 'nexy') return `Noch ${left} von ${limit} ${limit === 1 ? 'Luna-Nachricht' : 'Luna-Nachrichten'} in diesem Monat`;
+  if (kind === 'receipt') return `Noch ${left} von ${limit} ${limit === 1 ? 'Beleg' : 'Belegen'} zum Auslesen in diesem Monat`;
+  return `Noch ${left} von ${limit}-mal Vorlesen in diesem Monat`;
+}
+
+const UPGRADE: Record<PlanKind, string> = {
+  free: 'Mit Lunaxora Pro geht es gleich weiter',
+  trial: 'Mit Lunaxora Pro geht es gleich weiter',
+  pro: 'Mit Lunaxora Business hast du doppelt so viel',
+  business: 'Ab dem 1. des nächsten Monats geht es weiter',
+};
+
+/** Hinweis, wenn der Server „Kontingent aufgebraucht“ meldet (Funktion "assistant", Fehler quota_exceeded) */
+export function quotaExceededText(kind: QuotaKind, plan: unknown, limit: unknown): string {
+  const p: PlanKind = plan === 'trial' || plan === 'pro' || plan === 'business' ? plan : 'free';
+  const n = typeof limit === 'number' && limit > 0 ? limit : LIMITS[p][kind];
+  const own = p === 'free' ? 'Gratis-' : p === 'trial' ? 'Test-' : '';
   const what =
-    kind === 'nexy' ? (limit === 1 ? 'Luna-Nachricht' : 'Luna-Nachrichten') : limit === 1 ? 'Beleg' : 'Belegen';
-  return kind === 'nexy'
-    ? `Noch ${left} von ${limit} ${what} in diesem Monat`
-    : `Noch ${left} von ${limit} ${what} zum Auslesen in diesem Monat`;
+    kind === 'nexy'
+      ? `Deine ${n} ${own}Nachrichten an Luna sind für diesen Monat aufgebraucht.`
+      : kind === 'receipt'
+        ? `Deine ${n} ${own}Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert.`
+        : `Lunas Stimme ist für diesen Monat aufgebraucht (${n}-mal Vorlesen) – sie antwortet weiter als Text.`;
+  const next = p === 'business' ? `${UPGRADE.business}.` : `${UPGRADE[p]} – sonst wieder ab dem 1. des nächsten Monats.`;
+  return `${what} ${next} Dein Abo siehst du unter Profil → Abo.`;
 }
 
 export function formatPrice(n: number): string {

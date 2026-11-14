@@ -48,6 +48,8 @@ const ABOUT: Record<ConnectedPlatform, string> = {
   tiktok: 'Follower, Likes und die Aufrufe jedes Videos – automatisch.',
   instagram: 'Follower, Likes, Aufrufe und Gespeichert pro Beitrag (Business- oder Creator-Konto).',
 };
+/** Noch nicht freigeschaltet – die Karte zeigt „Kommt mit dem nächsten Update“. Zum Freischalten hier entfernen. */
+const NEXT_UPDATE: ConnectedPlatform[] = ['instagram'];
 const PAGE = 20;
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
 const shortDate = (iso: string | null) =>
@@ -68,9 +70,9 @@ export function AccountsView() {
   return (
     <View style={styles.wrap}>
       <Text style={styles.intro}>
-        Verbinde deine Konten – dann kommen Follower, Aufrufe und Likes automatisch, und neue Videos landen bei der
-        passenden Idee. Du meldest dich direkt bei TikTok bzw. Instagram an; Lunaxora liest nur deine Zahlen und postet
-        nichts.
+        Verbinde dein TikTok-Konto – dann kommen Follower, Aufrufe und Likes automatisch, und neue Videos landen bei der
+        passenden Idee. Du meldest dich direkt bei TikTok an; Lunaxora liest nur deine Zahlen und postet nichts.
+        Instagram kommt mit dem nächsten Update.
       </Text>
 
       {c.message && (
@@ -133,6 +135,22 @@ function AccountCard({
   const gate = useProGate();
   const ready = c.setup ? c.setup[platform] : null;
   const supported = connectSupported();
+
+  if (!account && NEXT_UPDATE.includes(platform)) {
+    return (
+      <Card style={styles.card}>
+        <View style={styles.cardHead}>
+          <PlatformIcon platform={platform} />
+          <View style={styles.flex}>
+            <Text style={styles.cardTitle}>{name}</Text>
+            <Text style={styles.cardSub}>Noch nicht verfügbar</Text>
+          </View>
+        </View>
+        <Text style={styles.about}>{ABOUT[platform]}</Text>
+        <Button label="Kommt mit dem nächsten Update" onPress={() => {}} disabled />
+      </Card>
+    );
+  }
 
   if (!account) {
     return (

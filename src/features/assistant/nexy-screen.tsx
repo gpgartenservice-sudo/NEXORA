@@ -106,8 +106,9 @@ export function NexyScreen() {
     guiding.current = !!guide?.running;
   });
   const { info } = usePlan();
-  // Gratis: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
-  const left = info && info.plan === 'free' ? info.usage.nexy.limit - info.usage.nexy.used : null;
+  // Jedes Abo hat eine Grenze: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
+  const left = info ? info.usage.nexy.limit - info.usage.nexy.used : null;
+  const paid = info?.plan === 'pro' || info?.plan === 'business';
   const quotaHint = left !== null && left <= 5 && info ? quotaText(info, 'nexy') : null;
   const voice = useVoiceMode();
   const { stop: stopVoice, stopReading, read } = voice;
@@ -358,7 +359,7 @@ export function NexyScreen() {
           <Text style={styles.quota} testID="nexy-quota">
             {quotaHint} ·{' '}
             <Text style={styles.quotaLink} onPress={() => openPlanScreen()} accessibilityRole="link">
-              Pro ansehen
+              {paid ? 'Abo ansehen' : 'Pro ansehen'}
             </Text>
           </Text>
         )}
@@ -397,7 +398,7 @@ function NexyRow({
         </View>
         {m.quota && (
           <View style={styles.quotaAction}>
-            <ActionChip icon={Sparkles} label="Lunaxora Pro ansehen" onPress={() => openPlanScreen()} />
+            <ActionChip icon={Sparkles} label="Abo ansehen" onPress={() => openPlanScreen()} />
           </View>
         )}
         {m.notSetUp && (

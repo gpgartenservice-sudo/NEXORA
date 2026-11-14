@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Music2 } from 'lucide-react-native';
+import { Music2, Sparkles } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
@@ -11,6 +11,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Spacing } from '@/constants/theme';
+import { useNexy } from '@/features/assistant/nexy-provider';
 import { StatRow, StatTile } from '@/features/crm/ui';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
@@ -26,11 +27,15 @@ import { WeekView } from './week-view';
 
 type View_ = 'board' | 'week' | 'numbers' | 'tags' | 'accounts';
 
+const ANALYZE_PROMPT =
+  'Analysiere meine Social-Media-Zahlen: Welche Formate und Plattformen liefen am besten, welche Posts waren am stärksten – und was sollte ich als Nächstes mehr posten?';
+
 /** Bereich Social Media: Content-Board, Wochenplan, Zahlen, Hashtag-Sets, verbundene Konten. */
 export function SocialScreen() {
   const { posts, loading, error } = useSocial();
   const connect = useSocialConnect();
   const { finishReturn, autoSync, loading: accountsLoading } = connect;
+  const { send, thinking } = useNexy();
   const params = useLocalSearchParams<ReturnParams>();
   const { width } = useWindowDimensions();
   useAreaTutorial('social');
@@ -62,6 +67,12 @@ export function SocialScreen() {
     if (!accountsLoading) autoSync();
   }, [accountsLoading, autoSync]);
 
+  // Luna wertet die Zahlen aus (Formate, Plattformen, stärkste Posts – siehe socialAnalysis im Kontext)
+  const analyze = () => {
+    void send(ANALYZE_PROMPT);
+    router.push('/assistent');
+  };
+
   const count = (s: ReturnType<typeof computePostStatus>) => posts.filter((p) => computePostStatus(p) === s).length;
   const monday = startOfWeek(new Date());
   const weekStart = dayKey(monday);
@@ -83,10 +94,11 @@ export function SocialScreen() {
           <TourTarget id="social.aktionen" style={styles.actions}>
             <ActionChip
               icon={Music2}
-              label={connect.accounts.length ? 'TikTok & Instagram' : 'TikTok & Instagram verbinden'}
+              label={connect.accounts.length ? 'TikTok' : 'TikTok verbinden'}
               active={view === 'accounts'}
               onPress={() => setView('accounts')}
             />
+            <ActionChip icon={Sparkles} label="Mit Luna analysieren" onPress={analyze} disabled={thinking} />
             <Button label="+ Idee" onPress={() => router.push('/social/neu')} style={styles.action} />
           </TourTarget>
         }

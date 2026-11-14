@@ -1,6 +1,7 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
 import { todayIso } from '@/features/documents/document-logic';
+import { quotaExceededText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 import type { ReceiptReading } from '@/features/finance/receipt-logic';
@@ -19,7 +20,7 @@ const SETUP =
 
 export type HistoryEntry = { role: 'user' | 'nexy'; text: string };
 
-type HttpFailure = { status: number; code?: string; detail?: string; limit?: number };
+type HttpFailure = { status: number; code?: string; detail?: string; limit?: number; plan?: string };
 
 /** Fehlerantwort der Server-Funktion auslesen (Status, Fehlercode, kurze Beschreibung) */
 async function httpFailure(error: unknown): Promise<HttpFailure | null> {
@@ -28,15 +29,17 @@ async function httpFailure(error: unknown): Promise<HttpFailure | null> {
   let code: string | undefined;
   let detail: string | undefined;
   let limit: number | undefined;
+  let plan: string | undefined;
   try {
     const body = await res.json();
     code = body?.error;
     detail = typeof body?.detail === 'string' ? body.detail : undefined;
     limit = typeof body?.limit === 'number' ? body.limit : undefined;
+    plan = typeof body?.plan === 'string' ? body.plan : undefined;
   } catch {
     // keine JSON-Antwort
   }
-  return { status: res.status, code, detail, limit };
+  return { status: res.status, code, detail, limit, plan };
 }
 
 const technical = (f: HttpFailure) => `${f.status} ${f.code ?? ''}${f.detail ? ` – ${f.detail}` : ''}`.trim();
@@ -71,11 +74,7 @@ export async function askAssistant(
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'refused') return { error: 'Dabei kann Luna nicht helfen. Formulier es bitte anders.' };
     if (http.code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
-    if (http.code === 'quota_exceeded')
-      return {
-        error: `Deine ${http.limit ?? 20} Gratis-Nachrichten an Luna sind für diesen Monat aufgebraucht. Mit Lunaxora Pro geht es gleich weiter – sonst wieder ab dem 1. des nächsten Monats.`,
-        quota: true,
-      };
+    if (http.code === 'quota_exceeded') return { error: quotaExceededText('nexy', http.plan, http.limit), quota: true };
     return {
       error: `Luna konnte das gerade nicht auswerten. Versuch es noch einmal.\n\nTechnische Details: ${technical(http)}`,
     };
@@ -179,6 +178,7 @@ export async function speechAudio(text: string, signal?: AbortSignal): Promise<S
       return { error: 'Der ElevenLabs-Schlüssel ist ungültig oder darf kein Text to Speech.', notSetUp: true };
     if (http.code === 'elevenlabs_voice_not_found')
       return { error: 'Die Stimme aus ELEVENLABS_VOICE_ID gibt es bei ElevenLabs nicht (mehr).', notSetUp: true };
+    if (http.code === 'quota_exceeded') return { error: quotaExceededText('voice', http.plan, http.limit) };
     if (http.code === 'elevenlabs_quota')
       return { error: 'Die ElevenLabs-Credits sind aufgebraucht (Limit des Schlüssels oder des Tarifs).', notSetUp: true };
     if (http.status === 401) return { error: 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.' };
@@ -219,11 +219,7 @@ export async function readReceipt(file: string, mime: string): Promise<ReceiptRe
     if (http.status === 401) return { error: 'Deine Anmeldung ist abgelaufen. Bitte melde dich neu an.' };
     if (http.status === 429)
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
-    if (http.code === 'quota_exceeded')
-      return {
-        error: `Deine ${http.limit ?? 5} Gratis-Belege zum Auslesen sind für diesen Monat aufgebraucht. Trag die Ausgabe einfach selbst ein – der Beleg wird trotzdem gespeichert. Mit Lunaxora Pro liest Luna weiter.`,
-        quota: true,
-      };
+    if (http.code === 'quota_exceeded') return { error: quotaExceededText('receipt', http.plan, http.limit), quota: true };
     if (http.code === 'file_too_large') return { error: 'Die Datei ist zu groß zum Lesen (höchstens 6 MB).' };
     if (http.code === 'unsupported_file' || http.code === 'invalid_file')
       return { error: 'Diese Datei kann Luna nicht lesen. Bitte ein Foto (JPG/PNG) oder eine PDF nehmen.' };

@@ -274,6 +274,53 @@ export function summarizeMetrics(posts: PostMetrics[]): MetricsSummary {
   };
 }
 
+export type PerformancePost = PostFacts &
+  PostMetrics & { title: string; platforms?: readonly string[] | null; published_at?: string | null };
+
+export type GroupPerformance = {
+  key: string;
+  label: string;
+  /** veröffentlichte Posts mit Zahlen in dieser Gruppe */
+  posts: number;
+  avgViews: number;
+  /** Interaktionsrate in Prozent (null ohne Aufrufe) */
+  rate: number | null;
+  interactions: number;
+};
+
+const groupPerformance = (key: string, label: string, group: PerformancePost[]): GroupPerformance => {
+  const s = summarizeMetrics(group);
+  return { key, label, posts: s.withNumbers, avgViews: s.avgViews, rate: s.rate, interactions: s.interactions };
+};
+
+/** Bessere Gruppe zuerst: mehr Aufrufe pro Post, bei Gleichstand höhere Interaktionsrate. */
+const byPerformance = (a: GroupPerformance, b: GroupPerformance) =>
+  b.avgViews - a.avgViews || (b.rate ?? -1) - (a.rate ?? -1);
+
+/**
+ * Was lief am besten? Nur veröffentlichte Posts mit Zahlen – nach Format und Plattform
+ * gruppiert (Ø Aufrufe, Interaktionsrate) und alle Posts nach Aufrufen sortiert.
+ */
+export function postPerformance<T extends PerformancePost>(posts: T[]) {
+  const withNumbers = posts.filter(
+    (p) => computePostStatus(p) === 'published' && (n(p.views) > 0 || interactions(p) > 0),
+  );
+  const byFormat = FORMATS.map((f) =>
+    groupPerformance(f.key, f.label, withNumbers.filter((p) => p.format === f.key)),
+  )
+    .filter((g) => g.posts > 0)
+    .sort(byPerformance);
+  const byPlatform = PLATFORMS.map((pl) =>
+    groupPerformance(pl.key, pl.label, withNumbers.filter((p) => p.platforms?.includes(pl.key))),
+  )
+    .filter((g) => g.posts > 0)
+    .sort(byPerformance);
+  const ranked = [...withNumbers].sort(
+    (a, b) => n(b.views) - n(a.views) || (engagementRate(b) ?? -1) - (engagementRate(a) ?? -1),
+  );
+  return { posts: withNumbers.length, byFormat, byPlatform, ranked };
+}
+
 /** 12.345 -> "12.345", 1.234.567 -> "1,2 Mio." */
 export function compactNumber(v: number): string {
   if (v >= 1_000_000) return `${(v / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Mio.`;

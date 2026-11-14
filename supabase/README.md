@@ -47,7 +47,9 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261113090000_offer_links_mail.sql` | Angebote online annehmen (geheimer Link, Annehmen/Ablehnen ohne Anmeldung) und Versandprotokoll für E-Mails aus der App |
 | `20261114090000_tax.sql` | Steuern: Prozentsatz für den Steuer-Topf (Firmendaten) und enthaltene Umsatzsteuer bei Ausgaben (Vorsteuer) |
 | `20261115090000_tutorials.sql` | Einführungen: welche Bereiche schon erklärt wurden und ob sie automatisch erscheinen sollen (im Profil, damit es auf Mac und Handy gleich ist) |
-| `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis mit 20 Luna-Nachrichten und 5 Belegen im Monat; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
+| `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
+| `20261117090000_plan_tiers.sql` | Abo-Stufen Gratis / Pro / Business: neue Grenzen je Monat (Luna-Nachrichten, Belege, Vorlesen) und Spalte `tier` für Business |
+| `20261118090000_billing.sql` | Bezahlen mit Stripe: Spalten `stripe_customer_id` und `stripe_subscription_id` im Abo (Abschnitt 14) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -87,7 +89,7 @@ Fertig – in der App links **Luna** öffnen und losschreiben.
 - Meldung „Anmeldung abgelaufen“ bzw. in den Logs `Invalid JWT`: In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) ausschalten. Die Funktion prüft selbst, ob ein angemeldeter Lunaxora-Nutzer anfragt.
 - Fehler ansehen: **Edge Functions → assistant → Logs**.
 
-**Kosten:** Standardmäßig nutzt Luna **Claude Opus 5.5** – grob 2–4 Cent pro Nachricht (Gespräch und Übersicht werden jedes Mal mitgeschickt). Günstiger geht es mit einem zweiten Geheimnis `ASSISTANT_MODEL` = `claude-haiku-5-5` (ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Gründlicher (langsamer, teurer) antwortet Luna mit `ASSISTANT_EFFORT` = `medium`.
+**Kosten:** Standardmäßig nutzt Luna **Claude Sonnet 5.5** – grob 2–3 Cent pro Nachricht, Folgenachrichten innerhalb von 5 Minuten sind dank Cache günstiger. Die Abo-Preise sind darauf gerechnet. Ein Geheimnis `ASSISTANT_MODEL` überschreibt das Modell (z. B. `claude-opus-5-5`: gründlicher, etwa doppelt so teuer – dann passen die Abo-Preise nicht mehr; `claude-haiku-5-5`: ein Bruchteil eines Cents, bei kniffligen Fragen weniger genau). Den Verbrauch jeder Anfrage siehst du unter Edge Functions → assistant → Logs (Zeilen `usage`). Gründlicher (langsamer, teurer) antwortet Luna mit `ASSISTANT_EFFORT` = `medium`.
 
 **Datenschutz:** Nachricht, Gesprächsverlauf und die Übersicht (Kundennamen ohne Telefon/E-Mail/Anschrift, Aufträge, Rechnungsnummern und Beträge, Finanzzahlen, Termine der nächsten Wochen mit Ort, offene To-dos, Ziele mit Stand) werden zur Auswertung an Anthropic übertragen. Das gehört später in die Datenschutzerklärung.
 
@@ -290,26 +292,37 @@ Einrichtung: Datenbank-Skript `20261114090000_tax.sql` ausführen (Abschnitt 3).
 
 Gut zu wissen: Alle Zahlen sind eine grobe Orientierung aus deinen Aufträgen und Ausgaben, keine Steuerberatung. Einnahmen zählen ab „Abgeschlossen“ (wie in Finanzen), nicht ab Zahlungseingang.
 
-## 12. Abo (Gratis / Pro)
+## 12. Abo (Gratis / Pro / Business)
 
-Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten Öffnen **14 Tage Pro gratis** (auch bestehende Nutzer). Danach gilt **Gratis**: 20 Luna-Nachrichten und 5 ausgelesene Belege im Monat, PDFs mit dem kleinen Hinweis „Erstellt mit Lunaxora“. **Pro** (9,99 €/Monat): bis 300 Nachrichten/Belege, E-Mails direkt aus Lunaxora, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok/Instagram verbinden, Kalender-Abo. Übersicht in der App: **Profil → Abo**.
+Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten Öffnen **14 Tage Pro gratis** (auch bestehende Nutzer). Danach gilt **Gratis** – außer es gibt ein bezahltes Abo. Übersicht in der App: **Profil → Abo**.
+
+| Abo | Preis | Luna-Nachrichten | Belege auslesen | Vorlesen* |
+|---|---|---|---|---|
+| Gratis | 0 € | 15 | 3 | 30 |
+| Testphase (14 Tage) | – | 50 | 20 | 70 |
+| Pro | 14,99 €/Monat oder 149 €/Jahr | 100 | 50 | 120 |
+| Business | 29,99 €/Monat oder 299 €/Jahr | 200 | 150 | 220 |
+
+\* je Monat; einmal Vorlesen = ein Abschnitt bis 400 Zeichen (etwa eine kurze Antwort).
+
+Pro, Business und die Testphase haben alle Pro-Funktionen: E-Mails direkt aus Lunaxora, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok verbinden, Kalender-Abo, PDFs ohne „Erstellt mit Lunaxora“. Die Grenzen stehen in `nexora_limit()` (Skript `20261117090000_plan_tiers.sql`) und in `LIMITS` in `src/features/plan/plan-logic.ts` – ein Test prüft, dass beide gleich sind.
 
 Einrichtung:
 
-1. Datenbank-Skript `20261116090000_plans.sql` ausführen (Abschnitt 3).
+1. Datenbank-Skripte `20261116090000_plans.sql` und `20261117090000_plan_tiers.sql` ausführen (Abschnitt 3).
 2. Die Server-Funktionen `assistant` und `mail` neu einspielen (Abschnitt 4 bzw. 10) – sie zählen bzw. prüfen das Abo. Ohne neue Version gilt dort einfach keine Grenze.
 
-**Dich selbst (oder Tester) dauerhaft auf Pro stellen** – im SQL Editor, E-Mail-Adresse anpassen:
+**Dich selbst (oder Tester) dauerhaft auf Pro stellen** – im SQL Editor, E-Mail-Adresse anpassen (für Business `'pro'` durch `'business'` ersetzen):
 
 ```sql
-insert into public.subscriptions (user_id, status, source)
-select id, 'active', 'manual' from auth.users where email = 'deine@mail.de'
-on conflict (user_id) do update set status = 'active', source = 'manual', current_period_end = null;
+insert into public.subscriptions (user_id, status, source, tier)
+select id, 'active', 'manual', 'pro' from auth.users where email = 'deine@mail.de'
+on conflict (user_id) do update set status = 'active', source = 'manual', tier = excluded.tier, current_period_end = null;
 ```
 
 Zurück auf Gratis: `update public.subscriptions set status = 'expired' where user_id = (select id from auth.users where email = 'deine@mail.de');`
 
-Bezahlen in der App (App Store, Google Play, Karte) kommt als nächster Schritt – dann setzt der Bezahldienst diese Einträge automatisch.
+Bezahlt wird über **Stripe** (Abschnitt 14) – Stripe meldet jede Änderung an die Server-Funktion `billing`, die diese Einträge dann automatisch setzt. In den Handy-Apps (iPhone/Android) sind die Bezahl-Knöpfe ausgeblendet: Apple und Google verlangen dort ihre eigenen In-App-Käufe – das kommt mit der Veröffentlichung in den Stores.
 
 ## 13. Wichtig zum Testen: E-Mail-Versand
 
@@ -317,7 +330,81 @@ Ohne eigenen E-Mail-Server verschickt Supabase nur **sehr wenige E-Mails pro Stu
 
 Vor dem Start mit echten Nutzern braucht ihr einen eigenen Versand (**Authentication → Emails → SMTP Settings**), z. B. über einen Anbieter wie Resend oder das Postfach eurer Domain.
 
+## 14. Bezahlen mit Stripe
+
+Auf **Profil → Abo** (Web-App und Mac-App) wählt man Monatlich/Jährlich und tippt **Pro holen** bzw. **Business holen**. Die Bezahlseite von Stripe öffnet sich im Browser (Karte, SEPA-Lastschrift, Apple Pay, Google Pay, PayPal – je nachdem, was du in Stripe einschaltest). Nach der Zahlung meldet Stripe das Abo an die Server-Funktion `billing`, die es in die Tabelle `subscriptions` einträgt; die App lädt es neu, sobald man zurückkommt. Mit **Abo verwalten oder kündigen** öffnet sich das Stripe-Kundenportal (kündigen, Pro ↔ Business wechseln, Zahlungsart ändern, Rechnungen herunterladen). Rechnungen und Belege verschickt Stripe selbst per E-Mail.
+
+> Erst alles im **Testmodus** (Sandbox) von Stripe einrichten und testen – dort fließt kein echtes Geld. Für echte Zahlungen dieselben Schritte danach im **Live-Modus** wiederholen (Schritt 7).
+
+**1. Stripe-Konto**
+
+1. Auf [stripe.com](https://stripe.com) ein Konto anlegen und die Geschäftsdaten ausfüllen (Name, Anschrift, Bankkonto für Auszahlungen).
+2. **Settings → Business → Public details:** Name „Lunaxora“, Support-E-Mail, Webseite `https://lunaxora.de` – das sehen Kunden auf der Bezahlseite und der Rechnung.
+3. **Kleinunternehmer:** **Stripe Tax nicht einschalten** und keine Steuersätze anlegen. Unter **Settings → Billing → Invoices** in die Fußzeile (Default footer) schreiben: `Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.` – dann steht der Satz auf jeder Rechnung.
+4. **Settings → Payment methods:** die Zahlarten einschalten, die du anbieten willst (Karte ist immer dabei; SEPA-Lastschrift, PayPal, Apple Pay, Google Pay empfohlen).
+
+**2. Produkte und Preise**
+
+**Product catalog → Add product** – zwei Produkte mit je zwei Preisen (wiederkehrend, Währung EUR). Den **Lookup key** findest du beim Preis unter den erweiterten Optionen („More options“ / „Advanced“) – er muss genau so heißen, daran findet die App den Preis:
+
+| Produkt | Preis | Abrechnung | Lookup key |
+|---|---|---|---|
+| Lunaxora Pro | 14,99 € | monatlich | `pro_month` |
+| Lunaxora Pro | 149,00 € | jährlich | `pro_year` |
+| Lunaxora Business | 29,99 € | monatlich | `business_month` |
+| Lunaxora Business | 299,00 € | jährlich | `business_year` |
+
+Preis ändern: in Stripe einen neuen Preis anlegen und den Lookup key mit „Transfer lookup key“ übernehmen – bestehende Abos behalten ihren alten Preis. Dann auch `PRICES` in `src/features/plan/plan-logic.ts` anpassen (Anzeige in der App).
+
+**3. Kundenportal**
+
+**Settings → Billing → Customer portal** → aktivieren und einstellen:
+
+- **Cancel subscriptions:** an, „At end of billing period“ (Pro bleibt bis zum Ende der bezahlten Zeit).
+- **Switch plans:** an – beide Produkte mit allen vier Preisen hinzufügen (so geht der Wechsel Pro ↔ Business und Monat ↔ Jahr).
+- **Update payment methods** und **Invoice history:** an.
+- Unten Datenschutz- und AGB-Link eintragen → **Save**.
+
+Unter **Settings → Billing → Subscriptions and emails** einschalten, dass Kunden Rechnungen und Zahlungsbelege per E-Mail bekommen (und eine Erinnerung vor der Verlängerung von Jahresabos).
+
+**4. Datenbank und Server-Funktion**
+
+1. Datenbank-Skript `20261118090000_billing.sql` ausführen (Abschnitt 3).
+2. **Edge Functions → Deploy a new function → Via Editor**, Name genau `billing`, Inhalt von [`functions/billing/index.ts`](functions/billing/index.ts) einfügen → **Deploy**.
+3. In den Einstellungen der Funktion **Verify JWT** (bzw. „Enforce JWT Verification“) **ausschalten** – Pflicht, denn Stripe meldet sich nicht bei Lunaxora an. Die Funktion prüft Stripes Meldungen über die Signatur und bei allem anderen selbst, ob ein angemeldeter Nutzer fragt.
+
+**5. Webhook (Stripe meldet Zahlungen an Lunaxora)**
+
+1. In Stripe **Developers → Webhooks** (bzw. **Workbench → Webhooks**) → **Add destination / Add endpoint**.
+2. Adresse:
+
+   ```
+   https://DEIN-PROJEKT.supabase.co/functions/v1/billing/webhook
+   ```
+
+3. Ereignisse auswählen: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` → speichern.
+4. Das **Signing secret** des Endpunkts kopieren (beginnt mit `whsec_`).
+
+**6. Schlüssel als Geheimnisse in Supabase** (**Edge Functions → Secrets**)
+
+| Name | Wert |
+|---|---|
+| `STRIPE_SECRET_KEY` | **Developers → API keys → Secret key** (`sk_test_…` im Testmodus, später `sk_live_…`). Noch sicherer: ein *Restricted key* mit Schreibrecht für Customers, Checkout Sessions und Customer portal sowie Leserecht für Prices und Subscriptions. |
+| `STRIPE_WEBHOOK_SECRET` | das Signing secret aus Schritt 5 (`whsec_…`) |
+
+> Beide Schlüssel **niemals** in die App, ins Repository oder in einen Chat – nur als Supabase-Geheimnis.
+
+**Testen:** In der Web-App (`npm run web`) oder Mac-App **Profil → Abo → Pro holen** → auf der Stripe-Seite die Testkarte `4242 4242 4242 4242`, ein beliebiges Datum in der Zukunft und eine beliebige Prüfnummer eingeben → **Abonnieren**. Zurück in Lunaxora steht oben „Pro“ mit Laufzeitende. Danach **Abo verwalten oder kündigen** → kündigen → in der App steht „Gekündigt – läuft noch bis …“. Klappt etwas nicht: in Stripe beim Webhook unter **Event deliveries** nachsehen und in Supabase die Logs der Funktion `billing` öffnen.
+
+**7. Live schalten (echtes Geld)**
+
+1. In Stripe oben vom Test- in den **Live-Modus** wechseln. Produkte/Preise (mit denselben Lookup keys), Kundenportal und Webhook dort noch einmal anlegen – der Live-Webhook hat ein eigenes `whsec_…`.
+2. In Supabase `STRIPE_SECRET_KEY` und `STRIPE_WEBHOOK_SECRET` durch die Live-Werte ersetzen.
+3. Vorher die rechtlichen Seiten fertig haben (AGB, Widerrufsbelehrung mit Zustimmung zum sofortigen Start, Kündigungsbutton, Datenschutz mit Stripe als Zahlungsdienstleister).
+
+Tester, die in der Testphase von Hand auf Pro gestellt wurden (Abschnitt 12), sind von Stripe unberührt – die Funktion ändert nur Einträge, die zu einem Stripe-Abo gehören bzw. von Stripe gemeldet werden.
+
 ## Sicherheit
 
 - In der App steht nur der **Publishable Key** (`.env`). Der ist öffentlich und darf in die App.
-- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`), Groq-Schlüssel (`gsk_…`), TikTok-Client-Secret und Instagram-App-Geheimcode – diese Schlüssel nur als Supabase-Geheimnis.
+- **Niemals** in die App oder ins Repository: Datenbank-Passwort, `secret`- bzw. `service_role`-Key, Anthropic-API-Schlüssel (`sk-ant-…`), Groq-Schlüssel (`gsk_…`), Stripe-Secret-Key (`sk_live_…`/`sk_test_…`/`rk_…`) und Webhook-Secret (`whsec_…`), TikTok-Client-Secret und Instagram-App-Geheimcode – diese Schlüssel nur als Supabase-Geheimnis.

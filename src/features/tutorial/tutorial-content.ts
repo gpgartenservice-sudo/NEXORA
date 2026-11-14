@@ -310,7 +310,7 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
       {
         target: 'social.aktionen',
         title: 'Ideen sammeln',
-        text: 'Jede Content-Idee kommt mit „+ Idee“ hier rein. Verbindest du TikTok und Instagram, kommen deine Zahlen automatisch.',
+        text: 'Jede Content-Idee kommt mit „+ Idee“ hier rein. Verbindest du TikTok, kommen deine Zahlen automatisch.',
       },
       {
         target: 'social.ansicht',

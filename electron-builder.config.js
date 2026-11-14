@@ -15,6 +15,9 @@ module.exports = {
   productName: 'Lunaxora',
   copyright: 'Lunaxora',
   directories: { app: '.mac-app', output: 'release' },
+  // Electron aus node_modules nehmen (gleiche Version wie bei `npm run mac`) statt jedes Mal
+  // von GitHub zu laden – sonst bricht der Bau ab, wenn GitHub gerade hakt (504).
+  electronDist: 'node_modules/electron/dist',
   // electron-builder lässt jeden Ordner „node_modules“ weg – auch dist/assets/node_modules,
   // wo Bilder von Expo Router/React Navigation liegen (Zurück-Pfeil, Schließen …). Die zweite
   // Regel holt genau diesen Ordner wieder rein.

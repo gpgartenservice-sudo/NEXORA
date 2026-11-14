@@ -1,13 +1,16 @@
-// Unit-Tests: Abo (Gratis/Pro). Start: npm run test:unit
+// Unit-Tests: Abo (Gratis/Pro/Business). Start: npm run test:unit
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
   COMPARISON,
-  FREE_LIMITS,
   isPro,
+  LIMITS,
   parsePlan,
   planLabel,
+  PRICES,
+  quotaExceededText,
   quotaText,
   trialDaysLeft,
 } from '../../src/features/plan/plan-logic.ts';
@@ -19,45 +22,84 @@ const raw = (o = {}) => ({
   trial_ends_at: '2026-10-20T10:00:00Z',
   current_period_end: null,
   month: '2026-11',
-  usage: { nexy: { used: 17, limit: 20 }, receipt: { used: 5, limit: 5 } },
+  usage: { nexy: { used: 12, limit: 15 }, receipt: { used: 3, limit: 3 }, voice: { used: 4, limit: 30 } },
   ...o,
 });
 
 test('Antwort der Datenbank prüfen', () => {
   const p = parsePlan(raw());
   assert.equal(p.plan, 'free');
-  assert.deepEqual(p.usage.nexy, { used: 17, limit: 20 });
+  assert.deepEqual(p.usage.nexy, { used: 12, limit: 15 });
+  assert.deepEqual(p.usage.voice, { used: 4, limit: 30 });
   assert.equal(parsePlan({ plan: 'gold' }), null);
   assert.equal(parsePlan(null), null);
   // fehlende Zahlen -> Standardgrenzen
-  assert.deepEqual(parsePlan({ plan: 'free' }).usage.receipt, { used: 0, limit: FREE_LIMITS.receipt });
-  assert.equal(parsePlan({ plan: 'pro' }).usage.nexy.limit, 300);
+  assert.deepEqual(parsePlan({ plan: 'free' }).usage.receipt, { used: 0, limit: 3 });
+  assert.equal(parsePlan({ plan: 'pro' }).usage.nexy.limit, 100);
+  assert.equal(parsePlan({ plan: 'business' }).usage.receipt.limit, 150);
+  assert.equal(parsePlan({ plan: 'trial' }).usage.voice.limit, 70);
+  // alte Datenbank ohne Vorlesen-Zähler -> Standardgrenze
+  assert.deepEqual(parsePlan(raw({ usage: { nexy: { used: 1, limit: 15 } } })).usage.voice, { used: 0, limit: 30 });
   assert.equal(parsePlan(raw({ trial_ends_at: 'quatsch' })).trial_ends_at, null);
 });
 
-test('Testphase zählt wie Pro, Tage aufgerundet', () => {
+test('Testphase und Business zählen wie Pro, Tage aufgerundet', () => {
   assert.equal(isPro('trial'), true);
   assert.equal(isPro('pro'), true);
+  assert.equal(isPro('business'), true);
   assert.equal(isPro('free'), false);
   const t = parsePlan(raw({ plan: 'trial', trial_ends_at: '2026-11-15T09:00:00Z' }));
   assert.equal(trialDaysLeft(t, NOW), 12);
   assert.equal(planLabel(t, NOW), 'Pro-Test · noch 12 Tage');
   assert.equal(planLabel(parsePlan(raw({ plan: 'trial', trial_ends_at: '2026-11-03T20:00:00Z' })), NOW), 'Pro-Test · noch 1 Tag');
   assert.equal(planLabel(parsePlan(raw({ plan: 'pro' })), NOW), 'Pro');
+  assert.equal(planLabel(parsePlan(raw({ plan: 'business' })), NOW), 'Business');
   assert.equal(planLabel(parsePlan(raw()), NOW), 'Gratis');
   assert.equal(trialDaysLeft(parsePlan(raw()), NOW), null);
 });
 
-test('Verbleibende Gratis-Nachrichten/Belege', () => {
+test('Verbleibende Nachrichten/Belege/Vorlesen – in jedem Abo', () => {
   const p = parsePlan(raw());
-  assert.equal(quotaText(p, 'nexy'), 'Noch 3 von 20 Luna-Nachrichten in diesem Monat');
-  assert.equal(quotaText(p, 'receipt'), 'Noch 0 von 5 Belegen zum Auslesen in diesem Monat');
-  assert.equal(quotaText(parsePlan(raw({ plan: 'pro' })), 'nexy'), null);
+  assert.equal(quotaText(p, 'nexy'), 'Noch 3 von 15 Luna-Nachrichten in diesem Monat');
+  assert.equal(quotaText(p, 'receipt'), 'Noch 0 von 3 Belegen zum Auslesen in diesem Monat');
+  assert.equal(quotaText(p, 'voice'), 'Noch 26 von 30-mal Vorlesen in diesem Monat');
+  const pro = parsePlan(raw({ plan: 'pro', usage: { nexy: { used: 40, limit: 100 } } }));
+  assert.equal(quotaText(pro, 'nexy'), 'Noch 60 von 100 Luna-Nachrichten in diesem Monat');
 });
 
-test('Vergleich: Pro kann alles, Gratis hat die Grundfunktionen', () => {
-  assert.ok(COMPARISON.every((r) => r.pro !== false));
+test('Kontingent aufgebraucht: Text passt zum Abo', () => {
+  assert.match(quotaExceededText('nexy', 'free', 15), /^Deine 15 Gratis-Nachrichten an Luna .* Mit Lunaxora Pro geht es gleich weiter/);
+  assert.match(quotaExceededText('receipt', 'trial', 20), /^Deine 20 Test-Belege .* selbst ein/);
+  assert.match(quotaExceededText('nexy', 'pro', 100), /^Deine 100 Nachrichten .* Mit Lunaxora Business hast du doppelt so viel/);
+  assert.match(quotaExceededText('voice', 'business', 220), /220-mal Vorlesen.*als Text\. Ab dem 1\. des nächsten Monats geht es weiter\./);
+  // ohne Angaben vom Server: Gratis-Grenze
+  assert.match(quotaExceededText('nexy', undefined, undefined), /^Deine 15 Gratis-Nachrichten/);
+});
+
+test('Vergleich: Pro und Business können alles, Gratis hat die Grundfunktionen', () => {
+  assert.ok(COMPARISON.every((r) => r.pro !== false && r.business !== false));
   assert.ok(COMPARISON.filter((r) => r.free === true).length >= 5);
+  const luna = COMPARISON.find((r) => r.label.startsWith('Luna-Nachrichten'));
+  assert.deepEqual([luna.free, luna.pro, luna.business], ['15', '100', '200']);
+});
+
+test('Preise: Jahr = zwei Monate geschenkt, Business teurer als Pro', () => {
+  for (const t of ['pro', 'business']) {
+    const saved = PRICES[t].month * 12 - PRICES[t].year;
+    assert.ok(saved >= PRICES[t].month * 1.9 && saved <= PRICES[t].month * 2.1, `${t}: ${saved}`);
+  }
+  assert.ok(PRICES.business.month > PRICES.pro.month);
+});
+
+test('Grenzen in der App = Grenzen in der Datenbank (nexora_limit)', () => {
+  const sql = readFileSync(new URL('../../supabase/migrations/20261117090000_plan_tiers.sql', import.meta.url), 'utf8');
+  const body = sql.slice(sql.indexOf('function public.nexora_limit'), sql.indexOf('$$;', sql.indexOf('function public.nexora_limit')));
+  const row = (plan) => {
+    const line = body.split('\n').find((l) => (plan === 'free' ? /^\s*else\s+case/.test(l) : l.includes(`when '${plan}'`)));
+    const [, nexy, receipt, voice] = line.match(/'nexy' then (\d+)\s+when 'receipt' then (\d+)\s+else (\d+)/);
+    return { nexy: +nexy, receipt: +receipt, voice: +voice };
+  };
+  for (const plan of ['free', 'trial', 'pro', 'business']) assert.deepEqual(row(plan), LIMITS[plan], plan);
 });
 
 test('Server sagt „nur mit Pro“ (Datenbank PT402 bzw. Text)', async () => {

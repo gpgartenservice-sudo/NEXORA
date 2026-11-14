@@ -20,9 +20,13 @@ import {
 import {
   computePostStatus,
   dayKey,
+  engagementRate,
   FORMATS,
+  platformLabel,
+  postPerformance,
   startOfWeek,
   statusLabel,
+  type GroupPerformance,
   type PostFacts,
 } from '../social/social-logic';
 import {
@@ -59,7 +63,45 @@ type PostLike = PostFacts & {
   planned_for: string | null;
   published_at: string | null;
   views: number | null;
+  likes?: number | null;
+  comments?: number | null;
+  shares?: number | null;
+  saves?: number | null;
+  platforms?: readonly string[] | null;
 };
+
+const groupForNexy = (g: GroupPerformance) => ({
+  name: g.label,
+  posts_mit_zahlen: g.posts,
+  aufrufe_pro_post: g.avgViews,
+  interaktionsrate_prozent: g.rate,
+});
+
+/** Für „Was lief am besten?“: Formate, Plattformen, stärkste und schwächste Posts (nur mit Zahlen). */
+export function socialAnalysis(posts: PostLike[]) {
+  const perf = postPerformance(posts);
+  const row = (p: PostLike) => ({
+    titel: p.title,
+    format: FORMATS.find((f) => f.key === p.format)?.label ?? p.format,
+    plattformen: (p.platforms ?? []).map(platformLabel),
+    aufrufe: p.views ?? 0,
+    likes: p.likes ?? 0,
+    kommentare: p.comments ?? 0,
+    geteilt: p.shares ?? 0,
+    gespeichert: p.saves ?? 0,
+    interaktionsrate_prozent: engagementRate(p),
+    veroeffentlicht: p.published_at ? dayKey(p.published_at) : null,
+  });
+  const top = perf.ranked.slice(0, 5);
+  return {
+    posts_mit_zahlen: perf.posts,
+    hinweis: 'Interaktionsrate = (Likes + Kommentare + Geteilt + Gespeichert) ÷ Aufrufe',
+    formate: perf.byFormat.map(groupForNexy),
+    plattformen: perf.byPlatform.map(groupForNexy),
+    staerkste_posts: top.map(row),
+    schwaechste_posts: perf.ranked.slice(Math.max(top.length, perf.ranked.length - 3)).reverse().map(row),
+  };
+}
 
 type AccountLike = {
   platform: string;
@@ -260,6 +302,7 @@ export function buildNexyContext({
         .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
         .slice(0, 5)
         .map((p) => ({ titel: p.title, aufrufe: p.views })),
+      auswertung: socialAnalysis(posts),
       verbundene_konten: accounts.map((a) => ({
         plattform: a.platform === 'tiktok' ? 'TikTok' : a.platform === 'instagram' ? 'Instagram' : a.platform,
         name: a.username,
