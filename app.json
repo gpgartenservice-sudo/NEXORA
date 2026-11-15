@@ -10,7 +10,8 @@
     "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "de.lunaxora.app"
+      "bundleIdentifier": "de.lunaxora.app",
+      "appleTeamId": "9BUNT8S2Y6"
     },
     "android": {
       "package": "de.lunaxora.app",
