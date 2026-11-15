@@ -1,0 +1,257 @@
+<!doctype html>
+<!--
+  Lunaxora – Standard-Datenschutzerklärung für die Kunden eines Lunaxora-Nutzers
+  (eine einzige Datei, liegt neben index.html im Ordner /Kunde/ von lunaxora.de)
+
+  Gilt, wenn der Nutzer unter Firma keinen Link zu einer eigenen
+  Datenschutzerklärung eingetragen hat. Die Kundenseite (index.html) verlinkt
+  hierher mit demselben Link-Code: datenschutz.html?einladung=…  Dann trägt die
+  Seite Name, Anschrift und Kontakt des Nutzers als Verantwortlichen ein
+  (Datenbank-Funktion invite_view). Ohne gültigen Link steht dort ein
+  allgemeiner Hinweis.
+
+  Verantwortlich für die Daten ist der Nutzer (Auftragnehmer), Lunaxora und die
+  Dienstleister arbeiten in seinem Auftrag (Art. 28 DSGVO). Ändert sich etwas an
+  den Dienstleistern (Abschnitt 5/6), muss dieser Text angepasst werden.
+  Muster, keine Rechtsberatung.
+
+  %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-kunde-bauen.sh aus der
+  .env ein (öffentliche Daten). Keine externen Schriften oder Skripte.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>Datenschutzerklärung</title>
+  <style>
+    :root {
+      --accent: #2FE39A;
+      --ink: #111214;
+      --muted: #5C6066;
+      --line: #E4E6E9;
+      --page: #F4F5F7;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    main {
+      width: 100%;
+      max-width: 720px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } main { padding: 20px; } }
+    h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 18px 0 2px; font-size: 17px; line-height: 1.3; }
+    h3 { margin: 8px 0 0; font-size: 15px; }
+    p { margin: 0; }
+    ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+    a { color: var(--ink); }
+    a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .lead { color: var(--muted); }
+    .small { color: var(--muted); font-size: 13px; }
+    .back { font-size: 14px; }
+    .box { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .box.strong { border-color: rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.10); }
+    .name { font-weight: 700; }
+    .made { color: #9AA0A6; font-size: 12px; margin: 0; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      main { border: none; padding: 0; max-width: none; }
+      .back, .made { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="back" id="back" hidden><a href="./">← Zurück zum Formular</a></p>
+    <h1>Datenschutzerklärung</h1>
+    <p class="lead" id="lead">für Kundinnen und Kunden, die uns über Lunaxora ihre Daten übermitteln</p>
+
+    <h2>1. Wer für Ihre Daten verantwortlich ist</h2>
+    <div class="box" id="controller">
+      <p>Verantwortlich ist das Unternehmen, das Ihnen den Link zu dieser Seite geschickt hat. Name, Anschrift und
+        Kontaktdaten finden Sie in der E-Mail mit dem Link und oben auf dem Formular, in das Sie Ihre Daten eintragen.</p>
+    </div>
+    <p>Im Folgenden heißt dieses Unternehmen „wir“. Bei Fragen zum Datenschutz genügt eine kurze Nachricht an die
+      genannten Kontaktdaten.</p>
+
+    <h2>2. Worum es geht</h2>
+    <p>Diese Erklärung beschreibt, wie wir Ihre personenbezogenen Daten verarbeiten, wenn Sie bei uns anfragen, ein
+      Angebot von uns erhalten oder uns beauftragen. Kunden, Aufträge, Angebote und Rechnungen verwalten wir mit der
+      Software Lunaxora.</p>
+
+    <h2>3. Welche Daten wir verarbeiten</h2>
+    <ul>
+      <li><strong>Kontaktdaten:</strong> Name, Anschrift, E-Mail-Adresse und – wenn Sie sie angeben – Firma und
+        Telefonnummer.</li>
+      <li><strong>Anfrage und Auftrag:</strong> die gewünschte Leistung, Termine, Preise, Angebote, Rechnungen,
+        Zahlungsstand und Notizen zu Ihrem Auftrag.</li>
+      <li><strong>E-Mails aus Lunaxora:</strong> Empfängeradresse, Betreff und Zeitpunkt der E-Mails, die wir Ihnen
+        schicken (Versandprotokoll).</li>
+      <li><strong>Angebote online:</strong> Wenn Sie ein Angebot über den Link annehmen oder ablehnen, Ihren Namen,
+        den Zeitpunkt und gegebenenfalls Ihre Nachricht.</li>
+      <li><strong>Nachweis:</strong> den Zeitpunkt, zu dem Sie diese Datenschutzerklärung bestätigt haben.</li>
+    </ul>
+    <p>Die Daten erhalten wir direkt von Ihnen – über das Formular, Ihre Anfrage oder im Laufe des Auftrags.</p>
+
+    <h2>4. Wofür wir die Daten verwenden und auf welcher Grundlage</h2>
+    <ul>
+      <li>Ihre Anfrage bearbeiten, Ihnen Angebote schicken, den Auftrag durchführen und abrechnen und an offene
+        Zahlungen erinnern – zur Erfüllung des Vertrags bzw. für vorvertragliche Maßnahmen auf Ihre Anfrage
+        (Art. 6 Abs. 1 lit. b DSGVO).</li>
+      <li>Rechnungen und andere Unterlagen aufbewahren, weil Handels- und Steuerrecht es vorschreiben
+        (Art. 6 Abs. 1 lit. c DSGVO in Verbindung mit § 147 AO und § 257 HGB).</li>
+      <li>Unsere Abläufe sicher und nachvollziehbar organisieren, Nachweise führen und gegebenenfalls Ansprüche
+        durchsetzen oder abwehren – auf Grundlage unseres berechtigten Interesses (Art. 6 Abs. 1 lit. f DSGVO).</li>
+      <li>Eine Bitte um eine Bewertung schicken wir Ihnen nur, wenn Sie eingewilligt haben (Art. 6 Abs. 1 lit. a
+        DSGVO). Diese Einwilligung können Sie jederzeit widerrufen.</li>
+    </ul>
+
+    <h2>5. Wer die Daten außerdem erhält</h2>
+    <p>Folgende Dienstleister verarbeiten Ihre Daten ausschließlich in unserem Auftrag und nach unseren Weisungen
+      (Auftragsverarbeitung, Art. 28 DSGVO):</p>
+    <ul>
+      <li><strong>Lunaxora</strong> (<a href="https://lunaxora.de" rel="noopener noreferrer">lunaxora.de</a>) –
+        Anbieter der Software, stellt auch dieses Formular und die Seiten zum Annehmen von Angeboten bereit.</li>
+      <li><strong>Supabase Inc.</strong> (USA) – Datenbank und Speicher. Ihre Daten liegen auf Servern in
+        Frankfurt am Main (EU).</li>
+      <li><strong>webgo GmbH</strong> (Hamburg) – Webhosting der Seiten unter lunaxora.de und Versand der E-Mails
+        aus Lunaxora.</li>
+      <li><strong>KI-Assistentin und Sprachfunktionen</strong> – nur wenn wir die Assistentin in Lunaxora nutzen,
+        z. B. um einen Termin oder ein Angebot anzulegen. Dabei können Ihr Name und Angaben zu Ihrem Auftrag
+        verarbeitet werden: Anthropic PBC (USA, Textverarbeitung), Groq, Inc. (USA, Spracherkennung) und
+        ElevenLabs (USA, Sprachausgabe).</li>
+    </ul>
+    <p>Darüber hinaus geben wir Ihre Daten nur weiter, wenn das für Ihren Auftrag nötig ist oder wir gesetzlich dazu
+      verpflichtet sind – zum Beispiel an unsere Steuerberatung, das Finanzamt oder Banken und Zahlungsdienstleister.
+      Wir verkaufen Ihre Daten nicht und nutzen sie nicht für Werbung Dritter.</p>
+
+    <h2>6. Übermittlung in Länder außerhalb der EU</h2>
+    <p>Einige der genannten Dienstleister haben ihren Sitz in den USA. Soweit dabei Daten in die USA übermittelt
+      werden oder ein Zugriff von dort möglich ist, geschieht das auf Grundlage des Angemessenheitsbeschlusses der
+      EU-Kommission zum EU-US Data Privacy Framework, soweit der Anbieter danach zertifiziert ist, und im Übrigen auf
+      Grundlage von EU-Standardvertragsklauseln (Art. 45 und 46 DSGVO).</p>
+
+    <h2>7. Wie lange wir die Daten speichern</h2>
+    <ul>
+      <li>So lange, wie wir sie für Ihre Anfrage und Ihren Auftrag brauchen. Danach löschen wir sie, soweit keine
+        Aufbewahrungspflicht besteht.</li>
+      <li>Rechnungen und Buchungsbelege bewahren wir 8 Jahre auf, Geschäftsbriefe wie angenommene Angebote 6 Jahre –
+        jeweils ab dem Ende des Kalenderjahres, in dem sie entstanden sind.</li>
+      <li>Schicken Sie das Formular nicht ab, kennen wir nur Ihre E-Mail-Adresse, an die wir den Link geschickt
+        haben. Der Link ist 30 Tage gültig.</li>
+    </ul>
+
+    <h2>8. Beim Aufruf der Seiten unter lunaxora.de</h2>
+    <p>Wenn Sie dieses Formular oder ein Angebot unter lunaxora.de öffnen, speichert der Server unseres Hosters aus
+      technischen Gründen kurzzeitig Zugriffsdaten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Browser).
+      Das dient der Sicherheit und dem Betrieb der Seiten (Art. 6 Abs. 1 lit. f DSGVO). Die Seiten setzen keine
+      Cookies, verwenden kein Tracking und laden keine Schriften oder Skripte von anderen Anbietern. Ihre Eingaben
+      werden verschlüsselt (HTTPS) übertragen.</p>
+
+    <h2>9. Ihre Rechte</h2>
+    <ul>
+      <li>Auskunft über die Daten, die wir über Sie gespeichert haben (Art. 15 DSGVO)</li>
+      <li>Berichtigung falscher Daten (Art. 16 DSGVO)</li>
+      <li>Löschung (Art. 17 DSGVO), soweit keine Aufbewahrungspflicht entgegensteht</li>
+      <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+      <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+      <li>Widerruf einer Einwilligung mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO)</li>
+      <li>Beschwerde bei einer Datenschutz-Aufsichtsbehörde, z. B. in Ihrem Bundesland (Art. 77 DSGVO)</li>
+    </ul>
+    <div class="box strong">
+      <p><strong>Widerspruchsrecht:</strong> Soweit wir Daten auf Grundlage unseres berechtigten Interesses
+        verarbeiten (Art. 6 Abs. 1 lit. f DSGVO), können Sie dem aus Gründen, die sich aus Ihrer besonderen
+        Situation ergeben, jederzeit widersprechen (Art. 21 DSGVO).</p>
+    </div>
+    <p>Für all das genügt eine formlose Nachricht an die Kontaktdaten in Abschnitt 1.</p>
+
+    <h2>10. Müssen Sie Ihre Daten angeben?</h2>
+    <p>Ohne Name und Anschrift können wir Ihnen kein Angebot und keine Rechnung erstellen. Die Angabe von Firma und
+      Telefonnummer ist freiwillig.</p>
+
+    <h2>11. Keine automatisierten Entscheidungen</h2>
+    <p>Wir treffen keine Entscheidungen, die ausschließlich auf einer automatisierten Verarbeitung beruhen und Ihnen
+      gegenüber rechtliche Wirkung entfalten (Art. 22 DSGVO).</p>
+
+    <h2>12. Änderungen</h2>
+    <p>Wir passen diese Datenschutzerklärung an, wenn sich unsere Abläufe oder die Rechtslage ändern. Es gilt die
+      Fassung, die hier veröffentlicht ist.</p>
+
+    <p class="small" style="margin-top: 14px;">Stand: November 2026 · Standard-Datenschutzerklärung von Lunaxora</p>
+  </main>
+  <p class="made">Erstellt mit Lunaxora</p>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var SUPABASE_URL = '%%SUPABASE_URL%%';
+      var SUPABASE_KEY = '%%SUPABASE_KEY%%';
+
+      var token = new URLSearchParams(window.location.search).get('einladung') || '';
+      if (!/^[A-Za-z0-9_-]{32,64}$/.test(token)) return;
+
+      function trim(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+      /** Absatz mit reinem Text (Firmendaten kommen von Nutzern – nie als HTML) */
+      function p(text, cls) {
+        var node = document.createElement('p');
+        if (cls) node.className = cls;
+        node.textContent = text;
+        return node;
+      }
+
+      var back = document.getElementById('back');
+      back.querySelector('a').href = './?einladung=' + encodeURIComponent(token);
+      back.hidden = false;
+
+      fetch(SUPABASE_URL + '/rest/v1/rpc/invite_view', {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_token: token })
+      })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          var s = data && data.seller;
+          if (!s) return;
+          var company = trim(s.company_name);
+          var owner = trim(s.owner_name);
+          var name = [company, owner].filter(Boolean).join(', ');
+          var address = [trim(s.street), trim([s.zip, s.city].filter(Boolean).join(' '))].filter(Boolean).join(', ');
+          // unvollständig -> allgemeiner Hinweis bleibt (die App verlangt Name, Straße, PLZ und Ort)
+          if (!name || !trim(s.street) || !trim(s.zip) || !trim(s.city)) return;
+          var contact = [];
+          if (trim(s.email)) contact.push('E-Mail: ' + trim(s.email));
+          if (trim(s.phone)) contact.push('Telefon: ' + trim(s.phone));
+          var box = document.getElementById('controller');
+          box.replaceChildren(p(name, 'name'), p(address));
+          if (contact.length) box.appendChild(p(contact.join(' · ')));
+          if (trim(s.website)) box.appendChild(p('Web: ' + trim(s.website)));
+          document.getElementById('lead').textContent = 'für Kundinnen und Kunden von ' + (company || owner);
+          document.title = 'Datenschutzerklärung – ' + (company || owner);
+        })
+        .catch(function () { /* allgemeiner Hinweis bleibt stehen */ });
+    })();
+  </script>
+</body>
+</html>

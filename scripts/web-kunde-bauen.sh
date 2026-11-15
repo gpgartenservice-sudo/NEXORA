@@ -1,6 +1,7 @@
 #!/bin/bash
 # =====================================================================
-#  Lunaxora – Kundenseite „Ihre Kontaktdaten“ fertig machen
+#  Lunaxora – Kundenseite „Ihre Kontaktdaten“ + Standard-Datenschutzerklärung
+#  fertig machen (Hochladen: bash scripts/web-hochladen.sh kunde)
 #
 #  Aufruf (im Projektordner):   bash scripts/web-kunde-bauen.sh
 #
@@ -21,6 +22,8 @@ SB_KEY="$(envval EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY)"
 printf '%s' "$SB_URL" | grep -Eq '^https://[A-Za-z0-9.-]+$' || { red "EXPO_PUBLIC_SUPABASE_URL fehlt oder ist ungültig in der .env."; exit 1; }
 printf '%s' "$SB_KEY" | grep -Eq '^[A-Za-z0-9._-]+$' || { red "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY fehlt oder ist ungültig in der .env."; exit 1; }
 mkdir -p dist-kunde
-sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" web-kunde/index.html > dist-kunde/index.html
-if grep -q '%%SUPABASE_' dist-kunde/index.html; then red "Platzhalter nicht ersetzt."; exit 1; fi
-grn "Fertig: dist-kunde/index.html  →  auf lunaxora.de in den Ordner /Kunde/ hochladen"
+for F in index.html datenschutz.html; do
+    sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" "web-kunde/$F" > "dist-kunde/$F"
+    if grep -q '%%SUPABASE_' "dist-kunde/$F"; then red "Platzhalter in $F nicht ersetzt."; exit 1; fi
+done
+grn "Fertig: dist-kunde/index.html und dist-kunde/datenschutz.html  →  auf lunaxora.de in den Ordner /Kunde/ hochladen"

@@ -48,19 +48,22 @@ printf '%s' "$SUB" | grep -Eq '^[A-Za-z0-9-]+$' || {
 
 # Welche Seite? Standard: Angebotsseite; "kunde": Kundenseite für neue Kunden
 # (Links https://lunaxora.de/Kunde/?einladung=…, Server-Funktion "mail")
-SRC="web-angebot"; DIST="dist-angebot"; TEST_URL="$WEB_URL/"
+SRC="web-angebot"; DIST="dist-angebot"; TEST_URL="$WEB_URL/"; FILES="index.html"
 case "${1:-angebot}" in
     angebot) ;;
     kunde)
-        SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"
+        # Formular + Standard-Datenschutzerklärung
+        SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"; FILES="index.html datenschutz.html"
         TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/Kunde/" ;;
     *) red "Unbekannte Seite \"$1\" – erlaubt: angebot (Standard) oder kunde"; exit 1 ;;
 esac
 
 mkdir -p "$DIST"
-sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" "$SRC/index.html" > "$DIST/index.html"
-if grep -q '%%SUPABASE_' "$DIST/index.html"; then red "Platzhalter nicht ersetzt – nichts hochgeladen."; exit 1; fi
-grn "Fertig: $DIST/index.html"
+for F in $FILES; do
+    sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" "$SRC/$F" > "$DIST/$F"
+    if grep -q '%%SUPABASE_' "$DIST/$F"; then red "Platzhalter in $F nicht ersetzt – nichts hochgeladen."; exit 1; fi
+    grn "Fertig: $DIST/$F"
+done
 
 # --- 2. Hochladen ----------------------------------------------------------
 WEB_HOST=""; WEB_USER=""; WEB_DIR=""
@@ -93,7 +96,7 @@ case "$(printf '%s' "$WEB_DIR" | tr '[:upper:]' '[:lower:]')" in
 esac
 
 echo
-echo "Ziel:  $WEB_USER@$WEB_HOST (SFTP)  →  $WEB_DIR/$SUB/index.html"
+echo "Ziel:  $WEB_USER@$WEB_HOST (SFTP)  →  $WEB_DIR/$SUB/  ($FILES)"
 echo "       (die Homepage in $WEB_DIR bleibt unberührt)"
 read -r -p "Hochladen? (j/n) " OK
 [ "$OK" = "j" ] || [ "$OK" = "J" ] || { echo "Abgebrochen."; exit 0; }
@@ -108,8 +111,8 @@ trap 'rm -f "$BATCH"' EXIT
     echo "cd \"$SUB\""
     echo "pwd"
     echo "lcd $DIST"
-    echo "put index.html"
-    echo "ls -l index.html"
+    for F in $FILES; do echo "put $F"; done
+    echo "ls -l $FILES"
 } > "$BATCH"
 
 echo

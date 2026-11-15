@@ -4,7 +4,8 @@
 
   Ein neuer Kunde bekommt per E-Mail den Link https://lunaxora.de/Kunde/?einladung=…,
   trägt hier seine Kontaktdaten ein und bestätigt die Datenschutzerklärung des
-  Auftragnehmers (eigener Link aus den Firmendaten oder das Muster unten). Erst
+  Auftragnehmers (eigener Link aus den Firmendaten oder die Standard-Datenschutzerklärung
+  datenschutz.html im selben Ordner, mit seinen Firmendaten als Verantwortlichem). Erst
   beim Abschicken legt die Datenbank den Kunden an – vorher kennt Lunaxora nur
   die E-Mail-Adresse. Datenbank-Funktionen invite_view / invite_submit
   (supabase/migrations/20261119090000_customer_invites.sql).
@@ -85,10 +86,6 @@
     .box { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
     .box.ok { border-color: rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.12); }
     .box-title { font-size: 16px; font-weight: 700; }
-    details { border: 1px solid var(--line); border-radius: 12px; background: #F7F8F9; }
-    summary { cursor: pointer; padding: 14px 16px; font-weight: 600; }
-    .policy { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
-    .policy ul { margin: 0; padding-left: 20px; }
     .confirm { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
     .confirm input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
     button {
@@ -103,7 +100,7 @@
       min-height: 48px;
     }
     button:disabled { opacity: 0.5; cursor: default; }
-    button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
     a { color: var(--ink); }
     .problem { color: var(--error); font-size: 14px; }
     .footer { display: flex; flex-wrap: wrap; gap: 8px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -306,7 +303,9 @@
 
       function form(who) {
         var s = seller();
-        var policyUrl = safeUrl(s.privacy_url);
+        // eigener Link aus den Firmendaten, sonst die Standard-Datenschutzerklärung von Lunaxora
+        var ownUrl = safeUrl(s.privacy_url);
+        var policyUrl = ownUrl || 'datenschutz.html?einladung=' + encodeURIComponent(token);
         var f = el('form', { novalidate: true, onsubmit: function (e) { e.preventDefault(); submit(); } },
           el('div', { class: 'field' },
             el('span', { class: 'label' }, 'E-Mail'),
@@ -320,13 +319,11 @@
             input('zip', 'PLZ *', { autocomplete: 'postal-code', inputmode: 'numeric', max: 10, cls: 'zip' }),
             input('city', 'Ort *', { autocomplete: 'address-level2', max: 120 })
           ),
-          policyUrl
-            ? el('div', { class: 'box' },
-                el('span', { class: 'box-title' }, 'Datenschutzerklärung'),
-                el('p', null, 'Bitte lesen Sie die Datenschutzerklärung von ' + who + '.'),
-                el('a', { href: policyUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Datenschutzerklärung lesen ↗')
-              )
-            : policy(s, who),
+          el('div', { class: 'box' },
+            el('span', { class: 'box-title' }, 'Datenschutzerklärung'),
+            el('p', null, 'Bitte lesen Sie die Datenschutzerklärung von ' + who + ', bevor Sie Ihre Daten absenden.'),
+            el('a', { href: policyUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Datenschutzerklärung lesen ↗')
+          ),
           el('label', { class: 'confirm' },
             el('input', { type: 'checkbox', checked: state.privacy, onchange: function (e) { state.privacy = e.target.checked; } }),
             el('span', null, 'Ich habe die Datenschutzerklärung von ' + who + ' gelesen und zur Kenntnis genommen.')
@@ -335,43 +332,6 @@
           el('button', { type: 'submit', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Daten absenden')
         );
         return f;
-      }
-
-      /** Muster-Datenschutzerklärung aus den Firmendaten (Informationen nach Art. 13 DSGVO) */
-      function policy(s, who) {
-        var address = [trim(s.street), trim([s.zip, s.city].filter(Boolean).join(' '))].filter(Boolean);
-        var contact = [s.email ? 'E-Mail: ' + s.email : '', s.phone ? 'Telefon: ' + s.phone : ''].filter(Boolean);
-        var p = function (t) { return el('p', null, t); };
-        var li = function (t) { return el('li', null, t); };
-        return el('details', null,
-          el('summary', null, 'Datenschutzerklärung von ' + who + ' lesen'),
-          el('div', { class: 'policy' },
-            el('h2', null, '1. Verantwortlich'),
-            p([trim(s.company_name), trim(s.owner_name)].filter(Boolean).join(', ')),
-            address.length ? p(address.join(', ')) : null,
-            contact.length ? p(contact.join(' · ')) : null,
-            el('h2', null, '2. Welche Daten wir verarbeiten'),
-            p('Die Angaben aus diesem Formular (Name, ggf. Firma, Anschrift, E-Mail-Adresse, ggf. Telefonnummer) sowie Angaben aus Ihrer Anfrage und zu Ihrem Auftrag, z. B. Termine, Angebote, Rechnungen und Zahlungen.'),
-            el('h2', null, '3. Zweck und Rechtsgrundlage'),
-            p('Wir verarbeiten die Daten, um Ihre Anfrage zu bearbeiten, Ihnen Angebote zu schicken und Ihren Auftrag durchzuführen und abzurechnen (Art. 6 Abs. 1 lit. b DSGVO). Rechnungen und andere steuerlich relevante Unterlagen bewahren wir auf, weil das Gesetz es verlangt (Art. 6 Abs. 1 lit. c DSGVO).'),
-            el('h2', null, '4. Wer die Daten erhält'),
-            p('Wir verwalten Kunden, Aufträge und Rechnungen mit der Software Lunaxora. Deren Anbieter und unsere technischen Dienstleister (z. B. für Speicherung und E-Mail-Versand) verarbeiten die Daten nur in unserem Auftrag (Art. 28 DSGVO). Darüber hinaus geben wir Ihre Daten nur weiter, wenn das für Ihren Auftrag nötig ist oder wir gesetzlich dazu verpflichtet sind (z. B. an Steuerberatung oder Finanzamt).'),
-            el('h2', null, '5. Wie lange wir die Daten speichern'),
-            p('So lange, wie wir sie für Ihre Anfrage und Ihren Auftrag brauchen. Rechnungen und andere steuerlich relevante Unterlagen bewahren wir so lange auf, wie es gesetzlich vorgeschrieben ist (in der Regel 8 bis 10 Jahre).'),
-            el('h2', null, '6. Ihre Rechte'),
-            el('ul', null,
-              li('Auskunft über Ihre gespeicherten Daten (Art. 15 DSGVO)'),
-              li('Berichtigung (Art. 16) und Löschung (Art. 17), soweit keine Aufbewahrungspflicht besteht'),
-              li('Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20)'),
-              li('Widerspruch gegen die Verarbeitung (Art. 21)'),
-              li('Beschwerde bei einer Datenschutz-Aufsichtsbehörde (Art. 77)')
-            ),
-            p('Dafür genügt eine kurze Nachricht an die oben genannten Kontaktdaten.'),
-            el('h2', null, '7. Müssen Sie die Daten angeben?'),
-            p('Ohne Name und Anschrift können wir Ihnen kein Angebot und keine Rechnung erstellen. Firma und Telefonnummer sind freiwillig.'),
-            el('p', { class: 'small' }, 'Stand: November 2026 · Muster-Datenschutzerklärung, erstellt mit Lunaxora aus den Firmendaten von ' + who + '.')
-          )
-        );
       }
 
       // ---------- Absenden ----------

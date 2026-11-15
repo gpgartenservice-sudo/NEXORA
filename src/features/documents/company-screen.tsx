@@ -259,8 +259,8 @@ function CompanyForm() {
           })}
           <Text style={styles.hint}>
             Neue Kunden bekommen per E-Mail einen Link, tragen ihre Daten selbst ein und bestätigen deine
-            Datenschutzerklärung. Hast du keine eigene, zeigt Lunaxora ein Muster mit deinem Namen, deiner Anschrift und
-            E-Mail von oben (keine Rechtsberatung).
+            Datenschutzerklärung. Hast du keine eigene, bekommen sie die Standard-Datenschutzerklärung von Lunaxora mit
+            deinem Namen, deiner Anschrift und E-Mail von oben als Verantwortlichem (Muster, keine Rechtsberatung).
           </Text>
         </Card>
       </Reveal>
