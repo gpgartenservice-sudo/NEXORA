@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useCrm, type Customer, type CustomerInput, type Order } from '@/features/crm/crm-provider';
+import { listGerman, privacyGaps, sameEmail } from '@/features/crm/invite-logic';
 import {
   missingBuyerFields,
   missingSellerFields,
@@ -27,6 +28,7 @@ import { stepsFor } from '@/features/social/social-logic';
 import { useSocial, type PostInput } from '@/features/social/social-provider';
 import type { ExpenseInput } from '@/features/finance/finance-provider';
 import type { GoalInput } from '@/features/goals/goals-provider';
+import { validateEmail } from '@/lib/validation';
 import { useAuth } from '@/providers/auth-provider';
 
 import { askAssistant, type HistoryEntry } from './assistant-api';
@@ -371,6 +373,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const results: NexyResult[] = [...(message.results ?? [])];
       const doneIds = [...already];
       const newCustomers = new Map<string, Customer>();
+      // neue Kunden, denen Luna den Datenschutz-Link geschickt hat (Vorschlag -> E-Mail)
+      const invited = new Map<string, string>();
       const newOrders = new Map<string, Order>();
       // in diesem Durchgang geänderte Aufträge (z. B. neuer Preis vor der Rechnung)
       const changedOrders = new Map<string, Order>();
@@ -401,12 +405,31 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         const blocked = blockers(p, all);
         if (blocked.length) return finish(`„${proposalLabel(p)}“: Dafür fehlt noch ${blocked.join(', ')}.`);
         if (p.kind === 'customer') {
-          await show(customerSteps(p));
-          const { data, error } = await crm.createCustomer(p.data);
-          if (error || !data) return finish(error ?? 'Der Kunde konnte nicht gespeichert werden.');
-          newCustomers.set(p.id, data);
-          results.push({ label: `Kunde ${data.name}`, href: `/kunden/${data.id}` });
-          await show(customerDone(data.id));
+          // Neue Kunden nur per Datenschutz-Link: Luna braucht die E-Mail-Adresse,
+          // den Rest trägt der Kunde selbst ein
+          const email = p.data.email?.trim() ?? '';
+          const who = p.data.name?.trim() || 'den neuen Kunden';
+          if (!email || validateEmail(email))
+            return finish(
+              `Für ${who} brauche ich die E-Mail-Adresse: Er bekommt den Link zu deiner Datenschutzerklärung und trägt seine Daten dann selbst ein.`,
+            );
+          const known = crm.customers.find((c) => sameEmail(c.email, email));
+          if (known) {
+            newCustomers.set(p.id, known);
+            results.push({ label: `Kunde ${known.name}`, note: 'gibt es schon', href: `/kunden/${known.id}` });
+          } else {
+            const gaps = privacyGaps(docs.seller);
+            if (gaps.length)
+              return finish(`Für den Datenschutz-Link fehlen noch deine Firmendaten: ${listGerman(gaps)} (Bereich Firma).`);
+            await show(customerSteps(p));
+            const sender = { fromName: sellerName(docs.seller) || 'Lunaxora', replyTo: docs.seller.email?.trim() || null };
+            const open = crm.invites.find((i) => sameEmail(i.email, email));
+            const { error } = open ? await crm.resendInvite(open.id, sender) : await crm.inviteCustomer(email, sender);
+            if (error) return finish(error);
+            invited.set(p.id, email);
+            results.push({ label: `Datenschutz-Link an ${email}`, note: 'verschickt', href: '/kunden' });
+            await show(customerDone());
+          }
         } else if (p.kind === 'customer_delete') {
           await show(customerDeleteSteps(p));
           const { error } = await crm.deleteCustomer(p.data.customerId);
@@ -429,6 +452,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
         } else if (p.kind === 'order') {
           const customerId =
             p.customer.existingId ?? (p.customer.newRef ? newCustomers.get(p.customer.newRef)?.id : undefined);
+          const waiting = p.customer.newRef ? invited.get(p.customer.newRef) : undefined;
+          if (!customerId && waiting)
+            return finish(
+              `„${p.data.title}“ kann ich anlegen, sobald ${waiting} seine Daten über den Link eingetragen hat – dann steht der Kunde in deiner Liste.`,
+            );
           if (!customerId) return finish(`Für „${p.data.title}“ fehlt der Kunde.`);
           await show(orderSteps(p, named(customerOf(customerId))));
           // Termine trägt Luna sichtbar im Auftrag nach (wie man es selbst machen würde)

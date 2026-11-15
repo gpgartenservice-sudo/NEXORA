@@ -44,6 +44,7 @@ example
 
 # fertige Angebotsseite (scripts/web-hochladen.sh)
 dist-angebot/
+dist-kunde/
 
 # Mac-App als .dmg (npm run mac:dmg)
 .mac-app/

@@ -42,7 +42,40 @@ export async function sendMail(input: MailInput): Promise<MailResult> {
   };
   const { data, error } = await supabase.functions.invoke('mail', { body });
   if (!error) return { id: (data?.id as string | null) ?? null };
+  return mailError(error);
+}
 
+const OLD_FUNCTION =
+  'Für den Datenschutz-Link muss die Server-Funktion „mail“ einmal neu eingespielt werden (supabase/functions/mail/index.ts, Anleitung: supabase/README.md, Abschnitt 15).';
+
+/**
+ * Datenschutz-Link an einen neuen Kunden schicken. Empfänger, Betreff und Text
+ * baut die Server-Funktion selbst aus der Einladung – geht in jedem Abo.
+ */
+export async function sendInviteMail(input: { inviteId: string; fromName: string; replyTo: string | null }): Promise<MailResult> {
+  const { data, error } = await supabase.functions.invoke('mail', {
+    body: { kind: 'invite', invite_id: input.inviteId, from_name: input.fromName, reply_to: input.replyTo },
+  });
+  if (!error) return { id: (data?.id as string | null) ?? null };
+  if (error instanceof FunctionsHttpError) {
+    const res = (error.context as Response).clone();
+    const code = ((await res.json().catch(() => null)) as { error?: string } | null)?.error;
+    // alte Version der Funktion: kennt "invite" nicht (verlangt Betreff/Text bzw. Pro)
+    if (code === 'invalid_subject' || code === 'invalid_text' || code === 'missing_to' || code === 'pro_required')
+      return { error: OLD_FUNCTION, notSetUp: true };
+    if (code === 'missing_invite_table')
+      return {
+        error: 'Für den Datenschutz-Link fehlt noch das Datenbank-Skript 20261119090000_customer_invites.sql (siehe supabase/README.md).',
+        notSetUp: true,
+      };
+    if (code === 'invite_not_found') return { error: 'Diese Einladung gibt es nicht mehr.' };
+    if (code === 'invite_done') return { error: 'Dieser Kunde hat seine Daten schon eingetragen.' };
+  }
+  return mailError(error);
+}
+
+/** Fehler der Server-Funktion "mail" -> verständlicher Text */
+async function mailError(error: unknown): Promise<MailResult> {
   if (error instanceof FunctionsHttpError) {
     const res = error.context as Response;
     let code: string | undefined;
@@ -137,7 +170,7 @@ export async function sendMail(input: MailInput): Promise<MailResult> {
     return { error: 'Keine Verbindung zum Server. Prüfe deine Internetverbindung.' };
   }
   return {
-    error: `Die E-Mail konnte nicht verschickt werden.\n\nTechnische Details: ${String(error.message ?? error)}`,
+    error: `Die E-Mail konnte nicht verschickt werden.\n\nTechnische Details: ${String((error as Error)?.message ?? error)}`,
   };
 }
 

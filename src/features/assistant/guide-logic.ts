@@ -60,7 +60,7 @@ export const LABELS = {
     email: 'E-Mail',
     address: 'Adresse',
     notes: 'Notizen',
-    save: 'Kunde anlegen',
+    invite: 'Datenschutzerklärung schicken',
     update: 'Änderungen speichern',
     newOrder: '+ Neuer Auftrag',
     remove: 'Kunde löschen',
@@ -211,26 +211,25 @@ export function toOrder(o: GuideOrder): GuideStep[] {
   return steps;
 }
 
-// ——— Neuer Kunde ———
+// ——— Neuer Kunde: nur per Datenschutz-Link (der Kunde trägt seine Daten selbst ein) ———
 
 export function customerSteps(p: Of<'customer'>): GuideStep[] {
   const L = LABELS.customer;
   const d = p.data;
+  const email = d.email?.trim();
+  if (!email) return [];
+  const who = d.name?.trim() ? `${d.name.trim()} (${email})` : email;
   return [
     go('/kunden/neu', 'push'),
-    show({ field: L.name }, `Ich lege ${d.name} als neuen Kunden an.`),
-    ...type(L.name, d.name),
-    ...type(L.company, d.company),
-    ...type(L.phone, d.phone),
-    ...type(L.email, d.email),
-    ...type(L.address, d.address),
-    ...type(L.notes, d.notes),
-    press(L.save),
+    show({ field: L.email }, `Ich schicke ${who} den Link zu deiner Datenschutzerklärung.`),
+    ...type(L.email, email),
+    press(L.invite),
   ];
 }
 
-export function customerDone(id: string): GuideStep[] {
-  return [go(`/kunden/${id}`, 'replace'), show({ target: 'guide.customer' })];
+/** Nach dem Link: zur Kundenliste (dort steht er unter „Wartet auf Daten“) */
+export function customerDone(): GuideStep[] {
+  return [go('/kunden', 'replace')];
 }
 
 // ——— Kunde löschen ———

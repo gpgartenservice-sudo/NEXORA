@@ -1,0 +1,452 @@
+<!doctype html>
+<!--
+  Lunaxora – Kundenseite „Ihre Kontaktdaten“ (eine einzige Datei, ohne die App)
+
+  Ein neuer Kunde bekommt per E-Mail den Link https://lunaxora.de/Kunde/?einladung=…,
+  trägt hier seine Kontaktdaten ein und bestätigt die Datenschutzerklärung des
+  Auftragnehmers (eigener Link aus den Firmendaten oder das Muster unten). Erst
+  beim Abschicken legt die Datenbank den Kunden an – vorher kennt Lunaxora nur
+  die E-Mail-Adresse. Datenbank-Funktionen invite_view / invite_submit
+  (supabase/migrations/20261119090000_customer_invites.sql).
+
+  %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-kunde-bauen.sh aus der
+  .env ein (öffentliche Daten, kein Geheimnis). Fertige Datei: dist-kunde/index.html
+  -> auf dem Webspace in den Ordner /Kunde/ von lunaxora.de.
+  Keine externen Schriften oder Skripte (Datenschutz).
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>Ihre Kontaktdaten</title>
+  <style>
+    :root {
+      --accent: #2FE39A;
+      --ink: #111214;
+      --muted: #5C6066;
+      --line: #E4E6E9;
+      --page: #F4F5F7;
+      --error: #C0392B;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.47 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } .card { padding: 18px; } }
+    h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 12px 0 4px; font-size: 15px; }
+    p { margin: 0; }
+    .company { font-size: 20px; font-weight: 700; }
+    .logo { display: block; height: 56px; max-width: 260px; object-fit: contain; object-position: left center; }
+    .small { color: var(--muted); font-size: 13px; line-height: 1.46; }
+    .title { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+    form { display: flex; flex-direction: column; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row .field { flex: 1 1 160px; }
+    .row .zip { flex: 0 0 110px; }
+    .label { color: var(--muted); font-size: 13px; font-weight: 600; }
+    input[type="text"], input[type="tel"] {
+      width: 100%;
+      font: inherit;
+      font-size: 16px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+    }
+    input[aria-invalid="true"] { border-color: var(--error); }
+    .email { border: 1px solid var(--line); background: #F7F8F9; border-radius: 10px; padding: 11px 12px; overflow-wrap: anywhere; }
+    .box { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .box.ok { border-color: rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.12); }
+    .box-title { font-size: 16px; font-weight: 700; }
+    details { border: 1px solid var(--line); border-radius: 12px; background: #F7F8F9; }
+    summary { cursor: pointer; padding: 14px 16px; font-weight: 600; }
+    .policy { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    .policy ul { margin: 0; padding-left: 20px; }
+    .confirm { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+    .confirm input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+    button {
+      font: inherit;
+      font-weight: 700;
+      color: #000;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 13px 20px;
+      cursor: pointer;
+      min-height: 48px;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    a { color: var(--ink); }
+    .problem { color: var(--error); font-size: 14px; }
+    .footer { display: flex; flex-wrap: wrap; gap: 8px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .footer a { font-size: 14px; }
+    .made { color: #9AA0A6; font-size: 12px; margin: 0; }
+    .loading { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="card" id="app" aria-live="polite">
+    <p class="loading">Wird geladen …</p>
+  </main>
+  <p class="made">Erstellt mit Lunaxora</p>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var SUPABASE_URL = '%%SUPABASE_URL%%';
+      var SUPABASE_KEY = '%%SUPABASE_KEY%%';
+
+      var ERRORS = {
+        invalid_name: 'Bitte geben Sie Ihren Vor- und Nachnamen ein.',
+        invalid_company: 'Der Firmenname ist zu lang.',
+        invalid_phone: 'Bitte prüfen Sie die Telefonnummer (nur Ziffern, Leerzeichen und + - / ( )).',
+        invalid_street: 'Bitte geben Sie Straße und Hausnummer ein.',
+        invalid_zip: 'Bitte geben Sie eine gültige Postleitzahl ein.',
+        invalid_city: 'Bitte geben Sie den Ort ein.',
+        privacy_required: 'Bitte bestätigen Sie, dass Sie die Datenschutzerklärung gelesen haben.',
+        expired: 'Dieser Link ist leider abgelaufen. Bitte fragen Sie nach einem neuen Link.',
+        already_done: 'Ihre Daten wurden bereits übermittelt.',
+        not_found: 'Diesen Link gibt es nicht mehr.',
+        failed: 'Das hat gerade nicht geklappt. Bitte versuchen Sie es noch einmal.'
+      };
+
+      var app = document.getElementById('app');
+      var token = new URLSearchParams(window.location.search).get('einladung') || '';
+      var validToken = /^[A-Za-z0-9_-]{32,64}$/.test(token);
+
+      var state = {
+        invite: null,
+        form: { name: '', company: '', phone: '', street: '', zip: '', city: '' },
+        privacy: false,
+        busy: false,
+        problem: null,
+        invalid: null,
+        done: false
+      };
+
+      // ---------- Hilfen ----------
+
+      /** Element bauen – Texte immer als Text, nie als HTML (Daten kommen von Nutzern) */
+      function el(tag, attrs) {
+        var node = document.createElement(tag);
+        if (attrs) {
+          Object.keys(attrs).forEach(function (k) {
+            var v = attrs[k];
+            if (v === null || v === undefined || v === false) return;
+            if (k === 'class') node.className = v;
+            else if (k.slice(0, 2) === 'on') node.addEventListener(k.slice(2), v);
+            else if (k === 'checked' || k === 'disabled' || k === 'value') node[k] = v;
+            else node.setAttribute(k, v === true ? '' : String(v));
+          });
+        }
+        for (var i = 2; i < arguments.length; i++) {
+          var c = arguments[i];
+          if (c === null || c === undefined || c === false || c === '') continue;
+          node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        }
+        return node;
+      }
+
+      function trim(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+
+      function day(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+
+      function safeUrl(u) {
+        try {
+          var url = new URL(String(u || ''));
+          return url.protocol === 'https:' ? url.href : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      async function rpc(name, body) {
+        try {
+          var res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+            method: 'POST',
+            headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) return { error: res.status };
+          var text = await res.text();
+          return { data: text ? JSON.parse(text) : null };
+        } catch (e) {
+          return { error: String(e) };
+        }
+      }
+
+      async function load() {
+        var r = await rpc('invite_view', { p_token: token });
+        if (r.error) return 'failed';
+        if (!r.data) return 'missing';
+        state.invite = r.data;
+        return 'ready';
+      }
+
+      function seller() { return (state.invite && state.invite.seller) || {}; }
+      function companyName() {
+        var s = seller();
+        return trim(s.company_name || s.owner_name || '');
+      }
+
+      // ---------- Anzeige ----------
+
+      function message(title, text) {
+        app.replaceChildren(el('h1', null, title), el('p', null, text));
+      }
+
+      function header() {
+        var s = seller();
+        var company = companyName();
+        var parts = [];
+        var logo = state.invite.logo;
+        if (logo && /^image\/(png|jpeg|webp|gif)$/.test(logo.mime) && /^[A-Za-z0-9+/=]+$/.test(logo.data || '')) {
+          parts.push(el('img', { class: 'logo', src: 'data:' + logo.mime + ';base64,' + logo.data, alt: 'Logo ' + company }));
+        } else if (company) {
+          parts.push(el('div', { class: 'company' }, company));
+        }
+        // Name steht schon darüber (ohne Logo) – dann nur die Anschrift
+        var line = [logo ? company : '', s.street, [s.zip, s.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+        if (line) parts.push(el('p', { class: 'small' }, line));
+        return parts;
+      }
+
+      function footer() {
+        var s = seller();
+        var f = el('div', { class: 'footer' });
+        f.appendChild(el('span', { class: 'small' }, 'Fragen? Melden Sie sich direkt bei ' + (companyName() || 'Ihrem Ansprechpartner') + ':'));
+        if (s.email) f.appendChild(el('a', { href: 'mailto:' + encodeURIComponent(String(s.email)).replace(/%40/g, '@') }, String(s.email)));
+        if (s.phone) f.appendChild(el('a', { href: 'tel:' + String(s.phone).replace(/[^\d+]/g, '') }, 'Tel. ' + s.phone));
+        return f;
+      }
+
+      function render() {
+        var inv = state.invite;
+        var company = companyName();
+        var who = company || 'Ihrem Auftragnehmer';
+        var parts = header();
+        document.title = 'Ihre Kontaktdaten' + (company ? ' – ' + company : '');
+
+        if (state.done || inv.completed_at) {
+          parts.push(el('div', { class: 'box ok', id: 'result' },
+            el('span', { class: 'box-title' }, '✓ Vielen Dank!'),
+            el('p', null, 'Ihre Daten sind bei ' + who + ' angekommen. ' +
+              (trim(seller().owner_name) || company || 'Wir') + ' meldet sich bei Ihnen.')
+          ));
+          parts.push(footer());
+          app.replaceChildren.apply(app, parts);
+          return;
+        }
+        if (inv.expired) {
+          parts.push(el('div', { class: 'box' },
+            el('span', { class: 'box-title' }, 'Link abgelaufen'),
+            el('p', null, 'Dieser Link ist nicht mehr gültig. Bitte fragen Sie bei ' + who + ' nach einem neuen Link.')
+          ));
+          parts.push(footer());
+          app.replaceChildren.apply(app, parts);
+          return;
+        }
+
+        parts.push(el('div', { class: 'title' },
+          el('h1', null, 'Ihre Kontaktdaten'),
+          el('p', null, 'für ' + who + '. Ihre Angaben werden erst gespeichert, wenn Sie unten auf „Daten absenden“ tippen.'),
+          inv.expires_at ? el('p', { class: 'small' }, 'Der Link ist gültig bis zum ' + day(inv.expires_at) + '.') : null
+        ));
+        parts.push(form(who));
+        parts.push(footer());
+        app.replaceChildren.apply(app, parts);
+      }
+
+      function input(key, label, opts) {
+        opts = opts || {};
+        var id = 'f-' + key;
+        return el('div', { class: 'field' + (opts.cls ? ' ' + opts.cls : '') },
+          el('label', { class: 'label', for: id }, label),
+          el('input', {
+            id: id, name: key, type: opts.type || 'text', autocomplete: opts.autocomplete, inputmode: opts.inputmode,
+            maxlength: opts.max, placeholder: opts.placeholder, value: state.form[key],
+            'aria-invalid': state.invalid === key ? 'true' : null,
+            oninput: function (e) { state.form[key] = e.target.value; }
+          })
+        );
+      }
+
+      function form(who) {
+        var s = seller();
+        var policyUrl = safeUrl(s.privacy_url);
+        var f = el('form', { novalidate: true, onsubmit: function (e) { e.preventDefault(); submit(); } },
+          el('div', { class: 'field' },
+            el('span', { class: 'label' }, 'E-Mail'),
+            el('div', { class: 'email' }, String(state.invite.email || ''))
+          ),
+          input('name', 'Vor- und Nachname *', { autocomplete: 'name', max: 120, placeholder: 'z. B. Anna Berger' }),
+          input('company', 'Firma (optional)', { autocomplete: 'organization', max: 120 }),
+          input('phone', 'Telefon (optional)', { type: 'tel', autocomplete: 'tel', inputmode: 'tel', max: 60 }),
+          input('street', 'Straße und Hausnummer *', { autocomplete: 'street-address', max: 160 }),
+          el('div', { class: 'row' },
+            input('zip', 'PLZ *', { autocomplete: 'postal-code', inputmode: 'numeric', max: 10, cls: 'zip' }),
+            input('city', 'Ort *', { autocomplete: 'address-level2', max: 120 })
+          ),
+          policyUrl
+            ? el('div', { class: 'box' },
+                el('span', { class: 'box-title' }, 'Datenschutzerklärung'),
+                el('p', null, 'Bitte lesen Sie die Datenschutzerklärung von ' + who + '.'),
+                el('a', { href: policyUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Datenschutzerklärung lesen ↗')
+              )
+            : policy(s, who),
+          el('label', { class: 'confirm' },
+            el('input', { type: 'checkbox', checked: state.privacy, onchange: function (e) { state.privacy = e.target.checked; } }),
+            el('span', null, 'Ich habe die Datenschutzerklärung von ' + who + ' gelesen und zur Kenntnis genommen.')
+          ),
+          state.problem ? el('p', { class: 'problem', role: 'alert' }, state.problem) : null,
+          el('button', { type: 'submit', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Daten absenden')
+        );
+        return f;
+      }
+
+      /** Muster-Datenschutzerklärung aus den Firmendaten (Informationen nach Art. 13 DSGVO) */
+      function policy(s, who) {
+        var address = [trim(s.street), trim([s.zip, s.city].filter(Boolean).join(' '))].filter(Boolean);
+        var contact = [s.email ? 'E-Mail: ' + s.email : '', s.phone ? 'Telefon: ' + s.phone : ''].filter(Boolean);
+        var p = function (t) { return el('p', null, t); };
+        var li = function (t) { return el('li', null, t); };
+        return el('details', null,
+          el('summary', null, 'Datenschutzerklärung von ' + who + ' lesen'),
+          el('div', { class: 'policy' },
+            el('h2', null, '1. Verantwortlich'),
+            p([trim(s.company_name), trim(s.owner_name)].filter(Boolean).join(', ')),
+            address.length ? p(address.join(', ')) : null,
+            contact.length ? p(contact.join(' · ')) : null,
+            el('h2', null, '2. Welche Daten wir verarbeiten'),
+            p('Die Angaben aus diesem Formular (Name, ggf. Firma, Anschrift, E-Mail-Adresse, ggf. Telefonnummer) sowie Angaben aus Ihrer Anfrage und zu Ihrem Auftrag, z. B. Termine, Angebote, Rechnungen und Zahlungen.'),
+            el('h2', null, '3. Zweck und Rechtsgrundlage'),
+            p('Wir verarbeiten die Daten, um Ihre Anfrage zu bearbeiten, Ihnen Angebote zu schicken und Ihren Auftrag durchzuführen und abzurechnen (Art. 6 Abs. 1 lit. b DSGVO). Rechnungen und andere steuerlich relevante Unterlagen bewahren wir auf, weil das Gesetz es verlangt (Art. 6 Abs. 1 lit. c DSGVO).'),
+            el('h2', null, '4. Wer die Daten erhält'),
+            p('Wir verwalten Kunden, Aufträge und Rechnungen mit der Software Lunaxora. Deren Anbieter und unsere technischen Dienstleister (z. B. für Speicherung und E-Mail-Versand) verarbeiten die Daten nur in unserem Auftrag (Art. 28 DSGVO). Darüber hinaus geben wir Ihre Daten nur weiter, wenn das für Ihren Auftrag nötig ist oder wir gesetzlich dazu verpflichtet sind (z. B. an Steuerberatung oder Finanzamt).'),
+            el('h2', null, '5. Wie lange wir die Daten speichern'),
+            p('So lange, wie wir sie für Ihre Anfrage und Ihren Auftrag brauchen. Rechnungen und andere steuerlich relevante Unterlagen bewahren wir so lange auf, wie es gesetzlich vorgeschrieben ist (in der Regel 8 bis 10 Jahre).'),
+            el('h2', null, '6. Ihre Rechte'),
+            el('ul', null,
+              li('Auskunft über Ihre gespeicherten Daten (Art. 15 DSGVO)'),
+              li('Berichtigung (Art. 16) und Löschung (Art. 17), soweit keine Aufbewahrungspflicht besteht'),
+              li('Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20)'),
+              li('Widerspruch gegen die Verarbeitung (Art. 21)'),
+              li('Beschwerde bei einer Datenschutz-Aufsichtsbehörde (Art. 77)')
+            ),
+            p('Dafür genügt eine kurze Nachricht an die oben genannten Kontaktdaten.'),
+            el('h2', null, '7. Müssen Sie die Daten angeben?'),
+            p('Ohne Name und Anschrift können wir Ihnen kein Angebot und keine Rechnung erstellen. Firma und Telefonnummer sind freiwillig.'),
+            el('p', { class: 'small' }, 'Stand: November 2026 · Muster-Datenschutzerklärung, erstellt mit Lunaxora aus den Firmendaten von ' + who + '.')
+          )
+        );
+      }
+
+      // ---------- Absenden ----------
+
+      function check(f) {
+        if (f.name.length < 2 || f.name.length > 120) return 'name';
+        if (f.company.length > 120) return 'company';
+        if (f.phone && !/^[0-9 +()/.-]{3,60}$/.test(f.phone)) return 'phone';
+        if (f.street.length < 3 || f.street.length > 160) return 'street';
+        if (!/^[0-9A-Za-z -]{3,10}$/.test(f.zip)) return 'zip';
+        if (f.city.length < 2 || f.city.length > 120) return 'city';
+        return null;
+      }
+
+      async function submit() {
+        var f = {};
+        Object.keys(state.form).forEach(function (k) { f[k] = trim(state.form[k]); });
+        var bad = check(f);
+        state.invalid = bad;
+        if (bad) {
+          state.problem = ERRORS['invalid_' + bad];
+          render();
+          var field = document.getElementById('f-' + bad);
+          if (field) field.focus();
+          return;
+        }
+        if (!state.privacy) {
+          state.problem = ERRORS.privacy_required;
+          return render();
+        }
+        state.busy = true;
+        state.problem = null;
+        render();
+        var r = await rpc('invite_submit', {
+          p_token: token,
+          p_name: f.name,
+          p_company: f.company,
+          p_phone: f.phone,
+          p_street: f.street,
+          p_zip: f.zip,
+          p_city: f.city,
+          p_privacy: true
+        });
+        state.busy = false;
+        var err = r.error ? 'failed' : (r.data && r.data.error);
+        if (err === 'already_done') {
+          state.done = true;
+        } else if (err === 'expired') {
+          state.invite.expired = true;
+        } else if (err) {
+          state.problem = ERRORS[err] || ERRORS.failed;
+          if (/^invalid_/.test(err)) state.invalid = err.slice(8);
+        } else {
+          state.done = true;
+        }
+        render();
+        var box = document.getElementById('result');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      // ---------- Start ----------
+
+      var invalidText = 'Diesen Link gibt es nicht (mehr) oder er ist unvollständig. Bitte öffnen Sie den Link aus Ihrer E-Mail oder fragen Sie nach einem neuen.';
+      if (!token) {
+        message('Ihre Kontaktdaten', 'Bitte öffnen Sie den Link aus Ihrer E-Mail.');
+      } else if (!validToken) {
+        message('Link ungültig', invalidText);
+      } else {
+        load().then(function (result) {
+          if (result === 'ready') render();
+          else if (result === 'missing') message('Link ungültig', invalidText);
+          else message('Gerade nicht erreichbar', 'Die Seite konnte gerade nicht geladen werden. Bitte versuchen Sie es in ein paar Minuten noch einmal.');
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

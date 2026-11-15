@@ -44,29 +44,25 @@ const kinds = (steps) => steps.map((s) => s.do);
 const view = { width: 1200, height: 800 };
 const bubble = { width: 300, height: 72 };
 
-test('Neuer Kunde: Formular öffnen, nur ausgefüllte Felder tippen, „Kunde anlegen“ drücken', () => {
+test('Neuer Kunde: nur die E-Mail tippen und den Datenschutz-Link schicken', () => {
+  const base = { id: 'p1', kind: 'customer', include: true, duplicateOf: null };
   const steps = customerSteps({
-    id: 'p1',
-    kind: 'customer',
-    include: true,
-    duplicateOf: null,
-    data: { name: 'Frau Berg', company: null, phone: '0176 123', email: ' ', address: null, notes: null },
+    ...base,
+    data: { name: 'Frau Berg', company: null, phone: '0176 123', email: ' berg@example.de ', address: 'Weg 1', notes: null },
   });
   assert.deepEqual(steps[0], { do: 'go', href: '/kunden/neu', mode: 'push' });
   assert.equal(steps[1].do, 'show');
   assert.match(steps[1].say, /Frau Berg/);
+  assert.match(steps[1].say, /Datenschutzerklärung/);
+  // Telefon, Anschrift usw. trägt der Kunde selbst ein
   assert.deepEqual(
     steps.filter((s) => s.do === 'type'),
-    [
-      { do: 'type', field: 'Name', text: 'Frau Berg' },
-      { do: 'type', field: 'Telefon', text: '0176 123' },
-    ],
+    [{ do: 'type', field: 'E-Mail', text: 'berg@example.de' }],
   );
-  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Kunde anlegen' });
-  assert.deepEqual(customerDone('c9'), [
-    { do: 'go', href: '/kunden/c9', mode: 'replace' },
-    { do: 'show', at: { target: 'guide.customer' } },
-  ]);
+  assert.deepEqual(steps.at(-1), { do: 'press', button: 'Datenschutzerklärung schicken' });
+  // ohne E-Mail gibt es nichts vorzumachen
+  assert.deepEqual(customerSteps({ ...base, data: { name: 'Frau Berg', company: null, phone: null, email: ' ', address: null, notes: null } }), []);
+  assert.deepEqual(customerDone(), [{ do: 'go', href: '/kunden', mode: 'replace' }]);
 });
 
 test('Neuer Auftrag: über den Kunden und „+ Neuer Auftrag“ ins Formular', () => {

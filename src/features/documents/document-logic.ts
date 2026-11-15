@@ -32,6 +32,8 @@ export type Seller = {
   logo_id: string | null;
   /** Link, unter dem Kunden eine Bewertung abgeben können (z. B. Google) */
   review_url?: string | null;
+  /** Link zur eigenen Datenschutzerklärung (sonst Muster auf der Kundenseite) */
+  privacy_url?: string | null;
 };
 
 export type Buyer = {
@@ -94,6 +96,7 @@ export const EMPTY_SELLER: Seller = {
   offer_validity_days: 30,
   logo_id: null,
   review_url: null,
+  privacy_url: null,
 };
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

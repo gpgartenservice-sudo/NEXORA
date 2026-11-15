@@ -4,6 +4,8 @@
 #  fertig machen und per SFTP in den Unterordner von lunaxora.de hochladen
 #
 #  Aufruf (im Projektordner):   bash scripts/web-hochladen.sh
+#  Kundenseite (Datenschutz-Link, Ordner "Kunde"):
+#                               bash scripts/web-hochladen.sh kunde
 #
 #  - Nimmt web-angebot/index.html, setzt die öffentliche Supabase-Adresse und
 #    den Publishable Key aus der .env ein und legt das Ergebnis in
@@ -44,10 +46,21 @@ printf '%s' "$SUB" | grep -Eq '^[A-Za-z0-9-]+$' || {
     exit 1
 }
 
-mkdir -p dist-angebot
-sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" web-angebot/index.html > dist-angebot/index.html
-if grep -q '%%SUPABASE_' dist-angebot/index.html; then red "Platzhalter nicht ersetzt – nichts hochgeladen."; exit 1; fi
-grn "Fertig: dist-angebot/index.html"
+# Welche Seite? Standard: Angebotsseite; "kunde": Kundenseite für neue Kunden
+# (Links https://lunaxora.de/Kunde/?einladung=…, Server-Funktion "mail")
+SRC="web-angebot"; DIST="dist-angebot"; TEST_URL="$WEB_URL/"
+case "${1:-angebot}" in
+    angebot) ;;
+    kunde)
+        SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"
+        TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/Kunde/" ;;
+    *) red "Unbekannte Seite \"$1\" – erlaubt: angebot (Standard) oder kunde"; exit 1 ;;
+esac
+
+mkdir -p "$DIST"
+sed -e "s|%%SUPABASE_URL%%|$SB_URL|g" -e "s|%%SUPABASE_KEY%%|$SB_KEY|g" "$SRC/index.html" > "$DIST/index.html"
+if grep -q '%%SUPABASE_' "$DIST/index.html"; then red "Platzhalter nicht ersetzt – nichts hochgeladen."; exit 1; fi
+grn "Fertig: $DIST/index.html"
 
 # --- 2. Hochladen ----------------------------------------------------------
 WEB_HOST=""; WEB_USER=""; WEB_DIR=""
@@ -94,7 +107,7 @@ trap 'rm -f "$BATCH"' EXIT
     # ohne "-": klappt der Wechsel in den Unterordner nicht, wird nichts hochgeladen
     echo "cd \"$SUB\""
     echo "pwd"
-    echo "lcd dist-angebot"
+    echo "lcd $DIST"
     echo "put index.html"
     echo "ls -l index.html"
 } > "$BATCH"
@@ -105,7 +118,7 @@ if sftp -o BatchMode=no -o StrictHostKeyChecking=accept-new \
         -o PreferredAuthentications=keyboard-interactive,password \
         -b "$BATCH" "$WEB_USER@$WEB_HOST"; then
     echo
-    grn "Fertig. Test: $WEB_URL/ im Browser öffnen."
+    grn "Fertig. Test: $TEST_URL im Browser öffnen."
 else
     echo
     red "Hochladen fehlgeschlagen (siehe Meldung oben)."

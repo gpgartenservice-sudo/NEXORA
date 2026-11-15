@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
-import { ChevronRight, Users } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { ChevronRight, Mail, Users } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TextField } from '@/components/auth/text-field';
@@ -8,19 +8,31 @@ import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
+import { sellerName } from '@/features/documents/document-logic';
+import { useDocuments } from '@/features/documents/documents-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
+import { inviteStatus } from './invite-logic';
 import { formatEuro, outstandingRevenue, recognizedRevenue } from './order-logic';
 import { CrmSetupNotice, Initials, StatRow, StatTile } from './ui';
 
 /** Kundenübersicht mit Suche und Kennzahlen. */
 export function CustomersScreen() {
-  const { customers, orders, loading, error } = useCrm();
+  const { customers, orders, loading, error, invites, refresh } = useCrm();
   const [query, setQuery] = useState('');
   useAreaTutorial('kunden');
+
+  // Wieder sichtbar -> neu laden: Kunden, die ihre Daten inzwischen eingetragen haben, erscheinen
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const stats = useMemo(() => {
     const per = new Map<string, { count: number; revenue: number; outstanding: number }>();
@@ -66,6 +78,7 @@ export function CustomersScreen() {
         help={<TutorialButton id="kunden" />}
       />
       <CrmSetupNotice error={error} />
+      {invites.length > 0 && <OpenInvites />}
 
       {!loading && customers.length === 0 && !error ? (
         <TourTarget id="kunden.neu">
@@ -76,8 +89,8 @@ export function CustomersScreen() {
               </View>
               <Text style={styles.emptyTitle}>Lege deinen ersten Kunden an</Text>
               <Text style={styles.emptyText}>
-                Kontaktdaten, Notizen und alle Aufträge an einem Ort – und du siehst sofort, wie viel Umsatz jeder Kunde
-                bringt.
+                Du brauchst nur seine E-Mail-Adresse: Er bekommt den Link zu deiner Datenschutzerklärung und trägt seine
+                Daten selbst ein. Danach siehst du alle Aufträge an einem Ort – und wie viel Umsatz jeder Kunde bringt.
               </Text>
               <Button label="+ Ersten Kunden anlegen" onPress={() => router.push('/kunden/neu')} />
             </Card>
@@ -138,11 +151,7 @@ export function CustomersScreen() {
             {q && visible.length === 0 && (
               <View style={styles.noResult}>
                 <Text style={styles.sub}>Kein Kunde gefunden für „{query.trim()}“.</Text>
-                <Button
-                  label={`„${query.trim()}“ als neuen Kunden anlegen`}
-                  variant="secondary"
-                  onPress={() => router.push({ pathname: '/kunden/neu', params: { name: query.trim() } })}
-                />
+                <Button label="Neuen Kunden einladen" variant="secondary" onPress={() => router.push('/kunden/neu')} />
               </View>
             )}
           </View>
@@ -152,8 +161,68 @@ export function CustomersScreen() {
   );
 }
 
+/** Offene Datenschutz-Links: Kunde hat seine Daten noch nicht eingetragen */
+function OpenInvites() {
+  const { invites, resendInvite, deleteInvite } = useCrm();
+  const { seller } = useDocuments();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const now = new Date();
+
+  const resend = async (id: string, email: string) => {
+    setBusy(id);
+    setNote(null);
+    const { error } = await resendInvite(id, { fromName: sellerName(seller) || 'Lunaxora', replyTo: seller.email?.trim() || null });
+    setBusy(null);
+    setNote(error ? { tone: 'error', text: error } : { tone: 'success', text: `Link erneut an ${email} geschickt.` });
+  };
+
+  const remove = async (id: string) => {
+    setBusy(id);
+    setNote(null);
+    const { error } = await deleteInvite(id);
+    setBusy(null);
+    if (error) setNote({ tone: 'error', text: error });
+  };
+
+  return (
+    <Reveal delay={120}>
+      <Card>
+        <Text style={styles.inviteTitle}>Wartet auf Daten ({invites.length})</Text>
+        <Text style={styles.sub}>
+          Diese Kunden haben den Link zu deiner Datenschutzerklärung bekommen. Sobald sie ihre Daten eintragen, erscheinen
+          sie in deiner Kundenliste.
+        </Text>
+        <View style={styles.inviteList}>
+          {invites.map((inv) => {
+            const status = inviteStatus(inv, now);
+            return (
+              <View key={inv.id} style={styles.inviteRow}>
+                <Mail size={18} color={status.expired ? Colors.textFaint : Colors.accent} />
+                <View style={styles.rowTexts}>
+                  <Text style={styles.inviteEmail} numberOfLines={1}>
+                    {inv.email}
+                  </Text>
+                  <Text style={styles.sub}>{status.text}</Text>
+                </View>
+                <TextLink label="Erneut senden" onPress={() => resend(inv.id, inv.email)} disabled={busy === inv.id} />
+                <TextLink label="Löschen" onPress={() => remove(inv.id)} disabled={busy === inv.id} />
+              </View>
+            );
+          })}
+        </View>
+        {note && <Notice tone={note.tone}>{note.text}</Notice>}
+      </Card>
+    </Reveal>
+  );
+}
+
 const styles = StyleSheet.create({
   newButton: { minWidth: 170 },
+  inviteTitle: { color: Colors.text, fontSize: 16, fontWeight: '600' },
+  inviteList: { gap: Spacing.md, marginTop: Spacing.sm },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flexWrap: 'wrap' },
+  inviteEmail: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   list: { gap: Spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
   rowTexts: { flex: 1, gap: 2 },

@@ -21,7 +21,7 @@ import { useDocuments } from './documents-provider';
 import { LogoCard } from './logo-card';
 
 type Draft = Record<
-  'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days' | 'review_url',
+  'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days' | 'review_url' | 'privacy_url',
   string
 > & { small_business: boolean; vat_rate: '19' | '7' };
 
@@ -42,6 +42,7 @@ const toDraft = (s: Seller): Draft => ({
   payment_days: String(s.payment_days),
   offer_validity_days: String(s.offer_validity_days),
   review_url: s.review_url ?? '',
+  privacy_url: s.privacy_url ?? '',
   small_business: s.small_business,
   vat_rate: s.vat_rate === 7 ? '7' : '19',
 });
@@ -70,6 +71,7 @@ function toValues(draft: Draft): Omit<Seller, 'logo_id'> {
     small_business: draft.small_business,
     vat_rate: Number(draft.vat_rate),
     review_url: clean(draft.review_url),
+    privacy_url: clean(draft.privacy_url),
   };
 }
 
@@ -127,6 +129,10 @@ function CompanyForm() {
         draft.review_url.trim() && !validReviewUrl(draft.review_url)
           ? 'Bitte den kompletten Link einfügen (beginnt mit https://).'
           : undefined,
+      privacy_url:
+        draft.privacy_url.trim() && !validReviewUrl(draft.privacy_url)
+          ? 'Bitte den kompletten Link einfügen (beginnt mit https://).'
+          : undefined,
     };
     setErrors(next);
     setFailure(null);
@@ -136,6 +142,8 @@ function CompanyForm() {
     // Bewertungs-Link nur mitschicken, wenn es einen gibt (oder gab) – dann klappt das Speichern
     // auch, solange das Datenbank-Skript dafür noch fehlt
     if (!values.review_url && !seller.review_url) delete values.review_url;
+    // dasselbe für den Link zur Datenschutzerklärung (Skript 20261119090000_customer_invites.sql)
+    if (!values.privacy_url && !seller.privacy_url) delete values.privacy_url;
     const { error: err } = await saveSeller(values);
     setSaving(false);
     if (err) setFailure(err);
@@ -237,6 +245,22 @@ function CompanyForm() {
           <Text style={styles.hint}>
             Nach der Zahlung kannst du deine Kunden mit einem Klick um eine Bewertung bitten. Google: Unternehmensprofil
             öffnen → „Nach Rezensionen fragen“ → Link kopieren.
+          </Text>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={460}>
+        <Card>
+          <Text style={styles.cardTitle}>Datenschutz</Text>
+          {field('privacy_url', 'Link zu deiner Datenschutzerklärung', {
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            placeholder: 'https://deine-website.de/datenschutz (optional)',
+          })}
+          <Text style={styles.hint}>
+            Neue Kunden bekommen per E-Mail einen Link, tragen ihre Daten selbst ein und bestätigen deine
+            Datenschutzerklärung. Hast du keine eigene, zeigt Lunaxora ein Muster mit deinem Namen, deiner Anschrift und
+            E-Mail von oben (keine Rechtsberatung).
           </Text>
         </Card>
       </Reveal>

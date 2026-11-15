@@ -17,10 +17,13 @@ import { useCrm } from './crm-provider';
 import { parseEuro } from './order-logic';
 import { CrmSetupNotice } from './ui';
 
-/** Neuen Auftrag anlegen: Kunde wählen (oder neu anlegen), Leistung, optional Preis. */
+/**
+ * Neuen Auftrag anlegen: Kunde wählen, Leistung, optional Preis. Neue Kunden
+ * entstehen nur über den Datenschutz-Link (Kunden → Neuer Kunde).
+ */
 export function OrderNewScreen() {
   const params = useLocalSearchParams<{ customer?: string }>();
-  const { customers, createCustomer, createOrder, customerById, error } = useCrm();
+  const { customers, createOrder, customerById, error } = useCrm();
   const [customerId, setCustomerId] = useState<string | null>(params.customer ?? null);
   const [query, setQuery] = useState('');
   const [title, setTitle] = useState('');
@@ -37,7 +40,7 @@ export function OrderNewScreen() {
   const submit = async () => {
     const parsedPrice = parseEuro(price);
     const next = {
-      customer: selected || q ? undefined : 'Bitte wähle einen Kunden.',
+      customer: selected ? undefined : 'Bitte wähle einen Kunden aus der Liste.',
       title: title.trim() ? undefined : 'Was ist zu tun? (z. B. „Website erstellen“)',
       price: parsedPrice === 'invalid' ? 'Bitte gib einen Betrag wie 1.250,00 ein.' : undefined,
     };
@@ -45,20 +48,10 @@ export function OrderNewScreen() {
     setFailure(null);
     if (next.customer || next.title || next.price) return;
 
+    if (!selected) return;
     setSaving(true);
-    let id = selected?.id;
-    // Kunde noch nicht vorhanden -> mit anlegen
-    if (!id) {
-      const created = await createCustomer({ name: query.trim(), company: null, phone: null, email: null, address: null, notes: null });
-      if (created.error || !created.data) {
-        setSaving(false);
-        setFailure(created.error ?? 'Der Kunde konnte nicht angelegt werden.');
-        return;
-      }
-      id = created.data.id;
-    }
     const { data, error: err } = await createOrder({
-      customer_id: id,
+      customer_id: selected.id,
       title: title.trim(),
       description: description.trim() || null,
       price: parsedPrice === 'invalid' ? null : parsedPrice,
@@ -91,7 +84,7 @@ export function OrderNewScreen() {
           ) : (
             <View style={styles.picker}>
               <TextField
-                label="Kunde suchen oder neu eingeben"
+                label="Kunde suchen"
                 value={query}
                 onChangeText={(v) => {
                   setQuery(v);
@@ -104,9 +97,15 @@ export function OrderNewScreen() {
               {matches.map((c) => (
                 <OptionCard key={c.id} compact title={c.name} description={c.company ?? undefined} selected={false} onPress={() => setCustomerId(c.id)} />
               ))}
-              {!!q && !customers.some((c) => c.name.toLowerCase() === q) && (
-                <Text style={styles.hint}>Kein passender Kunde? „{query.trim()}“ wird beim Speichern als neuer Kunde angelegt.</Text>
-              )}
+              {(!!q && matches.length === 0) || customers.length === 0 ? (
+                <View style={styles.newCustomer}>
+                  <Text style={styles.hint}>
+                    {customers.length === 0 ? 'Du hast noch keine Kunden.' : `Kein Kunde gefunden für „${query.trim()}“.`} Neue
+                    Kunden tragen ihre Daten selbst ein – du brauchst nur ihre E-Mail-Adresse.
+                  </Text>
+                  <Button label="Neuen Kunden einladen" variant="secondary" onPress={() => router.push('/kunden/neu')} />
+                </View>
+              ) : null}
             </View>
           )}
         </Card>
@@ -164,5 +163,6 @@ const styles = StyleSheet.create({
   selected: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   selectedName: { color: Colors.text, fontSize: 17, fontWeight: '600' },
   hint: { color: Colors.textFaint, fontSize: 13 },
+  newCustomer: { gap: Spacing.sm, alignItems: 'flex-start' },
   multiline: { minHeight: 90, paddingVertical: Spacing.md, textAlignVertical: 'top' },
 });

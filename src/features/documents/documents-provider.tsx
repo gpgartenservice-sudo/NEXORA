@@ -189,6 +189,11 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
         .select('*')
         .single();
       if (err) {
+        if (['PGRST204', '42703'].includes(err.code) && /privacy_url/.test(err.message ?? ''))
+          return {
+            error:
+              'Für den Link zur Datenschutzerklärung fehlt noch das Datenbank-Skript 20261119090000_customer_invites.sql (siehe supabase/README.md). Lass das Feld leer, um den Rest zu speichern.',
+          };
         if (['PGRST204', '42703'].includes(err.code) && /review_url/.test(err.message ?? ''))
           return {
             error:

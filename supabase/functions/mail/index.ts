@@ -27,6 +27,13 @@
  *   MAIL_FROM       Absender-Adresse auf deiner bei Resend bestätigten Domain
  *
  * Ist SMTP_HOST gesetzt, wird Weg A benutzt.
+ *
+ * Datenschutz-Link für neue Kunden (kind "invite", Skript
+ * 20261119090000_customer_invites.sql): Die App schickt nur invite_id,
+ * Firmenname und Antwort-an – Empfänger, Betreff und Text baut diese Funktion
+ * selbst aus der Einladung. Deshalb geht das in jedem Abo (auch Gratis), ohne
+ * dass jemand darüber beliebige E-Mails verschicken kann.
+ *   INVITE_URL      (optional) Adresse der Kundenseite, Standard https://lunaxora.de/Kunde
  */
 
 const RESEND_URL = 'https://api.resend.com/emails';
@@ -71,6 +78,7 @@ type Body = {
   attachments?: unknown;
   document_id?: unknown;
   kind?: unknown;
+  invite_id?: unknown;
 };
 
 const json = (status: number, body: unknown) =>
@@ -124,6 +132,35 @@ export function validate(body: Body) {
   }
   if (size > MAX_ATTACHMENT_BASE64) return { error: 'attachment_too_large' } as const;
   return { to, subject, text, replyTo, kind, documentId, attachments, fromName: cleanName(body.from_name) } as const;
+}
+
+/** "2026-12-15T10:00:00Z" -> "15.12.2026" (deutsche Zeit) */
+function dayDe(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/** Betreff und Text der E-Mail mit dem Datenschutz-Link (Text kommt nie vom Client) */
+export function inviteMail(o: { fromName: string; token: string; expiresAt: string; base: string }) {
+  const link = `${o.base.replace(/\/+$/, '')}/?einladung=${encodeURIComponent(o.token)}`;
+  const until = dayDe(o.expiresAt);
+  return {
+    link,
+    subject: `${o.fromName}: Bitte tragen Sie Ihre Kontaktdaten ein`,
+    text: [
+      'Guten Tag,',
+      '',
+      'vielen Dank für Ihre Anfrage! Bitte tragen Sie über diesen Link einmal Ihre Kontaktdaten ein und bestätigen Sie die Datenschutzerklärung:',
+      '',
+      link,
+      '',
+      `Ihre Daten werden erst gespeichert, wenn Sie das Formular abschicken.${until ? ` Der Link ist bis zum ${until} gültig.` : ''}`,
+      '',
+      'Viele Grüße',
+      o.fromName,
+    ].join('\n'),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -333,8 +370,50 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     return json(400, { error: 'invalid_body' });
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
-  const msg = validate(body);
-  if ('error' in msg) return json(400, { error: msg.error });
+  const isInvite = body.kind === 'invite';
+  const db = { Authorization: auth, apikey, 'Content-Type': 'application/json' };
+
+  // Datenschutz-Link: Empfänger und Text aus der Einladung des Nutzers (RLS)
+  let invite: { email: string; token: string; expires_at: string } | null = null;
+  if (isInvite) {
+    const id = typeof body.invite_id === 'string' && UUID.test(body.invite_id) ? body.invite_id : null;
+    if (!id) return json(400, { error: 'invalid_invite' });
+    const invRes = await deps.fetch(
+      `${url}/rest/v1/customer_invites?id=eq.${id}&select=email,token,expires_at,completed_at`,
+      { headers: db },
+    );
+    if (!invRes.ok) {
+      const detail = (await invRes.text().catch(() => '')).slice(0, 300);
+      if (invRes.status === 404 || /PGRST205|42P01/.test(detail)) return json(500, { error: 'missing_invite_table' });
+      console.error('customer_invites', invRes.status, detail);
+      return json(502, { error: 'invite_error', detail });
+    }
+    const rows = ((await invRes.json().catch(() => [])) as { email: string; token: string; expires_at: string; completed_at: string | null }[]) ?? [];
+    const row = rows[0];
+    if (!row) return json(404, { error: 'invite_not_found' });
+    if (row.completed_at) return json(409, { error: 'invite_done' });
+    invite = row;
+  }
+  const checked = invite
+    ? ((inv: { email: string; token: string; expires_at: string }) => {
+        const fromName = cleanName(body.from_name);
+        const base = deps.env('INVITE_URL')?.trim() || 'https://lunaxora.de/Kunde';
+        const m = inviteMail({ fromName, token: inv.token, expiresAt: inv.expires_at, base });
+        const replyTo = typeof body.reply_to === 'string' && EMAIL.test(body.reply_to.trim()) ? body.reply_to.trim() : null;
+        return {
+          to: [inv.email],
+          subject: m.subject,
+          text: m.text,
+          replyTo,
+          kind: 'invite',
+          documentId: null,
+          attachments: [] as { filename: string; content: string }[],
+          fromName,
+        };
+      })(invite)
+    : validate(body);
+  if ('error' in checked) return json(400, { error: checked.error });
+  const msg = checked;
 
   // Weg A: eigenes Postfach (SMTP), Weg B: Resend
   const smtpHost = deps.env('SMTP_HOST')?.trim();
@@ -351,21 +430,23 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const from = (deps.env('MAIL_FROM')?.trim() || (smtpHost && EMAIL.test(smtpUser) ? smtpUser : '')).trim();
   if (!from || !EMAIL.test(from)) return json(500, { error: 'missing_mail_from' });
 
-  // Nur mit Pro (Skript 20261116090000_plans.sql; fehlt es, gilt keine Einschränkung)
-  const planRes = await deps
-    .fetch(`${url}/rest/v1/rpc/my_plan`, {
-      method: 'POST',
-      headers: { Authorization: auth, apikey, 'Content-Type': 'application/json' },
-      body: '{}',
-    })
-    .catch(() => null);
+  // Nur mit Pro (Skript 20261116090000_plans.sql; fehlt es, gilt keine Einschränkung).
+  // Der Datenschutz-Link für neue Kunden geht in jedem Abo.
+  const planRes = isInvite
+    ? null
+    : await deps
+        .fetch(`${url}/rest/v1/rpc/my_plan`, {
+          method: 'POST',
+          headers: { Authorization: auth, apikey, 'Content-Type': 'application/json' },
+          body: '{}',
+        })
+        .catch(() => null);
   if (planRes?.ok) {
     const info = (await planRes.json().catch(() => null)) as { plan?: string } | null;
     if (info?.plan === 'free') return json(402, { error: 'pro_required' });
   }
 
   // Bremse: Wie viele E-Mails in der letzten Stunde / am letzten Tag?
-  const db = { Authorization: auth, apikey, 'Content-Type': 'application/json' };
   const now = deps.now?.() ?? new Date();
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const logRes = await deps.fetch(

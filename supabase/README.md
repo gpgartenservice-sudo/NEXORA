@@ -50,6 +50,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261116090000_plans.sql` | Abo: 14 Tage Pro-Test, danach Gratis; Pro-Funktionen (Online-Angebote, Mahnungen, Kalender-Abo) werden in der Datenbank geprüft |
 | `20261117090000_plan_tiers.sql` | Abo-Stufen Gratis / Pro / Business: neue Grenzen je Monat (Luna-Nachrichten, Belege, Vorlesen) und Spalte `tier` für Business |
 | `20261118090000_billing.sql` | Bezahlen mit Stripe: Spalten `stripe_customer_id` und `stripe_subscription_id` im Abo (Abschnitt 14) |
+| `20261119090000_customer_invites.sql` | Neue Kunden per Datenschutz-Link: Einladungen (E-Mail + geheimer Link), Kundenseite ohne Anmeldung, Nachweis der bestätigten Datenschutzerklärung am Kunden (Abschnitt 15) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -403,6 +404,30 @@ Unter **Settings → Billing → Subscriptions and emails** einschalten, dass Ku
 3. Vorher die rechtlichen Seiten fertig haben (AGB, Widerrufsbelehrung mit Zustimmung zum sofortigen Start, Kündigungsbutton, Datenschutz mit Stripe als Zahlungsdienstleister).
 
 Tester, die in der Testphase von Hand auf Pro gestellt wurden (Abschnitt 12), sind von Stripe unberührt – die Funktion ändert nur Einträge, die zu einem Stripe-Abo gehören bzw. von Stripe gemeldet werden.
+
+## 15. Neue Kunden per Datenschutz-Link
+
+Neue Kunden entstehen in Lunaxora nur noch über den Kunden selbst: Unter **Kunden → Neuen Kunden einladen** gibt der Nutzer nur die E-Mail-Adresse ein und tippt **Datenschutzerklärung schicken**. Der Kunde bekommt eine E-Mail mit einem Link auf `https://lunaxora.de/Kunde/?einladung=…`, trägt dort Name, Anschrift und (optional) Firma und Telefon ein und bestätigt die Datenschutzerklärung. Erst beim Abschicken entsteht der Kunde – mit Zeitpunkt der Bestätigung und welcher Datenschutzerklärung (eigener Link oder Muster). Bis dahin speichert Lunaxora nur die E-Mail-Adresse; offene Links stehen in der Kundenliste unter „Wartet auf Daten“ (erneut senden oder löschen). Ein Link gilt 30 Tage.
+
+Die Datenschutzerklärung auf der Kundenseite ist entweder der eigene Link aus **Firma → Datenschutz** oder – ohne Link – ein Muster mit Name, Anschrift und E-Mail aus den Firmendaten (die müssen dann ausgefüllt sein). Das Muster ist keine Rechtsberatung.
+
+Der Datenschutz-Link geht in **jedem Abo** (auch Gratis) – er läuft über dieselbe Funktion `mail` wie Abschnitt 10, die Grenzen (20 pro Stunde, 100 pro Tag) gelten mit. Empfänger und Text legt die Funktion selbst fest, die App kann darüber also keine beliebigen E-Mails verschicken.
+
+Einrichtung:
+
+1. Datenbank-Skript `20261119090000_customer_invites.sql` ausführen (Abschnitt 3).
+2. Funktion `mail` neu einspielen: **Edge Functions → mail → Code** → Inhalt von [`functions/mail/index.ts`](functions/mail/index.ts) komplett ersetzen → **Deploy**. Die Secrets aus Abschnitt 10 bleiben. Optional: Secret `INVITE_URL`, falls die Kundenseite woanders liegt (Standard `https://lunaxora.de/Kunde`).
+3. Funktion `assistant` genauso neu einspielen ([`functions/assistant/index.ts`](functions/assistant/index.ts)) – damit Luna nach der E-Mail-Adresse fragt, statt Kunden direkt anzulegen.
+4. **Kundenseite ins Internet stellen** (nur eine einzige Datei, wie die Angebotsseite in Abschnitt 9):
+   Am einfachsten: `bash scripts/web-hochladen.sh kunde` – baut die Seite und lädt sie per SFTP in den Ordner `Kunde` (wie bei der Angebotsseite, fragt das Passwort ab). Ohne Skript:
+   1. Im Projektordner `bash scripts/web-kunde-bauen.sh` ausführen. Das Skript baut `dist-kunde/index.html` aus [`web-kunde/index.html`](../web-kunde/index.html) (setzt Supabase-Adresse und Publishable Key aus der `.env` ein).
+   2. Beim Hoster im Ordner der Domain `lunaxora.de` einen Ordner `Kunde` anlegen (großes K, wie in der E-Mail) und `dist-kunde/index.html` dort hineinladen – in den Hauptordner nie, dort liegt die Homepage.
+   3. Test: `https://lunaxora.de/Kunde/` öffnen – „Bitte öffnen Sie den Link aus Ihrer E-Mail“ erscheint (ohne Link aus einer E-Mail ist das richtig).
+5. In der App unter **Firma** Name, Anschrift und E-Mail eintragen oder den Link zur eigenen Datenschutzerklärung.
+
+Testen: **Kunden → Neuen Kunden einladen** → eigene zweite E-Mail-Adresse eintragen → **Datenschutzerklärung schicken** → in der E-Mail auf den Link → Daten eintragen, Haken setzen, **Daten absenden** → in der App unter **Kunden** erscheint der neue Kunde (Liste neu öffnen).
+
+Ändert sich etwas an der Kundenseite (`web-kunde/index.html`), Schritt 4 wiederholen.
 
 ## Sicherheit
 
