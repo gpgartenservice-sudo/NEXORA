@@ -3,13 +3,15 @@ import { Platform } from 'react-native';
 import { desktop } from '@/lib/desktop';
 
 import { speechAudio, type SpeechAudioResult } from './assistant-api';
+import { canPlaySpeech, playSpeechAudio } from './speech-player';
 import { createSpeechDetector, speechChunks, speechText, type DetectorOptions } from './voice-logic';
 
 /**
  * Sprachmodus von Luna – Mikrofon, Aufnahme mit Pausen-Erkennung, Vorlesen.
  *
- * Läuft im Mac-Fenster und im Browser (Web-APIs). Die Aufnahme bleibt im
- * Speicher und geht nur zur Umwandlung in Text an die Server-Funktion.
+ * Zuhören läuft im Mac-Fenster und im Browser (Web-APIs), Vorlesen zusätzlich
+ * auf dem Handy. Die Aufnahme bleibt im Speicher und geht nur zur Umwandlung
+ * in Text an die Server-Funktion.
  */
 
 type AudioContextClass = typeof AudioContext;
@@ -27,9 +29,20 @@ export function voiceSupported(): boolean {
   return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined' && !!audioContextClass();
 }
 
-/** Kann die App hier vorlesen? (Mac-Fenster und Browser – Lunas Stimme kommt von ElevenLabs) */
+/** Kann die App hier vorlesen? (Mac, Browser und Handy – Lunas Stimme kommt von ElevenLabs) */
 export function speechSupported(): boolean {
-  return Platform.OS === 'web' && typeof window !== 'undefined' && typeof Audio !== 'undefined';
+  return canPlaySpeech();
+}
+
+/**
+ * Darf hier ohne Antippen Ton kommen? Handy und Mac-App ja. Ein normaler Browser
+ * blockiert Ton, bis man einmal auf die Seite geklickt hat – dann gar nicht erst
+ * bei ElevenLabs anfragen (spart Credits).
+ */
+export function autoplayAllowed(): boolean {
+  if (Platform.OS !== 'web' || desktop()) return true;
+  const activation = (globalThis.navigator as { userActivation?: { hasBeenActive?: boolean } } | undefined)?.userActivation;
+  return activation?.hasBeenActive !== false;
 }
 
 // Mikrofon offen (Sprachmodus): dann keine Ausrufe beim Anstupsen – sonst hört Luna sich selbst
@@ -228,37 +241,22 @@ type Run = {
 };
 
 /**
- * Sprechtempo von Luna (1 = Originaltempo von ElevenLabs). Wunsch: etwa doppelt so schnell.
- * Die Tonhöhe bleibt dabei gleich (preservesPitch), Luna klingt also nicht nach Micky Maus.
+ * Sprechtempo von Luna (1 = Originaltempo von ElevenLabs). 2 war zu schnell zum Verstehen –
+ * Wunsch: zügig, aber gut verständlich. Die Tonhöhe bleibt dabei gleich (preservesPitch).
  */
-export const SPEECH_RATE = 2;
+export const SPEECH_RATE = 1.25;
 
 /** Eine fertige Aufnahme abspielen. false = ließ sich nicht abspielen */
 function playAudio(blob: Blob, run: Run): Promise<boolean> {
   return new Promise((resolve) => {
-    const url = URL.createObjectURL(new Blob([blob], { type: 'audio/mpeg' }));
-    const el = new Audio(url);
-    el.preservesPitch = true;
-    el.defaultPlaybackRate = SPEECH_RATE;
-    el.playbackRate = SPEECH_RATE;
-    let over = false;
-    const end = (ok: boolean) => {
-      if (over) return;
-      over = true;
-      el.onended = null;
-      el.onerror = null;
-      run.stopAudio = null;
-      URL.revokeObjectURL(url);
-      resolve(ok);
-    };
-    run.stopAudio = () => {
-      el.pause();
-      end(true);
-    };
-    el.onplaying = () => run.started();
-    el.onended = () => end(true);
-    el.onerror = () => end(false);
-    el.play().catch(() => end(false));
+    const playback = playSpeechAudio(blob, SPEECH_RATE, {
+      onPlaying: () => run.started(),
+      onEnd: (ok) => {
+        run.stopAudio = null;
+        resolve(ok);
+      },
+    });
+    run.stopAudio = () => playback.stop();
   });
 }
 

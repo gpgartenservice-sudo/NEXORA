@@ -1,3 +1,5 @@
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
 import { desktop } from '@/lib/desktop';
@@ -8,6 +10,8 @@ import { connectedLabel, type ConnectedPlatform } from './connect-logic';
 /**
  * Anmeldung bei TikTok bzw. Instagram:
  * - Mac-App: eigenes Anmeldefenster, das bei der Rückleitung schließt.
+ * - Handy: Anmeldefenster des Systems; die Server-Funktion leitet am Ende auf
+ *   nexora://social um, das Fenster fängt das ab und schließt sich.
  * - Browser: Seite wechselt zur Anmeldung und kommt danach nach /social zurück.
  */
 export type AuthOutcome =
@@ -18,9 +22,39 @@ export type AuthOutcome =
 
 const PENDING_KEY = 'nexora.social.pending';
 
-/** Kann hier verbunden werden? (Mac-App oder Browser) */
+/** Rückleitung in die Handy-App (muss die Server-Funktion „social“ erlauben) */
+export const APP_RETURN = 'nexora://social';
+
+const NATIVE = Platform.OS === 'ios' || Platform.OS === 'android';
+
+/** Kann hier verbunden werden? (Mac-App, Handy oder Browser) */
 export function connectSupported(): boolean {
-  return Platform.OS === 'web' && typeof window !== 'undefined';
+  return NATIVE || (Platform.OS === 'web' && typeof window !== 'undefined');
+}
+
+/** Handy: Anmeldung im Anmeldefenster des Systems (wie „Mit Apple anmelden“) */
+async function authorizeNative(platform: ConnectedPlatform): Promise<AuthOutcome> {
+  const start = await startConnect(platform, APP_RETURN);
+  if (!start.data) return { kind: 'error', error: start.error ?? 'Unbekannter Fehler', setup: start.setup };
+  let result: WebBrowser.WebBrowserAuthSessionResult;
+  try {
+    result = await WebBrowser.openAuthSessionAsync(start.data.url, APP_RETURN);
+  } catch (e) {
+    return { kind: 'error', error: `Das Anmeldefenster ließ sich nicht öffnen.\n\nTechnische Details: ${String(e)}` };
+  }
+  if (result.type !== 'success') return { kind: 'cancelled' };
+  const query = Linking.parse(result.url).queryParams ?? {};
+  const param = (key: string) => {
+    const value = query[key];
+    return typeof value === 'string' && value ? value : undefined;
+  };
+  const error = param('social_error');
+  if (error) return { kind: 'error', error: denied(platform, error, param('social_error_description')) };
+  const code = param('social_code');
+  const state = param('social_state');
+  if (!code || state !== start.data.state)
+    return { kind: 'error', error: 'Die Anmeldung passt nicht zusammen. Bitte verbinde noch einmal.' };
+  return { kind: 'code', platform, code, state };
 }
 
 function denied(platform: ConnectedPlatform, error: string, description?: string | null): string {
@@ -50,6 +84,8 @@ export async function authorize(platform: ConnectedPlatform): Promise<AuthOutcom
       return { kind: 'error', error: 'Die Anmeldung passt nicht zusammen. Bitte verbinde noch einmal.' };
     return { kind: 'code', platform, code, state };
   }
+
+  if (NATIVE) return authorizeNative(platform);
 
   if (!connectSupported()) {
     return {

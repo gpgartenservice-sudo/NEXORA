@@ -55,6 +55,12 @@
         {
           "motionPermission": "Lunaxora nutzt den Bewegungssensor, damit Luna mitrollt, wenn du dein Handy kippst."
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Lunaxora nutzt das Mikrofon nur, wenn du mit Luna sprichst."
+        }
       ]
     ],
     "experiments": {

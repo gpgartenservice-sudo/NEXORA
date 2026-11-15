@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/theme';
-import { AppBackdrop, useBackground } from '@/features/design/backgrounds';
+import { AppBackdrop, useDesign } from '@/features/design/backgrounds';
+import { designActive } from '@/features/design/design-logic';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 import { useScreenTop } from '@/features/navigation/use-screen-top';
 
@@ -19,11 +20,11 @@ export function Screen({ children, maxWidth = 1080 }: Props) {
   // Handy: unten keine Leiste mehr – Platz für den Home-Balken lassen
   const bottom = Spacing.xxxl + (wide ? 0 : insets.bottom);
   // Pro/Business: bewegter Hintergrund (Profil → Design) hinter dem Inhalt
-  const background = useBackground();
+  const design = useDesign();
 
   return (
     <View style={styles.root}>
-      {background !== 'none' && <AppBackdrop />}
+      {designActive(design) && <AppBackdrop />}
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingTop: top, paddingBottom: bottom }}>
         <View style={[styles.inner, { maxWidth, paddingHorizontal: wide ? Spacing.xxxl : Spacing.xl }]}>{children}</View>
       </ScrollView>

@@ -179,9 +179,13 @@ function config(platform: Platform, env: Deps['env']): Config | null {
 
 const redirectUri = (env: Deps['env']) => `${(env('SUPABASE_URL') ?? '').replace(/\/+$/, '')}/functions/v1/social/callback`;
 
-/** Darf nach der Anmeldung im Browser dorthin zurückgeleitet werden? (Schutz vor fremden Seiten) */
+/** Rückleitung in die Handy-App (das Anmeldefenster des iPhones fängt sie ab) */
+const APP_RETURN = 'nexora://social';
+
+/** Darf nach der Anmeldung dorthin zurückgeleitet werden? (Schutz vor fremden Seiten) */
 export function allowedReturn(target: string | undefined, env: Deps['env']): boolean {
   if (!target) return false;
+  if (target === APP_RETURN) return true;
   let url: URL;
   try {
     url = new URL(target);

@@ -18,17 +18,20 @@ import Animated, {
 import { Colors, Spacing } from '@/constants/theme';
 import { NexyAvatar, type NexyMood } from '@/features/assistant/nexy-avatar';
 import { useGuide } from '@/features/assistant/nexy-guide';
+import { autoplayAllowed, speak, speechSupported, type Speech } from '@/features/assistant/voice';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
 import { useProfile } from '@/providers/profile-provider';
 
 import { lunaQuip } from './content';
-import { useCelebration } from './money';
+import { useCelebration, useMoneyShowRunning } from './money';
 
 const KEY = 'nexora.last-open';
 /** Wartezeit nach dem Öffnen der Startseite */
 const START_DELAY = 1300;
-/** Tippen der Sprechblase (ms pro Zeichen) */
-const TYPE_MS = 32;
+/** Tippen der Sprechblase (ms pro Zeichen) – passt ungefähr zu Lunas Sprechtempo */
+const TYPE_MS = 50;
+/** So lange wartet der Text höchstens auf die Stimme, dann tippt er allein los */
+const VOICE_WAIT = 1500;
 /** Einmal pro App-Start */
 let shownThisStart = false;
 
@@ -38,11 +41,12 @@ const BLUR = 45;
 
 type Phase = 'in' | 'talk' | 'out';
 
+
 /**
  * Luna begrüßt dich auf der Startseite – mit einem lockeren Spruch, wenn es passt
  * (spät abends, nach ein paar Tagen Pause, Montagmorgen …): Der Hintergrund wird
- * unscharf, Luna fliegt ins Bild, sagt ihren Satz und fliegt wieder hinaus.
- * Antippen beendet es sofort.
+ * unscharf, Luna fliegt ins Bild, sagt ihren Satz (laut, mit ihrer Stimme) und
+ * fliegt wieder hinaus. Antippen beendet es sofort.
  */
 export function LunaGreeting() {
   const pathname = usePathname();
@@ -50,6 +54,7 @@ export function LunaGreeting() {
   const tutorial = useTutorial();
   const guide = useGuide();
   const celebration = useCelebration();
+  const moneyShow = useMoneyShowRunning();
   const [quip, setQuip] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const decided = useRef(false);
@@ -74,7 +79,7 @@ export function LunaGreeting() {
   }, [pathname, profile]);
 
   // Erst auftreten, wenn nichts anderes läuft (Einführung, Vorführung, Geldregen)
-  const busy = !!tutorial.active || !!guide?.running || !!celebration;
+  const busy = !!tutorial.active || !!guide?.running || !!celebration || moneyShow;
   useEffect(() => {
     if (!quip || ready || busy || pathname !== '/home') return;
     const t = setTimeout(() => setReady(true), START_DELAY);
@@ -92,6 +97,12 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
   const [phase, setPhase] = useState<Phase>('in');
   const [typed, setTyped] = useState(reduce ? text.length : 0);
   const [mood, setMood] = useState<NexyMood>('happy');
+  // Stimme: Text tippt los, sobald Luna hörbar spricht (oder nach VOICE_WAIT ohne Stimme)
+  const [typing, setTyping] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [voiceOver, setVoiceOver] = useState(false);
+  const [readDone, setReadDone] = useState(false);
+  const speech = useRef<Speech | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const leaving = useRef(false);
   const done = useRef(onDone);
@@ -119,6 +130,9 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
     leaving.current = true;
     timers.current.forEach(clearTimeout);
     timers.current = [];
+    speech.current?.cancel();
+    speech.current = null;
+    setSpeaking(false);
     setPhase('out');
     setMood('happy');
     setTyped(text.length);
@@ -135,14 +149,41 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
     later(reduce ? 450 : 760, () => done.current());
   };
 
-  // Ablauf: Hintergrund verschwimmt → Luna fliegt ein und landet → Blase → tippen → warten → weg
+  /** Luna spricht ihren Satz laut (ElevenLabs) – ohne Stimme läuft alles wie gehabt weiter */
+  const say = () => {
+    if (!speechSupported() || !autoplayAllowed()) {
+      setVoiceOver(true);
+      setTyping(true);
+      return;
+    }
+    const s = speak(text, {
+      cache: true,
+      onStart: () => {
+        setSpeaking(true);
+        setTyping(true);
+      },
+    });
+    speech.current = s;
+    later(VOICE_WAIT, () => setTyping(true));
+    void s.done.then(() => {
+      if (speech.current === s) speech.current = null;
+      setSpeaking(false);
+      setVoiceOver(true);
+      setTyping(true);
+    });
+  };
+
+  // Ablauf: Hintergrund verschwimmt → Luna fliegt ein und landet → Blase → sprechen + tippen → warten → weg
   useEffect(() => {
     backdrop.set(withTiming(1, { duration: 420 }));
     if (reduce) {
       lunaOpacity.set(withTiming(1, { duration: 250 }));
       bubble.set(withTiming(1, { duration: 250 }));
-      later(250, () => setPhase('talk'));
-      later(250 + Math.max(2600, text.length * 60), leave);
+      later(250, () => {
+        setPhase('talk');
+        say();
+      });
+      later(250 + Math.max(2600, text.length * 60), () => setReadDone(true));
     } else {
       flyY.set(withDelay(180, withSpring(0, { damping: 13, stiffness: 95, mass: 1 })));
       flyScale.set(withDelay(180, withSpring(1, { damping: 12, stiffness: 110 })));
@@ -155,19 +196,23 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
         setPhase('talk');
         setMood('talking');
         bubble.set(withSpring(1, { damping: 12, stiffness: 200 }));
+        say();
       });
     }
-    return () => timers.current.forEach(clearTimeout);
+    return () => {
+      timers.current.forEach(clearTimeout);
+      speech.current?.cancel();
+    };
     // nur einmal beim Auftreten
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Text Buchstabe für Buchstabe; danach freut sie sich und bleibt kurz zum Lesen
   useEffect(() => {
-    if (phase !== 'talk' || reduce) return;
+    if (phase !== 'talk' || reduce || !typing) return;
     if (typed >= text.length) {
       const a = setTimeout(() => setMood('happy'), 250);
-      const b = setTimeout(leave, Math.max(2200, text.length * 45));
+      const b = setTimeout(() => setReadDone(true), Math.max(2200, text.length * 45));
       return () => {
         clearTimeout(a);
         clearTimeout(b);
@@ -175,8 +220,15 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
     }
     const t = setTimeout(() => setTyped((n) => n + 1), TYPE_MS);
     return () => clearTimeout(t);
+  }, [phase, typed, text, reduce, typing]);
+
+  // Erst gehen, wenn gelesen UND fertig gesprochen
+  useEffect(() => {
+    if (phase !== 'talk' || !readDone || !voiceOver) return;
+    const t = setTimeout(leave, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, typed, text, reduce]);
+  }, [phase, readDone, voiceOver]);
 
   // Seite gewechselt: sofort verabschieden
   useEffect(() => {
@@ -221,7 +273,7 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
         accessibilityRole="button"
         accessibilityLabel={`Luna: ${text}. Antippen zum Schließen`}>
         <Animated.View style={lunaStyle} testID="greeting-luna">
-          <NexyAvatar size={size} mood={mood} />
+          <NexyAvatar size={size} mood={speaking ? 'talking' : mood} />
         </Animated.View>
         <Animated.View style={[styles.bubble, bubbleStyle]} testID="greeting-bubble">
           <View style={styles.tail} />

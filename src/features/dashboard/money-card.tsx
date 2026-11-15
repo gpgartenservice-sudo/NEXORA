@@ -13,13 +13,15 @@ import { useFinance } from '@/features/finance/finance-provider';
 import { monthLabel, monthKey } from '@/features/finance/finance-logic';
 
 import { allTimeIncome, celebrationDone, monthNumbers, useCelebration, type MoneyNumbers } from './money';
+import { celebrateIncome } from './money-celebration';
 
 const ZERO: MoneyNumbers = { income: 0, expenses: 0, profit: 0 };
 
 /**
  * Startseite: Gewinn groß, Einnahmen kleiner, Ausgaben noch kleiner (laufender Monat).
  * Erscheint ab den ersten Einnahmen oder Ausgaben. Beim Öffnen der Startseite zählen die
- * Zahlen von 0 hoch; bei neuen Einnahmen (und beim App-Start) fliegen dazu Geldscheine.
+ * Zahlen von 0 hoch; beim App-Start fliegen dazu Geldscheine, bei einer neuen Einnahme
+ * kommt einmal die große Show (money-celebration.tsx).
  */
 export function MoneyCard() {
   const { orders } = useCrm();
@@ -44,7 +46,9 @@ export function MoneyCard() {
     // kurz warten, bis die Seite eingeblendet ist
     const t = setTimeout(() => {
       setReplay((r) => ({ n: r.n + 1, from: celebration.from }));
-      burstMoney(celebration.reason === 'start' ? 18 : 28);
+      // App-Start: Scheine fliegen. Neue Einnahme: die große Show mit Betrag und Luna
+      if (celebration.reason === 'income') celebrateIncome(celebration.amount);
+      else burstMoney(22);
       celebrationDone(celebration.id);
     }, 450);
     return () => clearTimeout(t);

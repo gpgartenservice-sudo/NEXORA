@@ -10,6 +10,7 @@ import { NotificationScheduler } from '@/features/notifications/notification-sch
 
 import { LunaGreeting } from './luna-greeting';
 import { allTimeIncome, monthNumbers, queueCelebration, takeStartCelebration } from './money';
+import { MoneyCelebrationHost } from './money-celebration';
 
 /**
  * Was über allen Seiten läuft: fliegende Geldscheine, das Erkennen neuer Einnahmen
@@ -21,6 +22,7 @@ export function AppExtras() {
       <IncomeWatcher />
       <NotificationScheduler />
       <LunaGreeting />
+      <MoneyCelebrationHost />
       <MoneyBurstHost />
     </>
   );
@@ -54,12 +56,12 @@ function IncomeWatcher() {
       if (income > 0 && takeStartCelebration()) queueCelebration('start', { income: 0, expenses: 0, profit: 0 });
       return;
     }
-    const more = income > seen.current.income + 0.004 || paid > seen.current.paid + 0.004;
+    const gained = Math.max(income - seen.current.income, paid - seen.current.paid);
     const from = before.current;
     seen.current = { income, paid };
     before.current = now;
-    if (!more) return;
-    queueCelebration('income', from);
+    if (gained < 0.005) return;
+    queueCelebration('income', from, Math.round(gained * 100) / 100);
     // Während Luna gerade live etwas vorführt, nicht dazwischenfunken – sie kehrt danach selbst zurück
     if (pathname !== '/home' && !guide?.running) {
       clearTimeout(navTimer.current);

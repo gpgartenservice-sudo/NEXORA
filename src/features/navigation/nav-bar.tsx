@@ -161,7 +161,7 @@ type NavButtonProps = TriggerSlotProps & { item: NavItem };
 export function NavButton({ item, isFocused = false, onPress, ...pressable }: NavButtonProps) {
   const drawer = useContext(DrawerContext);
   // "Mehr" brauchte nur die alte Tab-Leiste – das Menü zeigt alle Bereiche direkt
-  if (item.mobileOnly) return null;
+  if (item.mobileOnly || item.hidden) return null;
 
   const press: TriggerSlotProps['onPress'] = (e) => {
     onPress?.(e);

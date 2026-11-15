@@ -1,4 +1,5 @@
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
+import { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import { Colors } from '@/constants/theme';
@@ -21,7 +22,8 @@ import { TutorialProvider } from '@/features/tutorial/tutorial-provider';
 import { TeamProvider, useWorkspaceId } from '@/features/team/team-provider';
 import { DeviceGate } from '@/features/team/device-gate';
 import { AppExtras } from '@/features/dashboard/app-extras';
-import { DesignProvider, isBackgroundKey } from '@/features/design/backgrounds';
+import { DesignProvider } from '@/features/design/backgrounds';
+import { DEFAULT_DESIGN, readDesign } from '@/features/design/design-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { useProfile } from '@/providers/profile-provider';
 import { useAuth } from '@/providers/auth-provider';
@@ -56,11 +58,11 @@ function Workspace() {
   const ws = useWorkspaceId();
   const { profile } = useProfile();
   const { pro } = usePlan();
-  const chosen = profile?.design?.background;
-  const background = pro && isBackgroundKey(chosen) ? chosen : 'none';
+  const rawDesign = profile?.design;
+  const design = useMemo(() => (pro ? readDesign(rawDesign) : DEFAULT_DESIGN), [pro, rawDesign]);
 
   return (
-    <DesignProvider background={background}>
+    <DesignProvider design={design}>
     <RoadmapProvider userId={user?.id ?? ''} key={ws}>
         <CrmProvider userId={ws}>
           <DocumentsProvider userId={ws}>

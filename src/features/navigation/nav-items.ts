@@ -47,6 +47,8 @@ export type NavItem = {
   mobileOnly?: boolean;
   /** Unten in der Seitenleiste statt in der Hauptliste */
   footer?: boolean;
+  /** Nicht in der Navigation – die Seite bleibt über Links erreichbar (z. B. aus Kunden oder vom Start) */
+  hidden?: boolean;
 };
 
 /** Alle Bereiche der App, in der Reihenfolge der Navigation. */
@@ -92,6 +94,8 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Aufträge',
     icon: Briefcase,
     description: 'Vom ersten Kontakt bis zur bezahlten Rechnung: Angebote, Termine, Rechnungen.',
+    // Wunsch: kein eigener Eintrag links – Aufträge laufen über Kunden, Start und Luna
+    hidden: true,
   },
   {
     name: 'termine',

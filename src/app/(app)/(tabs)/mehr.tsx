@@ -10,7 +10,7 @@ import { NAV_ITEMS } from '@/features/navigation/nav-items';
 
 /** Handy: alle Bereiche, die nicht direkt in der Tab-Leiste stehen. */
 export default function MoreScreen() {
-  const items = NAV_ITEMS.filter((i) => !i.mobileTab);
+  const items = NAV_ITEMS.filter((i) => !i.mobileTab && !i.hidden);
   return (
     <Screen maxWidth={640}>
       <AnimatedTitle text="Mehr" style={styles.title} align="left" />

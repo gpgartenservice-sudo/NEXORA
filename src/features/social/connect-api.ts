@@ -1,4 +1,5 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -55,7 +56,9 @@ async function invoke<T>(body: Record<string, unknown>, platform?: ConnectedPlat
     if (code === 'return_not_allowed')
       return {
         error:
-          'Diese Web-Adresse ist für die Rückleitung nicht freigegeben. Trag sie in Supabase als Geheimnis SOCIAL_APP_ORIGINS ein – oder verbinde über die Mac-App.',
+          Platform.OS === 'web'
+            ? 'Diese Web-Adresse ist für die Rückleitung nicht freigegeben. Trag sie in Supabase als Geheimnis SOCIAL_APP_ORIGINS ein – oder verbinde über die Mac-App.'
+            : 'In Supabase läuft noch die alte Version der Server-Funktion „social“ – sie kennt das Verbinden am Handy noch nicht. Bitte den neuen Code einspielen.',
         setup: true,
       };
     if (code === 'invalid_state') return { error: 'Die Anmeldung ist abgelaufen. Bitte verbinde noch einmal.' };

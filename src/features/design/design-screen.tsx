@@ -1,151 +1,614 @@
 import { router } from 'expo-router';
-import { Check, CloudLightning, Moon, Palette, Sparkles, Square, Banknote as BanknoteIcon } from 'lucide-react-native';
-import { useState } from 'react';
+import { Check, Plus, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { TextField } from '@/components/auth/text-field';
 import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
-import { GradientFill } from '@/components/ui/gradient';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { ProBadge } from '@/components/ui/pro-badge';
+import { Segmented } from '@/components/ui/segmented';
+import { TextLink } from '@/components/ui/text-link';
+import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
 import { useProfile } from '@/providers/profile-provider';
 
-import { BACKGROUNDS, isBackgroundKey, type BackgroundKey } from './backgrounds';
+import { DesignProvider } from './backgrounds';
+import {
+  DEFAULT_DESIGN,
+  designActive,
+  designToJson,
+  DIRECTIONS,
+  directionVector,
+  GRADIENT_PRESETS,
+  ICON_OPTIONS,
+  normalizeHex,
+  readDesign,
+  sameDesign,
+  strengthOpacity,
+  SWATCHES,
+  type BaseMode,
+  type Density,
+  type DesignSettings,
+  type GradientDirection,
+  type IconKey,
+  type Strength,
+} from './design-logic';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/profil'));
 
-const ICONS: Record<BackgroundKey, typeof Square> = {
-  none: Square,
-  aurora: Sparkles,
-  business: Palette,
-  money: BanknoteIcon,
-  lightning: CloudLightning,
-  stars: Moon,
-};
+const BASE_OPTIONS: { value: BaseMode; label: string }[] = [
+  { value: 'classic', label: 'Klassisch' },
+  { value: 'color', label: 'Farbe' },
+  { value: 'gradient', label: 'Farbverlauf' },
+];
+const STRENGTH_OPTIONS: { value: Strength; label: string }[] = [
+  { value: 'soft', label: 'Dezent' },
+  { value: 'medium', label: 'Mittel' },
+  { value: 'strong', label: 'Kräftig' },
+];
+const DENSITY_OPTIONS: { value: Density; label: string }[] = [
+  { value: 'few', label: 'Wenige' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'many', label: 'Viele' },
+];
 
-/** Profil → Design (Pro/Business): Hintergrund der ganzen App wählen – wirkt sofort. */
+/** Profil → Design (Pro/Business): Farbe oder Farbverlauf + Symbole – wirkt sofort, speichert von selbst. */
 export function DesignScreen() {
-  const { profile, save } = useProfile();
+  const { profile } = useProfile();
+  if (!profile) {
+    return (
+      <Screen maxWidth={760}>
+        <PageHeader title="Design" back={{ label: 'Profil', onPress: back }} meta={<ProBadge />} />
+      </Screen>
+    );
+  }
+  return <DesignEditor key={profile.id} initial={readDesign(profile.design)} />;
+}
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+function DesignEditor({ initial }: { initial: DesignSettings }) {
+  const { save } = useProfile();
   const { pro } = usePlan();
   const gate = useProGate();
-  const current: BackgroundKey = isBackgroundKey(profile?.design?.background) ? profile.design.background : 'none';
-  const [busy, setBusy] = useState<BackgroundKey | null>(null);
+  const [draft, setDraft] = useState<DesignSettings>(initial);
+  const [saved, setSaved] = useState<DesignSettings>(initial);
+  const [state, setState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // welche Farbe des Verlaufs gerade geändert wird
+  const [slot, setSlot] = useState(0);
+  const [hex, setHex] = useState('');
+  const [hexError, setHexError] = useState<string | undefined>();
 
-  const choose = async (key: BackgroundKey) => {
-    if (key !== 'none' && !gate('design')) return;
-    setBusy(key);
-    setError(null);
-    const r = await save({ design: { ...(profile?.design ?? {}), background: key } });
-    setBusy(null);
-    if (r.error) setError(r.error);
+  /** Änderung übernehmen – alles außer „Klassisch ohne Symbole“ gibt es mit Pro */
+  const update = (patch: Partial<DesignSettings>) => {
+    const next = { ...draft, ...patch };
+    if (!pro && designActive(next)) {
+      gate('design');
+      return;
+    }
+    setDraft(next);
   };
 
+  // von selbst speichern, kurz nachdem sich nichts mehr ändert
+  useEffect(() => {
+    if (sameDesign(draft, saved)) return;
+    const t = setTimeout(() => {
+      setState('saving');
+      void save({ design: designToJson(draft) }).then((r) => {
+        if (r.error) {
+          setState('error');
+          setError(r.error);
+          return;
+        }
+        setError(null);
+        setSaved(draft);
+        setState('saved');
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [draft, saved, save]);
+
+  const gradient = draft.base === 'gradient';
+  const target = gradient ? (draft.gradient[slot] ?? draft.gradient[0]) : draft.color;
+
+  const setColor = (value: string) => {
+    if (gradient) {
+      const colors = [...draft.gradient];
+      colors[Math.min(slot, colors.length - 1)] = value;
+      update({ gradient: colors });
+    } else {
+      update({ color: value });
+    }
+  };
+
+  const chooseSwatch = (value: string) => {
+    setHex('');
+    setHexError(undefined);
+    setColor(value);
+  };
+
+  const typeHex = (text: string) => {
+    setHex(text);
+    const clean = text.trim();
+    if (!clean) return setHexError(undefined);
+    const value = normalizeHex(clean);
+    if (value && clean.replace('#', '').length === 6) {
+      setHexError(undefined);
+      setColor(value);
+    } else if (clean.replace('#', '').length >= 6) {
+      setHexError('Bitte eine Farbe wie #FF8800 eingeben.');
+    } else {
+      setHexError(undefined);
+    }
+  };
+
+  const addSlot = () => {
+    if (draft.gradient.length >= 3) return;
+    update({ gradient: [...draft.gradient, draft.gradient[draft.gradient.length - 1]] });
+    setSlot(draft.gradient.length);
+  };
+  const removeSlot = (i: number) => {
+    if (draft.gradient.length <= 2) return;
+    update({ gradient: draft.gradient.filter((_, k) => k !== i) });
+    setSlot(0);
+  };
+
+  const shown = pro ? draft : DEFAULT_DESIGN;
+
   return (
-    <Screen maxWidth={760}>
-      <PageHeader
-        title="Design"
-        subtitle="Gib Lunaxora deinen Look: ein bewegter Hintergrund hinter allen Seiten. Die Wahl gilt sofort – schau einfach hinter diese Seite."
-        back={{ label: 'Profil', onPress: back }}
-        meta={<ProBadge />}
-      />
-      {!pro && <Notice>Design-Einstellungen gibt es mit Lunaxora Pro und Business.</Notice>}
-      {error && <Notice tone="error">{error}</Notice>}
-      <View style={styles.grid}>
-        {BACKGROUNDS.map((b, i) => (
-          <Reveal key={b.key} delay={120 + i * 60} style={styles.cell}>
-            <Option
-              keyName={b.key}
-              title={b.title}
-              text={b.text}
-              selected={current === b.key && (pro || b.key === 'none')}
-              loading={busy === b.key}
-              locked={!pro && b.key !== 'none'}
-              onPress={() => void choose(b.key)}
+    <DesignProvider design={shown}>
+      <Screen maxWidth={760}>
+        <PageHeader
+          title="Design"
+          subtitle="Gib Lunaxora deinen Look: eine Hintergrundfarbe oder ein eigener Farbverlauf – und dazu Symbole wie 💵 oder Blitze. Alles wirkt sofort."
+          back={{ label: 'Profil', onPress: back }}
+          meta={<ProBadge />}
+        />
+        {!pro && <Notice>Design-Einstellungen gibt es mit Lunaxora Pro und Business.</Notice>}
+        {error && <Notice tone="error">{error}</Notice>}
+
+        <Reveal delay={80}>
+          <Preview design={shown} />
+        </Reveal>
+
+        <Reveal delay={140}>
+          <Card>
+            <Text style={styles.cardTitle}>Hintergrund</Text>
+            <Segmented value={draft.base} options={BASE_OPTIONS} onChange={(base) => update({ base })} />
+
+            {draft.base !== 'classic' && (
+              <>
+                {gradient && (
+                  <>
+                    <Text style={styles.label}>VORLAGEN</Text>
+                    <View style={styles.wrap}>
+                      {GRADIENT_PRESETS.map((p) => (
+                        <PresetChip
+                          key={p.key}
+                          id={p.key}
+                          title={p.title}
+                          colors={p.colors}
+                          active={draft.gradient.join() === p.colors.join()}
+                          onPress={() => {
+                            update({ gradient: [...p.colors] });
+                            setSlot(0);
+                          }}
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.label}>FARBEN DES VERLAUFS</Text>
+                    <View style={styles.slots}>
+                      {draft.gradient.map((c, i) => (
+                        <Slot
+                          key={i}
+                          color={c}
+                          index={i}
+                          active={slot === i}
+                          removable={draft.gradient.length > 2}
+                          onPress={() => setSlot(i)}
+                          onRemove={() => removeSlot(i)}
+                        />
+                      ))}
+                      {draft.gradient.length < 3 && (
+                        <Pressable
+                          onPress={addSlot}
+                          accessibilityRole="button"
+                          accessibilityLabel="Dritte Farbe hinzufügen"
+                          style={[styles.slot, styles.addSlot]}>
+                          <Plus size={20} color={Colors.textMuted} />
+                        </Pressable>
+                      )}
+                    </View>
+                    <Text style={styles.hint}>Tippe eine Farbe des Verlaufs an und wähle darunter die neue Farbe.</Text>
+                  </>
+                )}
+
+                {!gradient && <Text style={styles.label}>FARBE</Text>}
+                <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Farbe">
+                  {SWATCHES.map((s) => (
+                    <Swatch key={s.hex} hex={s.hex} name={s.name} active={target === s.hex} onPress={() => chooseSwatch(s.hex)} />
+                  ))}
+                </View>
+                <View style={styles.hexRow}>
+                  <View style={[styles.hexPreview, { backgroundColor: target }]} />
+                  <View style={styles.flex}>
+                    <TextField
+                      label="Eigene Farbe (Hex)"
+                      value={hex}
+                      onChangeText={typeHex}
+                      placeholder={target}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      maxLength={7}
+                      error={hexError}
+                    />
+                  </View>
+                </View>
+
+                {gradient && (
+                  <>
+                    <Segmented
+                      label="Richtung"
+                      value={draft.direction}
+                      options={DIRECTIONS.map((d) => ({ value: d.value, label: d.label }))}
+                      onChange={(direction: GradientDirection) => update({ direction })}
+                    />
+                    <ToggleRow
+                      label="Bewegter Verlauf"
+                      hint="Die Farben wandern langsam als weiche Lichter über den Bildschirm."
+                      value={draft.moving}
+                      onChange={(moving) => update({ moving })}
+                    />
+                  </>
+                )}
+
+                <Segmented label="Stärke" value={draft.strength} options={STRENGTH_OPTIONS} onChange={(strength) => update({ strength })} />
+              </>
+            )}
+          </Card>
+        </Reveal>
+
+        <Reveal delay={200}>
+          <Card>
+            <Text style={styles.cardTitle}>Symbole</Text>
+            <Text style={styles.hint}>Bewegte Symbole über dem Hintergrund – passt zu jeder Farbe.</Text>
+            <View style={styles.grid}>
+              {ICON_OPTIONS.map((o) => (
+                <IconTile
+                  key={o.key}
+                  keyName={o.key}
+                  emoji={o.emoji}
+                  title={o.title}
+                  text={o.text}
+                  active={draft.icons === o.key}
+                  onPress={() => update({ icons: o.key })}
+                />
+              ))}
+            </View>
+            {draft.icons !== 'none' && (
+              <Segmented label="Menge" value={draft.density} options={DENSITY_OPTIONS} onChange={(density) => update({ density })} />
+            )}
+          </Card>
+        </Reveal>
+
+        <Card>
+          <Text style={styles.status}>
+            {state === 'saving'
+              ? 'Wird gespeichert …'
+              : state === 'saved'
+                ? 'Gespeichert ✓'
+                : state === 'error'
+                  ? 'Nicht gespeichert – versuch es noch einmal.'
+                  : 'Änderungen speichern sich von selbst.'}
+          </Text>
+          <Text style={styles.hint}>
+            Tipp: Bei „Bewegung reduzieren“ in den Bedienungshilfen deines Geräts bleiben Hintergrund und Symbole ruhig.
+          </Text>
+          {designActive(draft) && (
+            <TextLink
+              label="Auf Klassisch zurücksetzen"
+              onPress={() => {
+                setSlot(0);
+                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient] });
+              }}
             />
-          </Reveal>
-        ))}
-      </View>
-      <Card>
-        <Text style={styles.hint}>
-          Tipp: Bei „Bewegung reduzieren“ in den Bedienungshilfen deines Geräts bleibt der Hintergrund ruhig.
-        </Text>
-      </Card>
-    </Screen>
+          )}
+        </Card>
+      </Screen>
+    </DesignProvider>
   );
 }
 
-function Option({
-  keyName,
-  title,
-  text,
-  selected,
-  loading,
-  locked,
-  onPress,
-}: {
-  keyName: BackgroundKey;
-  title: string;
-  text: string;
-  selected: boolean;
-  loading: boolean;
-  locked: boolean;
-  onPress: () => void;
-}) {
+/** Kleine Vorschau: Hintergrund + ein paar Symbole (ohne Bewegung) */
+function Preview({ design }: { design: DesignSettings }) {
+  const option = ICON_OPTIONS.find((o) => o.key === design.icons);
+  const emoji = design.icons === 'stars' ? '⭐' : (option?.emoji ?? '');
+  const v = directionVector(design.direction);
+  return (
+    <View style={styles.preview} accessibilityLabel="Vorschau des Designs">
+      {design.base === 'color' && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: design.color, opacity: strengthOpacity(design.strength) }]} />
+      )}
+      {design.base === 'gradient' && (
+        <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 100 100">
+          <Defs>
+            <LinearGradient id="design-preview" x1={v.x1} y1={v.y1} x2={v.x2} y2={v.y2}>
+              {design.gradient.map((c, i) => (
+                <Stop key={c + i} offset={i / Math.max(1, design.gradient.length - 1)} stopColor={c} />
+              ))}
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100" height="100" fill="url(#design-preview)" opacity={strengthOpacity(design.strength)} />
+        </Svg>
+      )}
+      {!!emoji &&
+        PREVIEW_SPOTS.map((p, i) => (
+          <Text
+            key={i}
+            style={[styles.previewEmoji, { left: `${p.x}%`, top: `${p.y}%`, fontSize: p.size, transform: [{ rotate: `${p.r}deg` }] }]}>
+            {emoji}
+          </Text>
+        ))}
+      <View style={styles.previewCard}>
+        <Text style={styles.previewTitle}>Vorschau</Text>
+        <Text style={styles.previewText}>So sieht es hinter deinen Seiten aus.</Text>
+      </View>
+    </View>
+  );
+}
+
+const PREVIEW_SPOTS = [
+  { x: 6, y: 12, size: 26, r: -12 },
+  { x: 80, y: 8, size: 22, r: 10 },
+  { x: 88, y: 60, size: 28, r: -6 },
+  { x: 12, y: 66, size: 22, r: 14 },
+  { x: 50, y: 74, size: 20, r: -18 },
+];
+
+function Swatch({ hex, name, active, onPress }: { hex: string; name: string; active: boolean; onPress: () => void }) {
   const { hovered, hoverProps } = useHover();
-  const Icon = ICONS[keyName];
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={title}
       {...hoverProps}
-      style={[styles.option, selected && styles.optionSelected, hovered && styles.optionHover]}>
-      <View style={styles.preview}>
-        {keyName === 'business' && <GradientFill opacity={0.55} />}
-        {keyName === 'aurora' && <GradientFill colors={['#0EA5A4', '#2FE39A', '#3B82F6']} opacity={0.4} />}
-        <Icon size={26} color={keyName === 'none' ? Colors.textMuted : Colors.text} strokeWidth={1.6} />
+      accessibilityRole="radio"
+      accessibilityLabel={name}
+      accessibilityState={{ checked: active }}
+      style={[styles.swatchRing, active && styles.swatchRingActive, hovered && !active && styles.swatchRingHover]}>
+      <View style={[styles.swatch, { backgroundColor: hex }]}>{active && <Check size={16} color="#000" strokeWidth={3} />}</View>
+    </Pressable>
+  );
+}
+
+function Slot({
+  color,
+  index,
+  active,
+  removable,
+  onPress,
+  onRemove,
+}: {
+  color: string;
+  index: number;
+  active: boolean;
+  removable: boolean;
+  onPress: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <View>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="radio"
+        accessibilityLabel={`Farbe ${index + 1} ändern`}
+        accessibilityState={{ checked: active }}
+        style={[styles.slot, active && styles.slotActive]}>
+        <View style={[styles.slotFill, { backgroundColor: color }]} />
+        <Text style={styles.slotNumber}>{index + 1}</Text>
+      </Pressable>
+      {removable && (
+        <Pressable
+          onPress={onRemove}
+          accessibilityRole="button"
+          accessibilityLabel={`Farbe ${index + 1} entfernen`}
+          style={styles.slotRemove}
+          hitSlop={8}>
+          <X size={12} color={Colors.text} strokeWidth={3} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function PresetChip({
+  id,
+  title,
+  colors,
+  active,
+  onPress,
+}: {
+  id: string;
+  title: string;
+  colors: string[];
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { hovered, hoverProps } = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      {...hoverProps}
+      accessibilityRole="button"
+      accessibilityLabel={`Vorlage ${title}`}
+      style={[styles.preset, active && styles.presetActive, hovered && !active && styles.presetHover]}>
+      <View style={styles.presetBar}>
+        <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 100 10">
+          <Defs>
+            <LinearGradient id={`preset-${id}`} x1="0" y1="0" x2="1" y2="0">
+              {colors.map((c, i) => (
+                <Stop key={c + i} offset={i / Math.max(1, colors.length - 1)} stopColor={c} />
+              ))}
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100" height="10" fill={`url(#preset-${id})`} />
+        </Svg>
       </View>
-      <View style={styles.optionHead}>
-        <Text style={styles.title}>{title}</Text>
-        {selected ? <Check size={18} color={Colors.accent} strokeWidth={2.6} /> : locked ? <ProBadge /> : null}
+      <Text style={[styles.presetText, active && styles.presetTextActive]}>{title}</Text>
+    </Pressable>
+  );
+}
+
+function IconTile({
+  keyName,
+  emoji,
+  title,
+  text,
+  active,
+  onPress,
+}: {
+  keyName: IconKey;
+  emoji: string;
+  title: string;
+  text: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { hovered, hoverProps } = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      {...hoverProps}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      accessibilityLabel={`${title}: ${text}`}
+      style={[styles.tile, active && styles.tileActive, hovered && !active && styles.tileHover]}>
+      <View style={styles.tileHead}>
+        <Text style={styles.tileEmoji}>{keyName === 'none' ? '–' : emoji}</Text>
+        {active && <Check size={16} color={Colors.accent} strokeWidth={2.6} />}
       </View>
-      <Text style={styles.text}>{loading ? 'Wird gespeichert …' : text}</Text>
+      <Text style={styles.tileTitle}>{title}</Text>
+      <Text style={styles.tileText} numberOfLines={2}>
+        {text}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.lg },
-  cell: { flexGrow: 1, flexBasis: 200 },
-  option: {
-    gap: Spacing.sm,
-    padding: Spacing.lg,
-    borderRadius: 16,
+  cardTitle: { color: Colors.text, fontSize: 17, fontWeight: '700' },
+  label: { color: Colors.textFaint, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.2, marginTop: Spacing.xs },
+  hint: { color: Colors.textMuted, fontSize: 13, lineHeight: 18 },
+  status: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  flex: { flex: 1 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+
+  preview: {
+    height: 150,
+    borderRadius: 18,
+    backgroundColor: '#000',
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  optionSelected: { borderColor: Colors.accent },
-  optionHover: { backgroundColor: Colors.surfaceRaised },
-  preview: {
-    height: 84,
-    borderRadius: 12,
-    backgroundColor: '#000',
+  previewEmoji: { position: 'absolute', opacity: 0.55 },
+  previewCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: 'rgba(20,20,22,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    gap: 2,
+  },
+  previewTitle: { color: Colors.text, fontSize: 15, fontWeight: '700' },
+  previewText: { color: Colors.textMuted, fontSize: 12.5 },
+
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2, borderColor: 'transparent' },
+  swatchRingActive: { borderColor: Colors.text },
+  swatchRingHover: { borderColor: Colors.border },
+  swatch: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  hexRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.md },
+  hexPreview: { width: 46, height: 46, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, marginBottom: 2 },
+
+  slots: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+  slot: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotActive: { borderColor: Colors.text },
+  slotFill: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: 11 },
+  slotNumber: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '800',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    overflow: 'hidden',
+  },
+  slotRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceRaised,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  optionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
-  title: { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  text: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 19 },
-  hint: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 20 },
+  addSlot: { borderStyle: 'dashed' },
+
+  preset: {
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    minWidth: 104,
+  },
+  presetActive: { borderColor: Colors.accent },
+  presetHover: { backgroundColor: Colors.surfaceRaised },
+  presetBar: { height: 10, borderRadius: 5, overflow: 'hidden' },
+  presetText: { color: Colors.textMuted, fontSize: 12.5, fontWeight: '600' },
+  presetTextActive: { color: Colors.text },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  tile: {
+    flexGrow: 1,
+    flexBasis: 150,
+    gap: 4,
+    padding: Spacing.md,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tileActive: { borderColor: Colors.accent },
+  tileHover: { backgroundColor: Colors.surfaceRaised },
+  tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tileEmoji: { fontSize: 28, lineHeight: 34, color: Colors.textMuted },
+  tileTitle: { color: Colors.text, fontSize: 14.5, fontWeight: '700' },
+  tileText: { color: Colors.textMuted, fontSize: 12.5, lineHeight: 17 },
 });
