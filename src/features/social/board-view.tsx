@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 
 import { PostCard } from './post-card';
 import { computePostStatus, STATUS, type PostStatus } from './social-logic';
@@ -86,7 +87,8 @@ export function BoardView({ posts }: { posts: SocialPost[] }) {
   return (
     <View style={styles.columns}>
       {STATUS.map((s) => (
-        <View key={s.key} style={styles.column} accessibilityRole="list" accessibilityLabel={s.label}>
+        <View key={s.key} style={[styles.column, glassSurface]} accessibilityRole="list" accessibilityLabel={s.label}>
+          <GlassBackdrop radius={Radius.lg} />
           <View style={styles.columnHead}>
             <Text style={styles.columnTitle}>{s.label}</Text>
             <Text style={styles.count}>{groups[s.key].length}</Text>

@@ -31,7 +31,9 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { ActionChip } from '@/components/ui/action-chip';
 import { Card } from '@/components/ui/card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
+import { useScreenTop } from '@/features/navigation/use-screen-top';
 import { quotaText } from '@/features/plan/plan-logic';
 import { openPlanScreen, usePlan } from '@/features/plan/plan-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
@@ -116,7 +118,7 @@ export function NexyScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const wide = width >= SIDEBAR_BREAKPOINT;
-  const top = wide ? (Platform.OS === 'web' ? 56 : insets.top + Spacing.xxl) : insets.top + Spacing.xl;
+  const top = useScreenTop();
   const pad = wide ? Spacing.xxxl : Spacing.lg;
   const scroll = useRef<ScrollViewInstance>(null);
   const [text, setText] = useState('');
@@ -279,7 +281,8 @@ export function NexyScreen() {
               <Animated.View key={m.id} entering={FadeInDown.duration(260)} style={styles.userRow}>
                 <View style={styles.userBubble}>
                   {m.voice && (
-                    <View style={styles.voiceTag} accessibilityLabel="per Sprache">
+                    <View style={[styles.voiceTag, glassSurface]} accessibilityLabel="per Sprache">
+                      <GlassBackdrop radius={10} />
                       <Mic size={12} color={Colors.textFaint} strokeWidth={2.2} />
                     </View>
                   )}
@@ -304,7 +307,8 @@ export function NexyScreen() {
               style={styles.nexyRow}
               accessibilityLabel="Luna denkt nach">
               <NexyAvatar size={30} mood="thinking" />
-              <View style={styles.thinkingBubble}>
+              <View style={[styles.thinkingBubble, glassSurface]}>
+                <GlassBackdrop radius={18} />
                 <Text style={styles.thinkingText}>Luna denkt nach</Text>
                 <Dots />
               </View>
@@ -313,7 +317,12 @@ export function NexyScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.composerWrap, { paddingHorizontal: pad }]}>
+      <View
+        style={[
+          styles.composerWrap,
+          // Handy: unten keine Leiste mehr – Platz für den Home-Balken
+          { paddingHorizontal: pad, paddingBottom: Spacing.md + (wide ? 0 : insets.bottom) },
+        ]}>
         {voice.error && !voice.active && (
           <Animated.View entering={FadeInDown.duration(220)} style={styles.voiceError} accessibilityRole="alert">
             <Text style={styles.voiceErrorText}>{voice.error.text}</Text>
@@ -329,7 +338,8 @@ export function NexyScreen() {
         {voice.active ? (
           <VoicePanel voice={voice} />
         ) : (
-          <TourTarget id="nexy.eingabe" style={styles.composer}>
+          <TourTarget id="nexy.eingabe" style={[styles.composer, glassSurface]}>
+            <GlassBackdrop radius={22} />
             <TextInput
               value={text}
               onChangeText={(v) => setText(v.slice(0, MAX))}
@@ -469,9 +479,10 @@ function VoicePanel({ voice }: { voice: VoiceMode }) {
   return (
     <Animated.View
       entering={FadeInDown.duration(240)}
-      style={styles.voicePanel}
+      style={[styles.voicePanel, glassSurface]}
       accessibilityLabel="Sprachmodus"
       testID="nexy-voice-panel">
+      <GlassBackdrop radius={22} />
       {/* Platz für die Schallringe */}
       <View style={styles.voiceFigure}>
         <NexyAvatar size={50} mood={mood} level={voice.level} />
@@ -569,7 +580,8 @@ function Starter({ text, onPress }: { text: string; onPress: () => void }) {
       onPress={onPress}
       accessibilityRole="button"
       {...hoverProps}
-      style={[styles.starter, hovered && styles.starterHover]}>
+      style={[styles.starter, glassSurface, hovered && styles.starterHover]}>
+      <GlassBackdrop radius={Radius.md} />
       <Text style={styles.starterText}>{text}</Text>
     </Pressable>
   );

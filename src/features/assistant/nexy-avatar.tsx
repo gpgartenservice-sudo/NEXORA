@@ -15,6 +15,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
+import { Accelerometer } from 'expo-sensors';
 
 import { Colors } from '@/constants/theme';
 
@@ -40,8 +41,15 @@ const PUPIL = '#0A1C15';
 const CHEEK = '#FF8FB8';
 const ease = Easing.inOut(Easing.sin);
 const SPRING = { damping: 14, stiffness: 120, mass: 0.8 };
+// Handy kippen: weich gleiten statt zucken
+const GLIDE = { damping: 12, stiffness: 70, mass: 1 };
 const REACTIONS = ['Hihi!', 'Das kitzelt!', 'Hey du!', 'Na, was steht an?', 'Ich bin bereit!', 'Huch!'];
-const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+// 'worklet': läuft auf iPhone/Android auch im UI-Thread (in useAnimatedStyle) –
+// ohne die Markierung stürzen Lunas Animationen dort ab (im Browser egal)
+const clamp = (v: number, min: number, max: number) => {
+  'worklet';
+  return Math.min(max, Math.max(min, v));
+};
 
 /**
  * Luna – die Figur der Assistentin: leuchtende Kugel mit großen Augen,
@@ -53,6 +61,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
  * - Nachdenken: Punkte kreisen, Mund "o"; erledigt: strahlt
  * - Zuhören: große Augen, Schallringe und Antenne folgen der Stimme
  * - Sprechen: der Mund bewegt sich
+ * - Handy (große Figur): Kippt man das Handy, gleitet Luna zur Seite und schaut mit
  * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Luna ruhig
  */
@@ -67,6 +76,8 @@ export function NexyAvatar({
   const reduce = useReducedMotion();
   const moving = animate && !reduce;
   const tracking = moving && Platform.OS === 'web';
+  // große Figur auf dem Handy: folgt dem Kippen (Bewegungssensor)
+  const tilting = moving && talk && Platform.OS !== 'web';
   const ref = useRef<ViewInstance>(null);
 
   // Bewegung
@@ -85,6 +96,7 @@ export function NexyAvatar({
   const sway = useSharedValue(0);
   const mouthOpen = useSharedValue(0);
   const attentive = useSharedValue(0);
+  const slide = useSharedValue(0); // -1 links … 1 rechts (Handy gekippt)
   const noLevel = useSharedValue(0);
   const voice = level ?? noLevel;
 
@@ -317,6 +329,46 @@ export function NexyAvatar({
     };
   }, [moving, tracking, thinking, S, lookX, lookY, near, jump]);
 
+  // Handy kippen: Luna gleitet zur tieferen Seite, lehnt sich hinein und schaut dorthin
+  useEffect(() => {
+    if (!tilting) {
+      slide.set(withSpring(0, GLIDE));
+      return;
+    }
+    let sub: { remove: () => void } | undefined;
+    let alive = true;
+    let smooth = 0;
+    let last = 0;
+    Accelerometer.isAvailableAsync()
+      .then((ok) => {
+        if (!ok || !alive) return;
+        Accelerometer.setUpdateInterval(50);
+        sub = Accelerometer.addListener(({ x }) => {
+          // iOS: rechte Kante nach unten = x positiv; Android meldet umgekehrt
+          const raw = Platform.OS === 'ios' ? x : -x;
+          smooth = smooth * 0.75 + raw * 0.25; // Zittern glätten
+          // leichtes Schräghalten ignorieren, ab ~35° ganz am Rand
+          const dead = 0.07;
+          const t = Math.abs(smooth) < dead ? 0 : clamp((smooth - Math.sign(smooth) * dead) / 0.5, -1, 1);
+          if (Math.abs(t - last) < 0.02) return;
+          last = t;
+          slide.set(withSpring(t, GLIDE));
+          if (t !== 0) {
+            // beim Gleiten schaut sie in Fahrtrichtung, statt umherzuschauen
+            lastMove.current = Date.now();
+            lookX.set(withSpring(t * 0.8, SPRING));
+            lookY.set(withSpring(Math.abs(t) * 0.15, SPRING));
+          }
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      sub?.remove();
+      slide.set(withSpring(0, GLIDE));
+    };
+  }, [tilting, slide, lookX, lookY]);
+
   useEffect(() => {
     const list = timers.current;
     return () => list.forEach(clearTimeout);
@@ -350,11 +402,14 @@ export function NexyAvatar({
 
   // --- Stile ---
   const bodyStyle = useAnimatedStyle(() => {
-    const tilt = lookX.get() * (3 + near.get() * 6) + (mouthOpen.get() - 0.5) * (mouthOpen.get() > 0 ? 2 : 0);
+    const tilt =
+      lookX.get() * (3 + near.get() * 6) +
+      (mouthOpen.get() - 0.5) * (mouthOpen.get() > 0 ? 2 : 0) +
+      slide.get() * 12; // rollt beim Gleiten ein Stück mit
     const swell = 1 + voice.get() * 0.04 * attentive.get();
     return {
       transform: [
-        { translateX: lookX.get() * S * 0.03 * (0.4 + near.get()) },
+        { translateX: lookX.get() * S * 0.03 * (0.4 + near.get()) + slide.get() * S * 0.95 },
         { translateY: float.get() + jump.get() - mouthOpen.get() * S * 0.012 },
         { rotate: `${tilt}deg` },
         { scaleX: squashX.get() * (1 - breathe.get() * 0.012) * swell },
@@ -366,7 +421,7 @@ export function NexyAvatar({
     const lift = (float.get() + jump.get()) / (S * 0.2); // negativ = höher
     return {
       opacity: clamp(0.55 + lift * 0.9, 0.15, 0.75),
-      transform: [{ scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) }],
+      transform: [{ translateX: slide.get() * S * 0.95 }, { scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) }],
     };
   });
   const glowStyle = useAnimatedStyle(() => ({

@@ -3,7 +3,7 @@
     "name": "Lunaxora",
     "slug": "nexora",
     "version": "0.1.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "nexora",
     "userInterfaceStyle": "dark",
@@ -46,6 +46,12 @@
           "photosPermission": "Lunaxora öffnet deine Fotos, damit du Belege und dein Logo auswählen kannst.",
           "cameraPermission": "Lunaxora nutzt die Kamera, damit du Belege fotografieren kannst – Luna liest sie dann aus.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Lunaxora nutzt den Bewegungssensor, damit Luna mitrollt, wenn du dein Handy kippst."
         }
       ]
     ],

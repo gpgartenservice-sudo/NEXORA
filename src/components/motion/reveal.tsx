@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -53,9 +53,30 @@ type RevealProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * Ist das Einblenden rundherum fertig? Apples Liquid Glass darf erst dann
+ * erscheinen – unter halbdurchsichtigen Eltern wird es sonst manchmal gar nicht gezeichnet.
+ */
+export const RevealDone = createContext(true);
+
+function useRevealDone(after: number) {
+  const { ready } = useContext(RevealContext);
+  const parentDone = useContext(RevealDone);
+  const reduceMotion = useReducedMotion();
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    const timer = setTimeout(() => setDone(true), reduceMotion ? 0 : after);
+    return () => clearTimeout(timer);
+  }, [ready, after, reduceMotion]);
+  return parentDone && done;
+}
+
 /** Blendet Inhalt weich ein und lässt ihn leicht nach oben gleiten. */
 export function Reveal({ children, delay = 0, distance = 16, style }: RevealProps) {
   const progress = useRevealProgress(delay, 800);
+  // + Puffer: die Animation läuft im UI-Thread und endet ein paar Frames nach dem JS-Timer
+  const done = useRevealDone(delay + 800 + 250);
   const animated = useAnimatedStyle(() => {
     const p = progress.get();
     return {
@@ -63,7 +84,11 @@ export function Reveal({ children, delay = 0, distance = 16, style }: RevealProp
       transform: [{ translateY: (1 - p) * distance }, { scale: 0.985 + 0.015 * p }],
     };
   });
-  return <Animated.View style={[style, animated]}>{children}</Animated.View>;
+  return (
+    <RevealDone value={done}>
+      <Animated.View style={[style, animated]}>{children}</Animated.View>
+    </RevealDone>
+  );
 }
 
 type TitleProps = {

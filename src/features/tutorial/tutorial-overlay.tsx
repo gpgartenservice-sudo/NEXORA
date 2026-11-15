@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type 
 import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { NexyAvatar } from '@/features/assistant/nexy-avatar';
 import { useHover } from '@/hooks/use-hover';
 
@@ -159,7 +160,8 @@ export function TutorialOverlay({ active, version }: { active: ActiveTutorial; v
         aria-modal
         aria-label={`Einführung: ${tutorial.label}`}
         testID="tutorial-card"
-        style={[styles.card, { left: pos.left, top: pos.top, width: pos.width }]}>
+        style={[styles.card, glassSurface, { left: pos.left, top: pos.top, width: pos.width }]}>
+        <GlassBackdrop radius={Radius.lg} />
         <View style={styles.head}>
           <NexyAvatar size={34} mood={last ? 'happy' : 'idle'} />
           <View style={styles.headTexts}>

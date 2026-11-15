@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { useHover } from '@/hooks/use-hover';
 
 import { goalTitle, STATUS_LABEL, type Goal, type GoalProgress } from './goals-logic';
@@ -24,7 +25,8 @@ export function GoalCard({ goal, progress: p, onStep, compact, delay = 0, previe
   const { hovered, hoverProps } = useHover();
   const title = goalTitle(goal);
   return (
-    <View style={[styles.card, compact && styles.compact]}>
+    <View style={[styles.card, glassSurface, compact && styles.compact]}>
+      <GlassBackdrop radius={Radius.lg} />
       <Pressable
         onPress={() => router.push(`/aufgaben/ziele/${goal.id}`)}
         disabled={preview}

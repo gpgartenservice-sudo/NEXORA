@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
 import { toDate } from '@/lib/dates';
@@ -418,7 +419,8 @@ function VideoRow({ video, posts }: { video: SocialVideo; posts: SocialPost[] })
   const Fallback = video.media_type === 'video' ? Film : Camera;
 
   return (
-    <View style={styles.row} testID="social-video">
+    <View style={[styles.row, glassSurface]} testID="social-video">
+      <GlassBackdrop radius={Radius.md} />
       <Pressable
         onPress={() => video.url && void Linking.openURL(video.url)}
         disabled={!video.url}

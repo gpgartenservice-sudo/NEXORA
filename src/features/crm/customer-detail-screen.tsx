@@ -11,6 +11,7 @@ import { ConfirmDelete } from '@/components/ui/confirm-delete';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { TourTarget } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
@@ -145,7 +146,8 @@ export function CustomerDetailScreen() {
 function QuickAction({ icon, label, onPress }: { icon: ReactNode; label: string; onPress: () => void }) {
   const { hovered, hoverProps } = useHover();
   return (
-    <Pressable onPress={onPress} accessibilityRole="link" {...hoverProps} style={[styles.quickItem, hovered && styles.quickHover]}>
+    <Pressable onPress={onPress} accessibilityRole="link" {...hoverProps} style={[styles.quickItem, glassSurface, hovered && styles.quickHover]}>
+      <GlassBackdrop radius={Radius.md} />
       {icon}
       <Text style={styles.quickText}>{label}</Text>
     </Pressable>

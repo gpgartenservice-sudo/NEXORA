@@ -3,6 +3,8 @@ import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+
+import { GlassBackdrop, glassSurface } from './glass';
 import { useHover } from '@/hooks/use-hover';
 
 import { Button } from './button';
@@ -30,7 +32,8 @@ export function SoonButton({
       accessibilityLabel={`${label} (kommt bald)`}
       aria-expanded={open}
       {...hoverProps}
-      style={[styles.button, (hovered || open) && styles.buttonHover]}>
+      style={[styles.button, glassSurface, (hovered || open) && styles.buttonHover]}>
+      <GlassBackdrop radius={Radius.md} />
       <Icon size={17} color={Colors.text} strokeWidth={1.9} />
       <Text style={styles.buttonText}>{label}</Text>
       <View style={styles.badge}>

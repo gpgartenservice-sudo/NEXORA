@@ -21,7 +21,7 @@ import { useAuth } from '@/providers/auth-provider';
 
 /**
  * App-Rahmen: breites Fenster (Mac) = Seitenleiste links,
- * schmal (Handy) = Tab-Leiste unten. Der Aufbau bleibt gleich, damit beim
+ * schmal (Handy) = Seitenmenü über den ☰-Knopf oben links. Der Aufbau bleibt gleich, damit beim
  * Verändern der Fenstergröße nichts neu geladen wird – nur die Anordnung
  * (Zeile vs. Spalte) wechselt.
  */
@@ -49,7 +49,7 @@ export default function TabsLayout() {
                                   <NavBar wide={wide}>
                                     {NAV_ITEMS.map((item) => (
                                       <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-                                        <NavButton item={item} wide={wide} />
+                                        <NavButton item={item} />
                                       </TabTrigger>
                                     ))}
                                   </NavBar>

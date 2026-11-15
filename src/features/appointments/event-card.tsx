@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { useHover } from '@/hooks/use-hover';
 
 import { KIND_LABEL, mapUrl, timeLabel, type CalendarEvent } from './appointment-logic';
@@ -60,7 +61,8 @@ export function EventRow({ event: e, overlap }: { event: CalendarEvent; overlap?
   const { hovered, hoverProps } = useHover();
   const [note, setNote] = useState<string | null>(null);
   return (
-    <View style={[styles.row, hovered && styles.rowHover]} {...hoverProps} testID="event-row">
+    <View style={[styles.row, glassSurface, hovered && styles.rowHover]} {...hoverProps} testID="event-row">
+      <GlassBackdrop radius={Radius.md} />
       <Pressable onPress={() => openEvent(e)} accessibilityRole="button" style={styles.rowMain}>
         <View style={[styles.bar, { backgroundColor: KIND_COLOR[e.kind] }]} />
         <View style={styles.time}>

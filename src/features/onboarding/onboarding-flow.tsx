@@ -21,6 +21,7 @@ import { OptionCard } from '@/components/ui/option-card';
 import { StepProgress } from '@/components/ui/step-progress';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
@@ -303,7 +304,8 @@ export function OnboardingFlow() {
                       .filter(Boolean)
                       .map((label, i) => (
                         <Reveal key={String(label)} delay={950 + i * 80} distance={10}>
-                          <View style={styles.pill}>
+                          <View style={[styles.pill, glassSurface]}>
+                            <GlassBackdrop radius={999} />
                             <Text style={styles.pillText}>{label}</Text>
                           </View>
                         </Reveal>

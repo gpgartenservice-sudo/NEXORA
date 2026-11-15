@@ -29,6 +29,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { clashes, DEFAULT_MINUTES, timeLabel, type CalendarEvent } from '@/features/appointments/appointment-logic';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
 import { useCrm } from '@/features/crm/crm-provider';
@@ -423,7 +424,8 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
         const clash = slot ? clashes(events, slot, slot.ignore) : [];
         const sellerIssue = problems.some((x) => !/Auftrag|Kunde|Preis|Anschrift des Kunden|Name des Kunden/.test(x));
         return (
-          <View key={p.id} style={[styles.card, (!p.include || message.status === 'dismissed') && styles.off]}>
+          <View key={p.id} style={[styles.card, glassSurface, (!p.include || message.status === 'dismissed') && styles.off]}>
+            <GlassBackdrop radius={Radius.lg} />
             <View style={styles.head}>
               <View style={styles.icon}>
                 <Icon size={17} color={Colors.text} strokeWidth={1.8} />

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
@@ -94,7 +95,8 @@ export function OrdersScreen() {
                       onPress={() => setFilter(f.key)}
                       accessibilityRole="tab"
                       accessibilityState={{ selected: active }}
-                      style={[styles.chip, active && styles.chipActive]}>
+                      style={[styles.chip, glassSurface, active && styles.chipActive]}>
+                      <GlassBackdrop radius={999} />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {f.label} <Text style={styles.chipCount}>{count(f.key)}</Text>
                       </Text>

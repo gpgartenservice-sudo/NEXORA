@@ -4,6 +4,11 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSprin
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
+import { GlassBackdrop, NATIVE_GLASS, glassSurface } from './glass';
+
+// iPhone mit Liquid Glass: kein sichtbarer Rand, das Glas hat seine eigene Kante
+const BORDER = NATIVE_GLASS ? 'rgba(0,0,0,0)' : Colors.border;
+
 type Props = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -12,9 +17,19 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-/** Karte für Inhalte. Klickbare Karten heben sich unter der Maus und federn beim Drücken. */
+/**
+ * Karte für Inhalte (auf dem iPhone aus Liquid Glass).
+ * Klickbare Karten heben sich unter der Maus und federn beim Drücken.
+ */
 export function Card({ children, style, onPress, accessibilityLabel }: Props) {
-  if (!onPress) return <View style={[styles.card, style]}>{children}</View>;
+  if (!onPress) {
+    return (
+      <View style={[styles.card, glassSurface, style]}>
+        <GlassBackdrop radius={Radius.lg} />
+        {children}
+      </View>
+    );
+  }
   return (
     <PressableCard style={style} onPress={onPress} accessibilityLabel={accessibilityLabel}>
       {children}
@@ -26,7 +41,7 @@ function PressableCard({ children, style, onPress, accessibilityLabel }: Props &
   const hover = useSharedValue(0);
   const press = useSharedValue(0);
   const animated = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(hover.get(), [0, 1], [Colors.border, '#3A3A40']),
+    borderColor: interpolateColor(hover.get(), [0, 1], [BORDER, '#3A3A40']),
     transform: [{ translateY: -3 * hover.get() }, { scale: 1 - 0.015 * press.get() }],
     boxShadow: `0 ${14 * hover.get()}px ${40 * hover.get()}px rgba(255,255,255,${0.06 * hover.get()})`,
   }));
@@ -40,7 +55,10 @@ function PressableCard({ children, style, onPress, accessibilityLabel }: Props &
       onPressIn={() => press.set(withSpring(1, { damping: 18, stiffness: 420 }))}
       onPressOut={() => press.set(withSpring(0, { damping: 18, stiffness: 420 }))}
       style={style}>
-      <Animated.View style={[styles.card, styles.fill, animated]}>{children}</Animated.View>
+      <Animated.View style={[styles.card, glassSurface, styles.fill, animated]}>
+        <GlassBackdrop radius={Radius.lg} />
+        {children}
+      </Animated.View>
     </Pressable>
   );
 }

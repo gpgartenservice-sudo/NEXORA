@@ -3,6 +3,7 @@ import { CircleQuestionMark } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle, type HostInstance } from 'react-native';
 
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { Colors } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
@@ -48,7 +49,8 @@ export function TutorialButton({ id }: { id: TutorialId }) {
       accessibilityLabel={`Einführung: ${TUTORIALS[id].label}`}
       hitSlop={8}
       {...hoverProps}
-      style={[styles.help, hovered && styles.helpHover]}>
+      style={[styles.help, glassSurface, hovered && styles.helpHover]}>
+      <GlassBackdrop radius={16} />
       <CircleQuestionMark size={18} color={hovered ? Colors.text : Colors.textMuted} strokeWidth={2} />
     </Pressable>
   );

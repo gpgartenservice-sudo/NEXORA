@@ -12,6 +12,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { useCrm } from '@/features/crm/crm-provider';
 import { StatRow, StatTile } from '@/features/crm/ui';
 import { formatMoney, todayIso } from '@/features/documents/document-logic';
@@ -271,7 +272,8 @@ function DayColumn({
 }) {
   const key = dayKey(day);
   return (
-    <View style={[styles.column, today && styles.columnToday]} testID={`day-${key}`}>
+    <View style={[styles.column, glassSurface, today && styles.columnToday]} testID={`day-${key}`}>
+      <GlassBackdrop radius={Radius.md} />
       <View style={styles.columnHead}>
         <Text style={[styles.columnDay, today && styles.columnDayToday]}>
           {WEEKDAY[(day.getDay() + 6) % 7]} {day.getDate()}.

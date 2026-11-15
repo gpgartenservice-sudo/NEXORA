@@ -5,6 +5,7 @@ import { Screen } from '@/components/layout/screen';
 import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 
 import { navItem } from './nav-items';
 
@@ -18,7 +19,8 @@ export function ComingSoon({ name }: { name: string }) {
     <Screen maxWidth={640}>
       <View style={styles.center}>
         <Reveal>
-          <View style={styles.iconWrap}>
+          <View style={[styles.iconWrap, glassSurface]}>
+            <GlassBackdrop radius={22} />
             <Icon size={30} color={Colors.text} strokeWidth={1.6} />
           </View>
         </Reveal>

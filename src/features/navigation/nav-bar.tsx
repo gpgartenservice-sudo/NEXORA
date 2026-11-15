@@ -1,6 +1,27 @@
 import type { TabTriggerSlotProps } from 'expo-router/ui';
-import { Children, isValidElement, useEffect, type ReactElement, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Menu, X } from 'lucide-react-native';
+import {
+  Children,
+  createContext,
+  isValidElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import {
+  BackHandler,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type ViewProps,
+} from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -12,32 +33,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
+import { Glass } from '@/components/ui/glass';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/providers/profile-provider';
 
 import { SIDEBAR_WIDTH, type NavItem } from './nav-items';
+import { MENU_BUTTON_SIZE, MENU_TOP, useMenuButtonShown } from './use-screen-top';
 
 type NavBarProps = { wide: boolean; children?: ReactNode };
 
+/** Offenes Seitenmenü am Handy – ein Eintrag schließt es nach dem Antippen */
+const DrawerContext = createContext<{ close: () => void } | null>(null);
+
+// federt wie bei iOS, ohne weit überzuschwingen
+const DRAWER_SPRING = { damping: 24, stiffness: 240, mass: 0.9 };
+
 /**
  * Navigation der App: auf dem Mac (breites Fenster) eine Seitenleiste
- * links, auf dem Handy eine Tab-Leiste unten. Die Einträge (TabTrigger)
- * kommen als children und werden hier nur angeordnet.
+ * links, auf dem Handy ein Seitenmenü, das der ☰-Knopf oben links öffnet.
+ * Die Einträge (TabTrigger) kommen als children und werden hier nur angeordnet.
  */
 export function NavBar({ wide, children, ...rest }: NavBarProps) {
   const insets = useSafeAreaInsets();
   const items = Children.toArray(children).filter(isValidElement) as ReactElement<{ name: string }>[];
-
-  if (!wide) {
-    return (
-      <View {...rest} style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        {items}
-      </View>
-    );
-  }
-
   const main = items.filter((c) => c.props.name !== 'profil');
   const footer = items.filter((c) => c.props.name === 'profil');
+
+  if (!wide) return <MenuDrawer {...rest} main={main} footer={footer} />;
+
   return (
     <View {...rest} style={[styles.sidebar, { paddingTop: Platform.OS === 'web' ? 52 : insets.top + Spacing.lg }]}>
       <View style={styles.brand}>
@@ -49,20 +72,103 @@ export function NavBar({ wide, children, ...rest }: NavBarProps) {
   );
 }
 
+/**
+ * Handy: ☰-Knopf oben links (Liquid Glass) öffnet ein schwebendes Glas-Menü
+ * von links mit allen Bereichen – wie die Seitenleiste auf dem Mac.
+ */
+function MenuDrawer({ main, footer, ...rest }: ViewProps & { main: ReactElement[]; footer: ReactElement[] }) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const showButton = useMenuButtonShown();
+  const [open, setOpen] = useState(false);
+  const progress = useSharedValue(0);
+  const panelW = Math.min(310, width - 64);
+  const drawer = useMemo(() => ({ close: () => setOpen(false) }), []);
+
+  useEffect(() => {
+    progress.set(withSpring(open ? 1 : 0, DRAWER_SPRING));
+    if (!open) return;
+    // Android: Zurück-Taste schließt erst das Menü
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [open, progress]);
+
+  const dimStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: (progress.get() - 1) * (panelW + 24) }],
+  }));
+
+  return (
+    <View {...rest} style={styles.drawerRoot} pointerEvents="box-none">
+      {showButton && (
+        <Glass interactive style={[styles.menuButton, { top: insets.top + MENU_TOP }]}>
+          <Pressable
+            onPress={() => setOpen(true)}
+            style={styles.menuPress}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Menü öffnen">
+            <Menu size={21} color={Colors.text} strokeWidth={2} />
+          </Pressable>
+        </Glass>
+      )}
+      <Animated.View pointerEvents={open ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, styles.dim, dimStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={drawer.close} accessibilityLabel="Menü schließen" />
+      </Animated.View>
+      <Animated.View
+        pointerEvents={open ? 'box-none' : 'none'}
+        accessibilityViewIsModal={open}
+        accessibilityElementsHidden={!open}
+        importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
+        style={[
+          styles.panel,
+          { width: panelW, top: insets.top + MENU_TOP, bottom: Math.max(insets.bottom, Spacing.sm) },
+          panelStyle,
+        ]}>
+        <Glass style={styles.panelGlass}>
+          <View style={styles.panelHead}>
+            <Wordmark width={116} />
+            <Pressable
+              onPress={drawer.close}
+              style={styles.closeButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Menü schließen">
+              <X size={18} color={Colors.textMuted} strokeWidth={2.2} />
+            </Pressable>
+          </View>
+          <DrawerContext value={drawer}>
+            <ScrollView style={styles.panelList} contentContainerStyle={styles.sideList} showsVerticalScrollIndicator={false}>
+              {main}
+            </ScrollView>
+            <View style={styles.panelFooter}>{footer}</View>
+          </DrawerContext>
+        </Glass>
+      </Animated.View>
+    </View>
+  );
+}
+
 /** Props, die TabTrigger (asChild) weiterreicht – ohne ref, das hier nicht gebraucht wird. */
 type TriggerSlotProps = Omit<TabTriggerSlotProps, 'ref'>;
 
-type NavButtonProps = TriggerSlotProps & { item: NavItem; wide: boolean };
+type NavButtonProps = TriggerSlotProps & { item: NavItem };
 
-/** Ein Eintrag der Navigation – Darstellung je nach Seitenleiste oder Tab-Leiste. */
-export function NavButton({ item, wide, isFocused = false, ...pressable }: NavButtonProps) {
-  // Einträge, die in dieser Ansicht nicht direkt angezeigt werden
-  if (wide && item.mobileOnly) return null;
-  if (!wide && !item.mobileTab) return null;
+/** Ein Eintrag der Navigation – in der Seitenleiste (Mac) und im Seitenmenü (Handy) gleich. */
+export function NavButton({ item, isFocused = false, onPress, ...pressable }: NavButtonProps) {
+  const drawer = useContext(DrawerContext);
+  // "Mehr" brauchte nur die alte Tab-Leiste – das Menü zeigt alle Bereiche direkt
+  if (item.mobileOnly) return null;
 
-  if (!wide) return <TabItem item={item} isFocused={isFocused} {...pressable} />;
-  if (item.name === 'profil') return <UserChip isFocused={isFocused} {...pressable} />;
-  return <SidebarItem item={item} isFocused={isFocused} {...pressable} />;
+  const press: TriggerSlotProps['onPress'] = (e) => {
+    onPress?.(e);
+    drawer?.close();
+  };
+  if (item.name === 'profil') return <UserChip isFocused={isFocused} {...pressable} onPress={press} />;
+  return <SidebarItem item={item} isFocused={isFocused} {...pressable} onPress={press} />;
 }
 
 type ItemProps = Omit<TriggerSlotProps, 'isFocused'> & { isFocused: boolean };
@@ -143,27 +249,6 @@ function UserChip({ isFocused, ...pressable }: ItemProps) {
   );
 }
 
-function TabItem({ item, isFocused, ...pressable }: ItemProps & { item: NavItem }) {
-  const { active, press, handlers } = useNavAnimation(isFocused);
-  const Icon = item.icon;
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -2 * active.get() }, { scale: (1 + 0.08 * active.get()) * (1 - 0.08 * press.get()) }],
-  }));
-  const dotStyle = useAnimatedStyle(() => ({ opacity: active.get(), transform: [{ scale: active.get() }] }));
-
-  return (
-    <Pressable {...pressable} {...handlers} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: isFocused }}>
-      <Animated.View style={iconStyle}>
-        <Icon size={22} strokeWidth={isFocused ? 2.2 : 1.7} color={isFocused ? Colors.text : Colors.textFaint} />
-      </Animated.View>
-      <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]} numberOfLines={1}>
-        {item.label}
-      </Text>
-      <Animated.View style={[styles.tabDot, dotStyle]} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   // Seitenleiste
   sidebar: {
@@ -218,16 +303,42 @@ const styles = StyleSheet.create({
   userTexts: { flex: 1 },
   userName: { color: Colors.text, fontSize: 14, fontWeight: '600' },
   userSub: { color: Colors.textFaint, fontSize: 12 },
-  // Tab-Leiste unten
-  bottomBar: {
-    flexDirection: 'row',
-    backgroundColor: '#050505',
-    borderTopWidth: 1,
-    borderTopColor: '#161618',
-    paddingTop: 8,
+  // Seitenmenü am Handy
+  drawerRoot: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, elevation: 50 },
+  menuButton: {
+    position: 'absolute',
+    left: Spacing.lg,
+    width: MENU_BUTTON_SIZE,
+    height: MENU_BUTTON_SIZE,
+    borderRadius: MENU_BUTTON_SIZE / 2,
   },
-  tab: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 4 },
-  tabLabel: { color: Colors.textFaint, fontSize: 11, fontWeight: '500' },
-  tabLabelActive: { color: Colors.text },
-  tabDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.accent, marginTop: 1 },
+  menuPress: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  dim: { backgroundColor: 'rgba(0,0,0,0.45)' },
+  panel: { position: 'absolute', left: 10 },
+  panelGlass: {
+    flex: 1,
+    borderRadius: 30,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  panelHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  panelList: { flex: 1 },
+  panelFooter: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)', paddingTop: Spacing.sm },
 });

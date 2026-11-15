@@ -3,6 +3,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 
 import { Colors, Radius } from '@/constants/theme';
 
+import { GlassBackdrop, glassSurface } from './glass';
+
 type Props = {
   label: string;
   onPress: () => void;
@@ -46,7 +48,9 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
           pointerEvents="none"
           style={[styles.glow, primary ? styles.glowPrimary : styles.glowSecondary, glowStyle]}
         />
-        <Animated.View style={[styles.base, primary ? styles.primary : styles.secondary]}>
+        {/* abgeschaltet = halbdurchsichtig: darunter zeichnet iOS kein Glas, dann die normale Fläche */}
+        <Animated.View style={[styles.base, primary ? styles.primary : [styles.secondary, !disabled && glassSurface]]}>
+          {!primary && !disabled && <GlassBackdrop radius={Radius.md} />}
           {loading ? (
             <ActivityIndicator color={primary ? Colors.buttonPrimaryText : Colors.text} />
           ) : (

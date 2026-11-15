@@ -24,6 +24,7 @@ import Animated, {
 
 import { toLocalInput } from '@/components/ui/date-utils';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { highlightRect, type Rect } from '@/features/tutorial/tutorial-logic';
 import { measure, type Node } from '@/features/tutorial/tutorial-overlay';
 import { useOptionalTutorial } from '@/features/tutorial/tutorial-provider';
@@ -583,7 +584,8 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
           pointerEvents="none"
           accessibilityLiveRegion="polite"
           style={[styles.bubble, { left: bubble.left, top: bubble.top, width: bubble.width }]}>
-          <View style={[styles.bubbleInner, bubble.align === 'end' && styles.bubbleEnd]}>
+          <View style={[styles.bubbleInner, glassSurface, bubble.align === 'end' && styles.bubbleEnd]}>
+            <GlassBackdrop radius={Radius.lg} />
             <Text style={styles.bubbleText}>{scene.text}</Text>
           </View>
         </Animated.View>
@@ -608,7 +610,8 @@ function SkipButton({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="Lunas Vorführung überspringen"
       {...hoverProps}
-      style={[styles.skip, hovered && styles.skipHover]}>
+      style={[styles.skip, glassSurface, hovered && styles.skipHover]}>
+      <GlassBackdrop radius={17} />
       <Text style={[styles.skipText, hovered && styles.skipTextHover]}>Überspringen</Text>
       {Platform.OS === 'web' && <Text style={styles.skipKey}>esc</Text>}
     </Pressable>

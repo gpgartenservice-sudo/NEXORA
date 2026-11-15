@@ -3,11 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Notice } from '@/components/ui/notice';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 
 /** Kennzahl-Kachel (z. B. "Umsatz"). */
 export function StatTile({ label, value, tone }: { label: string; value: string; tone?: 'accent' | 'muted' }) {
   return (
-    <View style={styles.stat}>
+    <View style={[styles.stat, glassSurface]}>
+      <GlassBackdrop radius={Radius.lg} />
       <Text style={[styles.statValue, tone === 'accent' && styles.statAccent, tone === 'muted' && styles.statMuted]} numberOfLines={1}>
         {value}
       </Text>
