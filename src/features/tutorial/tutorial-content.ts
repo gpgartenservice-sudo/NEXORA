@@ -56,15 +56,15 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
         text: 'Ich bin Luna und zeig dir in jedem Bereich kurz, wie alles funktioniert. Über das ? oben kannst du jede Einführung später wiederholen.',
       },
       {
-        target: 'home.today',
-        title: 'Heute zu tun',
-        text: 'Deine To-dos für heute und wie weit du bei deinen Zielen bist. Stehen heute oder morgen Termine an, siehst du sie direkt darüber.',
-      },
-      {
         target: 'home.money',
         optional: true,
         title: 'Dein Geld',
         text: 'Gewinn, Einnahmen und Ausgaben in diesem Monat. Kommt eine Einnahme dazu, zählen die Zahlen hoch – und es regnet Geld. 💸',
+      },
+      {
+        target: 'home.today',
+        title: 'Heute zu tun',
+        text: 'Deine To-dos für heute und wie weit du bei deinen Zielen bist. Stehen heute oder morgen Termine an, siehst du sie direkt darüber.',
       },
       {
         target: 'home.focus',

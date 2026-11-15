@@ -12,12 +12,14 @@ import { formatEuro } from '@/features/crm/order-logic';
 import { useFinance } from '@/features/finance/finance-provider';
 import { monthLabel, monthKey } from '@/features/finance/finance-logic';
 
-import { allTimeIncome, celebrationDone, monthNumbers, useCelebration } from './money';
+import { allTimeIncome, celebrationDone, monthNumbers, useCelebration, type MoneyNumbers } from './money';
+
+const ZERO: MoneyNumbers = { income: 0, expenses: 0, profit: 0 };
 
 /**
  * Startseite: Gewinn groß, Einnahmen kleiner, Ausgaben noch kleiner (laufender Monat).
- * Erscheint ab den ersten Einnahmen oder Ausgaben. Bei neuen Einnahmen (und beim
- * App-Start) zählen die Zahlen hoch und Geldscheine fliegen.
+ * Erscheint ab den ersten Einnahmen oder Ausgaben. Beim Öffnen der Startseite zählen die
+ * Zahlen von 0 hoch; bei neuen Einnahmen (und beim App-Start) fliegen dazu Geldscheine.
  */
 export function MoneyCard() {
   const { orders } = useCrm();
@@ -27,10 +29,12 @@ export function MoneyCard() {
 
   const celebration = useCelebration();
   const [focused, setFocused] = useState(false);
-  const [replay, setReplay] = useState({ n: 0, from: numbers });
+  // Jedes Mal, wenn die Startseite erscheint, zählen die Zahlen von 0 hoch
+  const [replay, setReplay] = useState({ n: 1, from: ZERO });
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
+      setReplay((r) => ({ n: r.n + 1, from: ZERO }));
       return () => setFocused(false);
     }, []),
   );

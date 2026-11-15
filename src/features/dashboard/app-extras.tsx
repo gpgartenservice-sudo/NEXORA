@@ -8,7 +8,7 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { useFinance } from '@/features/finance/finance-provider';
 import { NotificationScheduler } from '@/features/notifications/notification-scheduler';
 
-import { LunaToast } from './luna-toast';
+import { LunaGreeting } from './luna-greeting';
 import { allTimeIncome, monthNumbers, queueCelebration, takeStartCelebration } from './money';
 
 /**
@@ -20,7 +20,7 @@ export function AppExtras() {
     <>
       <IncomeWatcher />
       <NotificationScheduler />
-      <LunaToast />
+      <LunaGreeting />
       <MoneyBurstHost />
     </>
   );

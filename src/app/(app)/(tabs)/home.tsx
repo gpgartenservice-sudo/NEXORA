@@ -55,6 +55,13 @@ export default function DashboardScreen() {
         )}
       </View>
 
+      {/* Gewinn, Einnahmen, Ausgaben – ganz oben, ab den ersten Zahlen (zählen beim Öffnen hoch) */}
+      <TourTarget id="home.money">
+        <Reveal delay={240}>
+          <MoneyCard />
+        </Reveal>
+      </TourTarget>
+
       {/* Termine heute & morgen (nur wenn es welche gibt) */}
       <Reveal delay={280}>
         <UpcomingAppointments />
@@ -64,13 +71,6 @@ export default function DashboardScreen() {
       <TourTarget id="home.today">
         <Reveal delay={300}>
           <TodayCard />
-        </Reveal>
-      </TourTarget>
-
-      {/* Gewinn, Einnahmen, Ausgaben – ab den ersten Zahlen */}
-      <TourTarget id="home.money">
-        <Reveal delay={290}>
-          <MoneyCard />
         </Reveal>
       </TourTarget>
 
