@@ -30,21 +30,22 @@ test('Inhalte: jeder Bereich hat kurze Schritte mit Titel und Text', () => {
 });
 
 test('Rundgang: alle Bereiche der Navigation nacheinander, jeder mit Adresse', () => {
-  assert.deepEqual(TOUR, ['home', 'fahrplan', 'kunden', 'auftraege', 'termine', 'aufgaben', 'firma', 'finanzen', 'social', 'nexy']);
+  assert.deepEqual(TOUR, ['home', 'fahrplan', 'kunden', 'termine', 'aufgaben', 'firma', 'finanzen', 'social', 'nexy']);
   for (const id of TOUR) assert.ok(TUTORIALS[id].href, id);
   assert.equal(nextInTour('home'), 'fahrplan');
   assert.equal(nextInTour('social'), 'nexy');
   assert.equal(nextInTour('nexy'), null);
   assert.equal(nextInTour('auftrag'), null); // nicht im Rundgang
+  assert.equal(nextInTour('kunden'), 'termine'); // Aufträge kommen beim ersten Kunden
 });
 
 test('Optionale Schritte nur, wenn es die Stelle gibt', () => {
   const steps = TUTORIALS.kunden.steps;
-  assert.equal(visibleSteps(steps, () => false).length, 2); // leere Kundenliste: Anlegen + Tipp
-  assert.equal(visibleSteps(steps, () => true).length, 4);
+  assert.equal(visibleSteps(steps, () => false).length, 3); // leere Kundenliste: Einladen + Zustimmung + Aufträge
+  assert.equal(visibleSteps(steps, () => true).length, 5);
   assert.deepEqual(
     visibleSteps(steps, (t) => t === 'kunden.suche').map((s) => s.target ?? '-'),
-    ['kunden.neu', 'kunden.suche', '-'],
+    ['kunden.neu', '-', 'kunden.suche', '-'],
   );
 });
 

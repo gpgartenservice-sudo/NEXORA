@@ -43,6 +43,7 @@ import { FollowerSparkline } from './follower-sparkline';
 import { connectSupported } from './oauth';
 import { compactNumber } from './social-logic';
 import { useSocial, type SocialPost } from './social-provider';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 const ICON: Record<ConnectedPlatform, LucideIcon> = { tiktok: Music2, instagram: Camera };
 const ABOUT: Record<ConnectedPlatform, string> = {
@@ -159,7 +160,10 @@ function AccountCard({
         <View style={styles.cardHead}>
           <PlatformIcon platform={platform} />
           <View style={styles.flex}>
-            <Text style={styles.cardTitle}>{name}</Text>
+            <View style={styles.badgeRow}>
+              <Text style={styles.cardTitle}>{name}</Text>
+              <ProBadge />
+            </View>
             <Text style={styles.cardSub}>Nicht verbunden</Text>
           </View>
         </View>
@@ -175,7 +179,7 @@ function AccountCard({
         )}
         {!supported && <Text style={styles.hint}>Verbinden geht im Moment in der Mac-App oder im Browser.</Text>}
         <Button
-          label={pro ? `Mit ${name} verbinden` : `Mit ${name} verbinden · Pro`}
+          label={`Mit ${name} verbinden`}
           onPress={() => gate('social_connect') && void c.connect(platform)}
           loading={busyHere === 'connect'}
           disabled={!supported || ready === false || c.tablesMissing || (!!c.busy && busyHere !== 'connect')}
@@ -327,6 +331,44 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 type Filter = 'all' | 'open';
 
+/** Knopf: alle bisher geposteten Videos/Beiträge auf einmal als Posts übernehmen (Pro) */
+export function ImportAllButton({ compact }: { compact?: boolean }) {
+  const c = useSocialConnect();
+  const gate = useProGate();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const open = c.videos.filter((v) => !v.post_id).length;
+  if (!open && !result) return null;
+  const run = async () => {
+    if (!gate('social_import')) return;
+    setBusy(true);
+    setResult(null);
+    const r = await c.importAll();
+    setBusy(false);
+    setResult(
+      r.error
+        ? { tone: 'error', text: r.error }
+        : { tone: 'success', text: `${r.count} ${r.count === 1 ? 'Beitrag' : 'Beiträge'} übernommen – sie stehen jetzt als „Gepostet“ im Content-Board, mit allen Zahlen.` },
+    );
+  };
+  return (
+    <View style={styles.importAll}>
+      {open > 0 && (
+        <View style={styles.importRow}>
+          <Button
+            label={busy ? 'Übernehme …' : `Alle ${open} bisherigen ${open === 1 ? 'Beitrag' : 'Beiträge'} übernehmen`}
+            variant={compact ? 'secondary' : 'primary'}
+            loading={busy}
+            onPress={() => void run()}
+          />
+          <ProBadge />
+        </View>
+      )}
+      {result && <Notice tone={result.tone}>{result.text}</Notice>}
+    </View>
+  );
+}
+
 function VideoList() {
   const c = useSocialConnect();
   const { posts } = useSocial();
@@ -354,6 +396,7 @@ function VideoList() {
           <Text style={styles.refreshText}>{c.busy?.action === 'sync' ? 'Aktualisiere …' : 'Alle aktualisieren'}</Text>
         </Pressable>
       </View>
+      <ImportAllButton />
       <View style={styles.filter}>
         <Segmented
           value={filter}
@@ -541,6 +584,8 @@ function SmallLink({ label, onPress, disabled }: { label: string; onPress: () =>
 }
 
 const styles = StyleSheet.create({
+  importAll: { gap: Spacing.sm },
+  importRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flexWrap: 'wrap' },
   wrap: { gap: Spacing.lg },
   flex: { flex: 1, minWidth: 0 },
   intro: { color: Colors.textMuted, fontSize: 14, lineHeight: 21, maxWidth: 760 },
@@ -549,6 +594,7 @@ const styles = StyleSheet.create({
   card: { flexGrow: 1, flexBasis: 320, gap: Spacing.md },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   cardTitle: { color: Colors.text, fontSize: 17, fontWeight: '700' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardSub: { color: Colors.textMuted, fontSize: 13 },
   profileLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%' },
   profileText: { flexShrink: 1 },

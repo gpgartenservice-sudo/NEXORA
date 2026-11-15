@@ -1,17 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AuthFooter, AuthShell } from '@/components/auth/auth-shell';
 import { CodeField } from '@/components/auth/code-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useCooldown } from '@/hooks/use-cooldown';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { validateCode } from '@/lib/validation';
+import { claimThisDevice } from '@/lib/device';
 
 const RESEND_SECONDS = 60;
 
@@ -38,6 +39,7 @@ export default function VerifyScreen() {
       setFailure(authErrorMessage(verifyError));
       return;
     }
+    void claimThisDevice();
     router.replace('/home');
   };
 
@@ -78,6 +80,8 @@ export default function VerifyScreen() {
         {failure && <Notice tone="error">{failure}</Notice>}
         {info && !failure && <Notice tone="success">{info}</Notice>}
 
+        <Text style={styles.spam}>📬 Keine E-Mail da? Schau auch im Spam- oder Werbung-Ordner nach – manchmal landet sie dort.</Text>
+
         <Button label="Bestätigen" onPress={submit} loading={loading} style={styles.submit} />
 
         <View style={styles.resendRow}>
@@ -96,4 +100,5 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.lg },
   submit: { marginTop: Spacing.sm },
   resendRow: { alignItems: 'center' },
+  spam: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 20, textAlign: 'center' },
 });

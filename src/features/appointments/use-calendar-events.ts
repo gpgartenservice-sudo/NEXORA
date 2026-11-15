@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import { useCrm } from '@/features/crm/crm-provider';
+import { useProfile } from '@/providers/profile-provider';
 
 import { buildEvents } from './appointment-logic';
 import { useAppointments } from './appointments-provider';
@@ -9,5 +10,8 @@ import { useAppointments } from './appointments-provider';
 export function useCalendarEvents() {
   const { orders, customers } = useCrm();
   const { appointments } = useAppointments();
-  return useMemo(() => buildEvents(orders, customers, appointments), [orders, customers, appointments]);
+  const { profile } = useProfile();
+  // Handwerk & Dienstleistung: Ausführungen sind meist draußen → Wetter-Hinweis
+  const outside = profile?.industry === 'craft_service';
+  return useMemo(() => buildEvents(orders, customers, appointments, outside), [orders, customers, appointments, outside]);
 }

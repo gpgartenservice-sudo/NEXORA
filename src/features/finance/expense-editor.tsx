@@ -19,6 +19,7 @@ import { formatEuro, parseEuro } from '@/features/crm/order-logic';
 import { todayIso } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { useAuth } from '@/providers/auth-provider';
+import { useWorkspaceId } from '@/features/team/team-provider';
 
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type ExpenseRepeat } from './finance-logic';
 import { useFinance, type Expense } from './finance-provider';
@@ -32,6 +33,7 @@ import {
   uploadReceipt,
 } from './receipt-file';
 import { possibleDuplicate, receiptToDraft } from './receipt-logic';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 /** Zurück zu Finanzen – mit dem dort gewählten Zeitraum (sonst neu öffnen). */
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/finanzen'));
@@ -75,6 +77,7 @@ function ExpenseEditor({
 }) {
   const { expenses, createExpense, updateExpense, deleteExpense, error: setupError } = useFinance();
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   // Vorsteuer nur bei Regelbesteuerung (Kleinunternehmer: Feld ausgeblendet)
   const { seller } = useDocuments();
   const showVat = !seller.small_business;
@@ -171,7 +174,7 @@ function ExpenseEditor({
         setSaving(false);
         return setFailure('Bitte melde dich neu an.');
       }
-      const up = await uploadReceipt(user.id, receipt.file);
+      const up = await uploadReceipt(workspaceId, receipt.file);
       if (up.error || !up.path) {
         setSaving(false);
         return setFailure(up.error ?? 'Der Beleg konnte nicht hochgeladen werden.');
@@ -217,6 +220,7 @@ function ExpenseEditor({
     <Screen maxWidth={640}>
       <PageHeader
         title={expense ? 'Ausgabe bearbeiten' : receiptMode ? 'Beleg erfassen' : 'Neue Ausgabe'}
+        meta={receiptMode && !expense ? <ProBadge kind="limit" label="AUSLESEN JE MONAT BEGRENZT" /> : undefined}
         subtitle={
           expense
             ? undefined

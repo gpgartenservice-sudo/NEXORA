@@ -51,6 +51,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261117090000_plan_tiers.sql` | Abo-Stufen Gratis / Pro / Business: neue Grenzen je Monat (Luna-Nachrichten, Belege, Vorlesen) und Spalte `tier` für Business |
 | `20261118090000_billing.sql` | Bezahlen mit Stripe: Spalten `stripe_customer_id` und `stripe_subscription_id` im Abo (Abschnitt 14) |
 | `20261119090000_customer_invites.sql` | Neue Kunden per Datenschutz-Link: Einladungen (E-Mail + geheimer Link), Kundenseite ohne Anmeldung, Nachweis der bestätigten Datenschutzerklärung am Kunden (Abschnitt 15) |
+| `20261120090000_feinschliff.sql` | Feinschliff: eigene Branche, Rechtsform + Pflichtangaben, Gutscheine (20 Codes für die Warteliste: `select code from public.vouchers where note = 'Warteliste'`), ein Gerät gleichzeitig, Business-Team (bis 5 Personen, gemeinsame Daten), Inventar, Termine „draußen“ |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 

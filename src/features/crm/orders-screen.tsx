@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
-import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
+import { TourTarget, TutorialButton } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
 import { computeStatus, formatEuro, outstandingRevenue, recognizedRevenue, statusGroup, type StatusGroup } from './order-logic';
@@ -31,7 +31,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 export function OrdersScreen() {
   const { orders, customerById, loading, error, customers } = useCrm();
   const [filter, setFilter] = useState<Filter>('all');
-  useAreaTutorial('auftraege');
+  // Die Einführung kommt beim ersten Kunden (Kundenakte) – hier nur über das ?
 
   const groups = useMemo(() => orders.map((o) => ({ order: o, group: statusGroup(computeStatus(o)) })), [orders]);
   const count = (f: Filter) => (f === 'all' ? groups.length : groups.filter((g) => g.group === f).length);

@@ -21,6 +21,7 @@ import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial
 import { useHover } from '@/hooks/use-hover';
 import { fetchBytes, saveFile, savesViaShareSheet } from '@/lib/files';
 import { useAuth } from '@/providers/auth-provider';
+import { useWorkspaceId } from '@/features/team/team-provider';
 
 import { useFinance } from './finance-provider';
 import { receiptUrl } from './receipt-file';
@@ -40,6 +41,7 @@ import {
   yearTotals,
 } from './tax-logic';
 import { useTaxReservePercent } from './tax-settings';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/finanzen'));
 
@@ -58,8 +60,8 @@ export function useTaxYear(year: number) {
   const { orders } = useCrm();
   const { expenses } = useFinance();
   const { documents, seller } = useDocuments();
-  const { user } = useAuth();
-  const { percent, save, missing } = useTaxReservePercent(user?.id);
+  const workspaceId = useWorkspaceId();
+  const { percent, save, missing } = useTaxReservePercent(workspaceId);
   return useMemo(() => {
     const today = new Date();
     const totals = yearTotals(orders, expenses, year, today);
@@ -174,6 +176,21 @@ export function TaxScreen() {
         back={{ label: 'Finanzen', onPress: back }}
         help={<TutorialButton id="steuern" />}
       />
+      {(t.seller.legal_form === 'ug' || t.seller.legal_form === 'gmbh') && (
+        <Notice>
+          Bei einer {t.seller.legal_form === 'ug' ? 'UG' : 'GmbH'} zahlt die Firma selbst Steuern: rund 15 %
+          Körperschaftsteuer plus Soli und die Gewerbesteuer deiner Gemeinde – zusammen meist etwa 30 % vom Gewinn. Was du
+          dir auszahlst (Gehalt, Gewinnausschüttung), versteuerst du zusätzlich privat. Stell den Steuer-Topf unten
+          entsprechend ein und plane den Jahresabschluss mit deiner Steuerberatung.
+        </Notice>
+      )}
+      {t.seller.legal_form === 'gbr' && (
+        <Notice>
+          GbR: Der Gewinn wird auf euch Gesellschafter aufgeteilt, jeder versteuert seinen Anteil in der eigenen
+          Steuererklärung. Die GbR selbst gibt eine Feststellungserklärung ab – und bei Gewerbe auch die
+          Gewerbesteuererklärung. Der Steuer-Topf unten gilt fürs ganze Business.
+        </Notice>
+      )}
       <Reveal delay={120}>
         <Segmented
           value={String(year)}
@@ -266,7 +283,10 @@ export function TaxScreen() {
       <TourTarget id="steuern.export">
         <Reveal delay={300}>
           <Card>
-            <Text style={styles.eyebrow}>FÜR DIE STEUERBERATUNG</Text>
+            <View style={styles.badgeRow}>
+              <Text style={styles.eyebrow}>FÜR DIE STEUERBERATUNG</Text>
+              <ProBadge />
+            </View>
             <Text style={styles.body}>
               {invoices.length} {invoices.length === 1 ? 'Rechnung' : 'Rechnungen'} · {yearExpenses.length}{' '}
               {yearExpenses.length === 1 ? 'Ausgabe' : 'Ausgaben'} · {withReceipt.length}{' '}
@@ -276,7 +296,7 @@ export function TaxScreen() {
               <View style={styles.chips}>
                 <ActionChip
                   icon={Archive}
-                  label={busy === 'zip' ? 'Wird erstellt …' : pro ? 'Alles als ZIP' : 'Alles als ZIP · Pro'}
+                  label={busy === 'zip' ? 'Wird erstellt …' : 'Alles als ZIP'}
                   accessibilityLabel={`Alles für ${year} als ZIP`}
                   onPress={() => gate('tax_zip') && void zip()}
                   disabled={!!busy}
@@ -368,6 +388,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 }
 
 const styles = StyleSheet.create({
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyebrow: { color: Colors.textFaint, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.2 },
   big: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.6 },
   title: { color: Colors.text, fontSize: 18, fontWeight: '700' },

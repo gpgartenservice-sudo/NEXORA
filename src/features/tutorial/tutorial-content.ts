@@ -61,19 +61,20 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
         text: 'Deine To-dos für heute und wie weit du bei deinen Zielen bist. Stehen heute oder morgen Termine an, siehst du sie direkt darüber.',
       },
       {
+        target: 'home.money',
+        optional: true,
+        title: 'Dein Geld',
+        text: 'Gewinn, Einnahmen und Ausgaben in diesem Monat. Kommt eine Einnahme dazu, zählen die Zahlen hoch – und es regnet Geld. 💸',
+      },
+      {
         target: 'home.focus',
         title: 'Dein Fokus',
-        text: 'Passend zu deiner Phase zeige ich dir, worauf es gerade ankommt – dazu jeden Tag ein kleiner Impuls.',
+        text: 'Passend zu den Schwerpunkten, die du am Anfang gewählt hast: worauf es gerade ankommt, eine Zahl dazu und der direkte Weg in den passenden Bereich. Dazu jeden Tag ein kleiner Impuls.',
       },
       {
         target: 'home.steps',
         title: 'Deine nächsten Schritte',
-        text: 'Die nächsten Schritte aus deinem Fahrplan. Abhaken geht direkt hier.',
-      },
-      {
-        target: 'home.tools',
-        title: 'Deine Werkzeuge',
-        text: 'Von hier springst du in jeden Bereich. Die Navigation ist immer da – am Mac links, am Handy unten.',
+        text: 'Die nächsten Schritte aus deinem Fahrplan. Abhaken geht direkt hier. Alle Bereiche findest du im Menü – am Mac links, am Handy über ☰ oben links.',
       },
     ],
   },
@@ -105,8 +106,12 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
     steps: [
       {
         target: 'kunden.neu',
-        title: 'Kunden anlegen',
-        text: 'Leg hier deine Kunden an – ein Name reicht für den Anfang. Telefon, E-Mail und Adresse kannst du jederzeit ergänzen.',
+        title: 'Kunden einladen',
+        text: 'Für einen neuen Kunden brauchst du nur seine E-Mail-Adresse. Er bekommt deine Datenschutzerklärung und trägt Name, Adresse und Telefon selbst ein – so ist alles DSGVO-sauber.',
+      },
+      {
+        title: 'Sobald er zustimmt',
+        text: 'Hat dein Kunde die Datenschutzerklärung bestätigt, erscheint er automatisch in deiner Liste – mit allen Daten, die er eingetragen hat. Die Bestätigung wird beim Kunden gespeichert.',
       },
       {
         target: 'kunden.zahlen',
@@ -121,32 +126,37 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
         text: 'Suche nach Name, Firma, Telefon oder E-Mail. In der Kundenakte findest du alle Aufträge, Angebote und Rechnungen dieses Kunden.',
       },
       {
-        title: 'Noch schneller',
-        text: 'Sag mir einfach: „Neuer Kunde Peter Müller, Telefon 0171 …“ – ich lege ihn für dich an.',
+        title: 'Und die Aufträge?',
+        text: 'Aufträge legst du direkt beim Kunden an – alle zusammen stehen unter „Aufträge“ im Menü. Ich zeig dir alles beim ersten Kunden. Tipp: Sag mir „Lade peter@mueller.de als Kunden ein“.',
       },
     ],
   },
   auftraege: {
     id: 'auftraege',
     label: 'Aufträge',
-    href: '/auftraege',
+    href: null,
     steps: [
       {
+        target: 'auftraege.kunde-neu',
+        optional: true,
+        title: 'Aufträge – direkt beim Kunden',
+        text: 'Jeder Job ist ein Auftrag – vom Erstgespräch bis zur bezahlten Rechnung. Hier legst du für diesen Kunden einen neuen an.',
+      },
+      {
+        target: 'auftraege.kunde-liste',
+        optional: true,
+        title: 'Alle Aufträge dieses Kunden',
+        text: 'Hier stehen die Aufträge dieses Kunden. Der Status setzt sich von selbst – je nachdem, was du im Auftrag abhakst.',
+      },
+      {
         target: 'auftraege.neu',
+        optional: true,
         title: 'Aufträge',
-        text: 'Jeder Job ist ein Auftrag – vom Erstgespräch bis zur bezahlten Rechnung. Hier legst du einen neuen an.',
+        text: 'Hier legst du einen neuen Auftrag an – für einen Kunden, der schon in deiner Liste ist.',
       },
       {
-        target: 'auftraege.filter',
-        optional: true,
-        title: 'Status im Blick',
-        text: 'Filtere nach Status. Der Status setzt sich von selbst – je nachdem, was du im Auftrag abhakst.',
-      },
-      {
-        target: 'auftraege.zahlen',
-        optional: true,
-        title: 'Umsatz',
-        text: 'Umsatz zählt, sobald ein Auftrag abgeschlossen ist. Monatliche Aufträge zählen Monat für Monat.',
+        title: 'Alle Aufträge auf einen Blick',
+        text: 'Unter „Aufträge“ im Menü siehst du die Aufträge aller Kunden – mit Filter und Umsatz. Umsatz zählt, sobald ein Auftrag abgeschlossen ist.',
       },
       {
         title: 'Angebot & Rechnung',
@@ -189,7 +199,7 @@ export const TUTORIALS: Record<TutorialId, Tutorial> = {
       {
         target: 'termine.aktionen',
         title: 'Termine',
-        text: 'Termine aus deinen Aufträgen landen automatisch hier. Eigene legst du mit „+ Termin“ an – und mit dem Kalender-Abo erscheinen alle in deinem Handy-Kalender.',
+        text: 'Termine aus deinen Aufträgen landen automatisch hier. Eigene legst du mit „+ Termin“ an – und über „Kalender verbinden“ erscheinen alle in deinem Handy-Kalender.',
       },
       {
         target: 'termine.offen',
@@ -352,7 +362,6 @@ export const TOUR: TutorialId[] = [
   'home',
   'fahrplan',
   'kunden',
-  'auftraege',
   'termine',
   'aufgaben',
   'firma',

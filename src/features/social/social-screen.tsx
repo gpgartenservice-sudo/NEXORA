@@ -15,7 +15,7 @@ import { useNexy } from '@/features/assistant/nexy-provider';
 import { StatRow, StatTile } from '@/features/crm/ui';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
-import { AccountsView } from './accounts-view';
+import { AccountsView, ImportAllButton } from './accounts-view';
 import { BoardView } from './board-view';
 import { useSocialConnect } from './connect-provider';
 import { HashtagSetsView } from './hashtag-sets-view';
@@ -141,6 +141,8 @@ export function SocialScreen() {
           </View>
         </Reveal>
       </TourTarget>
+
+      {!loading && view === 'board' && connect.accounts.length > 0 && <ImportAllButton compact />}
 
       {!loading && (
         <Reveal delay={260}>

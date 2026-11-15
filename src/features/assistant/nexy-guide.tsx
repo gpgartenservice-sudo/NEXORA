@@ -47,6 +47,8 @@ import { speak, type Speech } from './voice';
 const SIZE = 64;
 const BUBBLE = { width: 300, height: 72 };
 const MOVE = 700;
+/** Tempo der Vorführung: 2 = doppelt so schnell wie ursprünglich (Wunsch: Luna erledigt Aufträge flotter) */
+const SPEED = 2;
 
 /** stay: auf der Seite bleiben statt zurück in den Chat (z. B. „öffne Finanzen“) */
 type Director = { play: LivePlayer; finish: (line: string, stay?: boolean) => Promise<void> };
@@ -238,7 +240,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
     let pos = { x: x.get(), y: y.get() };
     let ring = 0;
     let line = 0;
-    const dur = (ms: number) => (live.current.reduce ? 0 : ms);
+    const dur = (ms: number) => (live.current.reduce ? 0 : Math.round(ms / SPEED));
     const smooth = () => !live.current.reduce;
 
     const moveTo = async (nx: number, ny: number, s = 1) => {
@@ -306,12 +308,12 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
           const h = live.current.view.height;
           if (scroll && (hit.rect.y < 90 || hit.rect.y + Math.min(hit.rect.height, 300) > h - 110)) {
             hit.scroll(smooth());
-            await sleep(smooth() ? 460 : 60);
+            await sleep(smooth() ? 320 : 60);
           }
           const r = (await hit.remeasure()) ?? hit.rect;
           return { ...hit, rect: await relative(r) };
         }
-        await sleep(120);
+        await sleep(80);
       } while (!stopped && Date.now() < deadline);
       return null;
     };
@@ -342,7 +344,8 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       setScene((s) => ({ ...s, text, line: l, mood }));
       const sp = speak(text);
       speech = sp;
-      const read = Math.min(5000, 1200 + text.length * 45);
+      // Mindest-Lesezeit für die Sprechblase (ohne Stimme, z. B. am Handy)
+      const read = Math.min(3600, 800 + text.length * 30);
       talking = Promise.race([Promise.all([sp.done, sleep(read)]), sleep(14000)]).then(() => {
         if (line === l) setScene((s) => ({ ...s, mood: 'idle' }));
       });
@@ -359,7 +362,7 @@ function GuideOverlay({ onReady, onStop }: { onReady: (d: Director) => void; onS
       } else {
         const length = [...text].length;
         const frames = live.current.reduce ? [text] : typingFrames(text);
-        const per = live.current.reduce ? 0 : (typingDelay(length) * length) / frames.length;
+        const per = live.current.reduce ? 0 : (typingDelay(length) * length) / frames.length / SPEED;
         for (const f of frames) {
           if (stopped) return;
           setValue(el, f);

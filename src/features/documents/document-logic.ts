@@ -34,7 +34,19 @@ export type Seller = {
   review_url?: string | null;
   /** Link zur eigenen Datenschutzerklärung (sonst Muster auf der Kundenseite) */
   privacy_url?: string | null;
+  /** Rechtsform (Skript 20261120090000_feinschliff.sql) */
+  legal_form?: SellerLegalForm | null;
+  /** GbR: alle Gesellschafter */
+  partners?: string | null;
+  /** UG/GmbH: Geschäftsführer, Registergericht, HRB-Nummer (Pflicht auf Geschäftsbriefen, § 35a GmbHG) */
+  managing_director?: string | null;
+  register_court?: string | null;
+  register_number?: string | null;
 };
+
+export type SellerLegalForm = 'none' | 'sole' | 'freelance' | 'gbr' | 'ug' | 'gmbh';
+
+export const LEGAL_KEYS = ['legal_form', 'partners', 'managing_director', 'register_court', 'register_number'] as const;
 
 export type Buyer = {
   name: string;
@@ -97,6 +109,11 @@ export const EMPTY_SELLER: Seller = {
   logo_id: null,
   review_url: null,
   privacy_url: null,
+  legal_form: null,
+  partners: null,
+  managing_director: null,
+  register_court: null,
+  register_number: null,
 };
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -143,7 +160,46 @@ export function missingSellerFields(s: Seller, kind: DocumentKind): string[] {
     if (!s.tax_number?.trim() && !s.vat_id?.trim()) missing.push('Steuernummer oder USt-IdNr.');
     if (!s.iban?.trim()) missing.push('IBAN für die Überweisung');
   }
+  // UG/GmbH: Pflichtangaben auf allen Geschäftsbriefen (§ 35a GmbHG)
+  if (s.legal_form === 'ug' || s.legal_form === 'gmbh') {
+    if (!s.register_court?.trim() || !s.register_number?.trim()) missing.push('Registergericht und HRB-Nummer');
+    if (!s.managing_director?.trim()) missing.push('Geschäftsführer/in');
+  }
   return missing;
+}
+
+/** Zusatzzeilen für die Fußzeile je nach Rechtsform (Pflicht- bzw. empfohlene Angaben). */
+export function legalFooterLines(s: Seller): string[] {
+  const t = (v?: string | null) => v?.trim() ?? '';
+  switch (s.legal_form) {
+    case 'gbr':
+      return t(s.partners) ? [`Gesellschafter: ${t(s.partners)}`] : [];
+    case 'ug':
+    case 'gmbh': {
+      const lines: string[] = [];
+      if (t(s.city)) lines.push(`Sitz: ${t(s.city)}`);
+      const reg = [t(s.register_court) && `Registergericht ${t(s.register_court)}`, t(s.register_number)].filter(Boolean).join(', ');
+      if (reg) lines.push(reg);
+      if (t(s.managing_director)) lines.push(`Geschäftsführung: ${t(s.managing_director)}`);
+      return lines;
+    }
+    default:
+      // Einzelunternehmen/Freiberufler mit Fantasienamen: Vor- und Nachname gehört dazu
+      return t(s.company_name) && t(s.owner_name) && t(s.company_name) !== t(s.owner_name) ? [`Inhaber/in: ${t(s.owner_name)}`] : [];
+  }
+}
+
+/** Hinweis, wenn der Firmenname nicht zur Rechtsform passt (z. B. UG ohne Zusatz). */
+export function legalNameHint(s: Pick<Seller, 'legal_form' | 'company_name'>): string | null {
+  const name = s.company_name?.trim() ?? '';
+  if (!name) return null;
+  if (s.legal_form === 'ug' && !/UG\s*\(haftungsbeschränkt\)|Unternehmergesellschaft\s*\(haftungsbeschränkt\)/i.test(name))
+    return 'Bei einer UG muss „UG (haftungsbeschränkt)“ im Firmennamen stehen.';
+  if (s.legal_form === 'gmbh' && !/GmbH|Gesellschaft mit beschränkter Haftung/i.test(name))
+    return 'Bei einer GmbH muss „GmbH“ im Firmennamen stehen.';
+  if (s.legal_form === 'gbr' && !/GbR|Gesellschaft bürgerlichen Rechts/i.test(name))
+    return 'Tipp: Schreib „GbR“ hinter euren Namen, damit Kunden die Rechtsform erkennen.';
+  return null;
 }
 
 /** Fehlende Angaben zum Kunden (Rechnung: Name und Anschrift sind Pflicht). */

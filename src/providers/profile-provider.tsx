@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import type { Goal, Industry, Stage } from '@/features/onboarding/options';
+import type { Goal, Industry, LegalForm, Stage } from '@/features/onboarding/options';
 import { supabase } from '@/lib/supabase';
 
 export type Profile = {
@@ -14,6 +14,14 @@ export type Profile = {
   /** Einführungen (fehlen, solange das Skript 20261115090000_tutorials.sql nicht ausgeführt ist) */
   tutorials_done?: string[];
   tutorials_off?: boolean;
+  /** Eigene Branche bei „Etwas anderes“ (Skript 20261120090000_feinschliff.sql) */
+  industry_other?: string | null;
+  /** Rechtsform (Einzelunternehmen, GbR, …) */
+  legal_form?: LegalForm | null;
+  /** Abo, das bei der Registrierung gewählt wurde (bis Stripe läuft nur gemerkt) */
+  chosen_plan?: 'free' | 'pro' | 'business' | null;
+  /** Design-Einstellungen (Pro/Business): Hintergrund */
+  design?: { background?: string } | null;
 };
 
 export type ProfileUpdate = Partial<Omit<Profile, 'id'>>;
@@ -71,11 +79,18 @@ export function ProfileProvider({ userId, children }: { userId: string; children
 
   const save = useCallback(
     async (values: ProfileUpdate) => {
-      const { data, error: saveError } = await supabase
-        .from('profiles')
-        .upsert({ id: userId, ...values })
-        .select('*')
-        .single();
+      // Neue Spalten fehlen, solange das passende SQL-Skript nicht ausgeführt ist:
+      // dann ohne diese Spalte noch einmal speichern statt ganz abzubrechen
+      let row: Record<string, unknown> = { id: userId, ...values };
+      let result = await supabase.from('profiles').upsert(row).select('*').single();
+      for (let i = 0; i < 6 && result.error?.code === 'PGRST204'; i++) {
+        const column = /'([^']+)' column/.exec(result.error.message ?? '')?.[1];
+        if (!column || !(column in row)) break;
+        const { [column]: _skipped, ...rest } = row;
+        row = rest;
+        result = await supabase.from('profiles').upsert(row).select('*').single();
+      }
+      const { data, error: saveError } = result;
       if (saveError) {
         console.warn('[Profil]', saveError);
         // 23503: das Konto zur gespeicherten Anmeldung existiert nicht mehr

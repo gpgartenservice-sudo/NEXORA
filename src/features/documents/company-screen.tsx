@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TextField } from '@/components/auth/text-field';
 import { Screen } from '@/components/layout/screen';
@@ -12,18 +12,39 @@ import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { validReviewUrl } from '@/features/dunning/dunning-logic';
+import { LEGAL_FORMS, isCorporation } from '@/features/onboarding/options';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { validateEmail } from '@/lib/validation';
 import { useProfile } from '@/providers/profile-provider';
 
-import { missingSellerFields, type Seller } from './document-logic';
+import { LEGAL_KEYS, legalFooterLines, legalNameHint, missingSellerFields, type Seller, type SellerLegalForm } from './document-logic';
 import { useDocuments } from './documents-provider';
 import { LogoCard } from './logo-card';
 
 type Draft = Record<
-  'company_name' | 'owner_name' | 'street' | 'zip' | 'city' | 'phone' | 'email' | 'website' | 'tax_number' | 'vat_id' | 'bank_name' | 'iban' | 'bic' | 'payment_days' | 'offer_validity_days' | 'review_url' | 'privacy_url',
+  | 'company_name'
+  | 'owner_name'
+  | 'street'
+  | 'zip'
+  | 'city'
+  | 'phone'
+  | 'email'
+  | 'website'
+  | 'tax_number'
+  | 'vat_id'
+  | 'bank_name'
+  | 'iban'
+  | 'bic'
+  | 'payment_days'
+  | 'offer_validity_days'
+  | 'review_url'
+  | 'privacy_url'
+  | 'partners'
+  | 'managing_director'
+  | 'register_court'
+  | 'register_number',
   string
-> & { small_business: boolean; vat_rate: '19' | '7' };
+> & { small_business: boolean; vat_rate: '19' | '7'; legal_form: SellerLegalForm | null };
 
 const toDraft = (s: Seller): Draft => ({
   company_name: s.company_name ?? '',
@@ -45,6 +66,11 @@ const toDraft = (s: Seller): Draft => ({
   privacy_url: s.privacy_url ?? '',
   small_business: s.small_business,
   vat_rate: s.vat_rate === 7 ? '7' : '19',
+  legal_form: s.legal_form ?? null,
+  partners: s.partners ?? '',
+  managing_director: s.managing_director ?? '',
+  register_court: s.register_court ?? '',
+  register_number: s.register_number ?? '',
 });
 
 const clean = (v: string) => (v.trim() ? v.trim() : null);
@@ -72,6 +98,12 @@ function toValues(draft: Draft): Omit<Seller, 'logo_id'> {
     vat_rate: Number(draft.vat_rate),
     review_url: clean(draft.review_url),
     privacy_url: clean(draft.privacy_url),
+    legal_form: draft.legal_form,
+    // nur speichern, was zur Rechtsform gehört
+    partners: draft.legal_form === 'gbr' ? clean(draft.partners) : null,
+    managing_director: isCorporation(draft.legal_form) ? clean(draft.managing_director) : null,
+    register_court: isCorporation(draft.legal_form) ? clean(draft.register_court) : null,
+    register_number: isCorporation(draft.legal_form) ? clean(draft.register_number) : null,
   };
 }
 
@@ -94,11 +126,13 @@ export function CompanyScreen() {
 
 function CompanyForm() {
   const { seller, hasSettings, saveSeller, error } = useDocuments();
-  const { profile } = useProfile();
+  const { profile, save: saveProfile } = useProfile();
   const [draft, setDraft] = useState<Draft>(() => {
     const d = toDraft(seller);
     // Noch nichts gespeichert: Firmenname aus dem Onboarding vorschlagen
     if (!hasSettings && !d.company_name && profile?.business_name) d.company_name = profile.business_name;
+    // Rechtsform aus dem Onboarding übernehmen
+    if (!d.legal_form && profile?.legal_form) d.legal_form = profile.legal_form;
     return d;
   });
   const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
@@ -112,7 +146,7 @@ function CompanyForm() {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
-  const field = (key: keyof Omit<Draft, 'small_business' | 'vat_rate'>, label: string, extra: Partial<Parameters<typeof TextField>[0]> = {}) => (
+  const field = (key: keyof Omit<Draft, 'small_business' | 'vat_rate' | 'legal_form'>, label: string, extra: Partial<Parameters<typeof TextField>[0]> = {}) => (
     <TextField label={label} value={draft[key]} onChangeText={(v) => set(key, v)} error={errors[key]} {...extra} />
   );
 
@@ -144,15 +178,22 @@ function CompanyForm() {
     if (!values.review_url && !seller.review_url) delete values.review_url;
     // dasselbe für den Link zur Datenschutzerklärung (Skript 20261119090000_customer_invites.sql)
     if (!values.privacy_url && !seller.privacy_url) delete values.privacy_url;
+    // … und für die Rechtsform (Skript 20261120090000_feinschliff.sql)
+    for (const k of LEGAL_KEYS) if (!values[k] && !seller[k]) delete values[k];
     const { error: err } = await saveSeller(values);
     setSaving(false);
-    if (err) setFailure(err);
-    else setSaved(true);
+    if (err) return setFailure(err);
+    setSaved(true);
+    // Rechtsform auch im Profil, damit Tipps und Abo-Empfehlung passen
+    if (draft.legal_form && draft.legal_form !== profile?.legal_form) void saveProfile({ legal_form: draft.legal_form });
   };
 
   // Aktueller Stand der Eingaben (auch ungespeichert) – für Hinweise und Vorschau
   const preview: Seller = { ...toValues(draft), logo_id: seller.logo_id };
   const missingInvoice = missingSellerFields(preview, 'invoice');
+  const nameHint = legalNameHint(preview);
+  const footer = legalFooterLines(preview);
+  const team = draft.legal_form === 'gbr' || isCorporation(draft.legal_form);
 
   return (
     <>
@@ -171,8 +212,18 @@ function CompanyForm() {
         <Reveal delay={220}>
           <Card>
             <Text style={styles.cardTitle}>Absender</Text>
-            {field('company_name', 'Firmenname', { placeholder: 'z. B. Lena Design Studio' })}
-            {field('owner_name', 'Inhaber/in', { placeholder: 'Vor- und Nachname', autoCapitalize: 'words' })}
+            {field('company_name', 'Firmenname', {
+              placeholder:
+                draft.legal_form === 'ug'
+                  ? 'z. B. Lena Design UG (haftungsbeschränkt)'
+                  : draft.legal_form === 'gmbh'
+                    ? 'z. B. Lena Design GmbH'
+                    : draft.legal_form === 'gbr'
+                      ? 'z. B. Lena & Tom Design GbR'
+                      : 'z. B. Lena Design Studio',
+            })}
+            {!!nameHint && <Text style={styles.warn}>{nameHint}</Text>}
+            {field('owner_name', team ? 'Ansprechpartner/in' : 'Inhaber/in', { placeholder: 'Vor- und Nachname', autoCapitalize: 'words' })}
             {field('street', 'Straße und Hausnummer')}
             <View style={styles.row}>
               <View style={styles.zip}>{field('zip', 'PLZ', { keyboardType: 'number-pad' })}</View>
@@ -186,6 +237,59 @@ function CompanyForm() {
           </Card>
         </Reveal>
       </TourTarget>
+
+      <Reveal delay={250}>
+        <Card>
+          <Text style={styles.cardTitle}>Rechtsform</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Rechtsform">
+            {LEGAL_FORMS.map((f) => {
+              const active = draft.legal_form === f.key;
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => set('legal_form', f.key)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                  style={[styles.chip, active && styles.chipActive]}>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {f.emoji} {f.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {draft.legal_form === 'gbr' && (
+            <>
+              {field('partners', 'Gesellschafter/innen', { placeholder: 'z. B. Lena Schmidt, Tom Becker', autoCapitalize: 'words' })}
+              <Text style={styles.hint}>
+                Alle Namen, kommagetrennt – sie stehen unten auf Angeboten und Rechnungen. Arbeitet ihr zu mehreren in
+                Lunaxora? Mit Business teilt ihr euch ein Konto mit bis zu 5 Personen (Profil → Team).
+              </Text>
+            </>
+          )}
+          {isCorporation(draft.legal_form) && (
+            <>
+              {field('managing_director', 'Geschäftsführer/in', { placeholder: 'Vor- und Nachname (bei mehreren kommagetrennt)', autoCapitalize: 'words' })}
+              <View style={styles.row}>
+                <View style={styles.flex}>{field('register_court', 'Registergericht', { placeholder: 'z. B. Amtsgericht Köln' })}</View>
+                <View style={styles.flex}>{field('register_number', 'Handelsregister-Nr.', { placeholder: 'z. B. HRB 12345', autoCapitalize: 'characters' })}</View>
+              </View>
+              <Text style={styles.hint}>
+                Pflicht auf allen Geschäftsbriefen einer {draft.legal_form === 'ug' ? 'UG' : 'GmbH'} (§ 35a GmbHG): Rechtsform,
+                Sitz, Registergericht, Registernummer und alle Geschäftsführer.
+              </Text>
+            </>
+          )}
+          {(draft.legal_form === 'none' || !draft.legal_form) && (
+            <Text style={styles.hint}>Noch nicht angemeldet? Der Fahrplan zeigt dir Schritt für Schritt, wie du dein Gewerbe anmeldest.</Text>
+          )}
+          {footer.length > 0 && (
+            <Text style={styles.hint}>
+              Steht so in der Fußzeile deiner PDFs: {footer.join(' · ')}
+            </Text>
+          )}
+        </Card>
+      </Reveal>
 
       <TourTarget id="firma.steuern">
         <Reveal delay={280}>
@@ -278,6 +382,19 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.md, flexWrap: 'wrap' },
   flex: { flex: 1, minWidth: 200 },
   zip: { width: 130 },
-  hint: { color: Colors.textFaint, fontSize: 13 },
+  hint: { color: Colors.textFaint, fontSize: 13, lineHeight: 18 },
+  warn: { color: '#F5B94A', fontSize: 13, lineHeight: 18 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  chipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  chipText: { color: Colors.text, fontSize: 13.5, fontWeight: '600' },
+  chipTextActive: { color: Colors.onAccent },
   disclaimer: { color: Colors.textFaint, fontSize: 12.5, textAlign: 'center' },
 });

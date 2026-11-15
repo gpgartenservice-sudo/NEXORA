@@ -11,11 +11,13 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Segmented } from '@/components/ui/segmented';
+import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Colors, Spacing } from '@/constants/theme';
 import { formatDay } from '@/features/documents/document-logic';
 
 import { type BillingInterval, openBillingPortal, startCheckout } from './billing-api';
 import {
+  BUSINESS_SEATS,
   COMPARISON,
   FEATURE_LABEL,
   formatPrice,
@@ -168,7 +170,9 @@ export function PlanScreen() {
             <View style={[styles.col, styles.colLabel]} />
             <Text style={[col, styles.colHead, narrow && styles.colHeadNarrow]}>Gratis</Text>
             <Text style={[col, styles.colHead, narrow && styles.colHeadNarrow, styles.proHead]}>Pro</Text>
-            <Text style={[col, styles.colHead, narrow && styles.colHeadNarrow, styles.businessHead]}>Business</Text>
+            <View style={col}>
+              <GradientText style={[styles.colHead, narrow && styles.colHeadNarrow]}>Business</GradientText>
+            </View>
           </View>
           {COMPARISON.map((row) => (
             <View key={row.label} style={styles.row}>
@@ -201,15 +205,38 @@ export function PlanScreen() {
         </View>
       </Reveal>
 
+      <Reveal delay={240}>
+        <Card>
+          <View style={styles.offerHead}>
+            <Sparkles size={20} color={Colors.textMuted} />
+            <Text style={styles.offerTitle}>Lunaxora Gratis</Text>
+            {info?.plan === 'free' && <Text style={styles.current}>Dein Abo</Text>}
+          </View>
+          <Text style={styles.price}>
+            0 € <Text style={styles.per}>für immer</Text>
+          </Text>
+          <Text style={styles.body}>
+            Kunden, Aufträge, Termine, Finanzen, Angebote und Rechnungen als PDF – mit {LIMITS.free.nexy} Luna-Nachrichten im
+            Monat. Ohne Abo, ohne Kündigung.
+          </Text>
+        </Card>
+      </Reveal>
+
       {TIERS.map((tier, i) => {
         const price = PRICES[tier.key];
         const current = info?.plan === tier.key;
-        return (
-          <Reveal key={tier.key} delay={260 + i * 60}>
-            <Card style={tier.key === 'pro' ? styles.offer : undefined}>
+        const business = tier.key === 'business';
+        const card = (
+            <Card style={tier.key === 'pro' ? styles.offer : business ? styles.offerBusiness : undefined}>
               <View style={styles.offerHead}>
-                <Sparkles size={20} color={tier.key === 'pro' ? Colors.accent : Colors.text} />
-                <Text style={styles.offerTitle}>Lunaxora {tier.name}</Text>
+                <Sparkles size={20} color={tier.key === 'pro' ? Colors.accent : '#8B5CF6'} />
+                {business ? (
+                  <View style={styles.flex}>
+                    <GradientText style={styles.offerTitle}>{`Lunaxora ${tier.name}`}</GradientText>
+                  </View>
+                ) : (
+                  <Text style={styles.offerTitle}>Lunaxora {tier.name}</Text>
+                )}
                 {current && <Text style={styles.current}>Dein Abo</Text>}
               </View>
               <Text style={styles.price} testID={`price-${tier.key}`}>
@@ -233,6 +260,10 @@ export function PlanScreen() {
               )}
               {failed?.key === tier.key && <Notice tone="error">{failed.text}</Notice>}
             </Card>
+        );
+        return (
+          <Reveal key={tier.key} delay={260 + i * 60}>
+            {business ? <GradientFrame radius={16}>{card}</GradientFrame> : card}
           </Reveal>
         );
       })}
@@ -251,12 +282,12 @@ const TIERS: { key: PaidTier; name: string; text: string }[] = [
   {
     key: 'pro',
     name: 'Pro',
-    text: `Alle Funktionen, ${LIMITS.pro.nexy} Luna-Nachrichten und ${LIMITS.pro.receipt} Belege im Monat.`,
+    text: `Alle Funktionen inklusive Design-Einstellungen, ${LIMITS.pro.nexy} Luna-Nachrichten und ${LIMITS.pro.receipt} Belege im Monat – auf einem Gerät gleichzeitig.`,
   },
   {
     key: 'business',
     name: 'Business',
-    text: `Alles aus Pro mit doppelt so viel Luna: ${LIMITS.business.nexy} Nachrichten und ${LIMITS.business.receipt} Belege im Monat.`,
+    text: `Alles aus Pro für bis zu ${BUSINESS_SEATS} Personen in einem Business – ideal für eine GbR. Fürs ganze Team: ${LIMITS.business.nexy} Luna-Nachrichten und ${LIMITS.business.receipt} Belege im Monat.`,
   },
 ];
 
@@ -314,12 +345,13 @@ const styles = StyleSheet.create({
   colHead: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
   colHeadNarrow: { fontSize: 11, letterSpacing: -0.2 },
   proHead: { color: Colors.accent },
-  businessHead: { color: Colors.text },
   rowLabel: { color: Colors.text, fontSize: 14, lineHeight: 19, paddingRight: Spacing.sm },
   rowLabelNarrow: { fontSize: 13, lineHeight: 18, paddingRight: Spacing.xs },
   cellText: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
   proText: { color: Colors.text },
   offer: { borderColor: 'rgba(47,227,154,0.35)' },
+  offerBusiness: { borderWidth: 0 },
+  flex: { flex: 1 },
   offerHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   offerTitle: { color: Colors.text, fontSize: 18, fontWeight: '700', flex: 1 },
   current: { color: Colors.accent, fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3 },

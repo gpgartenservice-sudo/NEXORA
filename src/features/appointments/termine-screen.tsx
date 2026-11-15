@@ -22,6 +22,9 @@ import { useFollowups } from '@/features/dunning/followups-provider';
 import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
 import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
+import { useWeather } from '@/features/weather/use-weather';
+import { WeatherBadge } from '@/features/weather/weather-icon';
+import { outdoorWarning, weatherPlace, type DayWeather } from '@/features/weather/weather-logic';
 import { useHover } from '@/hooks/use-hover';
 import { toDate } from '@/lib/dates';
 
@@ -88,6 +91,8 @@ export function TermineScreen() {
       }));
   }, [documents, followups, now]);
   const origin = sellerAddress(seller);
+  const place = weatherPlace(seller);
+  const weather = useWeather(place).days;
   const thisMonday = startOfWeek(now);
   const monday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + offset * 7);
   const days = weekDays(monday);
@@ -99,13 +104,13 @@ export function TermineScreen() {
     <Screen maxWidth={1240}>
       <PageHeader
         title="Termine"
-        subtitle="Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Kalender-Abo."
+        subtitle="Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Verbindung zu deinem Kalender."
         help={<TutorialButton id="termine" />}
         action={
           <TourTarget id="termine.aktionen" style={styles.headerActions}>
             <ActionChip
               icon={CalendarSync}
-              label="Kalender-Abo"
+              label="Kalender verbinden"
               active={showAbo}
               onPress={() => setShowAbo((v) => !v)}
             />
@@ -190,17 +195,33 @@ export function TermineScreen() {
                     events={list}
                     overlaps={overlaps}
                     origin={origin}
+                    weather={weather.get(key)}
                   />
                 ) : (
-                  <DaySection key={key} day={d} now={now} events={list} overlaps={overlaps} origin={origin} showEmpty />
+                  <DaySection
+                    key={key}
+                    day={d}
+                    now={now}
+                    events={list}
+                    overlaps={overlaps}
+                    origin={origin}
+                    weather={weather.get(key)}
+                    showEmpty
+                  />
                 );
               })}
             </View>
           </View>
         ) : (
-          <ListView events={events} now={now} overlaps={overlaps} origin={origin} />
+          <ListView events={events} now={now} overlaps={overlaps} origin={origin} weather={weather} />
         )}
       </Reveal>
+      {!place && (
+        <Text style={styles.weatherHint}>
+          Tipp: Trag unter Firma deinen Ort ein – dann siehst du hier an jedem Tag das Wetter und bekommst bei Terminen
+          draußen eine Warnung vor Regen oder Sturm.
+        </Text>
+      )}
     </Screen>
   );
 }
@@ -263,14 +284,17 @@ function DayColumn({
   events,
   overlaps,
   origin,
+  weather,
 }: {
   day: Date;
   today: boolean;
   events: CalendarEvent[];
   overlaps: Set<string>;
   origin: string | null;
+  weather?: DayWeather;
 }) {
   const key = dayKey(day);
+  const warning = outsideWarning(events, weather);
   return (
     <View style={[styles.column, glassSurface, today && styles.columnToday]} testID={`day-${key}`}>
       <GlassBackdrop radius={Radius.md} />
@@ -283,9 +307,20 @@ function DayColumn({
       {events.map((e) => (
         <EventChip key={e.key} event={e} overlap={overlaps.has(e.key)} />
       ))}
-      <AddButton day={key} />
+      {!!warning && <Text style={styles.weatherWarn}>☔ {warning}</Text>}
+      <View style={styles.columnFoot}>
+        <View style={styles.footAdd}>
+          <AddButton day={key} />
+        </View>
+        <WeatherBadge weather={weather} compact />
+      </View>
     </View>
   );
+}
+
+/** Warnung, wenn an diesem Tag etwas draußen ansteht und das Wetter nicht passt */
+function outsideWarning(events: CalendarEvent[], weather: DayWeather | undefined): string | null {
+  return events.some((e) => e.outdoor && !e.done) ? outdoorWarning(weather) : null;
 }
 
 function AddButton({ day }: { day: string }) {
@@ -309,6 +344,7 @@ function DaySection({
   events,
   overlaps,
   origin,
+  weather,
   showEmpty,
 }: {
   day: Date;
@@ -316,9 +352,11 @@ function DaySection({
   events: CalendarEvent[];
   overlaps: Set<string>;
   origin: string | null;
+  weather?: DayWeather;
   showEmpty?: boolean;
 }) {
   const key = dayKey(day);
+  const warning = outsideWarning(events, weather);
   const label = dayLabel(day, now);
   const relative = ['Heute', 'Morgen', 'Gestern'].includes(label);
   return (
@@ -334,12 +372,14 @@ function DaySection({
           )}
         </Text>
         <RouteLink events={events} origin={origin} />
+        <WeatherBadge weather={weather} />
         <AddButton day={key} />
       </View>
       {events.length === 0 && showEmpty && <Text style={styles.empty}>Keine Termine</Text>}
       {events.map((e) => (
         <EventRow key={e.key} event={e} overlap={overlaps.has(e.key)} />
       ))}
+      {!!warning && <Text style={styles.weatherWarn}>☔ {warning}</Text>}
     </View>
   );
 }
@@ -349,11 +389,13 @@ function ListView({
   now,
   overlaps,
   origin,
+  weather,
 }: {
   events: CalendarEvent[];
   now: Date;
   overlaps: Set<string>;
   origin: string | null;
+  weather: Map<string, DayWeather>;
 }) {
   const list = upcoming(events, now, LIST_DAYS);
   const days = [...eventsByDay(list).entries()];
@@ -380,6 +422,7 @@ function ListView({
           events={dayEvents}
           overlaps={overlaps}
           origin={origin}
+          weather={weather.get(key)}
         />
       ))}
     </View>
@@ -528,6 +571,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   addHover: { borderColor: Colors.borderFocus },
+  columnFoot: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footAdd: { flex: 1 },
+  weatherWarn: { color: '#F5B94A', fontSize: 12, lineHeight: 16 },
+  weatherHint: { color: Colors.textFaint, fontSize: 13, lineHeight: 18 },
   route: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   routeText: { color: Colors.textMuted, fontSize: 12, fontWeight: '600', textDecorationLine: 'underline' },
   dayList: { gap: Spacing.lg },

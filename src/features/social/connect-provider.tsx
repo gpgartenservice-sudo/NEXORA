@@ -44,6 +44,8 @@ type State = {
   disconnect: (platform: ConnectedPlatform) => Promise<void>;
   linkVideo: (videoId: string, postId: string | null) => Promise<string | undefined>;
   importVideo: (videoId: string) => Promise<{ postId?: string; error?: string }>;
+  /** Alle noch nicht zugeordneten Videos/Beiträge als Posts übernehmen */
+  importAll: () => Promise<{ count: number; error?: string }>;
 };
 
 const Ctx = createContext<State | null>(null);
@@ -325,6 +327,39 @@ export function SocialConnectProvider({ userId, children }: { userId: string; ch
     [linkVideo],
   );
 
+  const importAll = useCallback(async (): Promise<{ count: number; error?: string }> => {
+    const { videos: list, social: s } = live.current;
+    const open = list.filter((v) => !v.post_id).sort((a, b) => (a.published_at ?? '').localeCompare(b.published_at ?? ''));
+    if (!open.length) return { count: 0 };
+    const created = await s.createPosts(open.map(postFromVideo));
+    const posts = created.data ?? [];
+    // Posts kommen in derselben Reihenfolge zurück – zur Sicherheit über den Link abgleichen
+    const pairs = open
+      .map((v, i) => {
+        const byUrl = v.url ? posts.find((p) => p.url === v.url) : undefined;
+        return { video: v, post: byUrl ?? posts[i] };
+      })
+      .filter((x): x is { video: SocialVideo; post: (typeof posts)[number] } => !!x.post);
+    const linked = new Map<string, string>();
+    let failed = 0;
+    for (let i = 0; i < pairs.length; i += 10) {
+      const batch = pairs.slice(i, i + 10);
+      const results = await Promise.all(
+        batch.map(({ video, post }) =>
+          supabase.from('social_videos').update({ post_id: post.id, auto_link: true }).eq('id', video.id),
+        ),
+      );
+      results.forEach((r, j) => (r.error ? failed++ : linked.set(batch[j].video.id, batch[j].post.id)));
+    }
+    setVideos((current) =>
+      current.map((v) => (linked.has(v.id) ? { ...v, post_id: linked.get(v.id)!, auto_link: true } : v)),
+    );
+    const error =
+      created.error ??
+      (failed ? `${failed} ${failed === 1 ? 'Video konnte' : 'Videos konnten'} nicht verknüpft werden – versuch es gleich noch einmal.` : undefined);
+    return { count: posts.length, error };
+  }, []);
+
   const value = useMemo<State>(
     () => ({
       accounts,
@@ -345,6 +380,7 @@ export function SocialConnectProvider({ userId, children }: { userId: string; ch
       disconnect,
       linkVideo,
       importVideo,
+      importAll,
     }),
     [
       accounts,
@@ -364,6 +400,7 @@ export function SocialConnectProvider({ userId, children }: { userId: string; ch
       disconnect,
       linkVideo,
       importVideo,
+      importAll,
     ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

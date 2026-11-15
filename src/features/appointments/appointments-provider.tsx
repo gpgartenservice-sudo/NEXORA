@@ -11,6 +11,7 @@ export type AppointmentInput = Pick<
   'title' | 'starts_at' | 'ends_at' | 'all_day' | 'location' | 'customer_id' | 'notes'
 > & {
   done?: boolean;
+  outdoor?: boolean;
 };
 
 type Result<T = undefined> = { data?: T; error?: string };
@@ -39,6 +40,8 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'Termine können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig – z. B. endet der Termin vor dem Beginn.';
+  if ((error.code === 'PGRST204' || error.code === '42703') && /outdoor/.test(error.message ?? ''))
+    return 'Für „Draußen“ fehlt noch das Datenbank-Skript 20261120090000_feinschliff.sql (siehe supabase/README.md). Schalte es aus, um den Termin zu speichern.';
   if (isProRequired(error)) return proRequiredText('calendar_feed');
   return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }

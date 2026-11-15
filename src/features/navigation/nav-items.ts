@@ -1,4 +1,5 @@
 import {
+  Boxes,
   Briefcase,
   Building2,
   CalendarDays,
@@ -27,6 +28,7 @@ export type NavItem = {
     | '/aufgaben'
     | '/firma'
     | '/finanzen'
+    | '/inventar'
     | '/social'
     | '/assistent'
     | '/profil'
@@ -96,7 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/termine',
     label: 'Termine',
     icon: CalendarDays,
-    description: 'Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Kalender-Abo.',
+    description: 'Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Verbindung zu deinem Kalender.',
   },
   {
     name: 'aufgaben',
@@ -124,6 +126,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Finanzen',
     icon: Wallet,
     description: 'Einnahmen, Ausgaben und Gewinn im Blick – inklusive offener Rechnungen.',
+  },
+  {
+    name: 'inventar',
+    href: '/inventar',
+    label: 'Inventar',
+    icon: Boxes,
+    description: 'Geräte, Werkzeug und Material – mit Wert, Zustand und Standort.',
   },
   {
     name: 'social',

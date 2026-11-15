@@ -12,6 +12,7 @@ import { Spacing } from '@/constants/theme';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { MIN_PASSWORD_LENGTH, validateEmail, validateNewPassword } from '@/lib/validation';
+import { claimThisDevice } from '@/lib/device';
 
 type Errors = { email?: string; password?: string };
 
@@ -43,6 +44,7 @@ export default function RegisterScreen() {
     }
     if (data.session) {
       // E-Mail-Bestätigung ist in Supabase ausgeschaltet -> direkt angemeldet
+      void claimThisDevice();
       router.replace('/home');
       return;
     }

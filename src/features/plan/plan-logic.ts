@@ -19,18 +19,21 @@ export type PlanInfo = {
   usage: Record<QuotaKind, Usage>;
 };
 
-/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt – Kostenrechnung November 2026, Luna auf Sonnet 5.5 */
+/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt (Preise vom 15.11.2026) */
 export const PRICES: Record<PaidTier, { month: number; year: number }> = {
-  pro: { month: 14.99, year: 149 },
-  business: { month: 29.99, year: 299 },
+  pro: { month: 50, year: 500 },
+  business: { month: 150, year: 1500 },
 };
+/** Business: so viele Konten (Personen) teilen sich ein Business – passend z. B. für eine GbR */
+export const BUSINESS_SEATS = 5;
 export const TRIAL_DAYS = 14;
 /** Grenzen je Kalendermonat – gleiche Zahlen wie nexora_limit() in 20261117090000_plan_tiers.sql */
 export const LIMITS: Record<PlanKind, Record<QuotaKind, number>> = {
   free: { nexy: 15, receipt: 3, voice: 30 },
   trial: { nexy: 50, receipt: 20, voice: 70 },
   pro: { nexy: 100, receipt: 50, voice: 120 },
-  business: { nexy: 200, receipt: 150, voice: 220 },
+  /** fürs ganze Team zusammen */
+  business: { nexy: 500, receipt: 250, voice: 600 },
 };
 
 export type ProFeature =
@@ -40,7 +43,10 @@ export type ProFeature =
   | 'tax_zip'
   | 'social_connect'
   | 'calendar_feed'
-  | 'no_branding';
+  | 'no_branding'
+  | 'social_import'
+  | 'design'
+  | 'team';
 
 /** Kurzname für Hinweise („… gibt es mit Pro“) */
 export const FEATURE_LABEL: Record<ProFeature, string> = {
@@ -49,9 +55,15 @@ export const FEATURE_LABEL: Record<ProFeature, string> = {
   dunning: '1. Mahnung und letzte Mahnung',
   tax_zip: 'Steuer-Export als ZIP',
   social_connect: 'TikTok verbinden',
-  calendar_feed: 'Kalender-Abo',
+  calendar_feed: 'Kalender verbinden',
   no_branding: 'PDFs ohne „Erstellt mit Lunaxora“',
+  social_import: 'Beiträge aus TikTok übernehmen',
+  design: 'Design-Einstellungen',
+  team: `Team mit bis zu ${BUSINESS_SEATS} Personen`,
 };
+
+/** Funktionen nur mit Business (alles andere aus FEATURE_LABEL geht ab Pro) */
+export const BUSINESS_ONLY: ProFeature[] = ['team'];
 
 type Cell = string | boolean;
 const both = (free: Cell, pro: Cell, business: Cell = pro) => ({ free, pro, business });
@@ -76,6 +88,11 @@ export const COMPARISON: ({ label: string } & Record<'free' | PaidTier, Cell>)[]
   { label: FEATURE_LABEL.social_connect, ...both(false, true) },
   { label: FEATURE_LABEL.calendar_feed, ...both(false, true) },
   { label: 'PDFs ohne „Erstellt mit Lunaxora“', ...both(false, true) },
+  { label: 'Inventar, Wetter im Kalender, Benachrichtigungen', ...both(true, true) },
+  { label: FEATURE_LABEL.social_import, ...both(false, true) },
+  { label: FEATURE_LABEL.design, ...both(false, true) },
+  { label: 'Personen im Konto', ...both('1', '1', String(BUSINESS_SEATS)) },
+  { label: 'Geräte gleichzeitig (pro Person)', ...both('1', '1', '1') },
 ];
 
 /** Hat der Server mit „nur mit Pro“ geantwortet? (Datenbank: Fehler PT402 / Funktion: 402) */
@@ -85,6 +102,8 @@ export function isProRequired(error: { code?: string; message?: string } | null 
 
 /** Hinweis, wenn eine Pro-Funktion im Gratis-Abo benutzt wird */
 export function proRequiredText(feature: ProFeature): string {
+  if (BUSINESS_ONLY.includes(feature))
+    return `„${FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Business. Unter Profil → Abo siehst du, was Business kann.`;
   return `„${FEATURE_LABEL[feature]}“ gibt es mit Lunaxora Pro. Deine Testphase ist vorbei – unter Profil → Abo siehst du, was Pro kann.`;
 }
 
@@ -145,7 +164,7 @@ export function quotaText(info: PlanInfo, kind: QuotaKind): string {
 const UPGRADE: Record<PlanKind, string> = {
   free: 'Mit Lunaxora Pro geht es gleich weiter',
   trial: 'Mit Lunaxora Pro geht es gleich weiter',
-  pro: 'Mit Lunaxora Business hast du doppelt so viel',
+  pro: 'Mit Lunaxora Business habt ihr fünfmal so viel fürs ganze Team',
   business: 'Ab dem 1. des nächsten Monats geht es weiter',
 };
 

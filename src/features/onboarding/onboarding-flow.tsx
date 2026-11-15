@@ -26,23 +26,30 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 
+import { LunaBuddy } from './luna-buddy';
 import {
   GOALS,
   INDUSTRIES,
   industryLabel,
+  isTeamForm,
+  LEGAL_FORMS,
+  legalFormLabel,
   MAX_GOALS,
   STAGES,
   stageLabel,
   type Goal,
   type Industry,
+  type LegalForm,
   type Stage,
 } from './options';
+import { PlanStep, type ChosenPlan } from './plan-step';
+import { PurchaseDone } from './purchase-done';
 import { SuccessBurst } from './success-burst';
 
-/** Die Fragen, in dieser Reihenfolge. 'done' ist der Abschluss-Screen. */
-const STEPS = ['name', 'stage', 'business', 'industry', 'goals', 'done'] as const;
+/** Die Fragen, in dieser Reihenfolge. 'purchased' (nur bei Pro/Business) und 'done' sind Abschluss-Screens. */
+const STEPS = ['name', 'stage', 'business', 'industry', 'legal', 'goals', 'plan', 'purchased', 'done'] as const;
 type Step = (typeof STEPS)[number];
-const QUESTION_COUNT = STEPS.length - 1;
+const QUESTION_COUNT = STEPS.length - 2;
 
 /** Kurze Pause, bevor es nach einer Einfachauswahl automatisch weitergeht */
 const AUTO_ADVANCE_MS = 420;
@@ -66,6 +73,12 @@ export function OnboardingFlow() {
   const [business, setBusiness] = useState(profile?.business_name ?? '');
   const [industry, setIndustry] = useState<Industry | null>(profile?.industry ?? null);
   const [goals, setGoals] = useState<Goal[]>(profile?.goals ?? []);
+  const [industryOther, setIndustryOther] = useState(profile?.industry_other ?? '');
+  const [legal, setLegal] = useState<LegalForm | null>(profile?.legal_form ?? null);
+  const [chosen, setChosen] = useState<ChosenPlan | null>(null);
+  const [voucherMonths, setVoucherMonths] = useState<number>();
+  // Onboarding schon einmal abgeschlossen (Profil → Antworten ändern)
+  const [repeating] = useState(() => !!profile?.onboarding_completed_at);
 
   const [nameError, setNameError] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -122,7 +135,9 @@ export function OnboardingFlow() {
     );
   };
 
-  const finish = async () => {
+  /** Abo gewählt bzw. Gutschein eingelöst: alles speichern, dann Kauf-Screen (Pro/Business) oder Abschluss */
+  const finish = async (plan: ChosenPlan, months?: number, repeat = false) => {
+    setChosen(plan);
     setSaving(true);
     setSaveError(null);
     const { error } = await save({
@@ -130,7 +145,10 @@ export function OnboardingFlow() {
       stage,
       business_name: business.trim() || null,
       industry,
+      industry_other: industry === 'other' ? industryOther.trim() || null : null,
+      legal_form: legal,
       goals,
+      chosen_plan: plan,
       onboarding_completed_at: profile?.onboarding_completed_at ?? new Date().toISOString(),
     });
     setSaving(false);
@@ -138,8 +156,21 @@ export function OnboardingFlow() {
       setSaveError(error);
       return;
     }
-    next();
+    setVoucherMonths(months);
+    goTo(repeat || plan === 'free' ? STEPS.indexOf('done') : STEPS.indexOf('purchased'));
   };
+
+  // --- Was Luna gerade sagt (reagiert auf jede Eingabe)
+  const typedName = name.trim().split(/\s+/)[0];
+  const luna = lunaLine(step, {
+    name: typedName,
+    stage,
+    business: business.trim(),
+    industry,
+    industryOther: industryOther.trim(),
+    legal,
+    goals,
+  });
 
   const firstName = name.trim().split(/\s+/)[0];
   const twoColumns = width >= 640;
@@ -148,13 +179,13 @@ export function OnboardingFlow() {
     <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={[styles.column, step === 'industry' && twoColumns && styles.columnWide]}>
-            {step !== 'done' && (
+          <View style={[styles.column, (step === 'industry' || step === 'legal') && twoColumns && styles.columnWide]}>
+            {step !== 'done' && step !== 'purchased' && (
               <View style={styles.topBar}>
-                <StepProgress steps={QUESTION_COUNT} current={stepIndex} />
+                <StepProgress steps={repeating ? QUESTION_COUNT - 1 : QUESTION_COUNT} current={stepIndex} />
                 <View style={styles.topRow}>
                   <Text style={styles.stepLabel}>
-                    Schritt {stepIndex + 1} von {QUESTION_COUNT}
+                    Schritt {stepIndex + 1} von {repeating ? QUESTION_COUNT - 1 : QUESTION_COUNT}
                   </Text>
                   {stepIndex > 0 ? (
                     <TextLink label="← Zurück" onPress={back} />
@@ -164,6 +195,9 @@ export function OnboardingFlow() {
                 </View>
               </View>
             )}
+
+            {/* Luna bleibt über alle Schritte stehen und reagiert auf die Antworten */}
+            {step !== 'purchased' && step !== 'done' && <LunaBuddy message={luna.text} mood={luna.mood} compact={step === 'plan'} />}
 
             {/* key = Schritt: bei jedem Wechsel spielen die Einblend-Effekte neu ab */}
             <Animated.View key={step} style={[styles.stepBody, leaveStyle]}>
@@ -250,6 +284,54 @@ export function OnboardingFlow() {
                           selected={industry === s.key}
                           onPress={() => {
                             setIndustry(s.key);
+                            // „Etwas anderes“: erst eintragen lassen, dann weiter
+                            if (s.key === 'other') clearTimeout(autoTimer.current);
+                            else autoAdvance();
+                          }}
+                        />
+                      </Reveal>
+                    ))}
+                  </View>
+                  {industry === 'other' && (
+                    <Reveal distance={10}>
+                      <View style={styles.otherBox}>
+                        <TextField
+                          label="Deine Branche"
+                          value={industryOther}
+                          onChangeText={setIndustryOther}
+                          placeholder="z. B. Hundefriseur, Fotografie, Nachhilfe"
+                          autoFocus
+                          autoCapitalize="sentences"
+                          returnKeyType="next"
+                          onSubmitEditing={next}
+                          maxLength={80}
+                        />
+                        <Button
+                          label={industryOther.trim() ? 'Weiter' : 'Überspringen'}
+                          variant={industryOther.trim() ? 'primary' : 'secondary'}
+                          onPress={next}
+                        />
+                      </View>
+                    </Reveal>
+                  )}
+                </StepLayout>
+              )}
+
+              {step === 'legal' && (
+                <StepLayout
+                  title="Welche Rechtsform hat dein Business?"
+                  subtitle="Davon hängen Steuern und Pflichtangaben auf deinen Rechnungen ab. Ändern kannst du das jederzeit unter Firma.">
+                  <View style={[styles.options, twoColumns && styles.grid]}>
+                    {LEGAL_FORMS.map((f, i) => (
+                      <Reveal key={f.key} delay={360 + i * 55} style={twoColumns ? styles.gridItem : undefined}>
+                        <OptionCard
+                          compact={twoColumns}
+                          emoji={f.emoji}
+                          title={f.title}
+                          description={twoColumns ? undefined : f.description}
+                          selected={legal === f.key}
+                          onPress={() => {
+                            setLegal(f.key);
                             autoAdvance();
                           }}
                         />
@@ -281,11 +363,37 @@ export function OnboardingFlow() {
                       {goals.length} von {MAX_GOALS} ausgewählt
                     </Text>
                   </Reveal>
-                  {saveError && <Notice tone="error">{saveError}</Notice>}
+                  {saveError && repeating && <Notice tone="error">{saveError}</Notice>}
                   <Reveal delay={820}>
-                    <Button label="Fertig" onPress={finish} loading={saving} disabled={goals.length === 0} />
+                    {repeating ? (
+                      // Antworten ändern (Profil): Abo nicht noch einmal abfragen
+                      <Button
+                        label="Fertig"
+                        loading={saving}
+                        onPress={() => void finish(profile?.chosen_plan ?? 'free', undefined, true)}
+                        disabled={goals.length === 0}
+                      />
+                    ) : (
+                      <Button label="Weiter" onPress={next} disabled={goals.length === 0} />
+                    )}
                   </Reveal>
                 </StepLayout>
+              )}
+
+              {step === 'plan' && (
+                <StepLayout title="Wähle dein Abo" subtitle="Du kannst jederzeit wechseln oder kündigen.">
+                  {saveError && <Notice tone="error">{saveError}</Notice>}
+                  <PlanStep
+                    recommended={isTeamForm(legal) ? 'business' : 'pro'}
+                    busy={saving ? chosen : null}
+                    onChoose={(p) => void finish(p)}
+                    onVoucher={(months) => void finish('pro', months)}
+                  />
+                </StepLayout>
+              )}
+
+              {step === 'purchased' && chosen && chosen !== 'free' && (
+                <PurchaseDone plan={chosen} voucherMonths={voucherMonths} onContinue={() => goTo(STEPS.indexOf('done'))} />
               )}
 
               {step === 'done' && (
@@ -298,7 +406,8 @@ export function OnboardingFlow() {
                   <View style={styles.pills}>
                     {[
                       stage && `${STAGES.find((s) => s.key === stage)?.emoji} ${stageLabel(stage)}`,
-                      industry && `${INDUSTRIES.find((s) => s.key === industry)?.emoji} ${industryLabel(industry)}`,
+                      industry && `${INDUSTRIES.find((s) => s.key === industry)?.emoji} ${industryLabel(industry, industryOther)}`,
+                      legal && `${LEGAL_FORMS.find((s) => s.key === legal)?.emoji} ${legalFormLabel(legal)}`,
                       ...goals.map((g) => `${GOALS.find((x) => x.key === g)?.emoji} ${GOALS.find((x) => x.key === g)?.title}`),
                     ]
                       .filter(Boolean)
@@ -385,4 +494,73 @@ const styles = StyleSheet.create({
   },
   pillText: { color: Colors.text, fontSize: 13, fontWeight: '500' },
   doneButton: { width: '100%', maxWidth: 320, marginTop: Spacing.lg },
+  otherBox: { gap: Spacing.md, marginTop: Spacing.sm },
 });
+
+type LunaFacts = {
+  name: string;
+  stage: Stage | null;
+  business: string;
+  industry: Industry | null;
+  industryOther: string;
+  legal: LegalForm | null;
+  goals: Goal[];
+};
+
+const STAGE_REPLY: Record<Stage, string> = {
+  idea: 'Eine Idee ist der beste Anfang! 💡 Ich zeig dir jeden Schritt.',
+  started: 'Super, dann legen wir jetzt richtig los! 🚀',
+  stuck: 'Kenn ich – da holen wir dich zusammen raus. 💪',
+  growing: 'Stark! Dann sorgen wir für noch mehr Wachstum. 📈',
+};
+
+const INDUSTRY_REPLY: Record<Industry, string> = {
+  craft_service: 'Handwerk hat goldenen Boden! 🛠️',
+  ecommerce: 'Ein eigener Shop – richtig cool! 🛍️',
+  creator: 'Content Creator? Dann wird Social Media dein Freund. 🎥',
+  agency_freelance: 'Freelance – frei und flexibel! 💻',
+  gastro: 'Mmh, Gastronomie! Ich hab schon Hunger. 🍽️',
+  consulting: 'Beratung & Coaching – du hilfst anderen weiter. 🧠',
+  other: 'Spannend! Was machst du genau?',
+};
+
+const LEGAL_REPLY: Record<LegalForm, string> = {
+  sole: 'Einzelunternehmen – du bist der Chef! 👑',
+  freelance: 'Freiberufler – kein Gewerbe nötig, praktisch! ✍️',
+  gbr: 'Zu mehreren? Mit Business arbeitet ihr bis zu fünft im selben Konto. 🤝',
+  ug: 'Eine UG – ich achte auf die Pflichtangaben auf deinen Rechnungen. 🏢',
+  gmbh: 'Eine GmbH – ganz offiziell! Ich denk an die Pflichtangaben. 🏛️',
+  none: 'Kein Problem – im Fahrplan zeig ich dir, wie die Anmeldung geht. 🌱',
+};
+
+/** Was Luna im Onboarding sagt – passend zu Schritt und Eingaben */
+function lunaLine(step: Step, f: LunaFacts): { text: string; mood: 'idle' | 'happy' | 'listening' | 'thinking' } {
+  switch (step) {
+    case 'name':
+      return f.name.length >= 2
+        ? { text: `Hallo ${f.name}! Schön, dass du da bist. 👋`, mood: 'happy' }
+        : { text: 'Hi, ich bin Luna! Ich helfe dir bei allem rund um dein Business. Wie heißt du?', mood: 'idle' };
+    case 'stage':
+      return f.stage ? { text: STAGE_REPLY[f.stage], mood: 'happy' } : { text: `Erzähl mal, ${f.name || 'du'} – wo stehst du gerade?`, mood: 'listening' };
+    case 'business':
+      return f.business.length >= 2
+        ? { text: `„${f.business}“ – klingt richtig gut! ✨`, mood: 'happy' }
+        : { text: 'Wie heißt dein Business? Noch kein Name? Auch okay!', mood: 'listening' };
+    case 'industry':
+      if (f.industry === 'other' && f.industryOther.length >= 2) return { text: `${f.industryOther} – cool, merk ich mir! 📝`, mood: 'happy' };
+      return f.industry ? { text: INDUSTRY_REPLY[f.industry], mood: f.industry === 'other' ? 'thinking' : 'happy' } : { text: 'In welcher Branche bist du unterwegs?', mood: 'listening' };
+    case 'legal':
+      return f.legal ? { text: LEGAL_REPLY[f.legal], mood: 'happy' } : { text: 'Noch kurz zur Rechtsform – keine Sorge, das kannst du später ändern.', mood: 'thinking' };
+    case 'goals':
+      if (f.goals.length === 0) return { text: 'Was ist dir am wichtigsten? Such dir bis zu drei Sachen aus.', mood: 'listening' };
+      if (f.goals.length === 1) return { text: 'Gute Wahl! Noch was?', mood: 'happy' };
+      if (f.goals.length === 2) return { text: 'Zwei Ziele – da bin ich voll dabei!', mood: 'happy' };
+      return { text: 'Drei Ziele – ambitioniert! Ich mag das. 🔥', mood: 'happy' };
+    case 'plan':
+      return f.legal === 'gbr'
+        ? { text: 'Für euch als GbR passt Business – da arbeitet ihr zu fünft im selben Konto.', mood: 'happy' }
+        : { text: 'Fast geschafft! Such dir dein Abo aus – du kannst jederzeit wechseln.', mood: 'happy' };
+    default:
+      return { text: `Ich freu mich auf dich, ${f.name || 'du'}! 💚`, mood: 'happy' };
+  }
+}

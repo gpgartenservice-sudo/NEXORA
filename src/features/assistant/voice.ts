@@ -203,6 +203,8 @@ export type Speech = { done: Promise<void>; cancel: () => void };
 
 // Größere Stücke klingen zusammenhängender; das nächste lädt, während eins läuft
 const CHUNK = 400;
+/** Länge des ersten Stücks (schneller Start) */
+const FIRST_CHUNK = 160;
 
 let active: Speech | null = null;
 let reacting: Speech | null = null;
@@ -225,11 +227,20 @@ type Run = {
   stopAudio: (() => void) | null;
 };
 
+/**
+ * Sprechtempo von Luna (1 = Originaltempo von ElevenLabs). Wunsch: etwa doppelt so schnell.
+ * Die Tonhöhe bleibt dabei gleich (preservesPitch), Luna klingt also nicht nach Micky Maus.
+ */
+export const SPEECH_RATE = 2;
+
 /** Eine fertige Aufnahme abspielen. false = ließ sich nicht abspielen */
 function playAudio(blob: Blob, run: Run): Promise<boolean> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(new Blob([blob], { type: 'audio/mpeg' }));
     const el = new Audio(url);
+    el.preservesPitch = true;
+    el.defaultPlaybackRate = SPEECH_RATE;
+    el.playbackRate = SPEECH_RATE;
     let over = false;
     const end = (ok: boolean) => {
       if (over) return;
@@ -262,7 +273,10 @@ async function fetchChunk(text: string, run: Run, keep: boolean): Promise<Speech
 /** Text vorlesen. `done` ist erfüllt, wenn fertig (oder abgebrochen bzw. fehlgeschlagen). */
 export function speak(text: string, options: SpeakOptions = {}): Speech {
   active?.cancel();
-  const chunks = speechChunks(speechText(text), CHUNK);
+  const all = speechChunks(speechText(text), CHUNK);
+  // erstes Stück kurz halten: ElevenLabs liefert kurze Texte schneller → Luna fängt früher an
+  const head = all.length ? speechChunks(all[0], FIRST_CHUNK) : [];
+  const chunks = head.length > 1 ? [head[0], ...speechChunks([...head.slice(1), ...all.slice(1)].join(' '), CHUNK)] : all;
   if (!speechSupported() || !chunks.length) return { done: Promise.resolve(), cancel: () => {} };
 
   const controller = new AbortController();

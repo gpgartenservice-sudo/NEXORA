@@ -12,7 +12,9 @@ import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
-import { goalLabel, industryLabel, stageLabel } from '@/features/onboarding/options';
+import { goalLabel, industryLabel, legalFormLabel, stageLabel } from '@/features/onboarding/options';
+import { ProBadge } from '@/components/ui/pro-badge';
+import { useTeam } from '@/features/team/team-provider';
 import { planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { TUTORIALS } from '@/features/tutorial/tutorial-content';
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
   const [now] = useState(() => new Date());
   const quota = plan.info ? quotaText(plan.info, 'nexy') : null;
   const [resetDone, setResetDone] = useState(false);
+  const { team } = useTeam();
   const seen = tutorial.done.length;
   const total = Object.keys(TUTORIALS).length;
 
@@ -48,7 +51,8 @@ export default function ProfileScreen() {
     ['E-Mail', user?.email],
     ['Phase', stageLabel(profile?.stage)],
     ['Business', profile?.business_name ?? undefined],
-    ['Branche', industryLabel(profile?.industry)],
+    ['Branche', industryLabel(profile?.industry, profile?.industry_other)],
+    ['Rechtsform', legalFormLabel(profile?.legal_form)],
     ['Schwerpunkte', profile?.goals?.length ? profile.goals.map(goalLabel).join(' · ') : undefined],
   ];
 
@@ -115,6 +119,54 @@ export default function ProfileScreen() {
         </Card>
       </Reveal>
 
+      <Reveal delay={440}>
+        <Card onPress={() => router.push('/profil/team')} accessibilityLabel="Team öffnen">
+          <View style={styles.firmRow}>
+            <View style={styles.flex}>
+              <View style={styles.titleRow}>
+                <Text style={styles.cardTitle}>Team</Text>
+                <ProBadge kind="business" />
+              </View>
+              <Text style={styles.firmText}>
+                {team?.role === 'member'
+                  ? `Du bist im Team von ${team.owner_name ?? 'deinem Business'}`
+                  : team && team.members.length > 1
+                    ? `${team.members.length} Personen in deinem Business`
+                    : 'Bis zu 5 Personen im selben Business – oder einem Team beitreten'}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textFaint} />
+          </View>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={445}>
+        <Card onPress={() => router.push('/profil/design')} accessibilityLabel="Design ändern">
+          <View style={styles.firmRow}>
+            <View style={styles.flex}>
+              <View style={styles.titleRow}>
+                <Text style={styles.cardTitle}>Design</Text>
+                <ProBadge />
+              </View>
+              <Text style={styles.firmText}>Bewegte Hintergründe: Farbverlauf, Geldregen, Blitze, Mondnacht</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textFaint} />
+          </View>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={448}>
+        <Card onPress={() => router.push('/profil/benachrichtigungen')} accessibilityLabel="Benachrichtigungen einstellen">
+          <View style={styles.firmRow}>
+            <View style={styles.flex}>
+              <Text style={styles.cardTitle}>Benachrichtigungen</Text>
+              <Text style={styles.firmText}>Termine, fällige Rechnungen, To-dos, Ziele und Motivation</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textFaint} />
+          </View>
+        </Card>
+      </Reveal>
+
       <Reveal delay={450}>
         <Card>
           <Text style={styles.cardTitle}>Einführungen</Text>
@@ -161,6 +213,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   header: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xl },
   avatar: {
     width: 76,

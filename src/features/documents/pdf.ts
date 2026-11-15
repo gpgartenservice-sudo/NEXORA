@@ -1,6 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
-import { formatDay, formatMoney, sellerName, type DocumentData, type DocumentKind, type Seller } from './document-logic';
+import { formatDay, formatMoney, legalFooterLines, sellerName, type DocumentData, type DocumentKind, type Seller } from './document-logic';
 import { base64ToBytes, fitInto, type LogoImage } from './logo-logic';
 import { BRANDING_TEXT, pdfBranding } from './pdf-branding';
 
@@ -265,7 +265,7 @@ export function drawFooter(p: PDFPage, s: Seller, regular: PDFFont) {
   p.drawLine({ start: { x: M.left, y: top + 10 }, end: { x: right, y: top + 10 }, thickness: 0.4, color: LINE });
   const colW = contentWidth / 3;
   const blocks: string[][] = [
-    [sellerName(s), s.street ?? '', [s.zip, s.city].filter(Boolean).join(' ')],
+    [sellerName(s), s.street ?? '', [s.zip, s.city].filter(Boolean).join(' '), ...legalFooterLines(s)],
     [s.phone ? `Tel. ${s.phone}` : '', s.email ?? '', s.website ?? ''],
     [
       s.vat_id ? `USt-IdNr. ${s.vat_id}` : s.tax_number ? `Steuernr. ${s.tax_number}` : '',
@@ -277,9 +277,14 @@ export function drawFooter(p: PDFPage, s: Seller, regular: PDFFont) {
   blocks.forEach((lines, i) => {
     lines
       .filter(Boolean)
-      .forEach((l, j) =>
-        p.drawText(safe(l), { x: M.left + i * colW, y: top - j * 10, size: 7.5, font: regular, color: MUTED }),
-      );
+      .slice(0, 6)
+      .forEach((l, j) => {
+        // lange Zeilen (z. B. alle Gesellschafter) verkleinern, damit sie in die Spalte passen
+        const t = safe(l);
+        const w = regular.widthOfTextAtSize(t, 7.5);
+        const size = w > colW - 8 ? Math.max(5.5, (7.5 * (colW - 8)) / w) : 7.5;
+        p.drawText(t, { x: M.left + i * colW, y: top - j * 9.5, size, font: regular, color: MUTED });
+      });
   });
   // Gratis-Abo: kleiner Hinweis ganz unten
   if (pdfBranding()) {

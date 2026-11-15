@@ -42,6 +42,8 @@ type State = {
   /** 'setup' = Datenbank-Skript für Social Media fehlt */
   error: 'setup' | 'failed' | null;
   createPost: (input: PostInput) => Promise<Result<SocialPost>>;
+  /** Viele Posts auf einmal (z. B. alle bisherigen TikTok-Videos); Reihenfolge wie übergeben */
+  createPosts: (inputs: PostInput[]) => Promise<Result<SocialPost[]>>;
   updatePost: (id: string, input: Partial<PostInput>) => Promise<Result<SocialPost>>;
   deletePost: (id: string) => Promise<Result>;
   saveSet: (input: { id?: string; name: string; tags: string }) => Promise<Result<HashtagSet>>;
@@ -100,6 +102,22 @@ export function SocialProvider({ userId, children }: { userId: string; children:
     return { data: row };
   }, []);
 
+  const createPosts = useCallback(async (inputs: PostInput[]): Promise<Result<SocialPost[]>> => {
+    const created: SocialPost[] = [];
+    // in Paketen, damit auch 300 Videos sicher durchgehen
+    for (let i = 0; i < inputs.length; i += 50) {
+      const chunk = inputs.slice(i, i + 50);
+      const { data, error: err } = await supabase.from('social_posts').insert(chunk).select('*');
+      if (err) {
+        if (created.length) setPosts((list) => [...created, ...list]);
+        return { data: created, error: message(err, 'Die Posts konnten nicht gespeichert werden.') };
+      }
+      created.push(...((data ?? []) as SocialPost[]));
+    }
+    setPosts((list) => [...created, ...list]);
+    return { data: created };
+  }, []);
+
   const updatePost = useCallback(async (id: string, input: Partial<PostInput>): Promise<Result<SocialPost>> => {
     const { data, error: err } = await supabase.from('social_posts').update(input).eq('id', id).select('*').single();
     if (err) return { error: message(err, 'Die Änderung konnte nicht gespeichert werden.') };
@@ -137,8 +155,8 @@ export function SocialProvider({ userId, children }: { userId: string; children:
   }, []);
 
   const value = useMemo<State>(
-    () => ({ posts, sets, loading, error, createPost, updatePost, deletePost, saveSet, deleteSet }),
-    [posts, sets, loading, error, createPost, updatePost, deletePost, saveSet, deleteSet],
+    () => ({ posts, sets, loading, error, createPost, createPosts, updatePost, deletePost, saveSet, deleteSet }),
+    [posts, sets, loading, error, createPost, createPosts, updatePost, deletePost, saveSet, deleteSet],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

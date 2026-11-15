@@ -12,6 +12,7 @@ import { validateEmail } from '@/lib/validation';
 
 import { PasswordField } from './password-field';
 import { TextField } from './text-field';
+import { claimThisDevice } from '@/lib/device';
 
 type Errors = { email?: string; password?: string };
 
@@ -44,6 +45,7 @@ export function LoginForm() {
       setUnconfirmed(error.code === 'email_not_confirmed');
       return;
     }
+    void claimThisDevice();
     router.replace('/home');
   };
 

@@ -85,6 +85,7 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
   const [query, setQuery] = useState('');
   const [notes, setNotes] = useState(appointment?.notes ?? '');
   const [done, setDone] = useState(appointment?.done ?? false);
+  const [outdoor, setOutdoor] = useState(!!appointment?.outdoor);
   const [titleError, setTitleError] = useState<string | undefined>();
   const [failure, setFailure] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -126,6 +127,8 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
       customer_id: customerId,
       notes: notes.trim() || null,
       done,
+      // nur mitschicken, wenn gesetzt (klappt so auch ohne das neue Datenbank-Skript)
+      ...(outdoor || appointment?.outdoor ? { outdoor } : {}),
     };
   };
 
@@ -170,6 +173,12 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
               maxLength={200}
             />
             <ToggleRow label="Ganztägig" value={allDay} onChange={setAllDay} />
+            <ToggleRow
+              label="Draußen"
+              hint="Zeigt dir das Wetter für den Tag und warnt bei Regen, Sturm oder Hitze."
+              value={outdoor}
+              onChange={setOutdoor}
+            />
             <DateField label={allDay ? 'Tag' : 'Beginn'} value={start} onChange={setStart} withTime={!allDay} />
             {!allDay && (
               <View style={styles.durationWrap}>

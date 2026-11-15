@@ -12,7 +12,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
-import { TourTarget } from '@/features/tutorial/tour-target';
+import { TourTarget, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
 import { useCrm } from './crm-provider';
@@ -26,6 +26,8 @@ export function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { customerById, ordersFor, updateCustomer, deleteCustomer, loading } = useCrm();
   const customer = customerById(id);
+  // Beim ersten Kunden, den man öffnet: Einführung in die Aufträge
+  useAreaTutorial('auftraege');
 
   if (!customer) {
     return (
@@ -49,11 +51,13 @@ export function CustomerDetailScreen() {
           subtitle={customer.company ?? undefined}
           back={{ label: 'Kunden', onPress: () => router.navigate('/kunden') }}
           action={
-            <Button
-              label="+ Neuer Auftrag"
-              onPress={() => router.push({ pathname: '/auftraege/neu', params: { customer: customer.id } })}
-              style={styles.action}
-            />
+            <TourTarget id="auftraege.kunde-neu">
+              <Button
+                label="+ Neuer Auftrag"
+                onPress={() => router.push({ pathname: '/auftraege/neu', params: { customer: customer.id } })}
+                style={styles.action}
+              />
+            </TourTarget>
           }
           meta={
             (customer.phone || customer.email) && (
@@ -87,9 +91,11 @@ export function CustomerDetailScreen() {
         </StatRow>
       </Reveal>
 
-      <Reveal delay={300}>
-        <Text style={styles.section}>Aufträge</Text>
-      </Reveal>
+      <TourTarget id="auftraege.kunde-liste">
+        <Reveal delay={300}>
+          <Text style={styles.section}>Aufträge</Text>
+        </Reveal>
+      </TourTarget>
       {orders.length === 0 ? (
         <Reveal delay={340}>
           <Card>

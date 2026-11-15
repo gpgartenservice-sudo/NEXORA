@@ -46,6 +46,7 @@ import { useGuide, useRunProposals } from './nexy-guide';
 import { useNexy, type NexyMessage } from './nexy-provider';
 import { useVoiceMode, type VoiceMode, type VoicePhase } from './use-voice-mode';
 import { spokenReply } from './voice-logic';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 const MAX = 2000;
 const READ_ALOUD_KEY = 'nexora.nexy.readAloud';
@@ -221,6 +222,9 @@ export function NexyScreen() {
                 </TourTarget>
               </Reveal>
               <AnimatedTitle text="Hey, ich bin Luna." style={styles.heroTitle} delay={150} />
+              <Reveal delay={300}>
+                <ProBadge kind="limit" label="NACHRICHTEN JE MONAT BEGRENZT · PROFIL → ABO" />
+              </Reveal>
               <Reveal delay={350}>
                 <Text style={styles.heroText}>
                   Erzähl mir, was ansteht – schreibend oder per Sprache. Ich lege Kunden, Aufträge und Ausgaben an,

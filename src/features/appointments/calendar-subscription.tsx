@@ -12,6 +12,7 @@ import { SUPABASE_URL } from '@/lib/supabase';
 
 import { feedUrls } from './appointment-logic';
 import { useAppointments } from './appointments-provider';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 type Check = { tone: 'success' | 'error' | 'info'; text: string } | null;
 
@@ -59,7 +60,7 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
         if (!res.ok || !body.includes('BEGIN:VCALENDAR'))
           return { error: `Der Kalender kam nicht an (${res.status}). ${body.slice(0, 200)}` };
         const count = (body.match(/BEGIN:VEVENT/g) ?? []).length;
-        return { success: `Funktioniert – ${count} ${count === 1 ? 'Termin' : 'Termine'} im Abo.` };
+        return { success: `Funktioniert – ${count} ${count === 1 ? 'Termin' : 'Termine'} im Kalender.` };
       } catch (e) {
         return {
           error: `Keine Antwort von der Server-Funktion. Ist „calendar“ in Supabase angelegt und „Verify JWT“ ausgeschaltet?\n\nTechnische Details: ${String(e)}`,
@@ -74,7 +75,10 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
           <CalendarSync size={20} color={Colors.text} strokeWidth={1.8} />
         </View>
         <View style={styles.flex}>
-          <Text style={styles.title}>Kalender-Abo</Text>
+          <View style={styles.badgeRow}>
+            <Text style={styles.title}>Kalender verbinden</Text>
+            <ProBadge />
+          </View>
           <Text style={styles.text}>
             Alle Termine automatisch in Apple Kalender, Google Kalender oder Outlook – auch auf dem Handy. Neue und
             geänderte Termine kommen von selbst nach (Apple: je nach Einstellung, Google: alle paar Stunden).
@@ -88,14 +92,14 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
 
       {!urls ? (
         <Button
-          label={pro ? 'Abo-Link erstellen' : 'Abo-Link erstellen · Pro'}
+          label="Kalender verbinden"
           onPress={() => gate('calendar_feed') && void run('create', createFeed)}
           loading={busy === 'create'}
           disabled={setupError === 'setup'}
         />
       ) : (
         <View style={styles.box}>
-          <Text style={styles.label}>Dein Abo-Link</Text>
+          <Text style={styles.label}>Dein Kalender-Link</Text>
           <Text style={styles.url} selectable numberOfLines={2} testID="feed-url">
             {urls.webcal}
           </Text>
@@ -123,9 +127,9 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
                 )
               }
             />
-            <SmallLink label={busy === 'test' ? 'Prüfe …' : 'Abo testen'} onPress={() => void test()} />
+            <SmallLink label={busy === 'test' ? 'Prüfe …' : 'Verbindung testen'} onPress={() => void test()} />
             <SmallLink label="Neuen Link erzeugen" onPress={() => setConfirm('renew')} />
-            <SmallLink label="Abo beenden" onPress={() => setConfirm('delete')} />
+            <SmallLink label="Verbindung trennen" onPress={() => setConfirm('delete')} />
           </View>
           <Text style={styles.hint}>
             Wer diesen Link kennt, sieht deine Termine (mit Kunden und Adressen). Gib ihn nicht weiter – im Zweifel
@@ -136,7 +140,7 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
               <Text style={styles.confirmText}>
                 {confirm === 'renew'
                   ? 'Neuen Link erzeugen? Der alte hört sofort auf zu funktionieren – den neuen musst du in deinem Kalender neu abonnieren.'
-                  : 'Abo beenden? Der Link hört sofort auf zu funktionieren; in deinem Kalender kannst du das Abo dann entfernen.'}
+                  : 'Verbindung trennen? Der Link hört sofort auf zu funktionieren; in deinem Kalender kannst du ihn dann entfernen.'}
               </Text>
               <View style={styles.buttons}>
                 <Button label="Abbrechen" variant="secondary" onPress={() => setConfirm(null)} style={styles.button} />
@@ -146,7 +150,7 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
                   onPress={() =>
                     void (confirm === 'renew'
                       ? run('renew', renewFeed, 'Neuer Link erstellt – bitte im Kalender neu abonnieren.')
-                      : run('delete', deleteFeed, 'Abo beendet.'))
+                      : run('delete', deleteFeed, 'Verbindung getrennt.'))
                   }
                   style={styles.button}
                 />
@@ -172,6 +176,7 @@ function SmallLink({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   head: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   flex: { flex: 1, minWidth: 0, gap: 4 },
   icon: {

@@ -13,6 +13,7 @@ import { useCooldown } from '@/hooks/use-cooldown';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { MIN_PASSWORD_LENGTH, validateCode, validateNewPassword } from '@/lib/validation';
+import { claimThisDevice } from '@/lib/device';
 
 const RESEND_SECONDS = 60;
 
@@ -60,6 +61,7 @@ export default function ResetPasswordScreen() {
       setFailure(authErrorMessage(updateError));
       return;
     }
+    void claimThisDevice();
     router.replace('/home');
   };
 

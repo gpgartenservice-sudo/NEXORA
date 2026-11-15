@@ -11,6 +11,8 @@ export type Goal =
   | 'motivation'
   | 'team';
 
+export type LegalForm = 'none' | 'sole' | 'freelance' | 'gbr' | 'ug' | 'gmbh';
+
 export const MAX_GOALS = 3;
 
 export const STAGES: { key: Stage; emoji: string; title: string; description: string }[] = [
@@ -30,6 +32,21 @@ export const INDUSTRIES: { key: Industry; emoji: string; title: string }[] = [
   { key: 'other', emoji: '✨', title: 'Etwas anderes' },
 ];
 
+/** Rechtsform – bestimmt Hinweise (Steuern, Pflichtangaben auf Rechnungen, Team) */
+export const LEGAL_FORMS: { key: LegalForm; emoji: string; title: string; description: string }[] = [
+  { key: 'sole', emoji: '👤', title: 'Einzelunternehmen', description: 'Du allein mit Gewerbe – auch als Kleinunternehmer.' },
+  { key: 'freelance', emoji: '✍️', title: 'Freiberufler', description: 'Z. B. Design, Text, Beratung – ohne Gewerbe.' },
+  { key: 'gbr', emoji: '🤝', title: 'GbR', description: 'Ihr seid zu zweit oder mehr und teilt euch das Business.' },
+  { key: 'ug', emoji: '🏢', title: 'UG (haftungsbeschränkt)', description: 'Kapitalgesellschaft mit kleinem Startkapital.' },
+  { key: 'gmbh', emoji: '🏛️', title: 'GmbH', description: 'Kapitalgesellschaft mit eingetragenem Geschäftsführer.' },
+  { key: 'none', emoji: '🌱', title: 'Noch nicht angemeldet', description: 'Kein Problem – der Fahrplan zeigt dir, wie es geht.' },
+];
+
+/** Mehrere Personen im Business (GbR) → Business-Abo mit Team passt */
+export const isTeamForm = (key?: string | null) => key === 'gbr';
+/** Kapitalgesellschaft: Körperschaftsteuer statt Einkommensteuer, Handelsregister auf Rechnungen */
+export const isCorporation = (key?: string | null) => key === 'ug' || key === 'gmbh';
+
 export const GOALS: { key: Goal; emoji: string; title: string }[] = [
   { key: 'first_customers', emoji: '🤝', title: 'Erste Kunden gewinnen' },
   { key: 'more_revenue', emoji: '💶', title: 'Mehr Umsatz' },
@@ -41,5 +58,7 @@ export const GOALS: { key: Goal; emoji: string; title: string }[] = [
 ];
 
 export const stageLabel = (key?: string | null) => STAGES.find((s) => s.key === key)?.title;
-export const industryLabel = (key?: string | null) => INDUSTRIES.find((s) => s.key === key)?.title;
+export const industryLabel = (key?: string | null, other?: string | null) =>
+  key === 'other' && other?.trim() ? other.trim() : INDUSTRIES.find((s) => s.key === key)?.title;
+export const legalFormLabel = (key?: string | null) => LEGAL_FORMS.find((s) => s.key === key)?.title;
 export const goalLabel = (key: string) => GOALS.find((g) => g.key === key)?.title ?? key;

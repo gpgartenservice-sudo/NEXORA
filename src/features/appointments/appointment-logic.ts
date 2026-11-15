@@ -18,6 +18,8 @@ export type Appointment = {
   customer_id: string | null;
   notes: string | null;
   done: boolean;
+  /** Arbeit draußen → Wetter-Hinweis (Skript 20261120090000_feinschliff.sql) */
+  outdoor?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -39,6 +41,8 @@ export type CalendarEvent = {
   appointmentId: string | null;
   done: boolean;
   notes: string | null;
+  /** draußen → Wetter beachten */
+  outdoor: boolean;
 };
 
 type OrderLike = OrderFacts & {
@@ -65,6 +69,8 @@ export function buildEvents(
   orders: OrderLike[],
   customers: CustomerLike[],
   appointments: Appointment[],
+  /** Ausführungen von Aufträgen finden draußen statt (z. B. Handwerk, Garten) */
+  executionsOutdoor = false,
 ): CalendarEvent[] {
   const byId = new Map(customers.map((c) => [c.id, c]));
   const events: CalendarEvent[] = [];
@@ -79,6 +85,7 @@ export function buildEvents(
       orderId: o.id,
       appointmentId: null,
       notes: null,
+      outdoor: false,
     };
     // ungültige Zeitstempel überspringen statt abzustürzen
     const meetingStart = toIso(o.meeting_at);
@@ -102,6 +109,7 @@ export function buildEvents(
         start: executionStart,
         end: addMinutes(executionStart, DEFAULT_MINUTES.execution),
         done: !!o.completed,
+        outdoor: executionsOutdoor,
       });
   }
   for (const a of appointments) {
@@ -128,6 +136,7 @@ export function buildEvents(
       appointmentId: a.id,
       done: a.done,
       notes: a.notes,
+      outdoor: !!a.outdoor,
     });
   }
   return events.sort((a, b) => a.start.localeCompare(b.start) || Number(b.allDay) - Number(a.allDay));

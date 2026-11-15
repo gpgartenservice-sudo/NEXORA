@@ -33,6 +33,7 @@ import {
   type Followup,
 } from './dunning-logic';
 import { useFollowups } from './followups-provider';
+import { ProBadge } from '@/components/ui/pro-badge';
 
 type Message = { tone: 'info' | 'success' | 'error'; text: string };
 
@@ -151,7 +152,10 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
 
   return (
     <View style={styles.panel} testID="dunning-panel">
-      <Text style={styles.title}>Zahlung anmahnen</Text>
+      <View style={styles.badgeRow}>
+        <Text style={styles.title}>Zahlung anmahnen</Text>
+        <ProBadge label="MAHNUNGEN: PRO" />
+      </View>
       {setupError === 'setup' && (
         <Notice tone="error">
           Das Datenbank-Skript fürs Mahnwesen fehlt noch (20261110090000_invoice_followups.sql). PDF und Texte gehen
@@ -378,6 +382,7 @@ export function ReviewPanel({ doc, customer }: { doc: StoredDocument; customer: 
 }
 
 const styles = StyleSheet.create({
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   panel: { gap: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: Spacing.md },
   title: { color: Colors.text, fontSize: 14, fontWeight: '600' },
   text: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 19 },

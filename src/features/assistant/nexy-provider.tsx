@@ -30,6 +30,7 @@ import type { ExpenseInput } from '@/features/finance/finance-provider';
 import type { GoalInput } from '@/features/goals/goals-provider';
 import { validateEmail } from '@/lib/validation';
 import { useAuth } from '@/providers/auth-provider';
+import { useWorkspaceId } from '@/features/team/team-provider';
 
 import { askAssistant, type HistoryEntry } from './assistant-api';
 import {
@@ -174,8 +175,8 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const goals = useGoals();
   const { followups } = useFollowups();
   const plan = usePlan();
-  const { user } = useAuth();
-  const { percent: taxPercent } = useTaxReservePercent(user?.id);
+  const workspaceId = useWorkspaceId();
+  const { percent: taxPercent } = useTaxReservePercent(workspaceId);
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
