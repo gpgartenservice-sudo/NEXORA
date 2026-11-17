@@ -19,9 +19,9 @@ export type PlanInfo = {
   usage: Record<QuotaKind, Usage>;
 };
 
-/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt (Preise vom 15.11.2026) */
+/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt (Pro vom 17.11.2026: 23,99 € bzw. 10 × 23,99 € = 239,90 € im Jahr) */
 export const PRICES: Record<PaidTier, { month: number; year: number }> = {
-  pro: { month: 50, year: 500 },
+  pro: { month: 23.99, year: 239.9 },
   business: { month: 150, year: 1500 },
 };
 /** Business: so viele Konten (Personen) teilen sich ein Business – passend z. B. für eine GbR */

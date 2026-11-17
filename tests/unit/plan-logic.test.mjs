@@ -5,6 +5,7 @@ import { test } from 'node:test';
 
 import {
   COMPARISON,
+  formatPrice,
   isPro,
   LIMITS,
   parsePlan,
@@ -91,7 +92,10 @@ test('Preise: Jahr = zwei Monate geschenkt, Business teurer als Pro', () => {
     assert.ok(saved >= PRICES[t].month * 1.9 && saved <= PRICES[t].month * 2.1, `${t}: ${saved}`);
   }
   assert.ok(PRICES.business.month > PRICES.pro.month);
-  assert.deepEqual([PRICES.pro.month, PRICES.business.month], [50, 150]);
+  assert.deepEqual([PRICES.pro.month, PRICES.business.month], [23.99, 150]);
+  // Pro jährlich: 10 Monatsbeiträge (239,90 €), angezeigt als 19,99 € im Monat
+  assert.equal(Math.round(PRICES.pro.year * 100), 10 * Math.round(PRICES.pro.month * 100));
+  assert.equal(formatPrice(PRICES.pro.year / 12).replace(/\s/g, ' '), '19,99 €');
 });
 
 test('Grenzen in der App = Grenzen in der Datenbank (nexora_limit, neuestes Skript)', () => {
