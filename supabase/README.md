@@ -302,7 +302,7 @@ Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten �
 |---|---|---|---|---|
 | Gratis | 0 € | 15 | 3 | 30 |
 | Testphase (14 Tage) | – | 50 | 20 | 70 |
-| Pro | 14,99 €/Monat oder 149 €/Jahr | 100 | 50 | 120 |
+| Pro | 23,99 €/Monat oder 239,90 €/Jahr | 100 | 50 | 120 |
 | Business | 29,99 €/Monat oder 299 €/Jahr | 200 | 150 | 220 |
 
 \* je Monat; einmal Vorlesen = ein Abschnitt bis 400 Zeichen (etwa eine kurze Antwort).
@@ -351,8 +351,8 @@ Auf **Profil → Abo** (Web-App und Mac-App) wählt man Monatlich/Jährlich und 
 
 | Produkt | Preis | Abrechnung | Lookup key |
 |---|---|---|---|
-| Lunaxora Pro | 14,99 € | monatlich | `pro_month` |
-| Lunaxora Pro | 149,00 € | jährlich | `pro_year` |
+| Lunaxora Pro | 23,99 € | monatlich | `pro_month` |
+| Lunaxora Pro | 239,90 € | jährlich | `pro_year` |
 | Lunaxora Business | 29,99 € | monatlich | `business_month` |
 | Lunaxora Business | 299,00 € | jährlich | `business_year` |
 
