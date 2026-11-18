@@ -527,7 +527,7 @@ const INDUSTRY_REPLY: Record<Industry, string> = {
 const LEGAL_REPLY: Record<LegalForm, string> = {
   sole: 'Einzelunternehmen – du bist der Chef! 👑',
   freelance: 'Freiberufler – kein Gewerbe nötig, praktisch! ✍️',
-  gbr: 'Zu mehreren? Mit Business arbeitet ihr bis zu fünft im selben Konto. 🤝',
+  gbr: 'Zu mehreren? Mit Business arbeitet ihr bis zu dritt im selben Konto. 🤝',
   ug: 'Eine UG – ich achte auf die Pflichtangaben auf deinen Rechnungen. 🏢',
   gmbh: 'Eine GmbH – ganz offiziell! Ich denk an die Pflichtangaben. 🏛️',
   none: 'Kein Problem – im Fahrplan zeig ich dir, wie die Anmeldung geht. 🌱',
@@ -558,7 +558,7 @@ function lunaLine(step: Step, f: LunaFacts): { text: string; mood: 'idle' | 'hap
       return { text: 'Drei Ziele – ambitioniert! Ich mag das. 🔥', mood: 'happy' };
     case 'plan':
       return f.legal === 'gbr'
-        ? { text: 'Für euch als GbR passt Business – da arbeitet ihr zu fünft im selben Konto.', mood: 'happy' }
+        ? { text: 'Für euch als GbR passt Business – da arbeitet ihr bis zu dritt im selben Konto.', mood: 'happy' }
         : { text: 'Fast geschafft! Such dir dein Abo aus – du kannst jederzeit wechseln.', mood: 'happy' };
     default:
       return { text: `Ich freu mich auf dich, ${f.name || 'du'}! 💚`, mood: 'happy' };

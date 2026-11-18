@@ -15,7 +15,7 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, legalFormLabel, stageLabel } from '@/features/onboarding/options';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { useTeam } from '@/features/team/team-provider';
-import { planLabel, quotaText } from '@/features/plan/plan-logic';
+import { BUSINESS_SEATS, planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { TUTORIALS } from '@/features/tutorial/tutorial-content';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
@@ -132,7 +132,7 @@ export default function ProfileScreen() {
                   ? `Du bist im Team von ${team.owner_name ?? 'deinem Business'}`
                   : team && team.members.length > 1
                     ? `${team.members.length} Personen in deinem Business`
-                    : 'Bis zu 5 Personen im selben Business – oder einem Team beitreten'}
+                    : `Bis zu ${BUSINESS_SEATS} Personen im selben Business – oder einem Team beitreten`}
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />

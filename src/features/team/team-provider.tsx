@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { BUSINESS_SEATS } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Business-Team (Skript 20261120090000_feinschliff.sql): bis zu 5 Personen teilen sich
+ * Business-Team (Skripte 20261120090000_feinschliff.sql, 20261122090000_business_3.sql): bis zu 3 Personen teilen sich
  * ein Business. Die Datenbank sorgt dafür, dass Teammitglieder die Daten des Inhabers sehen
  * (nexora_workspace()); die App braucht die ID nur dort, wo sie selbst user_id schreibt
  * (Firma-Einstellungen, Belege im Speicher).
@@ -41,7 +42,7 @@ function parseTeam(raw: unknown): TeamInfo | null {
     role,
     owner_id: r.owner_id,
     owner_name: typeof r.owner_name === 'string' ? r.owner_name : null,
-    seats: typeof r.seats === 'number' ? r.seats : 5,
+    seats: typeof r.seats === 'number' ? r.seats : BUSINESS_SEATS,
     members: Array.isArray(r.members) ? (r.members as TeamMember[]) : [],
     invites: Array.isArray(r.invites) ? (r.invites as TeamInvite[]) : [],
   };
@@ -104,7 +105,7 @@ export function useWorkspaceId(): string {
 
 const TEAM_ERRORS: Record<string, string> = {
   business_required: 'Ein Team gibt es mit Lunaxora Business.',
-  team_full: 'Euer Team ist voll – Business gilt für bis zu 5 Personen (inklusive offener Einladungen).',
+  team_full: `Euer Team ist voll – Business gilt für bis zu ${BUSINESS_SEATS} Personen (inklusive offener Einladungen).`,
   team_member_cannot_invite: 'Nur der Inhaber des Business kann Leute einladen.',
   invite_invalid: 'Diesen Code kennen wir nicht oder er wurde schon benutzt.',
   invite_own: 'Das ist dein eigener Einladungscode.',

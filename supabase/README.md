@@ -52,6 +52,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261118090000_billing.sql` | Bezahlen mit Stripe: Spalten `stripe_customer_id` und `stripe_subscription_id` im Abo (Abschnitt 14) |
 | `20261119090000_customer_invites.sql` | Neue Kunden per Datenschutz-Link: Einladungen (E-Mail + geheimer Link), Kundenseite ohne Anmeldung, Nachweis der bestätigten Datenschutzerklärung am Kunden (Abschnitt 15) |
 | `20261120090000_feinschliff.sql` | Feinschliff: eigene Branche, Rechtsform + Pflichtangaben, Gutscheine (20 Codes für die Warteliste: `select code from public.vouchers where note = 'Warteliste'`), ein Gerät gleichzeitig, Business-Team (bis 5 Personen, gemeinsame Daten), Inventar, Termine „draußen“ |
+| `20261122090000_business_3.sql` | Business für bis zu 3 Personen (statt 5): Einladungs-Grenze, `my_team` meldet 3 Plätze, Team-Kontingent = 3 × Pro (300 Nachrichten, 150 Belege, 360-mal Vorlesen). Nach `20261120090000_feinschliff.sql` ausführen – und nach `20261121090000_kostendeckel.sql`, falls das später kommt, noch einmal |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -303,11 +304,11 @@ Nach dem Skript `20261116090000_plans.sql` bekommt jeder Nutzer beim nächsten �
 | Gratis | 0 € | 15 | 3 | 30 |
 | Testphase (14 Tage) | – | 50 | 20 | 70 |
 | Pro | 23,99 €/Monat oder 239,90 €/Jahr | 100 | 50 | 120 |
-| Business | 29,99 €/Monat oder 299 €/Jahr | 200 | 150 | 220 |
+| Business (bis 3 Personen) | 44,99 €/Monat oder 449,90 €/Jahr | 300 | 150 | 360 |
 
 \* je Monat; einmal Vorlesen = ein Abschnitt bis 400 Zeichen (etwa eine kurze Antwort).
 
-Pro, Business und die Testphase haben alle Pro-Funktionen: E-Mails direkt aus Lunaxora, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok verbinden, Kalender-Abo, PDFs ohne „Erstellt mit Lunaxora“. Die Grenzen stehen in `nexora_limit()` (Skript `20261117090000_plan_tiers.sql`) und in `LIMITS` in `src/features/plan/plan-logic.ts` – ein Test prüft, dass beide gleich sind.
+Pro, Business und die Testphase haben alle Pro-Funktionen: E-Mails direkt aus Lunaxora, Angebote online annehmen lassen, 1. und letzte Mahnung, Steuer-Export als ZIP, TikTok verbinden, Kalender-Abo, PDFs ohne „Erstellt mit Lunaxora“. Die Grenzen stehen in `nexora_limit()` (zuletzt Skript `20261122090000_business_3.sql`; bei Business gelten sie fürs ganze Team) und in `LIMITS` in `src/features/plan/plan-logic.ts` – ein Test prüft, dass beide gleich sind.
 
 Einrichtung:
 
@@ -353,8 +354,8 @@ Auf **Profil → Abo** (Web-App und Mac-App) wählt man Monatlich/Jährlich und 
 |---|---|---|---|
 | Lunaxora Pro | 23,99 € | monatlich | `pro_month` |
 | Lunaxora Pro | 239,90 € | jährlich | `pro_year` |
-| Lunaxora Business | 29,99 € | monatlich | `business_month` |
-| Lunaxora Business | 299,00 € | jährlich | `business_year` |
+| Lunaxora Business | 44,99 € | monatlich | `business_month` |
+| Lunaxora Business | 449,90 € | jährlich | `business_year` |
 
 Preis ändern: in Stripe einen neuen Preis anlegen und den Lookup key mit „Transfer lookup key“ übernehmen – bestehende Abos behalten ihren alten Preis. Dann auch `PRICES` in `src/features/plan/plan-logic.ts` anpassen (Anzeige in der App).
 

@@ -97,7 +97,7 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '👥',
     title: 'Team aufbauen',
     text: {
-      default: 'Mit Lunaxora Business arbeitet ihr mit bis zu 5 Personen im selben Business – gleiche Kunden, gleiche Termine.',
+      default: 'Mit Lunaxora Business arbeitet ihr mit bis zu 3 Personen im selben Business – gleiche Kunden, gleiche Termine.',
     },
     action: { label: 'Team einladen', href: '/profil/team' },
   },
