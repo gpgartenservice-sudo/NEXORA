@@ -13,6 +13,7 @@ import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
 import { validReviewUrl } from '@/features/dunning/dunning-logic';
 import { LEGAL_FORMS, isCorporation } from '@/features/onboarding/options';
+import { BUSINESS_SEATS } from '@/features/plan/plan-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { validateEmail } from '@/lib/validation';
 import { useProfile } from '@/providers/profile-provider';
@@ -263,7 +264,7 @@ function CompanyForm() {
               {field('partners', 'Gesellschafter/innen', { placeholder: 'z. B. Lena Schmidt, Tom Becker', autoCapitalize: 'words' })}
               <Text style={styles.hint}>
                 Alle Namen, kommagetrennt – sie stehen unten auf Angeboten und Rechnungen. Arbeitet ihr zu mehreren in
-                Lunaxora? Mit Business teilt ihr euch ein Konto mit bis zu 5 Personen (Profil → Team).
+                Lunaxora? Mit Business teilt ihr euch ein Konto mit bis zu {BUSINESS_SEATS} Personen (Profil → Team).
               </Text>
             </>
           )}

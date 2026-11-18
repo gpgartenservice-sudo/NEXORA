@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
+  BUSINESS_SEATS,
   COMPARISON,
   formatPrice,
   isPro,
@@ -37,7 +38,7 @@ test('Antwort der Datenbank prüfen', () => {
   // fehlende Zahlen -> Standardgrenzen
   assert.deepEqual(parsePlan({ plan: 'free' }).usage.receipt, { used: 0, limit: 3 });
   assert.equal(parsePlan({ plan: 'pro' }).usage.nexy.limit, 100);
-  assert.equal(parsePlan({ plan: 'business' }).usage.receipt.limit, 250);
+  assert.equal(parsePlan({ plan: 'business' }).usage.receipt.limit, 150);
   assert.equal(parsePlan({ plan: 'trial' }).usage.voice.limit, 70);
   // alte Datenbank ohne Vorlesen-Zähler -> Standardgrenze
   assert.deepEqual(parsePlan(raw({ usage: { nexy: { used: 1, limit: 15 } } })).usage.voice, { used: 0, limit: 30 });
@@ -71,8 +72,8 @@ test('Verbleibende Nachrichten/Belege/Vorlesen – in jedem Abo', () => {
 test('Kontingent aufgebraucht: Text passt zum Abo', () => {
   assert.match(quotaExceededText('nexy', 'free', 15), /^Deine 15 Gratis-Nachrichten an Luna .* Mit Lunaxora Pro geht es gleich weiter/);
   assert.match(quotaExceededText('receipt', 'trial', 20), /^Deine 20 Test-Belege .* selbst ein/);
-  assert.match(quotaExceededText('nexy', 'pro', 100), /^Deine 100 Nachrichten .* Mit Lunaxora Business habt ihr fünfmal so viel/);
-  assert.match(quotaExceededText('voice', 'business', 600), /600-mal Vorlesen.*als Text\. Ab dem 1\. des nächsten Monats geht es weiter\./);
+  assert.match(quotaExceededText('nexy', 'pro', 100), /^Deine 100 Nachrichten .* Mit Lunaxora Business habt ihr dreimal so viel/);
+  assert.match(quotaExceededText('voice', 'business', 360), /360-mal Vorlesen.*als Text\. Ab dem 1\. des nächsten Monats geht es weiter\./);
   // ohne Angaben vom Server: Gratis-Grenze
   assert.match(quotaExceededText('nexy', undefined, undefined), /^Deine 15 Gratis-Nachrichten/);
 });
@@ -81,9 +82,9 @@ test('Vergleich: Pro und Business können alles, Gratis hat die Grundfunktionen'
   assert.ok(COMPARISON.every((r) => r.pro !== false && r.business !== false));
   assert.ok(COMPARISON.filter((r) => r.free === true).length >= 5);
   const luna = COMPARISON.find((r) => r.label.startsWith('Luna-Nachrichten'));
-  assert.deepEqual([luna.free, luna.pro, luna.business], ['15', '100', '500']);
+  assert.deepEqual([luna.free, luna.pro, luna.business], ['15', '100', '300']);
   const seats = COMPARISON.find((r) => r.label === 'Personen im Konto');
-  assert.deepEqual([seats.free, seats.pro, seats.business], ['1', '1', '5']);
+  assert.deepEqual([seats.free, seats.pro, seats.business], ['1', '1', '3']);
 });
 
 test('Preise: Jahr = zwei Monate geschenkt, Business teurer als Pro', () => {
@@ -92,21 +93,32 @@ test('Preise: Jahr = zwei Monate geschenkt, Business teurer als Pro', () => {
     assert.ok(saved >= PRICES[t].month * 1.9 && saved <= PRICES[t].month * 2.1, `${t}: ${saved}`);
   }
   assert.ok(PRICES.business.month > PRICES.pro.month);
-  assert.deepEqual([PRICES.pro.month, PRICES.business.month], [23.99, 150]);
+  assert.deepEqual([PRICES.pro.month, PRICES.business.month], [23.99, 44.99]);
   // Pro jährlich: 10 Monatsbeiträge (239,90 €), angezeigt als 19,99 € im Monat
   assert.equal(Math.round(PRICES.pro.year * 100), 10 * Math.round(PRICES.pro.month * 100));
   assert.equal(formatPrice(PRICES.pro.year / 12).replace(/\s/g, ' '), '19,99 €');
+  // Business jährlich: ebenfalls 10 Monatsbeiträge (449,90 €), angezeigt als 37,49 € im Monat – wie auf lunaxora.de
+  assert.equal(Math.round(PRICES.business.year * 100), 10 * Math.round(PRICES.business.month * 100));
+  assert.equal(formatPrice(PRICES.business.year).replace(/\s/g, ' '), '449,90 €');
+  assert.equal(formatPrice(PRICES.business.year / 12).replace(/\s/g, ' '), '37,49 €');
 });
 
 test('Grenzen in der App = Grenzen in der Datenbank (nexora_limit, neuestes Skript)', () => {
-  const sql = readFileSync(new URL('../../supabase/migrations/20261120090000_feinschliff.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../../supabase/migrations/20261122090000_business_3.sql', import.meta.url), 'utf8');
   const body = sql.slice(sql.indexOf('function public.nexora_limit'), sql.indexOf('$$;', sql.indexOf('function public.nexora_limit')));
   const row = (plan) => {
     const line = body.split('\n').find((l) => (plan === 'free' ? /^\s*else\s+case/.test(l) : l.includes(`when '${plan}'`)));
-    const [, nexy, receipt, voice] = line.match(/'nexy' then (\d+)\s+when 'receipt' then (\d+)\s+else (\d+)/);
+    const [, nexy, receipt, voice] = line.match(/'nexy' then (\d+)\s+when 'receipt' then (\d+)\s+(?:when 'transcribe' then \d+\s+)?else (\d+)/);
     return { nexy: +nexy, receipt: +receipt, voice: +voice };
   };
   for (const plan of ['free', 'trial', 'pro', 'business']) assert.deepEqual(row(plan), LIMITS[plan], plan);
+});
+
+test('Team-Größe in der App = Team-Größe in der Datenbank (team_invite, my_team)', () => {
+  const sql = readFileSync(new URL('../../supabase/migrations/20261122090000_business_3.sql', import.meta.url), 'utf8');
+  assert.equal(Number(sql.match(/if used >= (\d+) then raise exception 'team_full'/)[1]), BUSINESS_SEATS);
+  assert.equal(Number(sql.match(/'seats', (\d+)/)[1]), BUSINESS_SEATS);
+  assert.equal(BUSINESS_SEATS, 3);
 });
 
 test('Server sagt „nur mit Pro“ (Datenbank PT402 bzw. Text)', async () => {

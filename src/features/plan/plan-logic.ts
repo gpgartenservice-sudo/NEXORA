@@ -19,21 +19,24 @@ export type PlanInfo = {
   usage: Record<QuotaKind, Usage>;
 };
 
-/** Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt (Pro vom 17.11.2026: 23,99 € bzw. 10 × 23,99 € = 239,90 € im Jahr) */
+/**
+ * Endpreise – Kleinunternehmer, keine USt. (§ 19 UStG); Jahr: zwei Monate geschenkt (10 × Monatspreis).
+ * Pro vom 17.11.2026: 23,99 € bzw. 239,90 € im Jahr. Business vom 18.11.2026: 44,99 € bzw. 449,90 € im Jahr (bis 3 Personen).
+ */
 export const PRICES: Record<PaidTier, { month: number; year: number }> = {
   pro: { month: 23.99, year: 239.9 },
-  business: { month: 150, year: 1500 },
+  business: { month: 44.99, year: 449.9 },
 };
 /** Business: so viele Konten (Personen) teilen sich ein Business – passend z. B. für eine GbR */
-export const BUSINESS_SEATS = 5;
+export const BUSINESS_SEATS = 3;
 export const TRIAL_DAYS = 14;
-/** Grenzen je Kalendermonat – gleiche Zahlen wie nexora_limit() in 20261117090000_plan_tiers.sql */
+/** Grenzen je Kalendermonat – gleiche Zahlen wie nexora_limit() (zuletzt 20261122090000_business_3.sql) */
 export const LIMITS: Record<PlanKind, Record<QuotaKind, number>> = {
   free: { nexy: 15, receipt: 3, voice: 30 },
   trial: { nexy: 50, receipt: 20, voice: 70 },
   pro: { nexy: 100, receipt: 50, voice: 120 },
-  /** fürs ganze Team zusammen */
-  business: { nexy: 500, receipt: 250, voice: 600 },
+  /** fürs ganze Team zusammen (3 Personen × Pro) */
+  business: { nexy: 300, receipt: 150, voice: 360 },
 };
 
 export type ProFeature =
@@ -164,7 +167,7 @@ export function quotaText(info: PlanInfo, kind: QuotaKind): string {
 const UPGRADE: Record<PlanKind, string> = {
   free: 'Mit Lunaxora Pro geht es gleich weiter',
   trial: 'Mit Lunaxora Pro geht es gleich weiter',
-  pro: 'Mit Lunaxora Business habt ihr fünfmal so viel fürs ganze Team',
+  pro: 'Mit Lunaxora Business habt ihr dreimal so viel fürs ganze Team',
   business: 'Ab dem 1. des nächsten Monats geht es weiter',
 };
 

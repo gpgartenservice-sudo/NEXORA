@@ -26,7 +26,7 @@ function inviteText(code: string, business: string | null) {
   return `Ich lade dich zu ${business ? `„${business}“` : 'unserem Business'} in Lunaxora ein. Öffne Lunaxora → Profil → Team → „Einem Team beitreten“ und gib diesen Code ein: ${code}`;
 }
 
-/** Profil → Team: Business-Team mit bis zu 5 Personen (z. B. eine GbR). */
+/** Profil → Team: Business-Team mit bis zu 3 Personen (BUSINESS_SEATS, z. B. eine GbR). */
 export function TeamScreen() {
   const { user } = useAuth();
   const { team, missing, refresh } = useTeam();
