@@ -307,9 +307,70 @@ test('Webhook: Checkout abgeschlossen -> Abo bei Stripe holen und eintragen', as
 
 test('Webhook: andere Ereignisse werden nur bestätigt', async () => {
   const { calls, deps } = fakeNet([]);
-  const res = await handleRequest(hook({ type: 'invoice.paid', data: { object: {} } }), deps);
+  const res = await handleRequest(hook({ type: 'customer.created', data: { object: {} } }), deps);
   assert.equal(res.status, 200);
   assert.equal(calls.length, 0);
+});
+
+const invoice = (over = {}) => ({
+  id: 'in_1',
+  number: 'LX-0001',
+  customer: 'cus_1',
+  amount_paid: 23990,
+  currency: 'eur',
+  status_transitions: { paid_at: at('2026-11-20T09:00:00Z') },
+  parent: { subscription_details: { subscription: 'sub_1' } },
+  ...over,
+});
+
+test('Webhook: Rechnung bezahlt -> Einnahme mit Stufe und Intervall eintragen', async () => {
+  const yearly = sub({ items: { data: [{ current_period_end: at('2027-11-20T10:00:00Z'), price: { lookup_key: 'pro_year' } }] } });
+  const { calls, deps } = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_1'), [200, yearly]],
+    [is('POST', '/rest/v1/rpc/log_payment'), [204]],
+  ]);
+  const res = await handleRequest(hook({ type: 'invoice.paid', data: { object: invoice({ amount_paid: 23990 }) } }), deps);
+  assert.equal(res.status, 200);
+  const rpc = calls.find((c) => c.url.includes('log_payment'));
+  assert.equal(rpc.headers.apikey, 'sb_secret_x');
+  const body = JSON.parse(rpc.body);
+  assert.equal(body.p_user, USER);
+  assert.equal(body.p_betrag, 239.9);
+  assert.equal(body.p_intervall, 'year');
+  assert.equal(body.p_stufe, 'pro');
+  assert.equal(body.p_rechnung, 'in_1');
+  assert.equal(body.p_bezahlt_am, '2026-11-20T09:00:00.000Z');
+});
+
+test('Webhook: Rechnung ohne Abo-Metadaten -> Nutzer über Stripe-Kunde', async () => {
+  const { calls, deps } = fakeNet([
+    [is('GET', 'stripe_customer_id=eq.cus_9'), [200, [{ user_id: USER, status: 'active', stripe_customer_id: 'cus_9' }]]],
+    [is('POST', '/rest/v1/rpc/log_payment'), [204]],
+  ]);
+  const inv = invoice({ customer: { id: 'cus_9' }, parent: null, subscription: undefined });
+  assert.equal((await handleRequest(hook({ type: 'invoice.paid', data: { object: inv } }), deps)).status, 200);
+  const body = JSON.parse(calls.find((c) => c.url.includes('log_payment')).body);
+  assert.equal(body.p_user, USER);
+  assert.equal(body.p_intervall, null);
+});
+
+test('Webhook: 0-€-Rechnung, fremde Währung und fehlendes Skript', async () => {
+  const none = fakeNet([]);
+  await handleRequest(hook({ type: 'invoice.paid', data: { object: invoice({ amount_paid: 0 }) } }), none.deps);
+  await handleRequest(hook({ type: 'invoice.paid', data: { object: invoice({ currency: 'usd' }) } }), none.deps);
+  assert.equal(none.calls.length, 0);
+
+  const missing = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_1'), [200, sub()]],
+    [is('POST', '/rest/v1/rpc/log_payment'), [404, { code: 'PGRST202' }]],
+  ]);
+  assert.equal((await handleRequest(hook({ type: 'invoice.paid', data: { object: invoice() } }), missing.deps)).status, 200);
+
+  const broken = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_1'), [200, sub()]],
+    [is('POST', '/rest/v1/rpc/log_payment'), [503, { message: 'down' }]],
+  ]);
+  assert.equal((await handleRequest(hook({ type: 'invoice.paid', data: { object: invoice() } }), broken.deps)).status, 500);
 });
 
 test('Webhook: Datenbankfehler -> 500, damit Stripe es noch einmal versucht', async () => {

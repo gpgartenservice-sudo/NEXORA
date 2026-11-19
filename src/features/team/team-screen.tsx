@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Crown, UserPlus, Users } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Share, StyleSheet, Text, View } from 'react-native';
 
 import { TextField } from '@/components/auth/text-field';
@@ -16,11 +16,18 @@ import { Colors, Spacing } from '@/constants/theme';
 import { BUSINESS_SEATS } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { copyText } from '@/features/social/copy-text';
+import { playSound } from '@/features/sound/ui-sound';
 import { useAuth } from '@/providers/auth-provider';
 
 import { teamInvite, teamJoin, teamLeave, teamRemove, teamRevoke, useTeam } from './team-provider';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/profil'));
+
+function joinedText(at: string | null) {
+  if (!at) return null;
+  const d = new Date(at);
+  return Number.isNaN(d.getTime()) ? null : `seit ${d.toLocaleDateString('de-DE')}`;
+}
 
 function inviteText(code: string, business: string | null) {
   return `Ich lade dich zu ${business ? `„${business}“` : 'unserem Business'} in Lunaxora ein. Öffne Lunaxora → Profil → Team → „Einem Team beitreten“ und gib diesen Code ein: ${code}`;
@@ -36,6 +43,32 @@ export function TeamScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+
+  // Solange die Seite offen ist, alle paar Sekunden nachsehen – so taucht jemand, der gerade
+  // auf seinem Gerät beitritt, hier sofort auf.
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+      const timer = setInterval(() => void refresh(), 5000);
+      return () => clearInterval(timer);
+    }, [refresh]),
+  );
+
+  // Neu beigetreten → kurz Bescheid geben
+  const knownIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!team) return;
+    const ids = new Set(team.members.map((m) => m.id));
+    const before = knownIds.current;
+    knownIds.current = ids;
+    if (!before || team.role !== 'owner') return;
+    const joined = team.members.filter((m) => !before.has(m.id) && !m.owner);
+    if (joined.length) {
+      setMessage({ tone: 'success', text: `${joined.map((m) => m.name).join(', ')} ist jetzt in deinem Team. 🎉` });
+      playSound('success');
+    }
+  }, [team]);
 
   const role = team?.role ?? 'solo';
   const canInvite = plan.missing || plan.info?.plan === 'business' || plan.info?.plan === 'trial';
@@ -71,7 +104,7 @@ export function TeamScreen() {
     <Screen maxWidth={680}>
       <PageHeader
         title="Dein Team"
-        subtitle={`Mit Lunaxora Business arbeitet ihr mit bis zu ${BUSINESS_SEATS} Personen im selben Business – gleiche Kunden, Aufträge, Termine, Finanzen und Inventar. Jeder meldet sich mit seinem eigenen Konto an.`}
+        subtitle={`Bis zu ${BUSINESS_SEATS} Personen im selben Business – jeder mit eigenem Konto.`}
         back={{ label: 'Profil', onPress: back }}
         meta={<ProBadge kind="business" />}
       />
@@ -104,26 +137,50 @@ export function TeamScreen() {
               </Text>
             </View>
             {team?.members.map((m) => (
-              <View key={m.id} style={styles.member}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{(m.name || '?').charAt(0).toUpperCase()}</Text>
-                </View>
-                <View style={styles.flex}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{m.name}</Text>
-                    {m.owner && <Crown size={14} color={Colors.accent} accessibilityLabel="Inhaber" />}
-                    {m.id === user?.id && <Text style={styles.you}>Du</Text>}
+              <View key={m.id}>
+                <View style={styles.member}>
+                  <View style={[styles.avatar, m.owner && styles.avatarOwner]}>
+                    <Text style={styles.avatarText}>{(m.name || '?').charAt(0).toUpperCase()}</Text>
                   </View>
-                  {!!m.email && <Text style={styles.email}>{m.email}</Text>}
+                  <View style={styles.flex}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name}>{m.name}</Text>
+                      {m.owner && <Crown size={14} color={Colors.accent} accessibilityLabel="Inhaber" />}
+                      {m.id === user?.id && <Text style={styles.you}>Du</Text>}
+                    </View>
+                    <Text style={styles.email}>
+                      {[m.email, m.owner ? 'Inhaber' : joinedText(m.joined_at)].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {role === 'owner' && !m.owner && confirmRemove !== m.id && (
+                    <Button label="Entfernen" variant="secondary" onPress={() => setConfirmRemove(m.id)} />
+                  )}
                 </View>
-                {role === 'owner' && !m.owner && (
-                  <TextLink
-                    label={busy === m.id ? 'Entferne …' : 'Entfernen'}
-                    onPress={() => void run(m.id, () => teamRemove(m.id), `${m.name} ist nicht mehr im Team.`)}
-                  />
+                {role === 'owner' && confirmRemove === m.id && (
+                  <View style={styles.confirm}>
+                    <Text style={styles.body}>
+                      {m.name} aus dem Team entfernen? Danach sind nur noch die eigenen Daten sichtbar – eure
+                      gemeinsamen Daten bleiben bei dir.
+                    </Text>
+                    <View style={styles.buttons}>
+                      <Button
+                        label="Ja, entfernen"
+                        loading={busy === m.id}
+                        onPress={() =>
+                          void run(m.id, () => teamRemove(m.id), `${m.name} ist nicht mehr im Team.`).then(() =>
+                            setConfirmRemove(null),
+                          )
+                        }
+                      />
+                      <Button label="Abbrechen" variant="secondary" onPress={() => setConfirmRemove(null)} />
+                    </View>
+                  </View>
                 )}
               </View>
             ))}
+            {role === 'owner' && team?.members.length === 1 && (
+              <Text style={styles.hint}>Noch niemand beigetreten – lade unten jemanden ein.</Text>
+            )}
             {role === 'member' && (
               <View style={styles.leave}>
                 {confirmLeave ? (
@@ -207,7 +264,10 @@ export function TeamScreen() {
                       {!!inv.email && <Text style={styles.email}>{inv.email}</Text>}
                     </View>
                     <TextLink label={Platform.OS === 'web' ? 'Kopieren' : 'Teilen'} onPress={() => void share(inv.code)} />
-                    <TextLink label="Zurückziehen" onPress={() => void run(inv.code, () => teamRevoke(inv.code))} />
+                    <TextLink
+                      label={busy === inv.code ? 'Ziehe zurück …' : 'Zurückziehen'}
+                      onPress={() => void run(inv.code, () => teamRevoke(inv.code), 'Einladung zurückgezogen.')}
+                    />
                   </View>
                 ))}
               </View>
@@ -269,6 +329,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarOwner: { borderColor: Colors.accent },
+  confirm: { gap: Spacing.sm, marginLeft: 36 + Spacing.md, marginBottom: Spacing.sm },
   avatarText: { color: Colors.text, fontWeight: '700', fontSize: 15 },
   flex: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

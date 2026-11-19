@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -65,8 +66,9 @@ export function TeamProvider({ userId, children }: { userId: string; children: R
   const apply = useCallback((r: Loaded) => {
     setLoaded(true);
     setMissing(r.missing);
-    // Bei einem Netzfehler das bisherige Team behalten
-    if (!r.failed) setTeam(r.team);
+    // Bei einem Netzfehler das bisherige Team behalten. Unverändert → altes Objekt behalten,
+    // sonst würde beim regelmäßigen Nachsehen jedes Mal die ganze App neu gezeichnet.
+    if (!r.failed) setTeam((prev) => (JSON.stringify(prev) === JSON.stringify(r.team) ? prev : r.team));
   }, []);
 
   useEffect(() => {
@@ -83,6 +85,22 @@ export function TeamProvider({ userId, children }: { userId: string; children: R
   const refresh = useCallback(async () => {
     if (userId) apply(await fetchTeam());
   }, [userId, apply]);
+
+  // Tritt jemand bei oder wird entfernt, passiert das auf einem anderen Gerät – darum
+  // beim Zurückkommen in die App und jede Minute nachsehen (die Team-Seite selbst öfter).
+  useEffect(() => {
+    if (!userId) return;
+    const timer = setInterval(() => void refresh(), 60_000);
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && void refresh());
+    const web = Platform.OS === 'web' && typeof window !== 'undefined';
+    const onFocus = () => void refresh();
+    if (web) window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+      if (web) window.removeEventListener('focus', onFocus);
+    };
+  }, [userId, refresh]);
 
   const workspaceId = team?.owner_id ?? userId;
   const value = useMemo<State>(() => ({ workspaceId, team, missing, refresh }), [workspaceId, team, missing, refresh]);

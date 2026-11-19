@@ -7,7 +7,8 @@
  *   POST { mode: "portal" } -> { url } zum Stripe-Kundenportal (Abo kündigen, wechseln,
  *        Zahlungsart, Rechnungen)
  *   POST /billing/webhook   <- Stripe meldet Änderungen; die Funktion trägt sie in
- *        public.subscriptions ein (Status, Stufe, Laufzeitende)
+ *        public.subscriptions ein (Status, Stufe, Laufzeitende) und jede bezahlte Rechnung
+ *        (invoice.paid) in kosten.zahlungen – für die Einnahmen je Kunde (20261122090000_einnahmen.sql)
  *   GET  /billing/fertig?s=ok|abbruch|portal -> kurze Seite nach der Bezahlung
  *
  * Einrichtung: supabase/README.md, Abschnitt 14. „Verify JWT“ ausschalten – Stripe meldet
@@ -116,6 +117,24 @@ type StripeSubscription = {
   metadata?: Record<string, string>;
   items?: { data?: { current_period_end?: number; price?: { lookup_key?: string | null } }[] };
 };
+
+type StripeRef = string | { id: string } | null | undefined;
+
+type StripeInvoice = {
+  id?: string;
+  number?: string | null;
+  customer?: StripeRef;
+  amount_paid?: number;
+  currency?: string;
+  created?: number;
+  status_transitions?: { paid_at?: number | null };
+  /** ältere API-Versionen */
+  subscription?: StripeRef;
+  /** neuere API-Versionen */
+  parent?: { subscription_details?: { subscription?: StripeRef } | null } | null;
+};
+
+const refId = (r: StripeRef) => (typeof r === 'string' ? r : r?.id) || undefined;
 
 const iso = (seconds: number | null | undefined) => (seconds ? new Date(seconds * 1000).toISOString() : null);
 const customerId = (c: StripeSubscription['customer']) => (typeof c === 'string' ? c : c?.id);
@@ -335,6 +354,45 @@ async function applySubscription(deps: Deps, sub: StripeSubscription, userHint?:
   await saveRow(deps, userId, !!row, change);
 }
 
+/**
+ * Bezahlte Rechnung -> kosten.zahlungen (Einnahmen je Kunde). Dieselbe Rechnung zählt nur
+ * einmal (Rechnungs-ID). Fehlt das Skript noch, wird die Zahlung nur übersprungen.
+ */
+async function recordPayment(deps: Deps, inv: StripeInvoice) {
+  const cents = inv.amount_paid ?? 0;
+  if (!inv.id || cents <= 0 || (inv.currency && inv.currency.toLowerCase() !== 'eur')) return;
+  const subId = refId(inv.subscription) ?? refId(inv.parent?.subscription_details?.subscription);
+  const sub = subId ? await stripe<StripeSubscription>(deps, 'GET', `subscriptions/${encodeURIComponent(subId)}`) : null;
+  let userId = sub?.metadata?.user_id || null;
+  const customer = refId(inv.customer) ?? (sub ? customerId(sub.customer) : undefined);
+  if (!userId && customer) userId = (await loadRow(deps, `stripe_customer_id=eq.${encodeURIComponent(customer)}`))?.user_id ?? null;
+  if (!userId) {
+    console.error('billing: kein Nutzer zu Rechnung', inv.id, customer);
+    return;
+  }
+  // Lookup-Key wie „pro_year“ -> Stufe und Intervall
+  const [tier, interval] = (sub?.items?.data?.[0]?.price?.lookup_key ?? '').split('_');
+  const res = await deps.fetch(`${deps.env('SUPABASE_URL')}/rest/v1/rpc/log_payment`, {
+    method: 'POST',
+    headers: serviceHeaders(deps),
+    body: JSON.stringify({
+      p_user: userId,
+      p_betrag: cents / 100,
+      p_quelle: 'stripe',
+      p_intervall: interval || null,
+      p_stufe: tier || null,
+      p_rechnung: inv.id,
+      p_beschreibung: `Stripe-Rechnung ${inv.number ?? inv.id}`,
+      p_bezahlt_am: iso(inv.status_transitions?.paid_at ?? inv.created),
+    }),
+  });
+  if (res.status === 404) {
+    console.warn('billing: Skript 20261122090000_einnahmen.sql fehlt – Zahlung nicht eingetragen', inv.id);
+    return;
+  }
+  if (!res.ok) throw new Error(`Zahlung speichern: ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
+}
+
 async function webhook(req: Request, deps: Deps): Promise<Response> {
   const payload = await req.text();
   const now = Math.floor((deps.now?.() ?? Date.now()) / 1000);
@@ -360,6 +418,9 @@ async function webhook(req: Request, deps: Deps): Promise<Response> {
       await applySubscription(deps, sub);
       break;
     }
+    case 'invoice.paid':
+      await recordPayment(deps, obj as StripeInvoice);
+      break;
   }
   return json(200, { received: true });
 }
