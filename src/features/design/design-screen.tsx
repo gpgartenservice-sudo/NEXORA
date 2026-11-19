@@ -20,6 +20,7 @@ import { useHover } from '@/hooks/use-hover';
 import { useProfile } from '@/providers/profile-provider';
 
 import { DesignProvider } from './backgrounds';
+import { IconGlyph } from './sprites';
 import {
   DEFAULT_DESIGN,
   designActive,
@@ -168,7 +169,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
       <Screen maxWidth={760}>
         <PageHeader
           title="Design"
-          subtitle="Farbe oder Farbverlauf, dazu Symbole wie 💵 oder Blitze – wirkt sofort."
+          subtitle="Farbe oder Farbverlauf, dazu Motive wie Geldscheine oder Blitze – wirkt sofort."
           back={{ label: 'Profil', onPress: back }}
           meta={<ProBadge />}
         />
@@ -285,7 +286,6 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
                 <IconTile
                   key={o.key}
                   keyName={o.key}
-                  emoji={o.emoji}
                   title={o.title}
                   text={o.text}
                   active={draft.icons === o.key}
@@ -329,8 +329,6 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
 
 /** Kleine Vorschau: Hintergrund + ein paar Symbole (ohne Bewegung) */
 function Preview({ design }: { design: DesignSettings }) {
-  const option = ICON_OPTIONS.find((o) => o.key === design.icons);
-  const emoji = design.icons === 'stars' ? '⭐' : (option?.emoji ?? '');
   const v = directionVector(design.direction);
   return (
     <View style={styles.preview} accessibilityLabel="Vorschau des Designs">
@@ -349,13 +347,11 @@ function Preview({ design }: { design: DesignSettings }) {
           <Rect x="0" y="0" width="100" height="100" fill="url(#design-preview)" opacity={strengthOpacity(design.strength)} />
         </Svg>
       )}
-      {!!emoji &&
+      {design.icons !== 'none' &&
         PREVIEW_SPOTS.map((p, i) => (
-          <Text
-            key={i}
-            style={[styles.previewEmoji, { left: `${p.x}%`, top: `${p.y}%`, fontSize: p.size, transform: [{ rotate: `${p.r}deg` }] }]}>
-            {emoji}
-          </Text>
+          <View key={i} style={[styles.previewIcon, { left: `${p.x}%`, top: `${p.y}%`, transform: [{ rotate: `${p.r}deg` }] }]}>
+            <IconGlyph kind={design.icons} size={p.size} />
+          </View>
         ))}
       <View style={styles.previewCard}>
         <Text style={styles.previewTitle}>Vorschau</Text>
@@ -468,14 +464,12 @@ function PresetChip({
 
 function IconTile({
   keyName,
-  emoji,
   title,
   text,
   active,
   onPress,
 }: {
   keyName: IconKey;
-  emoji: string;
   title: string;
   text: string;
   active: boolean;
@@ -491,7 +485,13 @@ function IconTile({
       accessibilityLabel={`${title}: ${text}`}
       style={[styles.tile, active && styles.tileActive, hovered && !active && styles.tileHover]}>
       <View style={styles.tileHead}>
-        <Text style={styles.tileEmoji}>{keyName === 'none' ? '–' : emoji}</Text>
+        {keyName === 'none' ? (
+          <Text style={styles.tileEmoji}>–</Text>
+        ) : (
+          <View style={styles.tileIcon}>
+            <IconGlyph kind={keyName} size={28} />
+          </View>
+        )}
         {active && <Check size={16} color={Colors.accent} strokeWidth={2.6} />}
       </View>
       <Text style={styles.tileTitle}>{title}</Text>
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  previewEmoji: { position: 'absolute', opacity: 0.55 },
+  previewIcon: { position: 'absolute', opacity: 0.6 },
   previewCard: {
     paddingVertical: 12,
     paddingHorizontal: 18,
@@ -609,6 +609,7 @@ const styles = StyleSheet.create({
   tileHover: { backgroundColor: Colors.surfaceRaised },
   tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tileEmoji: { fontSize: 28, lineHeight: 34, color: Colors.textMuted },
+  tileIcon: { height: 34, minWidth: 34, alignItems: 'flex-start', justifyContent: 'center' },
   tileTitle: { color: Colors.text, fontSize: 14.5, fontWeight: '700' },
   tileText: { color: Colors.textMuted, fontSize: 12.5, lineHeight: 17 },
 });

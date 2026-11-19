@@ -26,7 +26,7 @@ import { setMoneyShowRunning } from './money';
 
 /**
  * Die große Show bei einer neuen Einnahme (läuft genau einmal pro Einnahme):
- * grünes Aufleuchten, der Betrag knallt in die Mitte, drei Wellen 💵 (unten,
+ * grünes Aufleuchten, der Betrag knallt in die Mitte, drei Wellen Geldscheine (unten,
  * aus den Ecken, Regen von oben), das iPhone vibriert – und Luna kommt nebenbei
  * ins Bild und gratuliert (mit Stimme). Antippen von Luna beendet sie.
  */

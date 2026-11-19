@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,8 +9,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { BanknoteFront, NOTE_RATIO } from '@/features/design/sprites';
+
 /**
- * Fliegende Dollarscheine (💵) – für „Kauf abgeschlossen“, neue Einnahmen und den App-Start.
+ * Fliegende Geldscheine (gezeichnet, drehen sich in 3D) – für „Kauf abgeschlossen“,
+ * neue Einnahmen und den App-Start.
  *
  * Arten:
  * - 'bottom'  : schießen unten in der Mitte heraus und fliegen links/rechts hinaus
@@ -25,6 +28,9 @@ import Animated, {
 export type BurstKind = 'bottom' | 'corners' | 'rain';
 
 const SIZE = 46;
+/** Breite eines Scheins (Höhe wie bei einem echten Schein) */
+const NOTE_W = 72;
+const NOTE_H = NOTE_W * NOTE_RATIO;
 
 type Flight = {
   id: string;
@@ -41,7 +47,6 @@ type Flight = {
   rot0: number;
   flutter: number;
   scale: number;
-  emoji: string;
 };
 
 let wave = 0;
@@ -50,7 +55,6 @@ function makeFlights(count: number, width: number, height: number, kind: BurstKi
   const seed = ++wave;
   return Array.from({ length: count }, (_, i) => {
     const side = i % 2 === 0 ? 1 : -1;
-    const emoji = Math.random() < 0.1 ? '💰' : '💵';
     const base = {
       id: `${seed}-${i}`,
       kind,
@@ -59,7 +63,6 @@ function makeFlights(count: number, width: number, height: number, kind: BurstKi
       rot0: (Math.random() - 0.5) * 60,
       flutter: 3 + Math.random() * 4,
       scale: 0.75 + Math.random() * 0.6,
-      emoji,
     };
     if (kind === 'rain') {
       return {
@@ -99,7 +102,7 @@ function Note({ f, height }: { f: Flight; height: number }) {
   useEffect(() => {
     t.set(withDelay(f.delay, withTiming(1, { duration: f.duration, easing: Easing.linear })));
   }, [t, f]);
-  const style = useAnimatedStyle(() => {
+  const move = useAnimatedStyle(() => {
     const p = t.get();
     let x: number;
     let y: number;
@@ -116,15 +119,32 @@ function Note({ f, height }: { f: Flight; height: number }) {
     return {
       opacity: p <= 0 ? 0 : 1,
       transform: [
-        { translateX: x - SIZE / 2 },
+        { perspective: 700 },
+        { translateX: x - NOTE_W / 2 },
         { translateY: y },
         { rotate: `${f.rot0 + f.spin * p}deg` },
-        { scaleX: f.scale * (0.35 + 0.65 * Math.abs(Math.cos(p * f.flutter * Math.PI))) },
-        { scaleY: f.scale },
+        // flattert: dreht sich um die Längsachse und nickt dabei
+        { rotateY: `${p * f.flutter * 180}deg` },
+        { rotateX: `${Math.sin(p * f.flutter * 2.2) * 35}deg` },
+        { scale: f.scale },
       ],
     };
   });
-  return <Animated.Text style={[styles.note, style]}>{f.emoji}</Animated.Text>;
+  // Rückseite (schlichtes Papier mit Rahmen), sobald der Schein mehr als halb gedreht ist
+  const back = useAnimatedStyle(() => ({ opacity: Math.cos(t.get() * f.flutter * Math.PI) < 0 ? 1 : 0 }));
+  // hochkant zum Licht → dunkler
+  const shade = useAnimatedStyle(() => ({ opacity: 0.45 * (1 - Math.abs(Math.cos(t.get() * f.flutter * Math.PI))) }));
+  return (
+    <Animated.View style={[styles.note, move]}>
+      <BanknoteFront width={NOTE_W} />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.noteBack, back]}>
+        <View style={styles.noteBackFrame}>
+          <Text style={styles.noteBackValue}>100</Text>
+        </View>
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.noteShade, shade]} />
+    </Animated.View>
+  );
 }
 
 type Wave = { count: number; kind: BurstKind };
@@ -171,7 +191,7 @@ function MoneyWaves({ trigger, wave: next }: { trigger: number; wave: Wave }) {
 type Listener = (w: Wave) => void;
 const listeners = new Set<Listener>();
 
-/** Dollarscheine fliegen lassen (braucht <MoneyBurstHost /> im App-Rahmen). */
+/** Geldscheine fliegen lassen (braucht <MoneyBurstHost /> im App-Rahmen). */
 export function burstMoney(count = 22, kind: BurstKind = 'bottom') {
   listeners.forEach((l) => l({ count, kind }));
 }
@@ -190,5 +210,19 @@ export function MoneyBurstHost() {
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, overflow: 'hidden' },
-  note: { position: 'absolute', left: 0, top: 0, fontSize: SIZE, lineHeight: SIZE * 1.2, width: SIZE * 1.3, textAlign: 'center' },
+  note: { position: 'absolute', left: 0, top: 0, width: NOTE_W, height: NOTE_H },
+  noteBack: { backgroundColor: '#A9CF9C', borderRadius: 2, borderWidth: 1, borderColor: '#5E8F5F', padding: 3 },
+  // von hinten gesehen → gespiegelt, damit die Zahl richtig herum lesbar ist
+  noteBackFrame: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#2E5A36',
+    borderRadius: 1.5,
+    backgroundColor: '#B9D9AC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ scaleX: -1 }],
+  },
+  noteBackValue: { color: '#2E5A36', fontFamily: 'Georgia', fontSize: 15, fontWeight: '900', lineHeight: 18 },
+  noteShade: { backgroundColor: '#0B1A0E', borderRadius: 2 },
 });
