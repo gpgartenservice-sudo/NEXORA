@@ -57,7 +57,7 @@ export function IncomeProofCard() {
     <Card>
       <Text style={styles.title}>Einkommensnachweis</Text>
       <Text style={styles.text}>
-        Deine Einnahmen, Ausgaben und dein Einkommen pro Monat als PDF – z. B. für Versicherung, Vermieter oder Bank.
+        Einnahmen, Ausgaben und Einkommen pro Monat als PDF – z. B. für Bank oder Vermieter.
       </Text>
       <Segmented
         label="Zeitraum"

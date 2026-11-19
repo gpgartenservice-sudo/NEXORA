@@ -1,0 +1,108 @@
+<!doctype html>
+<!--
+  Hintergrund für das DMG-Fenster (660 × 400). Gerendert von render.cjs nach
+  assets/dmg/background.png und background@2x.png.
+  Die Symbole legt Finder selbst darauf: App bei (170, 205), Programme bei (490, 205), Namen bei y ≈ 276,
+  siehe dmg.contents in electron-builder.config.js.
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; background: #000; }
+  body { position: relative; font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif; }
+  .layer { position: absolute; inset: 0; }
+  .glow-green { background: radial-gradient(260px 200px at 170px 220px, rgba(47, 227, 154, 0.26), transparent 70%); }
+  .glow-violet { background: radial-gradient(300px 220px at 520px 210px, rgba(139, 92, 246, 0.24), transparent 72%); }
+  .aurora {
+    background: linear-gradient(100deg, transparent 10%, rgba(47, 227, 154, 0.10) 35%, rgba(139, 92, 246, 0.14) 60%, transparent 85%);
+    filter: blur(28px);
+    transform: translateY(-150px) rotate(-6deg) scaleX(1.2);
+  }
+  .vignette { background: radial-gradient(520px 340px at 330px 200px, transparent 55%, rgba(0, 0, 0, 0.75) 100%); }
+  .star { position: absolute; border-radius: 50%; background: #fff; }
+  .moon {
+    position: absolute; left: 574px; top: 30px; width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff, #dfe7ff 60%, #b9c3e6);
+    -webkit-mask: radial-gradient(circle at 72% 30%, transparent 46%, #000 47.5%);
+    filter: drop-shadow(0 0 14px rgba(200, 210, 255, 0.55));
+  }
+  .wordmark { position: absolute; left: 50%; top: 34px; width: 200px; transform: translateX(-50%); opacity: 0.96; }
+  .sub {
+    position: absolute; left: 0; right: 0; top: 82px; text-align: center;
+    color: rgba(255, 255, 255, 0.5); font-size: 12px; letter-spacing: 2.4px; font-weight: 500;
+  }
+  .halo { position: absolute; width: 170px; height: 170px; border-radius: 50%; transform: translate(-50%, -50%); }
+  .halo.app { left: 170px; top: 205px; background: radial-gradient(circle, rgba(47, 227, 154, 0.22), transparent 62%); }
+  .halo.apps { left: 490px; top: 205px; background: radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent 62%); }
+  svg.arrow { position: absolute; left: 0; top: 0; }
+  .tag {
+    position: absolute; width: 116px; height: 22px; border-radius: 11px; transform: translate(-50%, -50%);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
+  }
+  .tag.app { left: 170px; top: 276px; background: linear-gradient(180deg, #e3fff2, #bff5dd); box-shadow: 0 0 22px rgba(47, 227, 154, 0.35); }
+  .tag.apps { left: 490px; top: 276px; background: linear-gradient(180deg, #efe9ff, #d6caff); box-shadow: 0 0 22px rgba(139, 92, 246, 0.35); }
+  .hint {
+    position: absolute; left: 0; right: 0; top: 318px; text-align: center;
+    color: rgba(255, 255, 255, 0.62); font-size: 13px; font-weight: 500;
+  }
+  .hint b { color: #2fe39a; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="layer aurora"></div>
+  <div class="layer glow-green"></div>
+  <div class="layer glow-violet"></div>
+  <div id="stars" class="layer"></div>
+  <div class="layer vignette"></div>
+  <div class="moon"></div>
+
+  <img class="wordmark" src="../../assets/brand/lunaxora-wordmark-white.png" alt="" />
+  <div class="sub">DIE APP FÜR JUNGE UNTERNEHMER</div>
+
+  <div class="halo app"></div>
+  <div class="halo apps"></div>
+  <!-- Finder schreibt die Namen schwarz – darum helle Schildchen darunter -->
+  <div class="tag app"></div>
+  <div class="tag apps"></div>
+
+  <svg class="arrow" width="660" height="400" viewBox="0 0 660 400">
+    <defs>
+      <linearGradient id="g" x1="262" y1="0" x2="398" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#2FE39A" />
+        <stop offset="1" stop-color="#8B5CF6" />
+      </linearGradient>
+      <filter id="blur" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="4" /></filter>
+    </defs>
+    <g filter="url(#blur)" opacity="0.8">
+      <path d="M262 205 H392 M380 193 L394 205 L380 217" stroke="url(#g)" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+    <path d="M262 205 H392" stroke="url(#g)" stroke-width="2.4" stroke-dasharray="2 9" stroke-linecap="round" fill="none" />
+    <path d="M380 193 L394 205 L380 217" stroke="#8B5CF6" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+
+  <div class="hint">Zieh Lunaxora in den Ordner <b>Programme</b> – fertig.</div>
+
+  <script>
+    // Feste Sterne (gleiches Ergebnis bei jedem Rendern), nicht hinter den Symbolen
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const box = document.getElementById('stars');
+    const free = (x, y) =>
+      Math.hypot(x - 170, y - 215) > 85 && Math.hypot(x - 490, y - 215) > 85 && !(y > 25 && y < 100 && x > 210 && x < 450) && !(y > 305 && y < 340 && x > 170 && x < 490);
+    let n = 0;
+    while (n < 90) {
+      const x = rnd() * 660, y = rnd() * 400, s = 0.5 + rnd() * rnd() * 1.8;
+      if (!free(x, y)) continue;
+      const d = document.createElement('div');
+      d.className = 'star';
+      Object.assign(d.style, { left: x + 'px', top: y + 'px', width: s + 'px', height: s + 'px', opacity: String(0.18 + rnd() * 0.6) });
+      if (s > 1.6) d.style.boxShadow = '0 0 6px rgba(255,255,255,0.7)';
+      box.appendChild(d);
+      n++;
+    }
+    const scale = Number(new URLSearchParams(location.search).get('scale') || 1);
+    document.documentElement.style.zoom = String(scale);
+  </script>
+</body>
+</html>

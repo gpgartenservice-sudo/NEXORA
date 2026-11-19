@@ -74,7 +74,7 @@ export function MetricsView({ posts }: { posts: SocialPost[] }) {
         <Text style={styles.cardTitle}>Top-Posts</Text>
         {top.length === 0 ? (
           <Text style={styles.empty}>
-            Sobald du bei veröffentlichten Posts Aufrufe einträgst, siehst du hier deine besten.
+            Trag bei Posts Aufrufe ein – dann siehst du hier deine besten.
           </Text>
         ) : (
           top.map((p, i) => <TopRow key={p.id} rank={i + 1} post={p} />)
@@ -93,9 +93,7 @@ export function MetricsView({ posts }: { posts: SocialPost[] }) {
         </Card>
       )}
       <Text style={styles.footnote}>
-        Interaktionsrate = (Likes + Kommentare + Geteilt + Gespeichert) ÷ Aufrufe. Hast du TikTok unter „Konten“
-        verbunden, holt Lunaxora die Zahlen deiner Videos automatisch und trägt sie beim passenden Post ein. Bei
-        allen anderen Posts trägst du sie selbst ein.
+        Interaktionsrate = (Likes + Kommentare + Geteilt + Gespeichert) ÷ Aufrufe. Mit verbundenem TikTok kommen die Zahlen automatisch.
       </Text>
     </View>
   );

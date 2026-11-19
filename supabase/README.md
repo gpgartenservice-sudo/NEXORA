@@ -52,6 +52,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261118090000_billing.sql` | Bezahlen mit Stripe: Spalten `stripe_customer_id` und `stripe_subscription_id` im Abo (Abschnitt 14) |
 | `20261119090000_customer_invites.sql` | Neue Kunden per Datenschutz-Link: Einladungen (E-Mail + geheimer Link), Kundenseite ohne Anmeldung, Nachweis der bestätigten Datenschutzerklärung am Kunden (Abschnitt 15) |
 | `20261120090000_feinschliff.sql` | Feinschliff: eigene Branche, Rechtsform + Pflichtangaben, Gutscheine (20 Codes für die Warteliste: `select code from public.vouchers where note = 'Warteliste'`), ein Gerät gleichzeitig, Business-Team (bis 5 Personen, gemeinsame Daten), Inventar, Termine „draußen“ |
+| `20261121090000_kosten.sql` | Kosten pro Konto: jede Luna-Nachricht, jeder Beleg, jedes Vorlesen und jede Spracheingabe mit Verbrauch; Übersicht `kosten.pro_konto` (Abschnitt 16) |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 
@@ -429,6 +430,31 @@ Einrichtung:
 Testen: **Kunden → Neuen Kunden einladen** → eigene zweite E-Mail-Adresse eintragen → **Datenschutzerklärung schicken** → in der E-Mail auf den Link → Daten eintragen, Haken setzen, **Daten absenden** → in der App unter **Kunden** erscheint der neue Kunde (Liste neu öffnen).
 
 Ändert sich etwas an der Kundenseite oder der Datenschutzerklärung (`web-kunde/`), Schritt 4 wiederholen.
+
+## 16. Kosten pro Konto
+
+Die Funktion `assistant` speichert bei jeder bezahlten Anfrage, was sie verbraucht hat – Luna-Nachrichten und Belege (Claude: Tokens), Vorlesen (ElevenLabs: Zeichen) und Sprache → Text (Groq: Sekunden) – zusammen mit dem Konto. Die Preise rechnet die Datenbank beim Ansehen aus der Preisliste aus.
+
+Einrichtung:
+
+1. Datenbank-Skript `20261121090000_kosten.sql` ausführen (Abschnitt 3).
+2. Funktion `assistant` neu einspielen: **Edge Functions → assistant → Code** → Inhalt von [`functions/assistant/index.ts`](functions/assistant/index.ts) komplett ersetzen → **Deploy**. Neue Secrets braucht es nicht (`SUPABASE_SERVICE_ROLE_KEY` stellt Supabase selbst bereit). Gezählt wird ab dann – frühere Anfragen fehlen.
+3. **ElevenLabs-Preis anpassen** (der eingetragene ist nur geschätzt): **SQL Editor** →
+   `update kosten.preise set usd_1000_zeichen = 0.11 where modell = 'eleven_v4_turbo';`
+   mit deinem Wert = Tarifpreis in $ ÷ Credits im Tarif × Credits pro Zeichen × 1000. Den Dollarkurs genauso: `update kosten.einstellungen set eur_pro_usd = 0.86;`
+
+Ansehen: **Table Editor** → oben links Schema **kosten** wählen, oder im **SQL Editor**:
+
+| Abfrage | Zeigt |
+|---|---|
+| `select * from kosten.pro_konto;` | jedes Konto: Abo, Kosten diesen Monat / Vormonat / gesamt in €, Luna-Nachrichten, Belege, Vorlese-Zeichen und Sprach-Minuten diesen Monat |
+| `select * from kosten.pro_kunde;` | wie oben, Business-Teams (Inhaber + Mitglieder) zusammengerechnet |
+| `select * from kosten.pro_monat;` | je Monat, Konto und Art |
+| `select * from kosten.einzeln;` | jede einzelne Anfrage mit Preis |
+
+Ändert ein Anbieter seine Preise, die Zeile in `kosten.preise` anpassen – alle Übersichten rechnen sofort mit dem neuen Preis. Ein neues Modell (z. B. über das Secret `ASSISTANT_MODEL`) braucht eine eigene Zeile; bis dahin zählt `anfragen_ohne_preis` in `kosten.pro_konto` mit.
+
+Das Schema `kosten` ist über die App-API nicht erreichbar – Nutzer sehen weder eigene noch fremde Kosten, nur im Dashboard sind sie sichtbar. Wird ein Konto gelöscht, verschwinden seine Einträge mit.
 
 ## Sicherheit
 

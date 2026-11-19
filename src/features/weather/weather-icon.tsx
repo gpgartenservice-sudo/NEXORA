@@ -27,7 +27,13 @@ const COLOR: Record<WeatherKind, string> = {
   storm: '#C79BFF',
 };
 
-/** Kleines Wettersymbol mit Höchsttemperatur (z. B. unten rechts an einem Kalendertag) */
+/** Nur das Symbol (in der Farbe des Wetters) */
+export function WeatherIcon({ kind, size = 17 }: { kind: WeatherKind; size?: number }) {
+  const Icon = ICON[kind];
+  return <Icon size={size} color={COLOR[kind]} strokeWidth={2} />;
+}
+
+/** Kleines Wettersymbol mit Höchsttemperatur (z. B. oben an einem Kalendertag) */
 export function WeatherBadge({ weather, compact }: { weather: DayWeather | undefined; compact?: boolean }) {
   if (!weather) return null;
   const Icon = ICON[weather.kind];

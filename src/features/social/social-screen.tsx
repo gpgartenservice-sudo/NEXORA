@@ -88,7 +88,7 @@ export function SocialScreen() {
     <Screen maxWidth={1180}>
       <PageHeader
         title="Social Media"
-        subtitle="Von der Idee bis zum Post – plane deinen Content und behalte deine Zahlen im Blick."
+        subtitle="Von der Idee bis zum Post – mit deinen Zahlen."
         help={<TutorialButton id="social" />}
         action={
           <TourTarget id="social.aktionen" style={styles.actions}>

@@ -265,7 +265,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
         <Reveal delay={260} style={styles.column}>
           <Card style={styles.fill}>
             <Text style={styles.cardTitle}>Ablauf</Text>
-            <Text style={styles.cardHint}>Trag ein, was passiert ist – der Status oben passt sich automatisch an.</Text>
+            <Text style={styles.cardHint}>Trag ein, was passiert ist – der Status passt sich an.</Text>
             <TourTarget id="guide.order.meeting">
               <DateField label="Termin (z. B. Erstgespräch, Besichtigung)" value={draft.meeting_at} onChange={(v) => set('meeting_at', v)} withTime />
             </TourTarget>

@@ -156,7 +156,7 @@ function TodosView() {
           <Card>
             <Text style={styles.emptyTitle}>{done.length ? 'Alles erledigt. Stark! 🎉' : 'Noch keine To-dos'}</Text>
             <Text style={styles.body}>
-              Schreib oben auf, was ansteht – oder sag es Luna, z. B. „Erinner mich Freitag an die Steuer“.
+              Schreib oben, was ansteht – oder sag es Luna.
             </Text>
           </Card>
         </Reveal>
@@ -217,7 +217,7 @@ function GoalsView() {
     <>
       <Reveal delay={180}>
         <View style={styles.goalsHead}>
-          <Text style={styles.body}>Ziele zählen automatisch mit – aus deinen Aufträgen, Kunden und Posts.</Text>
+          <Text style={styles.body}>Ziele zählen automatisch mit.</Text>
           <Button
             label="+ Ziel hinzufügen"
             variant="secondary"

@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Spacing } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -16,9 +17,9 @@ import { useRoadmap } from './roadmap-provider';
 import { StepRow } from './step-row';
 
 const INTRO: Record<string, string> = {
-  idea: 'Von der Idee bis zum ersten bezahlten Auftrag – Schritt für Schritt.',
-  started: 'Die Basis steht. Jetzt geht es um Kunden, Struktur und Routinen.',
-  stuck: 'Wir fangen beim Neu-Ausrichten an. Danach geht es Schritt für Schritt weiter.',
+  idea: 'Von der Idee zum ersten bezahlten Auftrag.',
+  started: 'Jetzt: Kunden, Struktur und Routinen.',
+  stuck: 'Erst neu ausrichten, dann Schritt für Schritt weiter.',
   growing: 'Mehr Überblick, bessere Abläufe, mehr Umsatz.',
 };
 
@@ -45,6 +46,7 @@ export function RoadmapScreen() {
     await toggle(stepKey);
     if (allNowDone) setCelebration('🏆 Fahrplan komplett geschafft!');
     else if (phaseNowDone) setCelebration(`🎉 Phase „${phase.title}“ geschafft!`);
+    if (allNowDone || phaseNowDone) setTimeout(() => playSound('success'), 250);
   };
 
   const progressText =
@@ -148,7 +150,7 @@ export function RoadmapScreen() {
         })}
 
         <Text style={styles.disclaimer}>
-          Alle Hinweise nach bestem Wissen (Stand 2026) – sie ersetzen keine Rechts- oder Steuerberatung.
+          Nach bestem Wissen (Stand 2026) – keine Rechts- oder Steuerberatung.
         </Text>
       </Screen>
 

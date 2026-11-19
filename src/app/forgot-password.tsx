@@ -40,7 +40,7 @@ export default function ForgotPasswordScreen() {
   return (
     <AuthShell
       title="Passwort vergessen?"
-      subtitle="Kein Problem. Wir schicken dir einen Code, mit dem du ein neues Passwort festlegst."
+      subtitle="Wir schicken dir einen Code für ein neues Passwort."
       footer={
         <AuthFooter>
           <TextLink label="Zurück zur Anmeldung" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />

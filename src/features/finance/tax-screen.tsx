@@ -172,7 +172,7 @@ export function TaxScreen() {
     <Screen maxWidth={820}>
       <PageHeader
         title="Steuern"
-        subtitle="Rücklage, Grenzen und Unterlagen für die Steuerberatung – als grobe Orientierung."
+        subtitle="Rücklage, Grenzen und Unterlagen – als grobe Orientierung."
         back={{ label: 'Finanzen', onPress: back }}
         help={<TutorialButton id="steuern" />}
       />
@@ -186,9 +186,7 @@ export function TaxScreen() {
       )}
       {t.seller.legal_form === 'gbr' && (
         <Notice>
-          GbR: Der Gewinn wird auf euch Gesellschafter aufgeteilt, jeder versteuert seinen Anteil in der eigenen
-          Steuererklärung. Die GbR selbst gibt eine Feststellungserklärung ab – und bei Gewerbe auch die
-          Gewerbesteuererklärung. Der Steuer-Topf unten gilt fürs ganze Business.
+          GbR: Jeder versteuert seinen Gewinnanteil selbst. Die GbR gibt eine Feststellungs- und bei Gewerbe eine Gewerbesteuererklärung ab. Der Steuer-Topf gilt fürs ganze Business.
         </Notice>
       )}
       <Reveal delay={120}>
@@ -237,8 +235,7 @@ export function TaxScreen() {
               })}
             </View>
             <Text style={styles.hint}>
-              Faustregel für den Anfang: 25–30 % vom Gewinn auf ein eigenes Konto. Die echte Einkommensteuer hängt von
-              deinem gesamten Einkommen ab – deine Steuerberatung rechnet es genau aus.
+              Faustregel: 25–30 % vom Gewinn zurücklegen. Genau rechnet es deine Steuerberatung aus.
             </Text>
           </Card>
         </Reveal>
@@ -259,8 +256,7 @@ export function TaxScreen() {
                   {t.limit.message}
                 </Text>
                 <Text style={styles.hint}>
-                  Seit 2025 gilt: Umsatz im Vorjahr höchstens 25.000 €, im laufenden Jahr höchstens 100.000 € (§ 19
-                  UStG). Gezählt werden deine Einnahmen aus abgeschlossenen Aufträgen.
+                  Vorjahr max. 25.000 €, laufendes Jahr max. 100.000 € Umsatz (§ 19 UStG, seit 2025).
                 </Text>
               </>
             ) : (
@@ -270,8 +266,7 @@ export function TaxScreen() {
                 <Row label="Vorsteuer aus Ausgaben (soweit eingetragen)" value={formatEuro(t.vat.input)} />
                 <Row label="Ans Finanzamt (geschätzt)" value={formatEuro(t.vat.payable)} strong />
                 <Text style={styles.hint}>
-                  Damit die Vorsteuer stimmt, trag bei Ausgaben die enthaltene Umsatzsteuer ein – bei Belegen füllt Luna
-                  das aus. Voranmeldungen macht deine Steuerberatung bzw. ELSTER.
+                  Trag bei Ausgaben die Umsatzsteuer ein (bei Belegen macht das Luna). Voranmeldungen: Steuerberatung bzw. ELSTER.
                 </Text>
               </>
             )}
@@ -328,8 +323,7 @@ export function TaxScreen() {
               <Notice>Die Unterlagen gehen hier gerade nicht.</Notice>
             )}
             <Text style={styles.hint}>
-              Das ZIP enthält die Jahresübersicht, Listen für Excel und alle Belege – zum Weiterleiten an deine
-              Steuerberatung.
+              Jahresübersicht, Excel-Listen und alle Belege – für deine Steuerberatung.
             </Text>
             {message && <Notice tone={message.tone}>{message.text}</Notice>}
           </Card>

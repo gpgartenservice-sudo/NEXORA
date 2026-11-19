@@ -25,6 +25,7 @@ import Animated, {
 import { toLocalInput } from '@/components/ui/date-utils';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { playSound } from '@/features/sound/ui-sound';
 import { highlightRect, type Rect } from '@/features/tutorial/tutorial-logic';
 import { measure, type Node } from '@/features/tutorial/tutorial-overlay';
 import { useOptionalTutorial } from '@/features/tutorial/tutorial-provider';
@@ -129,13 +130,19 @@ export function useRunProposals() {
   const { execute } = useNexy();
   return useCallback(
     async (messageId: string): Promise<ExecuteOutcome & { shown: boolean }> => {
-      if (!guide) return { ...(await execute(messageId)), shown: false };
+      if (!guide) {
+        const direct = await execute(messageId);
+        if (direct.ok && !direct.stay) playSound('done');
+        return { ...direct, shown: false };
+      }
       let outcome: ExecuteOutcome = { ok: false, results: [], error: 'Luna wurde unterbrochen.' };
       await guide.live(async (play) => {
         outcome = await execute(messageId, play);
         if (!outcome.ok) return 'Da hat etwas nicht geklappt – im Chat steht, woran es liegt.';
         // Seite geöffnet: dort bleiben
-        return outcome.stay ? { line: 'Bitte schön!', stay: true } : 'Erledigt!';
+        if (outcome.stay) return { line: 'Bitte schön!', stay: true };
+        playSound('done');
+        return 'Erledigt!';
       });
       return { ...outcome, shown: true };
     },

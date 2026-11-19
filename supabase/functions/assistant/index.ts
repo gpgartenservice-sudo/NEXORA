@@ -261,23 +261,76 @@ type Usage = {
   cache_creation_input_tokens?: number | null;
   cache_read_input_tokens?: number | null;
 };
-function logUsage(kind: 'luna' | 'beleg', message: { model: string; usage: Usage }) {
+function logUsage(kind: 'luna' | 'beleg', message: { model: string; usage: Usage }): UsageRow {
   const u = message.usage;
-  console.log(
-    'usage',
-    JSON.stringify({
-      kind,
-      model: message.model,
-      input: u.input_tokens,
-      cache_write: u.cache_creation_input_tokens ?? 0,
-      cache_read: u.cache_read_input_tokens ?? 0,
-      output: u.output_tokens,
-    }),
-  );
+  const row: UsageRow = {
+    art: kind,
+    anbieter: 'anthropic',
+    modell: message.model,
+    input: u.input_tokens,
+    cache_write: u.cache_creation_input_tokens ?? 0,
+    cache_read: u.cache_read_input_tokens ?? 0,
+    output: u.output_tokens,
+  };
+  console.log('usage', JSON.stringify(row));
+  return row;
+}
+
+/**
+ * Was eine Anfrage bei Claude, ElevenLabs oder Groq verbraucht hat – wird pro Konto in
+ * kosten.nutzung gespeichert (Skript 20261121090000_kosten.sql, Ansicht kosten.pro_konto).
+ */
+type UsageRow = {
+  art: 'luna' | 'beleg' | 'vorlesen' | 'sprache';
+  anbieter: 'anthropic' | 'elevenlabs' | 'groq';
+  modell: string;
+  input?: number;
+  cache_write?: number;
+  cache_read?: number;
+  output?: number;
+  zeichen?: number;
+  sekunden?: number;
+};
+type Meter = (row: UsageRow) => Promise<void>;
+
+function serviceHeaders(deps: Deps): Record<string, string> {
+  const key = deps.env('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  // neue Secret Keys (sb_secret_…) nur als apikey, alte service_role-Schlüssel (JWT) zusätzlich als Bearer
+  return key.startsWith('sb_')
+    ? { apikey: key, 'Content-Type': 'application/json' }
+    : { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+}
+
+/** Verbrauch speichern. Fehlt das Skript oder der Schlüssel, läuft alles ganz normal weiter. */
+export async function recordUsage(deps: Deps, userId: string, row: UsageRow): Promise<void> {
+  const url = deps.env('SUPABASE_URL');
+  if (!url || !deps.env('SUPABASE_SERVICE_ROLE_KEY')) return;
+  const res = await deps
+    .fetch(`${url}/rest/v1/rpc/log_usage_cost`, {
+      method: 'POST',
+      headers: serviceHeaders(deps),
+      body: JSON.stringify({
+        p_user: userId,
+        p_art: row.art,
+        p_anbieter: row.anbieter,
+        p_modell: row.modell ?? '',
+        p_input: row.input ?? 0,
+        p_cache_write: row.cache_write ?? 0,
+        p_cache_read: row.cache_read ?? 0,
+        p_output: row.output ?? 0,
+        p_zeichen: row.zeichen ?? 0,
+        p_sekunden: row.sekunden ?? 0,
+      }),
+    })
+    .catch(() => null);
+  if (!res) return;
+  const text = await res.text().catch(() => '');
+  // 404 = Skript noch nicht ausgeführt
+  if (!res.ok && res.status !== 404) console.error('log_usage_cost', res.status, text.slice(0, 200));
 }
 
 /** Beleg (Foto/PDF) -> Vorschlag für eine Ausgabe (Claude) */
-async function readReceipt(body: Body, deps: Deps): Promise<Response> {
+async function readReceipt(body: Body, deps: Deps, meter: Meter): Promise<Response> {
   const apiKey = deps.env('ANTHROPIC_API_KEY');
   if (!apiKey) return json(500, { error: 'missing_api_key' });
   const file = typeof body.file === 'string' ? body.file : '';
@@ -307,7 +360,7 @@ async function readReceipt(body: Body, deps: Deps): Promise<Response> {
       system: RECEIPT_SYSTEM,
       messages: [{ role: 'user', content: [block, { type: 'text', text: 'Lies diesen Beleg.' }] }],
     });
-    logUsage('beleg', message);
+    await meter(logUsage('beleg', message));
     if (message.stop_reason === 'refusal') return json(422, { error: 'refused' });
     if (message.stop_reason === 'max_tokens' || !message.parsed_output) return json(502, { error: 'no_result' });
     return json(200, { receipt: message.parsed_output });
@@ -379,14 +432,16 @@ type Deps = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-/** Ist der Aufrufer ein angemeldeter Lunaxora-Nutzer? (Prüfung beim Supabase-Auth-Server) */
-async function signedIn(req: Request, deps: Deps): Promise<boolean> {
+/** Angemeldeter Lunaxora-Nutzer (Prüfung beim Supabase-Auth-Server) – seine ID, sonst null */
+async function signedInUser(req: Request, deps: Deps): Promise<string | null> {
   const auth = req.headers.get('Authorization');
   const apikey = req.headers.get('apikey');
   const url = deps.env('SUPABASE_URL');
-  if (!auth?.startsWith('Bearer ') || !apikey || !url) return false;
+  if (!auth?.startsWith('Bearer ') || !apikey || !url) return null;
   const res = await deps.fetch(`${url}/auth/v1/user`, { headers: { Authorization: auth, apikey } });
-  return res.ok;
+  if (!res.ok) return null;
+  const u = (await res.json().catch(() => null)) as { id?: unknown } | null;
+  return typeof u?.id === 'string' ? u.id : null;
 }
 
 type QuotaKind = 'nexy' | 'receipt' | 'voice';
@@ -482,7 +537,7 @@ export function transcriptText(data: unknown): string {
 }
 
 /** Sprache -> Text (Groq Whisper, Deutsch) */
-async function transcribe(body: Body, deps: Deps): Promise<Response> {
+async function transcribe(body: Body, deps: Deps, meter: Meter): Promise<Response> {
   const key = deps.env('GROQ_API_KEY');
   if (!key) return json(500, { error: 'missing_groq_key' });
 
@@ -510,7 +565,8 @@ async function transcribe(body: Body, deps: Deps): Promise<Response> {
 
   const form = new FormData();
   form.append('file', new Blob([bytes as BlobPart], { type: mime }), `sprache.${ext}`);
-  form.append('model', deps.env('TRANSCRIBE_MODEL') || DEFAULT_TRANSCRIBE_MODEL);
+  const model = deps.env('TRANSCRIBE_MODEL') || DEFAULT_TRANSCRIBE_MODEL;
+  form.append('model', model);
   form.append('language', 'de');
   form.append('response_format', 'verbose_json');
   form.append('temperature', '0');
@@ -531,11 +587,14 @@ async function transcribe(body: Body, deps: Deps): Promise<Response> {
     return json(502, { error: 'transcribe_error', status: res.status, detail });
   }
   const data = await res.json().catch(() => null);
+  // Groq rechnet nach Länge der Aufnahme ab (verbose_json liefert sie als duration)
+  const duration = (data as { duration?: unknown } | null)?.duration;
+  await meter({ art: 'sprache', anbieter: 'groq', modell: model, sekunden: typeof duration === 'number' && duration > 0 ? duration : 0 });
   return json(200, { text: transcriptText(data) });
 }
 
 /** Text -> gesprochene Sprache (ElevenLabs, MP3). Zählt als Vorlesen (eigenes Kontingent), nicht als Luna-Nachricht. */
-async function speak(body: Body, deps: Deps): Promise<Response> {
+async function speak(body: Body, deps: Deps, meter: Meter): Promise<Response> {
   const key = deps.env('ELEVENLABS_API_KEY');
   if (!key) return json(500, { error: 'missing_elevenlabs_key' });
   const voice = deps.env('ELEVENLABS_VOICE_ID')?.trim();
@@ -544,12 +603,13 @@ async function speak(body: Body, deps: Deps): Promise<Response> {
   if (!text) return json(400, { error: 'empty_say' });
   if (text.length > MAX_SPEAK_TEXT) return json(400, { error: 'say_too_long', max: MAX_SPEAK_TEXT });
 
+  const model = deps.env('ELEVENLABS_MODEL') || DEFAULT_TTS_MODEL;
   let res: Response;
   try {
     res = await deps.fetch(`${ELEVENLABS_TTS_URL}/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: deps.env('ELEVENLABS_MODEL') || DEFAULT_TTS_MODEL }),
+      body: JSON.stringify({ text, model_id: model }),
     });
   } catch (error) {
     console.error('ElevenLabs', error);
@@ -565,6 +625,8 @@ async function speak(body: Body, deps: Deps): Promise<Response> {
     if (res.status === 429) return json(429, { error: 'rate_limited' });
     return json(502, { error: 'tts_error', status: res.status, detail });
   }
+  // ElevenLabs rechnet nach Zeichen ab
+  await meter({ art: 'vorlesen', anbieter: 'elevenlabs', modell: model, zeichen: text.length });
   return new Response(res.body, {
     status: 200,
     headers: { ...CORS, 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' },
@@ -575,7 +637,14 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
-  if (!(await signedIn(req, deps))) return json(401, { error: 'not_signed_in' });
+  const userId = await signedInUser(req, deps);
+  if (!userId) return json(401, { error: 'not_signed_in' });
+  // Kosten pro Konto speichern – im Hintergrund, damit die Antwort nicht wartet
+  const meter: Meter = async (row) => {
+    const saving = recordUsage(deps, userId, row).catch(() => {});
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(saving);
+    else await saving;
+  };
 
   let body: Body;
   try {
@@ -584,20 +653,24 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     return json(400, { error: 'invalid_body' });
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
-  if (body.mode === 'transcribe') return transcribe(body, deps);
+  if (body.mode === 'transcribe') return transcribe(body, deps, meter);
 
   // Nachrichten, Belege und Vorlesen zählen (Grenzen je Abo: Skript 20261117090000_plan_tiers.sql)
   const kind: QuotaKind = body.mode === 'receipt' ? 'receipt' : body.mode === 'speak' ? 'voice' : 'nexy';
   const blocked = await consumeQuota(req, deps, kind);
   if (blocked) return blocked;
   const res =
-    kind === 'receipt' ? await readReceipt(body, deps) : kind === 'voice' ? await speak(body, deps) : await chat(body, deps);
+    kind === 'receipt'
+      ? await readReceipt(body, deps, meter)
+      : kind === 'voice'
+        ? await speak(body, deps, meter)
+        : await chat(body, deps, meter);
   if (!res.ok) await refundQuota(req, deps, kind);
   return res;
 }
 
 /** Gespräch mit Luna: Antwort + Vorschläge */
-async function chat(body: Body, deps: Deps): Promise<Response> {
+async function chat(body: Body, deps: Deps, meter: Meter): Promise<Response> {
   const apiKey = deps.env('ANTHROPIC_API_KEY');
   if (!apiKey) return json(500, { error: 'missing_api_key' });
   const text = typeof body.text === 'string' ? body.text.trim() : '';
@@ -644,7 +717,7 @@ async function chat(body: Body, deps: Deps): Promise<Response> {
         },
       ],
     });
-    logUsage('luna', message);
+    await meter(logUsage('luna', message));
 
     if (message.stop_reason === 'refusal') return json(422, { error: 'refused' });
     if (message.stop_reason === 'max_tokens' || !message.parsed_output) return json(502, { error: 'no_result' });
@@ -661,6 +734,9 @@ async function chat(body: Body, deps: Deps): Promise<Response> {
     return json(500, { error: 'unexpected' });
   }
 }
+
+// Supabase-Edge-Runtime: Arbeit nach der Antwort weiterlaufen lassen (fehlt außerhalb von Supabase)
+declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
 // Im Supabase-Edge-Runtime (Deno) starten; in Tests wird nur handleRequest benutzt.
 declare const Deno:

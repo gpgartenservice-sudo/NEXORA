@@ -175,7 +175,7 @@ function AppointmentEditor({ appointment, datum }: { appointment?: Appointment; 
             <ToggleRow label="Ganztägig" value={allDay} onChange={setAllDay} />
             <ToggleRow
               label="Draußen"
-              hint="Zeigt dir das Wetter für den Tag und warnt bei Regen, Sturm oder Hitze."
+              hint="Wetter für den Tag – warnt bei Regen, Sturm oder Hitze."
               value={outdoor}
               onChange={setOutdoor}
             />

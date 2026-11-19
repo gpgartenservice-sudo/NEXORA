@@ -45,5 +45,15 @@ module.exports = {
   dmg: {
     title: 'Lunaxora',
     artifactName: 'Lunaxora-${version}-${arch}.dmg',
+    // Fenster im Lunaxora-Look: Hintergrund aus scripts/dmg-background (npx electron scripts/dmg-background/render.cjs),
+    // background@2x.png daneben wird automatisch für Retina genutzt.
+    // Die Fenstergröße kommt aus dem Bild (660 × 400) – `window` würde electron-builder hier ignorieren.
+    background: 'assets/dmg/background.png',
+    iconSize: 108,
+    iconTextSize: 13,
+    contents: [
+      { x: 170, y: 205, type: 'file' },
+      { x: 490, y: 205, type: 'link', path: '/Applications', name: 'Programme' },
+    ],
   },
 };

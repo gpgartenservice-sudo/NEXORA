@@ -66,7 +66,7 @@ export function OrdersScreen() {
               </View>
               <Text style={styles.emptyTitle}>Noch keine Aufträge</Text>
               <Text style={styles.emptyText}>
-                Vom ersten Kontakt bis zum Abschluss: Trag ein, was passiert – der Status aktualisiert sich von selbst.
+                Vom ersten Kontakt bis zum Abschluss – der Status läuft von selbst mit.
               </Text>
               <Button label={customers.length ? '+ Ersten Auftrag anlegen' : '+ Erst einen Kunden anlegen'} onPress={newOrder} />
             </Card>

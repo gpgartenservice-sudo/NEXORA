@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
 type Props = {
   checked: boolean;
@@ -54,7 +55,10 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
 
   return (
     <Pressable
-      onPress={onToggle}
+      onPress={() => {
+        playSound(checked ? 'tick' : 'check');
+        onToggle();
+      }}
       hitSlop={8}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}

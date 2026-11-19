@@ -100,7 +100,7 @@ export function PlanScreen() {
     <Screen maxWidth={760}>
       <PageHeader
         title="Dein Abo"
-        subtitle="Lunaxora Gratis, Pro oder Business – was drin ist."
+        subtitle="Gratis, Pro und Business im Vergleich."
         back={{ label: 'Profil', onPress: back }}
       />
       {feature && (
@@ -110,8 +110,7 @@ export function PlanScreen() {
       )}
       {missing && (
         <Notice>
-          Das Abo ist in der Datenbank noch nicht eingerichtet (Skript 20261116090000_plans.sql) – bis dahin ist alles
-          freigeschaltet.
+          Abo-Skript fehlt noch (20261116090000_plans.sql) – bis dahin ist alles frei.
         </Notice>
       )}
 
@@ -124,14 +123,14 @@ export function PlanScreen() {
             </Text>
             <Text style={styles.body}>
               {info.plan === 'trial' && info.trial_ends_at
-                ? `Du testest alle Pro-Funktionen bis zum ${formatDay(info.trial_ends_at.slice(0, 10))}. Danach geht es mit Gratis weiter – deine Daten bleiben.`
+                ? `Alle Pro-Funktionen bis zum ${formatDay(info.trial_ends_at.slice(0, 10))}. Danach Gratis – deine Daten bleiben.`
                 : paid
                   ? info.current_period_end
                     ? info.status === 'canceled'
-                      ? `Gekündigt – läuft noch bis zum ${formatDay(info.current_period_end.slice(0, 10))}. Danach geht es mit Gratis weiter, deine Daten bleiben.`
-                      : `Läuft bis zum ${formatDay(info.current_period_end.slice(0, 10))} und verlängert sich automatisch.`
-                    : 'Alle Funktionen freigeschaltet. Danke für deine Unterstützung!'
-                  : 'Die wichtigsten Funktionen bleiben kostenlos. Mit Pro sparst du dir Arbeit.'}
+                      ? `Gekündigt – läuft bis zum ${formatDay(info.current_period_end.slice(0, 10))}. Danach Gratis, deine Daten bleiben.`
+                      : `Verlängert sich am ${formatDay(info.current_period_end.slice(0, 10))} automatisch.`
+                    : 'Alles freigeschaltet – danke! 💚'
+                  : 'Das Wichtigste bleibt kostenlos. Pro spart dir Arbeit.'}
             </Text>
             <UsageRow
               kind="nexy"
@@ -183,10 +182,7 @@ export function PlanScreen() {
             </View>
           ))}
           <Text style={styles.hint}>
-            Die Zahlen gelten je Kalendermonat. Einmal Vorlesen ist ein Abschnitt bis 400 Zeichen – etwa eine kurze
-            Antwort von Luna. In der {TRIAL_DAYS}-tägigen Testphase hast du alle Pro-Funktionen
-            mit {LIMITS.trial.nexy} Luna-Nachrichten, {LIMITS.trial.receipt} Belegen und {LIMITS.trial.voice}-mal
-            Vorlesen.
+            Pro Kalendermonat · 1× Vorlesen = bis 400 Zeichen. Testphase ({TRIAL_DAYS} Tage): alles aus Pro mit {LIMITS.trial.nexy} Nachrichten, {LIMITS.trial.receipt} Belegen, {LIMITS.trial.voice}× Vorlesen.
           </Text>
         </Card>
       </Reveal>
@@ -201,7 +197,7 @@ export function PlanScreen() {
               { value: 'year', label: 'Jährlich · −17 %' },
             ]}
           />
-          <Text style={styles.hint}>Endpreise. Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</Text>
+          <Text style={styles.hint}>Endpreise · keine Umsatzsteuer (§ 19 UStG)</Text>
         </View>
       </Reveal>
 
@@ -216,8 +212,7 @@ export function PlanScreen() {
             0 € <Text style={styles.per}>für immer</Text>
           </Text>
           <Text style={styles.body}>
-            Kunden, Aufträge, Termine, Finanzen, Angebote und Rechnungen als PDF – mit {LIMITS.free.nexy} Luna-Nachrichten im
-            Monat. Ohne Abo, ohne Kündigung.
+            Alles Wichtige plus {LIMITS.free.nexy} Luna-Nachrichten im Monat. Ohne Kündigung.
           </Text>
         </Card>
       </Reveal>
@@ -245,10 +240,9 @@ export function PlanScreen() {
               </Text>
               <Text style={styles.body}>
                 {interval === 'year'
-                  ? `Entspricht ${formatPrice(price.year / 12)} im Monat – zwei Monate geschenkt.`
-                  : `Oder ${formatPrice(price.year)} im Jahr – zwei Monate geschenkt.`}{' '}
-                {tier.text} {interval === 'year' ? 'Zum Ende des Jahres kündbar' : 'Monatlich kündbar'}, deine Daten
-                bleiben immer deine.
+                  ? `= ${formatPrice(price.year / 12)} im Monat, 2 Monate geschenkt.`
+                  : `Jährlich ${formatPrice(price.year)} – 2 Monate geschenkt.`}{' '}
+                {tier.text} {interval === 'year' ? 'Zum Jahresende kündbar.' : 'Monatlich kündbar.'}
               </Text>
               {!current && CAN_PAY && (
                 <Button
@@ -270,7 +264,7 @@ export function PlanScreen() {
       {!CAN_PAY && !paid && (
         <View testID="plan-soon">
           <Notice>
-            Bezahlen in der App kommt bald. Bis dahin kannst du alles in der Testphase und mit Gratis nutzen.
+            Bezahlen in der App kommt bald – bis dahin Testphase und Gratis.
           </Notice>
         </View>
       )}
@@ -282,12 +276,12 @@ const TIERS: { key: PaidTier; name: string; text: string }[] = [
   {
     key: 'pro',
     name: 'Pro',
-    text: `Alle Funktionen inklusive Design-Einstellungen, ${LIMITS.pro.nexy} Luna-Nachrichten und ${LIMITS.pro.receipt} Belege im Monat – auf einem Gerät gleichzeitig.`,
+    text: `Alles inklusive Design, ${LIMITS.pro.nexy} Luna-Nachrichten und ${LIMITS.pro.receipt} Belege im Monat.`,
   },
   {
     key: 'business',
     name: 'Business',
-    text: `Alles aus Pro für bis zu ${BUSINESS_SEATS} Personen in einem Business – ideal für eine GbR. Fürs ganze Team: ${LIMITS.business.nexy} Luna-Nachrichten und ${LIMITS.business.receipt} Belege im Monat.`,
+    text: `Alles aus Pro für bis zu ${BUSINESS_SEATS} Personen – ideal für eine GbR. ${LIMITS.business.nexy} Nachrichten und ${LIMITS.business.receipt} Belege fürs Team.`,
   },
 ];
 

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Colors, Spacing } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
 type Props = {
   label: string;
@@ -28,7 +29,10 @@ export function ToggleRow({ label, hint, value, onChange, danger }: Props) {
 
   return (
     <Pressable
-      onPress={() => onChange(!value)}
+      onPress={() => {
+        playSound('tick');
+        onChange(!value);
+      }}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
       aria-checked={value}

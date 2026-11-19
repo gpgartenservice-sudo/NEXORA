@@ -150,7 +150,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
 
       {dirty ? (
         <Text style={styles.hint}>
-          Speichere zuerst deine Änderungen am Auftrag – dann kannst du ein Angebot oder eine Rechnung erstellen.
+          Speichere zuerst den Auftrag – dann geht Angebot oder Rechnung.
         </Text>
       ) : composing ? (
         <View style={styles.compose}>
@@ -174,7 +174,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
                 label="Leistungsdatum"
                 value={serviceDate}
                 onChange={setServiceDate}
-                hint="Wann die Leistung erbracht wurde – Pflichtangabe auf Rechnungen."
+                hint="Pflichtangabe auf Rechnungen."
               />
             ))}
           <Text style={styles.summary}>
@@ -188,7 +188,7 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
           ) : (
             composing === 'invoice' && (
               <Text style={styles.hint}>
-                Rechnungen bekommen eine feste Nummer und lassen sich danach nicht mehr ändern.
+                Rechnungen bekommen eine feste Nummer und sind dann fix.
               </Text>
             )
           )}

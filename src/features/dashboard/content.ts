@@ -5,25 +5,25 @@ export const FOCUS: Record<Stage, { emoji: string; title: string; text: string; 
   idea: {
     emoji: '💡',
     title: 'Von der Idee zum ersten Kunden',
-    text: 'Wir begleiten dich Schritt für Schritt – von der ersten Skizze bis zum ersten bezahlten Auftrag.',
+    text: 'Schritt für Schritt zum ersten bezahlten Auftrag.',
     steps: ['Beschreibe deine Idee in einem Satz', 'Finde heraus, wer deine Kunden sind', 'Gewerbe anmelden – so geht’s'],
   },
   started: {
     emoji: '🚀',
     title: 'Jetzt richtig durchstarten',
-    text: 'Die Basis steht. Jetzt geht es um Kunden, Struktur und Routinen, die dich jeden Tag weiterbringen.',
+    text: 'Die Basis steht. Jetzt: Kunden, Struktur, Routinen.',
     steps: ['Lege deine ersten Kunden an', 'Schreib dein erstes Angebot', 'Plane deine Woche'],
   },
   stuck: {
     emoji: '🧗',
     title: 'Wir finden raus, wo es hakt',
-    text: 'Feststecken gehört dazu. Gemeinsam finden wir den nächsten Schritt, der dich wirklich weiterbringt.',
+    text: 'Feststecken gehört dazu. Wir finden den nächsten Schritt.',
     steps: ['Schreib auf, was dich gerade aufhält', 'Wähle eine Sache, die du diese Woche änderst', 'Hol dir Feedback von einem Kunden'],
   },
   growing: {
     emoji: '📈',
     title: 'Bereit für das nächste Level',
-    text: 'Mehr Überblick, bessere Abläufe, mehr Umsatz – lass uns dein Business wachsen lassen.',
+    text: 'Mehr Überblick, bessere Abläufe, mehr Umsatz.',
     steps: ['Behalte Umsatz und Ausgaben im Blick', 'Automatisiere Angebote und Rechnungen', 'Plane deine Inhalte für Social Media'],
   },
 };
@@ -45,8 +45,8 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '🤝',
     title: 'Deine ersten Kunden',
     text: {
-      idea: 'Erzähl in deinem Umfeld, was du vorhast – die ersten Kunden kommen fast immer über Empfehlungen.',
-      default: 'Jeder Kunde zählt. Lade Interessenten ein, schreib Angebote und bleib dran, bis der erste Auftrag steht.',
+      idea: 'Erzähl allen, was du vorhast – erste Kunden kommen über Empfehlungen.',
+      default: 'Lade Interessenten ein und schreib Angebote, bis der erste Auftrag steht.',
     },
     action: { label: 'Zu den Kunden', href: '/kunden' },
   },
@@ -54,8 +54,8 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '💶',
     title: 'Mehr Umsatz',
     text: {
-      growing: 'Prüf deine Preise und frag zufriedene Kunden nach Folgeaufträgen – das bringt am schnellsten mehr Umsatz.',
-      default: 'Setz dir ein Umsatzziel für diesen Monat – Lunaxora zählt automatisch mit, wie nah du dran bist.',
+      growing: 'Prüf deine Preise und frag zufriedene Kunden nach Folgeaufträgen.',
+      default: 'Setz dir ein Umsatzziel – Lunaxora zählt mit.',
     },
     action: { label: 'Zu den Finanzen', href: '/finanzen' },
   },
@@ -63,7 +63,7 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '🗂️',
     title: 'Überblick & Organisation',
     text: {
-      default: 'Alles, was im Kopf rumschwirrt, gehört in deine To-dos. Plan die Woche und hak ab, was erledigt ist.',
+      default: 'Alles aus dem Kopf in die To-dos – und abhaken.',
     },
     action: { label: 'Zu den To-dos', href: '/aufgaben' },
   },
@@ -71,7 +71,7 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '📱',
     title: 'Social Media wachsen',
     text: {
-      default: 'Regelmäßig schlägt perfekt: Sammle Ideen und plane feste Tage, an denen du postest.',
+      default: 'Regelmäßig schlägt perfekt: Plane feste Posting-Tage.',
     },
     action: { label: 'Zu Social Media', href: '/social' },
   },
@@ -79,8 +79,8 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '🧾',
     title: 'Finanzen & Steuern im Griff',
     text: {
-      idea: 'Trenn von Anfang an privat und geschäftlich – und leg für die Steuer einen festen Anteil zur Seite.',
-      default: 'Trag Ausgaben direkt ein und fotografiere Belege – dann ist die Steuer am Jahresende kein Stress.',
+      idea: 'Privat und geschäftlich trennen – und einen Teil für die Steuer zurücklegen.',
+      default: 'Ausgaben gleich eintragen, Belege fotografieren – kein Steuer-Stress.',
     },
     action: { label: 'Zu den Finanzen', href: '/finanzen' },
   },
@@ -88,8 +88,8 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '🔥',
     title: 'Motivation & dranbleiben',
     text: {
-      stuck: 'Kleine Siege zählen: Nimm dir heute eine Sache vor, die du sicher schaffst – und hak sie ab.',
-      default: 'Jeden Tag ein kleiner Schritt. Hak deine To-dos ab und schau, wie weit du schon gekommen bist.',
+      stuck: 'Nimm dir heute eine Sache vor, die du sicher schaffst.',
+      default: 'Jeden Tag ein kleiner Schritt – hak ab, was erledigt ist.',
     },
     action: { label: 'Zum Fahrplan', href: '/fahrplan' },
   },
@@ -97,7 +97,7 @@ export const GOAL_FOCUS: Record<Goal, GoalFocus> = {
     emoji: '👥',
     title: 'Team aufbauen',
     text: {
-      default: 'Mit Lunaxora Business arbeitet ihr mit bis zu 5 Personen im selben Business – gleiche Kunden, gleiche Termine.',
+      default: 'Mit Business arbeitet ihr zu fünft mit denselben Kunden und Terminen.',
     },
     action: { label: 'Team einladen', href: '/profil/team' },
   },

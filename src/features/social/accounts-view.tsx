@@ -72,9 +72,7 @@ export function AccountsView() {
   return (
     <View style={styles.wrap}>
       <Text style={styles.intro}>
-        Verbinde dein TikTok-Konto – dann kommen Follower, Aufrufe und Likes automatisch, und neue Videos landen bei der
-        passenden Idee. Du meldest dich direkt bei TikTok an; Lunaxora liest nur deine Zahlen und postet nichts.
-        Instagram kommt mit dem nächsten Update.
+        Verbinde TikTok – Follower, Aufrufe und Likes kommen dann automatisch. Lunaxora liest nur und postet nichts. Instagram folgt.
       </Text>
 
       {c.message && (
@@ -383,7 +381,7 @@ function VideoList() {
         <View style={styles.flex}>
           <Text style={styles.sectionTitle}>Videos & Beiträge</Text>
           <Text style={styles.sectionSub}>
-            Zugeordnete Videos geben ihre Zahlen automatisch an die Idee im Content-Board weiter.
+            Zugeordnete Videos geben ihre Zahlen an die Idee weiter.
           </Text>
         </View>
         <Pressable

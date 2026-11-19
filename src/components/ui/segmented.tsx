@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
 import { GlassBackdrop, NATIVE_GLASS, glassSurface } from './glass';
 
@@ -23,7 +24,10 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
           return (
             <Pressable
               key={o.value}
-              onPress={() => onChange(o.value)}
+              onPress={() => {
+                if (!active) playSound('tick');
+                onChange(o.value);
+              }}
               accessibilityRole="radio"
               accessibilityLabel={o.label}
               accessibilityState={{ checked: active }}

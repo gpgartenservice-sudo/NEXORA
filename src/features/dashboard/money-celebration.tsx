@@ -20,6 +20,7 @@ import { NexyAvatar, type NexyMood } from '@/features/assistant/nexy-avatar';
 import { autoplayAllowed, speak, speechSupported, type Speech } from '@/features/assistant/voice';
 import { formatEuro } from '@/features/crm/order-logic';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
+import { playSound } from '@/features/sound/ui-sound';
 
 import { setMoneyShowRunning } from './money';
 
@@ -132,6 +133,7 @@ function IncomeShow({ amount, onDone }: { amount: number; onDone: () => void }) 
 
     // 1. Aufleuchten + Vibration + erste Welle
     haptic('success');
+    playSound('money');
     flash.set(withSequence(withTiming(1, { duration: 160 }), withTiming(0, { duration: 900, easing: Easing.out(Easing.quad) })));
     burstMoney(36, 'bottom');
     // 2. Betrag knallt rein

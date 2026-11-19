@@ -7,6 +7,7 @@ import { useCrm } from '@/features/crm/crm-provider';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { useFinance } from '@/features/finance/finance-provider';
 import { NotificationScheduler } from '@/features/notifications/notification-scheduler';
+import { preloadSounds } from '@/features/sound/ui-sound';
 
 import { LunaGreeting } from './luna-greeting';
 import { allTimeIncome, monthNumbers, queueCelebration, takeStartCelebration } from './money';
@@ -17,6 +18,7 @@ import { MoneyCelebrationHost } from './money-celebration';
  * und das Planen der Benachrichtigungen.
  */
 export function AppExtras() {
+  useEffect(() => preloadSounds(), []);
   return (
     <>
       <IncomeWatcher />

@@ -103,7 +103,7 @@ export function FinanceScreen() {
     <Screen maxWidth={1000}>
       <PageHeader
         title="Finanzen"
-        subtitle="Einnahmen aus deinen Aufträgen, deine Ausgaben – und was übrig bleibt."
+        subtitle="Einnahmen, Ausgaben – und was übrig bleibt."
         help={<TutorialButton id="finanzen" />}
         action={
           <TourTarget id="finanzen.ausgaben" style={styles.actions}>
@@ -130,7 +130,7 @@ export function FinanceScreen() {
           Ausgaben können noch nicht gespeichert werden: Das Datenbank-Skript für Finanzen fehlt (siehe supabase/README.md).
         </Notice>
       )}
-      {crmError && <Notice tone="error">Aufträge konnten nicht geladen werden – die Einnahmen sind deshalb unvollständig.</Notice>}
+      {crmError && <Notice tone="error">Aufträge nicht geladen – Einnahmen unvollständig.</Notice>}
 
       {/* Zeitraum: gilt für alles darunter */}
       <TourTarget id="finanzen.zeitraum">
@@ -320,8 +320,7 @@ export function FinanceScreen() {
           <Text style={styles.cardTitle}>Einnahmen · {periodLabel}</Text>
           {incomeRows.length === 0 ? (
             <Text style={styles.empty}>
-              Noch keine Einnahmen in diesem Zeitraum. Einnahmen zählen, sobald ein Auftrag abgeschlossen ist (monatliche
-              Aufträge Monat für Monat).
+              Noch keine Einnahmen. Sie zählen, sobald ein Auftrag abgeschlossen ist.
             </Text>
           ) : (
             incomeRows.map(({ order, amount }) => (
@@ -345,7 +344,7 @@ export function FinanceScreen() {
       </Reveal>
 
       <Text style={styles.disclaimer}>
-        Vereinfachte Übersicht aus deinen Aufträgen und Ausgaben – ersetzt keine Buchhaltung und keine Steuerberatung.
+        Vereinfachte Übersicht – ersetzt keine Buchhaltung oder Steuerberatung.
       </Text>
     </Screen>
   );

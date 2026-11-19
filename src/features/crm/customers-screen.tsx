@@ -89,8 +89,7 @@ export function CustomersScreen() {
               </View>
               <Text style={styles.emptyTitle}>Lege deinen ersten Kunden an</Text>
               <Text style={styles.emptyText}>
-                Du brauchst nur seine E-Mail-Adresse: Er bekommt den Link zu deiner Datenschutzerklärung und trägt seine
-                Daten selbst ein. Danach siehst du alle Aufträge an einem Ort – und wie viel Umsatz jeder Kunde bringt.
+                Du brauchst nur seine E-Mail – er trägt seine Daten selbst ein. Danach siehst du alle Aufträge und seinen Umsatz an einem Ort.
               </Text>
               <Button label="+ Ersten Kunden anlegen" onPress={() => router.push('/kunden/neu')} />
             </Card>
@@ -190,8 +189,7 @@ function OpenInvites() {
       <Card>
         <Text style={styles.inviteTitle}>Wartet auf Daten ({invites.length})</Text>
         <Text style={styles.sub}>
-          Diese Kunden haben den Link zu deiner Datenschutzerklärung bekommen. Sobald sie ihre Daten eintragen, erscheinen
-          sie in deiner Kundenliste.
+          Sie erscheinen in deiner Liste, sobald sie ihre Daten eintragen.
         </Text>
         <View style={styles.inviteList}>
           {invites.map((inv) => {

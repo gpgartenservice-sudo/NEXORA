@@ -115,7 +115,7 @@ export function CompanyScreen() {
     <Screen maxWidth={760}>
       <PageHeader
         title="Firma"
-        subtitle="Dein Logo und deine Firmendaten – so stehen sie auf deinen Angeboten und Rechnungen."
+        subtitle="Logo und Firmendaten für Angebote und Rechnungen."
         help={<TutorialButton id="firma" />}
       />
       {/* Formular erst zeigen, wenn die gespeicherten Daten da sind */}
@@ -262,8 +262,7 @@ function CompanyForm() {
             <>
               {field('partners', 'Gesellschafter/innen', { placeholder: 'z. B. Lena Schmidt, Tom Becker', autoCapitalize: 'words' })}
               <Text style={styles.hint}>
-                Alle Namen, kommagetrennt – sie stehen unten auf Angeboten und Rechnungen. Arbeitet ihr zu mehreren in
-                Lunaxora? Mit Business teilt ihr euch ein Konto mit bis zu 5 Personen (Profil → Team).
+                Alle Namen, kommagetrennt – stehen unten auf Angeboten und Rechnungen. Zu mehreren? Mit Business teilt ihr ein Konto (Profil → Team).
               </Text>
             </>
           )}
@@ -281,7 +280,7 @@ function CompanyForm() {
             </>
           )}
           {(draft.legal_form === 'none' || !draft.legal_form) && (
-            <Text style={styles.hint}>Noch nicht angemeldet? Der Fahrplan zeigt dir Schritt für Schritt, wie du dein Gewerbe anmeldest.</Text>
+            <Text style={styles.hint}>Noch nicht angemeldet? Der Fahrplan zeigt dir, wie es geht.</Text>
           )}
           {footer.length > 0 && (
             <Text style={styles.hint}>
@@ -297,7 +296,7 @@ function CompanyForm() {
             <Text style={styles.cardTitle}>Steuern</Text>
             <ToggleRow
               label="Kleinunternehmerregelung (§ 19 UStG)"
-              hint="Keine Umsatzsteuer auf Rechnungen – der Preis ist der Endbetrag."
+              hint="Keine Umsatzsteuer – der Preis ist der Endbetrag."
               value={draft.small_business}
               onChange={(v) => set('small_business', v)}
             />
@@ -347,8 +346,7 @@ function CompanyForm() {
             placeholder: 'https://g.page/r/…/review',
           })}
           <Text style={styles.hint}>
-            Nach der Zahlung kannst du deine Kunden mit einem Klick um eine Bewertung bitten. Google: Unternehmensprofil
-            öffnen → „Nach Rezensionen fragen“ → Link kopieren.
+            Nach der Zahlung bittest du Kunden mit einem Klick um eine Bewertung. Google: Unternehmensprofil → „Nach Rezensionen fragen“ → Link kopieren.
           </Text>
         </Card>
       </Reveal>
@@ -362,9 +360,7 @@ function CompanyForm() {
             placeholder: 'https://deine-website.de/datenschutz (optional)',
           })}
           <Text style={styles.hint}>
-            Neue Kunden bekommen per E-Mail einen Link, tragen ihre Daten selbst ein und bestätigen deine
-            Datenschutzerklärung. Hast du keine eigene, bekommen sie die Standard-Datenschutzerklärung von Lunaxora mit
-            deinem Namen, deiner Anschrift und E-Mail von oben als Verantwortlichem (Muster, keine Rechtsberatung).
+            Neue Kunden bestätigen deine Datenschutzerklärung, bevor sie ihre Daten eintragen. Ohne eigene nutzen wir die Lunaxora-Vorlage mit deinen Daten von oben (Muster, keine Rechtsberatung).
           </Text>
         </Card>
       </Reveal>
@@ -372,7 +368,7 @@ function CompanyForm() {
       {failure && <Notice tone="error">{failure}</Notice>}
       {saved && <Notice tone="success">Firmendaten gespeichert.</Notice>}
       <Button label="Firmendaten speichern" onPress={save} loading={saving} />
-      <Text style={styles.disclaimer}>Hinweise nach bestem Wissen (Stand 2026) – im Zweifel mit einer Steuerberatung abstimmen.</Text>
+      <Text style={styles.disclaimer}>Nach bestem Wissen (Stand 2026) – im Zweifel Steuerberatung fragen.</Text>
     </>
   );
 }

@@ -20,8 +20,7 @@ export function AppError({ error, retry }: ErrorBoundaryProps) {
         Da ist etwas schiefgelaufen
       </Text>
       <Text style={styles.body}>
-        Deine Daten sind sicher. Versuch es noch einmal – und wenn es wieder passiert, kopier den Fehlertext und schick
-        ihn an den Support.
+        Deine Daten sind sicher. Versuch es noch einmal – sonst Fehlertext kopieren und an den Support schicken.
       </Text>
       <View style={styles.box} testID="app-error">
         <Text style={styles.code} selectable>

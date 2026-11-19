@@ -80,7 +80,7 @@ export default function VerifyScreen() {
         {failure && <Notice tone="error">{failure}</Notice>}
         {info && !failure && <Notice tone="success">{info}</Notice>}
 
-        <Text style={styles.spam}>📬 Keine E-Mail da? Schau auch im Spam- oder Werbung-Ordner nach – manchmal landet sie dort.</Text>
+        <Text style={styles.spam}>📬 Keine E-Mail da? Schau im Spam-Ordner nach.</Text>
 
         <Button label="Bestätigen" onPress={submit} loading={loading} style={styles.submit} />
 

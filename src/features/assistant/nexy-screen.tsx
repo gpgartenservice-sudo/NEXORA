@@ -227,9 +227,7 @@ export function NexyScreen() {
               </Reveal>
               <Reveal delay={350}>
                 <Text style={styles.heroText}>
-                  Erzähl mir, was ansteht – schreibend oder per Sprache. Ich lege Kunden, Aufträge und Ausgaben an,
-                  ändere oder lösche sie, schreibe Angebote und Rechnungen als PDF, öffne jede Seite und beantworte
-                  deine Fragen. Was ich mache, erledige ich direkt – du siehst mir dabei zu.
+                  Schreib oder sprich mit mir: Ich lege Kunden, Aufträge und Ausgaben an, schreibe Angebote und Rechnungen und beantworte deine Fragen.
                 </Text>
               </Reveal>
               <TourTarget id="nexy.ideen">

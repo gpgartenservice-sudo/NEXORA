@@ -19,7 +19,7 @@ export function FollowerSparkline({ points }: { points: { day: string; followers
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
   if (points.length < 2) {
-    return <Text style={styles.empty}>Den Verlauf siehst du hier, sobald die Zahlen von mehreren Tagen da sind.</Text>;
+    return <Text style={styles.empty}>Der Verlauf erscheint nach ein paar Tagen.</Text>;
   }
   const values = points.map((p) => p.followers);
   const min = Math.min(...values);

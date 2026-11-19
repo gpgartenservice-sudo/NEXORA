@@ -67,7 +67,7 @@ export function InventoryScreen() {
     <Screen maxWidth={1040}>
       <PageHeader
         title="Inventar"
-        subtitle="Alles, was dein Business besitzt – mit Wert, Zustand und wo es gerade ist."
+        subtitle="Was dein Business besitzt – mit Wert, Zustand und Ort."
         action={items.length ? newButton : undefined}
       />
       {error && (
@@ -86,8 +86,7 @@ export function InventoryScreen() {
             </View>
             <Text style={styles.emptyTitle}>Was gehört alles zu deinem Business?</Text>
             <Text style={styles.emptyText}>
-              Trag Geräte, Werkzeug, Laptop oder Material ein. So weißt du immer, was du besitzt, was es wert ist, wo es
-              liegt und was gerade in Reparatur ist – praktisch für die Versicherung und die Steuer.
+              Trag Geräte, Werkzeug und Material ein – praktisch für Versicherung und Steuer.
             </Text>
             <Button label="+ Erstes Teil eintragen" onPress={() => router.push('/inventar/neu')} />
           </Card>

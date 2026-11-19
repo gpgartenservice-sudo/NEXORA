@@ -28,7 +28,7 @@ export function HashtagSetsView() {
   return (
     <View style={styles.wrap}>
       <Text style={styles.intro}>
-        Leg dir Gruppen von Hashtags an, die du oft brauchst – im Post fügst du sie mit einem Klick ein.
+        Hashtag-Gruppen anlegen – im Post mit einem Klick einfügen.
       </Text>
       {sets.map((s) =>
         editing === s.id ? (

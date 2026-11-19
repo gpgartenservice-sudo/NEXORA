@@ -168,7 +168,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
       <Screen maxWidth={760}>
         <PageHeader
           title="Design"
-          subtitle="Gib Lunaxora deinen Look: eine Hintergrundfarbe oder ein eigener Farbverlauf – und dazu Symbole wie 💵 oder Blitze. Alles wirkt sofort."
+          subtitle="Farbe oder Farbverlauf, dazu Symbole wie 💵 oder Blitze – wirkt sofort."
           back={{ label: 'Profil', onPress: back }}
           meta={<ProBadge />}
         />
@@ -263,7 +263,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
                     />
                     <ToggleRow
                       label="Bewegter Verlauf"
-                      hint="Die Farben wandern langsam als weiche Lichter über den Bildschirm."
+                      hint="Farben wandern als weiche Lichter über den Bildschirm."
                       value={draft.moving}
                       onChange={(moving) => update({ moving })}
                     />
@@ -310,7 +310,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
                   : 'Änderungen speichern sich von selbst.'}
           </Text>
           <Text style={styles.hint}>
-            Tipp: Bei „Bewegung reduzieren“ in den Bedienungshilfen deines Geräts bleiben Hintergrund und Symbole ruhig.
+            Mit „Bewegung reduzieren“ auf deinem Gerät bleibt alles ruhig.
           </Text>
           {designActive(draft) && (
             <TextLink

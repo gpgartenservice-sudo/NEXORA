@@ -50,7 +50,7 @@ export function NotificationSettings() {
     <Screen maxWidth={640}>
       <PageHeader
         title="Benachrichtigungen"
-        subtitle="Lunaxora erinnert dich an Termine, fällige Rechnungen, To-dos und deine Ziele – und motiviert dich zwischendurch."
+        subtitle="Erinnerungen an Termine, Rechnungen, To-dos und Ziele."
         back={{ label: 'Profil', onPress: back }}
       />
       {info && <Notice tone={info.tone}>{info.text}</Notice>}

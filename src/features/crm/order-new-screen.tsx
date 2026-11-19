@@ -68,7 +68,7 @@ export function OrderNewScreen() {
     <Screen maxWidth={720}>
       <PageHeader
         title="Neuer Auftrag"
-        subtitle="Den Rest – Termin, Angebot, Ausführung – trägst du danach im Auftrag ein."
+        subtitle="Termin, Angebot und Ausführung kommen danach im Auftrag."
         back={{ label: 'Aufträge', onPress: () => router.navigate('/auftraege') }}
       />
       <CrmSetupNotice error={error} />

@@ -195,9 +195,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
             <Text style={styles.stageTitle}>Alle Mahnstufen sind durch</Text>
           </View>
           <Text style={styles.text}>
-            Ist auch nach der letzten Mahnung nichts gekommen, bleibt das gerichtliche Mahnverfahren: Den Antrag stellst
-            du online beim Mahngericht – ohne Anwalt. Die Kosten muss am Ende in der Regel der säumige Kunde tragen.
-            Alternativ kann ein Inkasso-Büro übernehmen.
+            Kam auch nach der letzten Mahnung nichts? Dann bleibt das gerichtliche Mahnverfahren – online beim Mahngericht, ohne Anwalt. Die Kosten trägt meist der Kunde. Alternativ: Inkasso.
           </Text>
           <View style={styles.actions}>
             <ActionChip
@@ -215,7 +213,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
           <Text style={styles.text}>{ABOUT[nextStage.kind]}</Text>
           {!pro && nextStage.kind !== 'reminder' && !recorded && (
             <Text style={styles.hint} testID="dunning-pro">
-              Mahnungen gibt es mit Lunaxora Pro – die Zahlungserinnerung bleibt kostenlos.
+              Mahnungen gibt es mit Pro – die Zahlungserinnerung ist gratis.
             </Text>
           )}
           {!recorded && (
@@ -239,7 +237,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
           )}
           {nextStage.kind !== 'reminder' && !recorded && (
             <Text style={styles.hint}>
-              Mahngebühren dürfen nur echte Kosten decken (z. B. Porto, meist 1–3 €). Viele verzichten darauf.
+              Mahngebühren nur für echte Kosten (meist 1–3 €). Viele verzichten darauf.
             </Text>
           )}
           {text && (
@@ -375,7 +373,7 @@ export function ReviewPanel({ doc, customer }: { doc: StoredDocument; customer: 
         />
         <ActionChip icon={Star} label="Link testen" onPress={() => void Linking.openURL(url!)} />
       </View>
-      <Text style={styles.hint}>Der Text ist fertig und enthält deinen Bewertungs-Link – du schickst selbst ab.</Text>
+      <Text style={styles.hint}>Text mit Bewertungs-Link ist fertig – du schickst selbst ab.</Text>
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
     </View>
   );

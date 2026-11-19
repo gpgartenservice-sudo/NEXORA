@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarSync, ChevronLeft, ChevronRight, Navigation, Plus } from 'lucide-react-native';
+import { CalendarSync, ChevronLeft, ChevronRight, CloudSun, Navigation, Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -24,6 +24,7 @@ import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useWeather } from '@/features/weather/use-weather';
 import { WeatherBadge } from '@/features/weather/weather-icon';
+import { WeatherPanel } from '@/features/weather/weather-panel';
 import { outdoorWarning, weatherPlace, type DayWeather } from '@/features/weather/weather-logic';
 import { useHover } from '@/hooks/use-hover';
 import { toDate } from '@/lib/dates';
@@ -68,6 +69,7 @@ export function TermineScreen() {
   const [view, setView] = useState<View_>('week');
   const [offset, setOffset] = useState(0);
   const [showAbo, setShowAbo] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
 
   const byDay = useMemo(() => eventsByDay(events), [events]);
   const overlaps = useMemo(() => overlapping(events), [events]);
@@ -92,7 +94,8 @@ export function TermineScreen() {
   }, [documents, followups, now]);
   const origin = sellerAddress(seller);
   const place = weatherPlace(seller);
-  const weather = useWeather(place).days;
+  const forecast = useWeather(place);
+  const weather = forecast.days;
   const thisMonday = startOfWeek(now);
   const monday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + offset * 7);
   const days = weekDays(monday);
@@ -104,10 +107,16 @@ export function TermineScreen() {
     <Screen maxWidth={1240}>
       <PageHeader
         title="Termine"
-        subtitle="Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Verbindung zu deinem Kalender."
+        subtitle="Erstgespräche, Ausführungen und eigene Termine."
         help={<TutorialButton id="termine" />}
         action={
           <TourTarget id="termine.aktionen" style={styles.headerActions}>
+            <ActionChip
+              icon={CloudSun}
+              label={forecast.status === 'ok' ? `Wetter · ${forecast.place}` : 'Wetter verbinden'}
+              active={showWeather}
+              onPress={() => setShowWeather((v) => !v)}
+            />
             <ActionChip
               icon={CalendarSync}
               label="Kalender verbinden"
@@ -118,6 +127,11 @@ export function TermineScreen() {
           </TourTarget>
         }
       />
+      {showWeather && (
+        <Reveal>
+          <WeatherPanel weather={forecast} now={now} />
+        </Reveal>
+      )}
       {showAbo && (
         <Reveal>
           <CalendarSubscription onClose={() => setShowAbo(false)} />
@@ -216,12 +230,6 @@ export function TermineScreen() {
           <ListView events={events} now={now} overlaps={overlaps} origin={origin} weather={weather} />
         )}
       </Reveal>
-      {!place && (
-        <Text style={styles.weatherHint}>
-          Tipp: Trag unter Firma deinen Ort ein – dann siehst du hier an jedem Tag das Wetter und bekommst bei Terminen
-          draußen eine Warnung vor Regen oder Sturm.
-        </Text>
-      )}
     </Screen>
   );
 }
@@ -302,7 +310,10 @@ function DayColumn({
         <Text style={[styles.columnDay, today && styles.columnDayToday]}>
           {WEEKDAY[(day.getDay() + 6) % 7]} {day.getDate()}.
         </Text>
-        <RouteLink events={events} origin={origin} />
+        <View style={styles.columnTools}>
+          <RouteLink events={events} origin={origin} />
+          <WeatherBadge weather={weather} />
+        </View>
       </View>
       {events.map((e) => (
         <EventChip key={e.key} event={e} overlap={overlaps.has(e.key)} />
@@ -312,7 +323,6 @@ function DayColumn({
         <View style={styles.footAdd}>
           <AddButton day={key} />
         </View>
-        <WeatherBadge weather={weather} compact />
       </View>
     </View>
   );
@@ -404,7 +414,7 @@ function ListView({
       <Card>
         <Text style={styles.emptyTitle}>Keine Termine in den nächsten {LIST_DAYS} Tagen.</Text>
         <Text style={styles.empty}>
-          Trag Erstgespräche und Ausführungen im Auftrag ein – oder lege einen eigenen Termin an.
+          Trag Termine im Auftrag ein – oder leg einen eigenen an.
         </Text>
         <View style={styles.emptyAction}>
           <Button label="+ Termin" onPress={() => router.push('/termine/neu')} />
@@ -574,7 +584,7 @@ const styles = StyleSheet.create({
   columnFoot: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 },
   footAdd: { flex: 1 },
   weatherWarn: { color: '#F5B94A', fontSize: 12, lineHeight: 16 },
-  weatherHint: { color: Colors.textFaint, fontSize: 13, lineHeight: 18 },
+  columnTools: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   route: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   routeText: { color: Colors.textMuted, fontSize: 12, fontWeight: '600', textDecorationLine: 'underline' },
   dayList: { gap: Spacing.lg },

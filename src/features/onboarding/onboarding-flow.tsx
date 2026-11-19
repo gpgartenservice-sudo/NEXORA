@@ -252,7 +252,7 @@ export function OnboardingFlow() {
               {step === 'business' && (
                 <StepLayout
                   title={stage === 'idea' ? 'Hat deine Idee schon einen Namen?' : 'Wie heißt dein Business?'}
-                  subtitle="Kein Problem, wenn es noch keinen Namen gibt – das kannst du jederzeit ergänzen.">
+                  subtitle="Noch kein Name? Kannst du jederzeit ergänzen.">
                   <Reveal delay={420}>
                     <TextField
                       label={stage === 'idea' ? 'Name deiner Idee' : 'Name deines Business'}
@@ -320,7 +320,7 @@ export function OnboardingFlow() {
               {step === 'legal' && (
                 <StepLayout
                   title="Welche Rechtsform hat dein Business?"
-                  subtitle="Davon hängen Steuern und Pflichtangaben auf deinen Rechnungen ab. Ändern kannst du das jederzeit unter Firma.">
+                  subtitle="Wichtig für Steuern und Rechnungen. Änderbar unter Firma.">
                   <View style={[styles.options, twoColumns && styles.grid]}>
                     {LEGAL_FORMS.map((f, i) => (
                       <Reveal key={f.key} delay={360 + i * 55} style={twoColumns ? styles.gridItem : undefined}>

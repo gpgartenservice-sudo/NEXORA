@@ -64,7 +64,7 @@ export function CustomerNewScreen() {
     <Screen maxWidth={720}>
       <PageHeader
         title="Neuer Kunde"
-        subtitle="Dein Kunde trägt seine Daten selbst ein – du brauchst nur seine E-Mail-Adresse."
+        subtitle="Du brauchst nur seine E-Mail – den Rest trägt er selbst ein."
         back={{ label: 'Kunden', onPress: () => router.navigate('/kunden') }}
       />
       <CrmSetupNotice error={error} />
@@ -122,13 +122,12 @@ export function CustomerNewScreen() {
       <Reveal delay={330}>
         <View style={styles.steps}>
           <Text style={styles.stepsTitle}>So läuft es</Text>
-          <Text style={styles.step}>1. Frag deinen Kunden in deiner Antwort nach seiner E-Mail-Adresse.</Text>
+          <Text style={styles.step}>1. Frag deinen Kunden nach seiner E-Mail-Adresse.</Text>
           <Text style={styles.step}>
-            2. Trag sie hier ein – Lunaxora schickt ihm den Link zu deiner Datenschutzerklärung.
+            2. Trag sie hier ein – er bekommt den Link zu deiner Datenschutzerklärung.
           </Text>
           <Text style={styles.step}>
-            3. Er trägt Name, Anschrift und Telefon selbst ein und bestätigt die Datenschutzerklärung. Erst dann wird er
-            hier gespeichert.
+            3. Er trägt seine Daten ein und bestätigt die Datenschutzerklärung – erst dann wird er gespeichert.
           </Text>
         </View>
       </Reveal>

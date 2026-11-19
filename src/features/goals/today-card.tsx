@@ -54,7 +54,7 @@ export function TodayCard() {
                 </View>
                 <View style={styles.flex}>
                   <Text style={styles.starterTitle}>Dein erstes To-do</Text>
-                  <Text style={styles.body}>Tipp auf einen Vorschlag – er landet direkt für heute auf deiner Liste.</Text>
+                  <Text style={styles.body}>Tipp einen Vorschlag an – fertig.</Text>
                 </View>
               </View>
               <View style={styles.chips}>
@@ -78,7 +78,7 @@ export function TodayCard() {
               </View>
             </View>
           ) : list.length === 0 ? (
-            <Text style={styles.body}>Für heute steht nichts an. 🎉 Genieß den Moment – oder plan schon mal morgen.</Text>
+            <Text style={styles.body}>Heute steht nichts an. 🎉</Text>
           ) : (
             list.map((t) => <TodoRow key={t.id} todo={t} today={today} onToggle={toggle} />)
           )}
@@ -87,7 +87,7 @@ export function TodayCard() {
         <View style={[styles.col, row && styles.colNarrow]} testID="today-goals">
           <Text style={styles.eyebrow}>DEINE ZIELE</Text>
           {progress.length === 0 ? (
-            <Text style={styles.body}>Noch keine Ziele – z. B. Umsatz pro Monat oder neue Kunden pro Woche.</Text>
+            <Text style={styles.body}>Noch keine Ziele – z. B. Umsatz pro Monat.</Text>
           ) : (
             progress.map(({ goal, progress: p }, i) => (
               <GoalCard key={goal.id} goal={goal} progress={p} compact delay={400 + i * 80} />

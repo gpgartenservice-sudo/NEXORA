@@ -58,7 +58,7 @@ export default function RegisterScreen() {
   return (
     <AuthShell
       title="Konto erstellen"
-      subtitle="In einer Minute startklar – danach richten wir Lunaxora gemeinsam auf dich ein."
+      subtitle="In einer Minute startklar."
       footer={
         <AuthFooter text="Schon ein Konto?">
           <TextLink label="Anmelden" emphasis onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />

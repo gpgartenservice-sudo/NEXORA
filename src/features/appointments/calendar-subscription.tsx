@@ -80,8 +80,7 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
             <ProBadge />
           </View>
           <Text style={styles.text}>
-            Alle Termine automatisch in Apple Kalender, Google Kalender oder Outlook – auch auf dem Handy. Neue und
-            geänderte Termine kommen von selbst nach (Apple: je nach Einstellung, Google: alle paar Stunden).
+            Alle Termine automatisch in Apple, Google oder Outlook – auch auf dem Handy. Änderungen kommen von selbst nach.
           </Text>
         </View>
       </View>
@@ -132,8 +131,7 @@ export function CalendarSubscription({ onClose }: { onClose: () => void }) {
             <SmallLink label="Verbindung trennen" onPress={() => setConfirm('delete')} />
           </View>
           <Text style={styles.hint}>
-            Wer diesen Link kennt, sieht deine Termine (mit Kunden und Adressen). Gib ihn nicht weiter – im Zweifel
-            einen neuen Link erzeugen.
+            Wer den Link kennt, sieht deine Termine samt Kunden. Nicht weitergeben – im Zweifel neu erzeugen.
           </Text>
           {confirm && (
             <View style={styles.confirm}>

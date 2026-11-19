@@ -88,7 +88,7 @@ export function TeamScreen() {
               <Text style={styles.cardTitle}>Du bist im Team von {team?.owner_name ?? 'deinem Business'}</Text>
             </View>
             <Text style={styles.body}>
-              Du siehst und bearbeitest die Daten dieses Business. Dein Abo läuft über den Inhaber.
+              Du arbeitest mit den Daten dieses Business. Das Abo läuft über den Inhaber.
             </Text>
           </Card>
         </Reveal>
@@ -167,8 +167,7 @@ export function TeamScreen() {
             ) : (
               <>
                 <Text style={styles.body}>
-                  Du bekommst einen Code, den du der Person schickst. Sie gibt ihn in ihrer Lunaxora-App unter Profil →
-                  Team ein.
+                  Schick der Person den Code – sie gibt ihn unter Profil → Team ein.
                 </Text>
                 <TextField
                   label="E-Mail (nur als Notiz, optional)"
@@ -222,8 +221,7 @@ export function TeamScreen() {
           <Card>
             <Text style={styles.cardTitle}>Einem Team beitreten</Text>
             <Text style={styles.body}>
-              Du hast einen Einladungscode bekommen? Gib ihn hier ein. Deine bisherigen Daten bleiben gespeichert – im
-              Team siehst du aber die Daten des Business, dem du beitrittst.
+              Code bekommen? Hier eingeben. Deine Daten bleiben gespeichert, im Team siehst du die des Business.
             </Text>
             <TextField
               label="Einladungscode"

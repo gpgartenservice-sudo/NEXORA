@@ -18,6 +18,7 @@ import { useTeam } from '@/features/team/team-provider';
 import { planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { TUTORIALS } from '@/features/tutorial/tutorial-content';
+import { useSoundSetting } from '@/features/sound/ui-sound';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
@@ -39,6 +40,7 @@ export default function ProfileScreen() {
   const { team } = useTeam();
   const seen = tutorial.done.length;
   const total = Object.keys(TUTORIALS).length;
+  const [sounds, setSounds] = useSoundSetting();
 
   const signOut = async () => {
     setSigningOut(true);
@@ -132,7 +134,7 @@ export default function ProfileScreen() {
                   ? `Du bist im Team von ${team.owner_name ?? 'deinem Business'}`
                   : team && team.members.length > 1
                     ? `${team.members.length} Personen in deinem Business`
-                    : 'Bis zu 5 Personen im selben Business – oder einem Team beitreten'}
+                    : 'Bis zu 5 Personen – oder einem Team beitreten'}
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />
@@ -148,7 +150,7 @@ export default function ProfileScreen() {
                 <Text style={styles.cardTitle}>Design</Text>
                 <ProBadge />
               </View>
-              <Text style={styles.firmText}>Bewegte Hintergründe: Farbverlauf, Geldregen, Blitze, Mondnacht</Text>
+              <Text style={styles.firmText}>Farbverlauf, Geldregen, Blitze, Mondnacht</Text>
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />
           </View>
@@ -160,10 +162,16 @@ export default function ProfileScreen() {
           <View style={styles.firmRow}>
             <View style={styles.flex}>
               <Text style={styles.cardTitle}>Benachrichtigungen</Text>
-              <Text style={styles.firmText}>Termine, fällige Rechnungen, To-dos, Ziele und Motivation</Text>
+              <Text style={styles.firmText}>Termine, Rechnungen, To-dos und Ziele</Text>
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />
           </View>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={430}>
+        <Card>
+          <ToggleRow label="Töne" hint="Häkchen, Erfolge und wenn Luna fertig ist" value={sounds} onChange={setSounds} />
         </Card>
       </Reveal>
 
@@ -171,8 +179,7 @@ export default function ProfileScreen() {
         <Card>
           <Text style={styles.cardTitle}>Einführungen</Text>
           <Text style={styles.firmText}>
-            Luna erklärt dir jeden Bereich beim ersten Besuch. Über das ? oben auf jeder Seite kannst du sie jederzeit
-            wiederholen. Gesehen: {seen} von {total}.
+            Luna erklärt jeden Bereich beim ersten Besuch – nochmal über das ? oben. Gesehen: {seen} von {total}.
           </Text>
           <ToggleRow
             label="Beim ersten Besuch automatisch zeigen"
@@ -200,7 +207,7 @@ export default function ProfileScreen() {
             />
           </View>
           {resetDone && (
-            <Text style={styles.firmText}>Erledigt – beim nächsten Besuch zeigt Luna jeden Bereich wieder.</Text>
+            <Text style={styles.firmText}>Erledigt – Luna zeigt jeden Bereich wieder.</Text>
           )}
         </Card>
       </Reveal>
