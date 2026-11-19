@@ -11,24 +11,37 @@ import { ConfirmDelete } from '@/components/ui/confirm-delete';
 import { DateField } from '@/components/ui/date-field';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import { parseEuro } from '@/features/crm/order-logic';
 import { useHover } from '@/hooks/use-hover';
 
-import { DEFAULT_CATEGORIES, INVENTORY_STATUS, categoryCounts, type InventoryItem, type InventoryStatus } from './inventory-logic';
+import {
+  DEFAULT_CATEGORIES,
+  KINDS,
+  UNITS,
+  categoryCounts,
+  formatAmount,
+  parseAmount,
+  statusOptions,
+  type InventoryItem,
+  type InventoryKind,
+  type InventoryStatus,
+} from './inventory-logic';
 import { useInventory, type InventoryInput } from './inventory-provider';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/inventar'));
 
 const money = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Neues Teil (Route /inventar/neu) */
+/** Neuer Eintrag (Route /inventar/neu?art=produkt|geraet) */
 export function InventoryNewScreen() {
-  return <InventoryEditor />;
+  const { art } = useLocalSearchParams<{ art?: string }>();
+  return <InventoryEditor initialKind={art === 'produkt' ? 'produkt' : 'geraet'} />;
 }
 
-/** Teil bearbeiten (Route /inventar/[id]) */
+/** Eintrag bearbeiten (Route /inventar/[id]) */
 export function InventoryEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items, loading } = useInventory();
@@ -36,19 +49,23 @@ export function InventoryEditScreen() {
   if (!item) {
     return (
       <Screen maxWidth={680}>
-        <PageHeader title="Inventar" back={{ label: 'Inventar', onPress: back }} />
-        {!loading && <Notice>Dieses Teil gibt es nicht (mehr).</Notice>}
+        <PageHeader title="Lagerbestand" back={{ label: 'Lagerbestand', onPress: back }} />
+        {!loading && <Notice>Diesen Eintrag gibt es nicht (mehr).</Notice>}
       </Screen>
     );
   }
-  return <InventoryEditor key={item.id} item={item} />;
+  return <InventoryEditor key={item.id} item={item} initialKind={item.kind} />;
 }
 
-function InventoryEditor({ item }: { item?: InventoryItem }) {
+function InventoryEditor({ item, initialKind }: { item?: InventoryItem; initialKind: InventoryKind }) {
   const { items, createItem, updateItem, deleteItem, error: setupError } = useInventory();
+  const [kind, setKind] = useState<InventoryKind>(initialKind);
   const [name, setName] = useState(item?.name ?? '');
-  const [price, setPrice] = useState(item?.price !== null && item?.price !== undefined ? money(item.price) : '');
-  const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
+  const [price, setPrice] = useState(item?.price != null ? money(item.price) : '');
+  const [salePrice, setSalePrice] = useState(item?.sale_price != null ? money(item.sale_price) : '');
+  const [quantity, setQuantity] = useState(item ? formatAmount(item.quantity) : initialKind === 'produkt' ? '' : '1');
+  const [unit, setUnit] = useState(item?.unit ?? 'Stück');
+  const [minQuantity, setMinQuantity] = useState(item?.min_quantity != null ? formatAmount(item.min_quantity) : '');
   const [status, setStatus] = useState<InventoryStatus>(item?.status ?? 'in_betrieb');
   const [category, setCategory] = useState(item?.category ?? '');
   const [brand, setBrand] = useState(item?.brand ?? '');
@@ -58,33 +75,60 @@ function InventoryEditor({ item }: { item?: InventoryItem }) {
   const [shop, setShop] = useState(item?.shop ?? '');
   const [url, setUrl] = useState(item?.product_url ?? '');
   const [notes, setNotes] = useState(item?.notes ?? '');
-  const [errors, setErrors] = useState<{ name?: string; price?: string; quantity?: string; url?: string }>({});
+  const [errors, setErrors] = useState<Partial<Record<'name' | 'price' | 'sale' | 'quantity' | 'min' | 'unit' | 'url', string>>>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // eigene Kategorien zuerst, dann Vorschläge
+  const product = kind === 'produkt';
+  const unitLabel = unit.trim() || 'Stück';
+
+  // eigene Kategorien dieser Art zuerst, dann Vorschläge
   const suggestions = useMemo(() => {
-    const own = categoryCounts(items).map((c) => c.name);
-    return [...own, ...DEFAULT_CATEGORIES.filter((d) => !own.some((o) => o.toLowerCase() === d.toLowerCase()))].slice(0, 12);
-  }, [items]);
+    const own = categoryCounts(items.filter((it) => it.kind === kind)).map((c) => c.name);
+    const defaults = DEFAULT_CATEGORIES[kind].filter((d) => !own.some((o) => o.toLowerCase() === d.toLowerCase()));
+    return [...own, ...defaults].slice(0, 12);
+  }, [items, kind]);
+
+  const switchKind = (k: InventoryKind) => {
+    setKind(k);
+    // Geräte zählen in Stück – leere Anzahl heißt dann 1
+    if (k === 'geraet' && !quantity.trim()) setQuantity('1');
+    // Zustände wie „In Reparatur“ gibt es bei Produkten nicht
+    if (!statusOptions(k).some((s) => s.key === status)) setStatus('in_betrieb');
+  };
 
   const save = async () => {
     const parsedPrice = parseEuro(price);
-    const qty = Number(quantity.trim());
+    const parsedSale = product ? parseEuro(salePrice) : null;
+    const qty = parseAmount(quantity);
+    const min = product ? parseAmount(minQuantity) : null;
     const cleanUrl = url.trim();
+    const badMoney = (v: ReturnType<typeof parseEuro>) => v === 'invalid' || (typeof v === 'number' && v < 0);
     const problems = {
-      name: name.trim() ? undefined : 'Wie heißt das Teil?',
-      price: parsedPrice === 'invalid' || (typeof parsedPrice === 'number' && parsedPrice < 0) ? 'Bitte einen Preis wie 349,99 eingeben.' : undefined,
-      quantity: Number.isInteger(qty) && qty >= 0 && qty <= 100000 ? undefined : 'Bitte eine ganze Zahl eingeben.',
+      name: name.trim() ? undefined : product ? 'Wie heißt das Produkt?' : 'Wie heißt das Gerät?',
+      price: badMoney(parsedPrice) ? 'Bitte einen Preis wie 349,99 eingeben.' : undefined,
+      sale: badMoney(parsedSale) ? 'Bitte einen Preis wie 12,90 eingeben.' : undefined,
+      quantity:
+        qty === 'invalid' || (!product && qty !== null && !Number.isInteger(qty))
+          ? product
+            ? 'Bitte eine Menge wie 12 oder 2,5 eingeben.'
+            : 'Bitte eine ganze Zahl eingeben.'
+          : undefined,
+      min: min === 'invalid' ? 'Bitte eine Menge wie 5 oder 0,5 eingeben.' : undefined,
+      unit: unitLabel.length > 20 ? 'Höchstens 20 Zeichen.' : undefined,
       url: !cleanUrl || /^https?:\/\/\S+$/i.test(cleanUrl) ? undefined : 'Der Link muss mit https:// beginnen.',
     };
     setErrors(problems);
     setFailure(null);
-    if (problems.name || problems.price || problems.quantity || problems.url || parsedPrice === 'invalid') return;
+    if (Object.values(problems).some(Boolean)) return;
     const input: InventoryInput = {
       name: name.trim(),
-      price: parsedPrice,
-      quantity: qty,
+      kind,
+      price: parsedPrice as number | null,
+      sale_price: product ? (parsedSale as number | null) : null,
+      quantity: (qty as number | null) ?? (product ? 0 : 1),
+      unit: product ? unitLabel : 'Stück',
+      min_quantity: product ? (min as number | null) : null,
       status,
       category: category.trim() || null,
       brand: brand.trim() || null,
@@ -105,45 +149,126 @@ function InventoryEditor({ item }: { item?: InventoryItem }) {
   return (
     <Screen maxWidth={680}>
       <PageHeader
-        title={item ? item.name : 'Neues Teil'}
-        subtitle={item ? undefined : 'Gerät, Werkzeug, Material – alles, was deinem Business gehört.'}
-        back={{ label: 'Inventar', onPress: back }}
+        title={item ? item.name : product ? 'Neues Produkt' : 'Neues Gerät'}
+        subtitle={item ? undefined : product ? 'Ware, Material, Verbrauch – mit Menge im Lager.' : 'Gerät, Werkzeug, Fahrzeug – mit Wert und Zustand.'}
+        back={{ label: 'Lagerbestand', onPress: back }}
       />
       {setupError === 'setup' && (
-        <Notice tone="error">Das Inventar ist in der Datenbank noch nicht eingerichtet (Skript 20261120090000_feinschliff.sql).</Notice>
+        <Notice tone="error">Der Lagerbestand ist in der Datenbank noch nicht eingerichtet (Skript 20261120090000_feinschliff.sql).</Notice>
       )}
       {failure && <Notice tone="error">{failure}</Notice>}
 
+      <Reveal delay={60}>
+        <Segmented
+          label="Was ist es?"
+          value={kind}
+          options={KINDS.map((k) => ({ value: k.key, label: k.label }))}
+          onChange={switchKind}
+        />
+      </Reveal>
+
       <Reveal delay={100}>
         <Card>
-          <TextField label="Name *" value={name} onChangeText={setName} error={errors.name} placeholder="z. B. Akku-Heckenschere" />
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <TextField
-                label="Preis (€)"
-                value={price}
-                onChangeText={setPrice}
-                error={errors.price}
-                keyboardType="decimal-pad"
-                placeholder="z. B. 349,99"
-              />
-            </View>
-            <View style={styles.small}>
-              <TextField label="Anzahl" value={quantity} onChangeText={setQuantity} error={errors.quantity} keyboardType="number-pad" />
-            </View>
-          </View>
+          <TextField
+            label="Name *"
+            value={name}
+            onChangeText={setName}
+            error={errors.name}
+            placeholder={product ? 'z. B. Rasendünger, Shampoo, Schrauben 4×40' : 'z. B. Akku-Heckenschere'}
+          />
 
-          <Text style={styles.label}>ZUSTAND</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Zustand">
-            {INVENTORY_STATUS.map((s) => (
+          {product ? (
+            <>
+              <View style={styles.row}>
+                <View style={styles.flex}>
+                  <TextField
+                    label={`Im Lager (${unitLabel})`}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    error={errors.quantity}
+                    keyboardType="decimal-pad"
+                    placeholder="z. B. 12"
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <TextField
+                    label={`Mindestbestand (${unitLabel})`}
+                    value={minQuantity}
+                    onChangeText={setMinQuantity}
+                    error={errors.min}
+                    keyboardType="decimal-pad"
+                    placeholder="z. B. 3"
+                  />
+                </View>
+              </View>
+              <Text style={styles.hint}>Fällt die Menge auf den Mindestbestand, zeigt Lunaxora „Wird knapp“.</Text>
+
+              <Text style={styles.label}>EINHEIT</Text>
+              <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Einheit">
+                {UNITS.map((u) => (
+                  <Chip key={u} label={u} small active={unitLabel === u} onPress={() => setUnit(u)} />
+                ))}
+              </View>
+              {!UNITS.includes(unitLabel) || unit === '' ? (
+                <TextField label="Eigene Einheit" value={unit} onChangeText={setUnit} error={errors.unit} placeholder="z. B. Eimer" />
+              ) : (
+                <TextLink label="Andere Einheit" onPress={() => setUnit('')} />
+              )}
+
+              <View style={styles.row}>
+                <View style={styles.flex}>
+                  <TextField
+                    label={`Einkaufspreis pro ${unitLabel} (€)`}
+                    value={price}
+                    onChangeText={setPrice}
+                    error={errors.price}
+                    keyboardType="decimal-pad"
+                    placeholder="z. B. 4,20"
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <TextField
+                    label={`Verkaufspreis pro ${unitLabel} (€)`}
+                    value={salePrice}
+                    onChangeText={setSalePrice}
+                    error={errors.sale}
+                    keyboardType="decimal-pad"
+                    placeholder="optional"
+                  />
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <TextField
+                  label="Preis (€)"
+                  value={price}
+                  onChangeText={setPrice}
+                  error={errors.price}
+                  keyboardType="decimal-pad"
+                  placeholder="z. B. 349,99"
+                />
+              </View>
+              <View style={styles.small}>
+                <TextField label="Anzahl" value={quantity} onChangeText={setQuantity} error={errors.quantity} keyboardType="number-pad" />
+              </View>
+            </View>
+          )}
+
+          <Text style={styles.label}>{product ? 'STATUS' : 'ZUSTAND'}</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={product ? 'Status' : 'Zustand'}>
+            {statusOptions(kind).map((s) => (
               <Chip key={s.key} label={s.label} active={status === s.key} onPress={() => setStatus(s.key)} />
             ))}
           </View>
           {status === 'verkauft' && (
-            <Text style={styles.hint}>Verkaufte Teile bleiben dokumentiert, zählen aber nicht mehr zum Wert.</Text>
+            <Text style={styles.hint}>
+              {product ? 'Ausgelistete Produkte bleiben gespeichert, zählen aber nicht mehr zum Lager.' : 'Verkaufte Geräte bleiben dokumentiert, zählen aber nicht mehr zum Wert.'}
+            </Text>
           )}
 
-          <TextField label="Kategorie" value={category} onChangeText={setCategory} placeholder="z. B. Werkzeug" />
+          <TextField label="Kategorie" value={category} onChangeText={setCategory} placeholder={product ? 'z. B. Verkaufsware' : 'z. B. Werkzeug'} />
           <View style={styles.chips}>
             {suggestions.map((c) => (
               <Chip key={c} label={c} small active={category.trim().toLowerCase() === c.toLowerCase()} onPress={() => setCategory(c)} />
@@ -157,23 +282,34 @@ function InventoryEditor({ item }: { item?: InventoryItem }) {
           <Text style={styles.cardTitle}>Details</Text>
           <View style={styles.row}>
             <View style={styles.flex}>
-              <TextField label="Marke" value={brand} onChangeText={setBrand} placeholder="z. B. Stihl" />
+              <TextField label={product ? 'Marke / Hersteller' : 'Marke'} value={brand} onChangeText={setBrand} placeholder={product ? 'z. B. Compo' : 'z. B. Stihl'} />
             </View>
             <View style={styles.flex}>
-              <DateField label="Gekauft am" value={purchaseDate} onChange={setPurchaseDate} />
-            </View>
-          </View>
-          <TextField label="Standort / bei wem" value={location} onChangeText={setLocation} placeholder="z. B. Garage, Anhänger, bei Pascal" />
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <TextField label="Seriennummer" value={serial} onChangeText={setSerial} autoCapitalize="characters" autoCorrect={false} />
-            </View>
-            <View style={styles.flex}>
-              <TextField label="Gekauft bei" value={shop} onChangeText={setShop} placeholder="z. B. OBI, Amazon" />
+              <DateField label={product ? 'Zuletzt gekauft' : 'Gekauft am'} value={purchaseDate} onChange={setPurchaseDate} />
             </View>
           </View>
           <TextField
-            label="Produktlink"
+            label={product ? 'Lagerort' : 'Standort / bei wem'}
+            value={location}
+            onChangeText={setLocation}
+            placeholder={product ? 'z. B. Regal 2, Keller, Transporter' : 'z. B. Garage, Anhänger, bei Pascal'}
+          />
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <TextField
+                label={product ? 'Artikelnummer / EAN' : 'Seriennummer'}
+                value={serial}
+                onChangeText={setSerial}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={styles.flex}>
+              <TextField label={product ? 'Lieferant' : 'Gekauft bei'} value={shop} onChangeText={setShop} placeholder="z. B. OBI, Amazon, Großhandel" />
+            </View>
+          </View>
+          <TextField
+            label={product ? 'Link zum Nachbestellen' : 'Produktlink'}
             value={url}
             onChangeText={setUrl}
             error={errors.url}
@@ -182,13 +318,15 @@ function InventoryEditor({ item }: { item?: InventoryItem }) {
             autoCorrect={false}
             placeholder="https://…"
           />
-          {!!item?.product_url && <TextLink label="Produktseite öffnen" onPress={() => void Linking.openURL(item.product_url!)} />}
+          {!!item?.product_url && (
+            <TextLink label={product ? 'Nachbestellen öffnen' : 'Produktseite öffnen'} onPress={() => void Linking.openURL(item.product_url!)} />
+          )}
           <TextField
             label="Notizen"
             value={notes}
             onChangeText={setNotes}
             multiline
-            placeholder="Wartung, Zubehör, Garantie bis …"
+            placeholder={product ? 'Haltbarkeit, Lieferzeit, Mindestabnahme …' : 'Wartung, Zubehör, Garantie bis …'}
             style={styles.notes}
           />
         </Card>
@@ -201,8 +339,12 @@ function InventoryEditor({ item }: { item?: InventoryItem }) {
 
       {item && (
         <ConfirmDelete
-          label="Teil löschen"
-          question={`„${item.name}“ wirklich löschen? Tipp: Verkaufte Teile lieber auf „Verkauft / Ausgemustert“ setzen – dann bleiben sie dokumentiert.`}
+          label="Eintrag löschen"
+          question={
+            product
+              ? `„${item.name}“ wirklich löschen? Tipp: Produkte, die du nicht mehr führst, lieber auf „Ausgelistet“ setzen.`
+              : `„${item.name}“ wirklich löschen? Tipp: Verkaufte Geräte lieber auf „Verkauft / Ausgemustert“ setzen – dann bleiben sie dokumentiert.`
+          }
           onConfirm={async () => {
             const r = await deleteItem(item.id);
             if (r.error) setFailure(r.error);

@@ -54,6 +54,7 @@ Die Skripte im Ordner [`migrations/`](migrations) legen die Tabellen der App an.
 | `20261120090000_feinschliff.sql` | Feinschliff: eigene Branche, Rechtsform + Pflichtangaben, Gutscheine (20 Codes für die Warteliste: `select code from public.vouchers where note = 'Warteliste'`), ein Gerät gleichzeitig, Business-Team (bis 5 Personen, gemeinsame Daten), Inventar, Termine „draußen“ |
 | `20261121090000_kosten.sql` | Kosten pro Konto: jede Luna-Nachricht, jeder Beleg, jedes Vorlesen und jede Spracheingabe mit Verbrauch; Übersicht `kosten.pro_konto` (Abschnitt 16) |
 | `20261122090000_einnahmen.sql` | Einnahmen pro Konto neben den Kosten: Zahlungen (`kosten.zahlungen`), Abo-Wert pro Monat und Gewinn in `kosten.pro_konto` / `kosten.pro_kunde` (Abschnitt 16) |
+| `20261123090000_lagerbestand.sql` | Lagerbestand (vorher Inventar): Art Gerät/Produkt, Einheit, Menge mit Komma, Mindestbestand („Wird knapp“), Verkaufspreis, `inventory_adjust()` für +/− |
 
 Ein Skript versehentlich zweimal auszuführen schadet nicht.
 

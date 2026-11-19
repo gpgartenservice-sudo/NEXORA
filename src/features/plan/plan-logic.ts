@@ -88,7 +88,7 @@ export const COMPARISON: ({ label: string } & Record<'free' | PaidTier, Cell>)[]
   { label: FEATURE_LABEL.social_connect, ...both(false, true) },
   { label: FEATURE_LABEL.calendar_feed, ...both(false, true) },
   { label: 'PDFs ohne „Erstellt mit Lunaxora“', ...both(false, true) },
-  { label: 'Inventar, Wetter im Kalender, Benachrichtigungen', ...both(true, true) },
+  { label: 'Lagerbestand, Wetter im Kalender, Benachrichtigungen', ...both(true, true) },
   { label: FEATURE_LABEL.social_import, ...both(false, true) },
   { label: FEATURE_LABEL.design, ...both(false, true) },
   { label: 'Personen im Konto', ...both('1', '1', String(BUSINESS_SEATS)) },

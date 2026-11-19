@@ -134,9 +134,9 @@ export const NAV_ITEMS: NavItem[] = [
   {
     name: 'inventar',
     href: '/inventar',
-    label: 'Inventar',
+    label: 'Lagerbestand',
     icon: Boxes,
-    description: 'Geräte, Werkzeug und Material – mit Wert, Zustand und Standort.',
+    description: 'Was du da hast – Geräte, Werkzeug, Produkte und Material.',
   },
   {
     name: 'social',
