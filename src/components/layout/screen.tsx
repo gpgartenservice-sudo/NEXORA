@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/theme';
-import { AppBackdrop, useDesign } from '@/features/design/backgrounds';
+import { AppBackdrop, useDesign, useWideBackdrop } from '@/features/design/backgrounds';
 import { designActive } from '@/features/design/design-logic';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 import { useScreenTop } from '@/features/navigation/use-screen-top';
@@ -21,10 +21,12 @@ export function Screen({ children, maxWidth = 1080 }: Props) {
   const bottom = Spacing.xxxl + (wide ? 0 : insets.bottom);
   // Pro/Business: bewegter Hintergrund (Profil → Design) hinter dem Inhalt
   const design = useDesign();
+  // Mac: der Hintergrund liegt einmal hinter Seitenleiste und Seite ((tabs)/_layout.tsx)
+  const shared = useWideBackdrop();
 
   return (
-    <View style={styles.root}>
-      {designActive(design) && <AppBackdrop />}
+    <View style={[styles.root, shared && styles.clear]}>
+      {designActive(design) && !shared && <AppBackdrop />}
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingTop: top, paddingBottom: bottom }}>
         <View style={[styles.inner, { maxWidth, paddingHorizontal: wide ? Spacing.xxxl : Spacing.xl }]}>{children}</View>
       </ScrollView>
@@ -34,6 +36,7 @@ export function Screen({ children, maxWidth = 1080 }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+  clear: { backgroundColor: 'transparent' },
   scroll: { flex: 1, backgroundColor: 'transparent' },
   inner: { width: '100%', alignSelf: 'center', gap: Spacing.xl },
 });

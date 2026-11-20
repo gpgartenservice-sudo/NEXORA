@@ -1,5 +1,5 @@
 import type { TabTriggerSlotProps } from 'expo-router/ui';
-import { Menu, X } from 'lucide-react-native';
+import { Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react-native';
 import {
   Children,
   createContext,
@@ -33,11 +33,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
-import { Glass } from '@/components/ui/glass';
+import { Glass, WEB_GLASS } from '@/components/ui/glass';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { usePlan } from '@/features/plan/plan-provider';
+import { playSound } from '@/features/sound/ui-sound';
+import { useHover } from '@/hooks/use-hover';
 import { useProfile } from '@/providers/profile-provider';
 
+import { registerDrawer } from './edge-swipe';
 import { SIDEBAR_WIDTH, type NavItem } from './nav-items';
+import { SIDEBAR_COLLAPSED_WIDTH, setSidebarCollapsed, useSidebarCollapsed } from './sidebar-state';
 import { MENU_BUTTON_SIZE, MENU_TOP, useMenuButtonShown } from './use-screen-top';
 
 type NavBarProps = { wide: boolean; children?: ReactNode };
@@ -59,16 +64,62 @@ export function NavBar({ wide, children, ...rest }: NavBarProps) {
   const main = items.filter((c) => c.props.name !== 'profil');
   const footer = items.filter((c) => c.props.name === 'profil');
 
+  // Mac: einklappbar – eingeklappt bleibt eine schmale Leiste mit den Symbolen
+  const collapsed = useSidebarCollapsed();
+  const sideWidth = useSharedValue(collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH);
+  useEffect(() => {
+    sideWidth.set(withTiming(collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH, { duration: 280, easing: EASE_OUT_EXPO }));
+  }, [collapsed, sideWidth]);
+  const widthStyle = useAnimatedStyle(() => ({ width: sideWidth.get() }));
+
   if (!wide) return <MenuDrawer {...rest} main={main} footer={footer} />;
 
-  return (
-    <View {...rest} style={[styles.sidebar, { paddingTop: Platform.OS === 'web' ? 52 : insets.top + Spacing.lg }]}>
-      <View style={styles.brand}>
-        <Wordmark width={132} />
+  const content = (
+    <>
+      <View style={[styles.brand, collapsed && styles.brandCollapsed]}>
+        {!collapsed && <Wordmark width={132} />}
+        <SidebarToggle collapsed={collapsed} />
       </View>
       <View style={styles.sideList}>{main}</View>
-      <View style={styles.sideFooter}>{footer}</View>
-    </View>
+      <View style={[styles.sideFooter, WEB_GLASS && styles.sideFooterGlass]}>{footer}</View>
+    </>
+  );
+
+  // Mac: Seitenleiste als schwebende Glasfläche (wie macOS) – die Fensterknöpfe sitzen darin
+  if (WEB_GLASS) {
+    return (
+      <Animated.View {...rest} style={[styles.sidebarFrame, widthStyle]}>
+        <Glass style={styles.sidebarGlass}>{content}</Glass>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      {...rest}
+      style={[styles.sidebar, widthStyle, { paddingTop: Platform.OS === 'web' ? 52 : insets.top + Spacing.lg }]}>
+      {content}
+    </Animated.View>
+  );
+}
+
+/** Knopf oben in der Seitenleiste: ein- bzw. ausklappen */
+function SidebarToggle({ collapsed }: { collapsed: boolean }) {
+  const { hovered, hoverProps } = useHover();
+  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <Pressable
+      onPress={() => {
+        playSound('tick');
+        setSidebarCollapsed(!collapsed);
+      }}
+      {...hoverProps}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+      style={[styles.toggle, hovered && styles.toggleHover]}>
+      <Icon size={18} color={hovered ? Colors.text : Colors.textMuted} strokeWidth={1.8} />
+    </Pressable>
   );
 }
 
@@ -84,6 +135,18 @@ function MenuDrawer({ main, footer, ...rest }: ViewProps & { main: ReactElement[
   const progress = useSharedValue(0);
   const panelW = Math.min(310, width - 64);
   const drawer = useMemo(() => ({ close: () => setOpen(false) }), []);
+
+  // Wischen vom linken Rand zieht das Menü mit (edge-swipe.tsx)
+  useEffect(
+    () =>
+      registerDrawer({
+        progress,
+        distance: panelW + 24,
+        open: () => setOpen(true),
+        cancel: () => progress.set(withSpring(0, DRAWER_SPRING)),
+      }),
+    [progress, panelW],
+  );
 
   useEffect(() => {
     progress.set(withSpring(open ? 1 : 0, DRAWER_SPRING));
@@ -106,7 +169,10 @@ function MenuDrawer({ main, footer, ...rest }: ViewProps & { main: ReactElement[
       {showButton && (
         <Glass interactive style={[styles.menuButton, { top: insets.top + MENU_TOP }]}>
           <Pressable
-            onPress={() => setOpen(true)}
+            onPress={() => {
+              playSound('tick');
+              setOpen(true);
+            }}
             style={styles.menuPress}
             hitSlop={6}
             accessibilityRole="button"
@@ -160,18 +226,21 @@ type NavButtonProps = TriggerSlotProps & { item: NavItem };
 /** Ein Eintrag der Navigation – in der Seitenleiste (Mac) und im Seitenmenü (Handy) gleich. */
 export function NavButton({ item, isFocused = false, onPress, ...pressable }: NavButtonProps) {
   const drawer = useContext(DrawerContext);
+  // eingeklappte Seitenleiste am Mac: nur Symbole (im Handy-Menü immer mit Namen)
+  const compact = useSidebarCollapsed() && !drawer;
   // "Mehr" brauchte nur die alte Tab-Leiste – das Menü zeigt alle Bereiche direkt
   if (item.mobileOnly || item.hidden) return null;
 
   const press: TriggerSlotProps['onPress'] = (e) => {
+    playSound('tick');
     onPress?.(e);
     drawer?.close();
   };
-  if (item.name === 'profil') return <UserChip isFocused={isFocused} {...pressable} onPress={press} />;
-  return <SidebarItem item={item} isFocused={isFocused} {...pressable} onPress={press} />;
+  if (item.name === 'profil') return <UserChip isFocused={isFocused} compact={compact} {...pressable} onPress={press} />;
+  return <SidebarItem item={item} isFocused={isFocused} compact={compact} {...pressable} onPress={press} />;
 }
 
-type ItemProps = Omit<TriggerSlotProps, 'isFocused'> & { isFocused: boolean };
+type ItemProps = Omit<TriggerSlotProps, 'isFocused'> & { isFocused: boolean; compact: boolean };
 
 function useNavAnimation(isFocused: boolean) {
   const active = useSharedValue(isFocused ? 1 : 0);
@@ -189,7 +258,7 @@ function useNavAnimation(isFocused: boolean) {
   return { active, hover, press, handlers };
 }
 
-function SidebarItem({ item, isFocused, ...pressable }: ItemProps & { item: NavItem }) {
+function SidebarItem({ item, isFocused, compact, ...pressable }: ItemProps & { item: NavItem }) {
   const { active, hover, press, handlers } = useNavAnimation(isFocused);
   const Icon = item.icon;
 
@@ -203,14 +272,22 @@ function SidebarItem({ item, isFocused, ...pressable }: ItemProps & { item: NavI
   }));
 
   return (
-    <Pressable {...pressable} {...handlers} accessibilityRole="link" accessibilityState={{ selected: isFocused }} aria-current={isFocused ? 'page' : undefined}>
-      <Animated.View style={[styles.sideItem, rowStyle]}>
+    <Pressable
+      {...pressable}
+      {...handlers}
+      accessibilityRole="link"
+      accessibilityLabel={item.label}
+      accessibilityState={{ selected: isFocused }}
+      aria-current={isFocused ? 'page' : undefined}>
+      <Animated.View style={[styles.sideItem, compact && styles.sideItemCompact, rowStyle]}>
         <Animated.View style={[styles.activeBar, barStyle]} />
         <Icon size={18} strokeWidth={isFocused ? 2.2 : 1.8} color={isFocused ? Colors.text : Colors.textMuted} />
-        <Animated.Text style={[styles.sideLabel, labelStyle]} numberOfLines={1}>
-          {item.label}
-        </Animated.Text>
-        {item.soon && (
+        {!compact && (
+          <Animated.Text style={[styles.sideLabel, labelStyle]} numberOfLines={1}>
+            {item.label}
+          </Animated.Text>
+        )}
+        {item.soon && !compact && (
           <View style={styles.soon}>
             <Text style={styles.soonText}>bald</Text>
           </View>
@@ -220,8 +297,13 @@ function SidebarItem({ item, isFocused, ...pressable }: ItemProps & { item: NavI
   );
 }
 
-function UserChip({ isFocused, ...pressable }: ItemProps) {
+/** Kurzname des Abos für die Seitenleiste */
+const PLAN_SHORT = { free: 'Gratis', trial: 'Pro-Test', pro: 'Pro', business: 'Business' } as const;
+
+function UserChip({ isFocused, compact, ...pressable }: ItemProps) {
   const { profile } = useProfile();
+  const { info, missing } = usePlan();
+  const plan = info && !missing ? info.plan : null;
   const { active, hover, press, handlers } = useNavAnimation(isFocused);
   const name = profile?.display_name?.trim() || 'Dein Profil';
 
@@ -232,18 +314,27 @@ function UserChip({ isFocused, ...pressable }: ItemProps) {
 
   return (
     <Pressable {...pressable} {...handlers} accessibilityRole="link" accessibilityLabel="Profil" aria-current={isFocused ? 'page' : undefined}>
-      <Animated.View style={[styles.userChip, rowStyle]}>
+      <Animated.View style={[styles.userChip, compact && styles.userChipCompact, rowStyle]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
         </View>
+        {!compact && (
         <View style={styles.userTexts}>
-          <Text style={styles.userName} numberOfLines={1}>
-            {name}
-          </Text>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {name}
+            </Text>
+            {plan && (
+              <Text style={[styles.planTag, plan === 'business' && styles.planTagBusiness]} testID="sidebar-plan">
+                {PLAN_SHORT[plan]}
+              </Text>
+            )}
+          </View>
           <Text style={styles.userSub} numberOfLines={1}>
             {profile?.business_name || 'Profil & Einstellungen'}
           </Text>
         </View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -252,16 +343,35 @@ function UserChip({ isFocused, ...pressable }: ItemProps) {
 const styles = StyleSheet.create({
   // Seitenleiste
   sidebar: {
-    width: SIDEBAR_WIDTH,
     backgroundColor: '#050505',
     borderRightWidth: 1,
     borderRightColor: '#161618',
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
   },
-  brand: { paddingHorizontal: Spacing.md, marginBottom: Spacing.xxl },
+  sidebarFrame: { padding: 8, paddingRight: 0 },
+  sidebarGlass: {
+    flex: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
+    paddingTop: 44,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: Spacing.md,
+    marginBottom: Spacing.xxl,
+    minHeight: 30,
+  },
+  brandCollapsed: { paddingLeft: 0, justifyContent: 'center' },
+  toggle: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  toggleHover: { backgroundColor: 'rgba(255,255,255,0.08)' },
   sideList: { gap: 2, flex: 1 },
   sideFooter: { borderTopWidth: 1, borderTopColor: '#161618', paddingTop: Spacing.md },
+  sideFooterGlass: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)' },
   sideItem: {
     width: '100%',
     flexDirection: 'row',
@@ -281,6 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     boxShadow: `0 0 10px ${Colors.accentGlow}`,
   },
+  sideItemCompact: { justifyContent: 'center', paddingHorizontal: 0 },
   sideLabel: { flex: 1, fontSize: 14.5, fontWeight: '500' },
   soon: {
     borderRadius: 6,
@@ -291,6 +402,7 @@ const styles = StyleSheet.create({
   },
   soonText: { color: Colors.textFaint, fontSize: 10.5, fontWeight: '600', letterSpacing: 0.3 },
   userChip: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.sm, borderRadius: Radius.md },
+  userChipCompact: { justifyContent: 'center', padding: 5 },
   avatar: {
     width: 34,
     height: 34,
@@ -301,7 +413,22 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: Colors.background, fontSize: 15, fontWeight: '800' },
   userTexts: { flex: 1 },
-  userName: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  userName: { color: Colors.text, fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  planTag: {
+    color: Colors.accent,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    borderWidth: 1,
+    borderColor: 'rgba(47,227,154,0.45)',
+    backgroundColor: 'rgba(47,227,154,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
+  planTagBusiness: { color: '#C4B5FD', borderColor: 'rgba(139,92,246,0.6)', backgroundColor: 'rgba(139,92,246,0.16)' },
   userSub: { color: Colors.textFaint, fontSize: 12 },
   // Seitenmenü am Handy
   drawerRoot: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, elevation: 50 },

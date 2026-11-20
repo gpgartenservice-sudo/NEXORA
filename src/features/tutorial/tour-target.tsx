@@ -3,7 +3,7 @@ import { CircleQuestionMark } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle, type HostInstance } from 'react-native';
 
-import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { GlassBackdrop } from '@/components/ui/glass';
 import { Colors } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
@@ -49,22 +49,24 @@ export function TutorialButton({ id }: { id: TutorialId }) {
       accessibilityLabel={`Einführung: ${TUTORIALS[id].label}`}
       hitSlop={8}
       {...hoverProps}
-      style={[styles.help, glassSurface, hovered && styles.helpHover]}>
-      <GlassBackdrop radius={16} />
-      <CircleQuestionMark size={18} color={hovered ? Colors.text : Colors.textMuted} strokeWidth={2} />
+      style={[styles.help, hovered && styles.helpHover]}>
+      <GlassBackdrop radius={17} />
+      <CircleQuestionMark size={19} color={hovered ? Colors.accent : Colors.text} strokeWidth={2.1} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  // gut sichtbar auf jedem Hintergrund: helle Schrift, leichte Fläche und sichtbarer Rand (auch auf Glas)
   help: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.26)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  helpHover: { borderColor: Colors.borderFocus, backgroundColor: Colors.surfaceRaised },
+  helpHover: { borderColor: 'rgba(47,227,154,0.7)', backgroundColor: 'rgba(47,227,154,0.14)' },
 });

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 
 type Props = {
@@ -14,7 +15,12 @@ type Props = {
 export function TextLink({ label, onPress, emphasis, disabled, style }: Props) {
   const { hovered, hoverProps } = useHover();
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="link" hitSlop={6} {...hoverProps}>
+    <Pressable
+      onPress={() => {
+        playSound('tick');
+        onPress();
+      }}
+      disabled={disabled} accessibilityRole="link" hitSlop={6} {...hoverProps}>
       <Text
         style={[
           styles.link,

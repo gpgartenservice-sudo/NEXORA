@@ -14,13 +14,15 @@ import { missingSellerFields, sellerName } from '@/features/documents/document-l
 import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, legalFormLabel, stageLabel } from '@/features/onboarding/options';
 import { ProBadge } from '@/components/ui/pro-badge';
+import { AccountSwitcher } from '@/features/accounts/account-switcher';
+import { DevicesCard } from '@/features/team/devices-card';
 import { useTeam } from '@/features/team/team-provider';
 import { planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { TUTORIALS } from '@/features/tutorial/tutorial-content';
 import { useSoundSetting } from '@/features/sound/ui-sound';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
-import { supabase } from '@/lib/supabase';
+import { signOutHere } from '@/lib/device';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -44,8 +46,9 @@ export default function ProfileScreen() {
 
   const signOut = async () => {
     setSigningOut(true);
-    await supabase.auth.signOut();
-    router.replace('/');
+    // ist hier noch ein weiteres Konto angemeldet, geht es mit dem weiter
+    const result = await signOutHere();
+    router.replace(result === 'switched' ? '/home' : '/');
   };
 
   const rows: [string, string | undefined][] = [
@@ -70,6 +73,16 @@ export default function ProfileScreen() {
         {!!user?.email && (
           <Reveal delay={250}>
             <Text style={styles.subtitle}>{user.email}</Text>
+          </Reveal>
+        )}
+        {plan.info && !plan.missing && (
+          <Reveal delay={300}>
+            <View style={[styles.planPill, plan.info.plan === 'business' && styles.planPillBusiness]} testID="profile-plan-pill">
+              <Text style={[styles.planPillText, plan.info.plan === 'business' && styles.planPillTextBusiness]}>
+                {planLabel(plan.info, now)}
+                {plan.admin ? ' · Admin' : ''}
+              </Text>
+            </View>
           </Reveal>
         )}
       </View>
@@ -109,16 +122,29 @@ export default function ProfileScreen() {
         <Card onPress={() => router.push('/profil/abo')} accessibilityLabel="Abo ansehen">
           <View style={styles.firmRow}>
             <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Abo</Text>
-              <Text style={styles.firmText} testID="profile-plan">
-                {plan.missing || !plan.info
-                  ? 'Lunaxora Gratis und Pro im Vergleich'
-                  : `${planLabel(plan.info, now)}${quota ? ` · ${quota}` : ''}`}
-              </Text>
+              <Text style={styles.cardTitle}>Dein Abo</Text>
+              {plan.missing || !plan.info ? (
+                <Text style={styles.firmText} testID="profile-plan">
+                  Lunaxora Gratis und Pro im Vergleich
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.planName} testID="profile-plan">
+                    Lunaxora {planLabel(plan.info, now)}
+                  </Text>
+                  <Text style={styles.firmText}>
+                    {plan.admin ? 'Admin-Zugang – kostenlos, es wird nichts abgebucht' : quota}
+                  </Text>
+                </>
+              )}
             </View>
             <ChevronRight size={18} color={Colors.textFaint} />
           </View>
         </Card>
+      </Reveal>
+
+      <Reveal delay={437}>
+        <DevicesCard />
       </Reveal>
 
       <Reveal delay={440}>
@@ -213,13 +239,17 @@ export default function ProfileScreen() {
       </Reveal>
 
       <Reveal delay={480}>
-        <Button label="Abmelden" variant="secondary" onPress={signOut} loading={signingOut} />
+        <View style={styles.signOut}>
+          <AccountSwitcher />
+          <Button label="Abmelden" variant="secondary" onPress={signOut} loading={signingOut} />
+        </View>
       </Reveal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  signOut: { gap: Spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   header: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xl },
   avatar: {
@@ -243,5 +273,18 @@ const styles = StyleSheet.create({
   firmRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
   flex: { flex: 1, gap: 4 },
   firmText: { color: Colors.textMuted, fontSize: 14, lineHeight: 20 },
+  planName: { color: Colors.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
+  planPill: {
+    marginTop: Spacing.xs,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(47,227,154,0.45)',
+    backgroundColor: Colors.accentSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  planPillBusiness: { borderColor: 'rgba(139,92,246,0.6)', backgroundColor: 'rgba(139,92,246,0.16)' },
+  planPillText: { color: Colors.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
+  planPillTextBusiness: { color: '#C4B5FD' },
   tutorialActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.lg },
 });

@@ -5,6 +5,7 @@ import { setPdfBranding } from '@/features/documents/pdf-branding';
 import { supabase } from '@/lib/supabase';
 
 import { isPro, parsePlan, type PlanInfo, type ProFeature } from './plan-logic';
+import { showPlanWall } from './plan-wall';
 
 type State = {
   info: PlanInfo | null;
@@ -12,6 +13,8 @@ type State = {
   missing: boolean;
   /** Pro oder Testphase (solange unbekannt: true, der Server prüft ohnehin) */
   pro: boolean;
+  /** Von Hand vergebenes Abo (Herkunft „admin“): kostenlos, nichts zu kaufen oder zu verwalten */
+  admin: boolean;
   refresh: () => Promise<void>;
 };
 
@@ -54,12 +57,27 @@ export function PlanProvider({ userId, children }: { userId: string; children: R
 
   const pro = missing || !info || isPro(info.plan);
 
+  // Herkunft des Abos (eigene Zeile; im Team gilt das Abo des Inhabers – dann nicht sichtbar)
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (userId && info)
+      supabase
+        .from('subscriptions')
+        .select('source')
+        .maybeSingle()
+        .then(({ data }) => active && setAdmin((data as { source?: string } | null)?.source === 'admin'));
+    return () => {
+      active = false;
+    };
+  }, [userId, info]);
+
   // Gratis: „Erstellt mit Lunaxora“ unten auf den PDFs
   useEffect(() => {
     setPdfBranding(!pro);
   }, [pro]);
 
-  const value = useMemo<State>(() => ({ info, missing, pro, refresh: load }), [info, missing, pro, load]);
+  const value = useMemo<State>(() => ({ info, missing, pro, admin, refresh: load }), [info, missing, pro, admin, load]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -69,13 +87,13 @@ export function usePlan(): State {
   return ctx;
 }
 
-/** Pro-Funktion nutzen: true = los; false = gesperrt, die Abo-Seite öffnet sich mit Hinweis. */
+/** Pro-Funktion nutzen: true = los; false = gesperrt, das Abo-Fenster erscheint. */
 export function useProGate() {
   const { pro } = usePlan();
   return useCallback(
     (feature: ProFeature): boolean => {
       if (pro) return true;
-      router.push({ pathname: '/profil/abo', params: { funktion: feature } });
+      showPlanWall({ feature });
       return false;
     },
     [pro],

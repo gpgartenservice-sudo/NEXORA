@@ -2,10 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useState } from 'react';
 
+import { audioReady } from './audio-session';
+
 /**
  * Kurze App-Töne (selbst gebaut: scripts/build-sounds.mjs). Abschaltbar unter
  * Profil → Töne; die Einstellung gilt pro Gerät.
- *   tick    – Umschalter, Auswahl
+ *   tick    – Klick (Buttons, Karten, Menü), Umschalter, Auswahl
  *   check   – Häkchen gesetzt (To-do, Fahrplan-Schritt)
  *   done    – Luna hat etwas erledigt
  *   money   – neue Einnahme
@@ -20,7 +22,7 @@ const FILES: Record<UiSound, number> = {
   money: require('@/assets/sounds/money.wav'),
   success: require('@/assets/sounds/success.wav'),
 };
-const VOLUME: Record<UiSound, number> = { tick: 0.5, check: 0.7, done: 0.8, money: 0.9, success: 0.9 };
+const VOLUME: Record<UiSound, number> = { tick: 0.45, check: 0.7, done: 0.8, money: 0.9, success: 0.9 };
 
 const KEY = 'nexora.sounds.v1';
 let enabled = true;
@@ -51,6 +53,8 @@ function player(name: UiSound): AudioPlayer | null {
 
 /** Töne vorladen, damit der erste nicht verzögert kommt */
 export function preloadSounds() {
+  // gleich zu Beginn: Klick-Töne mischen sich mit Musik anderer Apps, statt sie leiser zu machen
+  void audioReady();
   (Object.keys(FILES) as UiSound[]).forEach((n) => player(n));
 }
 
@@ -63,8 +67,8 @@ export function playSound(name: UiSound) {
   const p = player(name);
   if (!p) return;
   try {
-    void p
-      .seekTo(0)
+    void audioReady()
+      .then(() => p.seekTo(0))
       .then(() => p.play())
       .catch(() => {});
   } catch {

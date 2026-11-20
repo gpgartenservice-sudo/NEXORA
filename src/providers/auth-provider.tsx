@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { rememberSession } from '@/lib/accounts';
 import { supabase } from '@/lib/supabase';
 
 type AuthState = {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         if (active) setSession(current);
+        void rememberSession(current);
       })
       .finally(() => {
         if (active) setInitializing(false);
@@ -40,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      // für „Konto wechseln“: Sitzung jedes hier angemeldeten Kontos merken
+      void rememberSession(next);
       setInitializing(false);
     });
     return () => {

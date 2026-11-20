@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { TextField } from '@/components/auth/text-field';
 import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
-import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Notice } from '@/components/ui/notice';
 import { Colors, Spacing } from '@/constants/theme';
@@ -144,7 +144,7 @@ function PlanCard({
       accessibilityRole="button"
       accessibilityLabel={`Lunaxora ${plan.name} wählen`}
       {...hoverProps}
-      style={[styles.card, glassSurface, business && styles.cardBusiness, recommended && !business && styles.cardRecommended, hovered && styles.cardHover]}>
+      style={[styles.card, glassSurface, business && styles.cardBusiness, recommended && !business && styles.cardRecommended, hovered && [styles.cardHover, glassHover]]}>
       <GlassBackdrop radius={business ? 14.5 : 16} />
       <View style={styles.cardHead}>
         <Sparkles size={18} color={plan.key === 'pro' ? Colors.accent : business ? '#8B5CF6' : Colors.textMuted} />

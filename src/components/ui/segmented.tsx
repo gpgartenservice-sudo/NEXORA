@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 
-import { GlassBackdrop, NATIVE_GLASS, glassSurface } from './glass';
+import { GlassBackdrop, HAS_GLASS, glassSurface } from './glass';
 
 type Props<T extends string> = {
   label?: string;
@@ -32,7 +32,7 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
               accessibilityLabel={o.label}
               accessibilityState={{ checked: active }}
               aria-checked={active}
-              style={[styles.item, active && (NATIVE_GLASS ? styles.itemActiveGlass : styles.itemActive)]}>
+              style={[styles.item, active && (HAS_GLASS ? styles.itemActiveGlass : styles.itemActive)]}>
               <Text style={[styles.itemText, active && styles.itemTextActive]}>{o.label}</Text>
             </Pressable>
           );

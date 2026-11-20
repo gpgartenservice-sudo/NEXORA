@@ -92,7 +92,7 @@ export const COMPARISON: ({ label: string } & Record<'free' | PaidTier, Cell>)[]
   { label: FEATURE_LABEL.social_import, ...both(false, true) },
   { label: FEATURE_LABEL.design, ...both(false, true) },
   { label: 'Personen im Konto', ...both('1', '1', String(BUSINESS_SEATS)) },
-  { label: 'Geräte gleichzeitig (pro Person)', ...both('1', '1', '1') },
+  { label: 'Geräte gleichzeitig (pro Person)', ...both('1', '1 iPhone + 1 Mac') },
 ];
 
 /** Hat der Server mit „nur mit Pro“ geantwortet? (Datenbank: Fehler PT402 / Funktion: 402) */

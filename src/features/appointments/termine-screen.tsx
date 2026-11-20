@@ -19,7 +19,7 @@ import { formatMoney, todayIso } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { dunningState } from '@/features/dunning/dunning-logic';
 import { useFollowups } from '@/features/dunning/followups-provider';
-import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
+import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { dayKey, isoWeek, startOfWeek, weekDays } from '@/features/social/social-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useWeather } from '@/features/weather/use-weather';
@@ -62,7 +62,8 @@ export function TermineScreen() {
   const events = useCalendarEvents();
   useAreaTutorial('termine');
   const { width } = useWindowDimensions();
-  const contentWidth = width >= SIDEBAR_BREAKPOINT ? width - SIDEBAR_WIDTH : width;
+  // Seitenleiste am Mac (eingeklappt schmaler) abziehen
+  const contentWidth = width - useSidebarWidth();
   const columns = contentWidth >= 1000;
   // Zeitpunkt beim Öffnen festhalten (Darstellung bleibt stabil)
   const [now] = useState(() => new Date());

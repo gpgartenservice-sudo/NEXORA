@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
+import { Dimensions, Platform, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -43,6 +43,25 @@ const ease = Easing.inOut(Easing.sin);
 const SPRING = { damping: 14, stiffness: 120, mass: 0.8 };
 // Handy kippen: weich gleiten statt zucken
 const GLIDE = { damping: 12, stiffness: 70, mass: 1 };
+// Rutschen bis an den Rand: etwas schneller, schwingt beim Aufprall kurz über (= wird kurz plattgedrückt)
+const WALL = { damping: 11, stiffness: 95, mass: 1 };
+/** Abstand zum Bildschirmrand, an dem Luna anstößt */
+const EDGE_GAP = 4;
+
+/**
+ * Position an der Wand: slide -1…1 = bis zum linken/rechten Rand, darüber hinaus wird Luna gegen
+ * die Kante gedrückt – schmaler und etwas höher, die Seite an der Kante bleibt dabei an der Kante.
+ */
+function wall(slide: number, roomL: number, roomR: number, size: number) {
+  'worklet';
+  const side = slide < 0 ? -1 : 1;
+  const inside = Math.min(1, Math.abs(slide));
+  const press = Math.min(1, Math.max(0, Math.abs(slide) - 1) * 2.4);
+  const sx = 1 - press * 0.18;
+  const sy = 1 + press * 0.1;
+  const x = side * (inside * (side < 0 ? roomL : roomR) + (size * (1 - sx)) / 2);
+  return { x, sx, sy, roll: side * inside * (1 - press) };
+}
 const REACTIONS = ['Hihi!', 'Das kitzelt!', 'Hey du!', 'Na, was steht an?', 'Ich bin bereit!', 'Huch!'];
 // 'worklet': läuft auf iPhone/Android auch im UI-Thread (in useAnimatedStyle) –
 // ohne die Markierung stürzen Lunas Animationen dort ab (im Browser egal)
@@ -61,7 +80,8 @@ const clamp = (v: number, min: number, max: number) => {
  * - Nachdenken: Punkte kreisen, Mund "o"; erledigt: strahlt
  * - Zuhören: große Augen, Schallringe und Antenne folgen der Stimme
  * - Sprechen: der Mund bewegt sich
- * - Handy (große Figur): Kippt man das Handy, gleitet Luna zur Seite und schaut mit
+ * - Handy (große Figur): Kippt oder schiebt man das Handy seitlich, rutscht Luna bis an den
+ *   Bildschirmrand und wird dagegen gedrückt (plattgedrückt, federt zurück)
  * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Luna ruhig
  */
@@ -96,7 +116,10 @@ export function NexyAvatar({
   const sway = useSharedValue(0);
   const mouthOpen = useSharedValue(0);
   const attentive = useSharedValue(0);
-  const slide = useSharedValue(0); // -1 links … 1 rechts (Handy gekippt)
+  const slide = useSharedValue(0); // -1 linker Rand … 1 rechter Rand; darüber hinaus = an den Rand gedrückt
+  // Platz bis zum Bildschirmrand (links/rechts), wird beim Kippen gemessen
+  const roomL = useSharedValue(S * 0.95);
+  const roomR = useSharedValue(S * 0.95);
   const noLevel = useSharedValue(0);
   const voice = level ?? noLevel;
 
@@ -329,7 +352,8 @@ export function NexyAvatar({
     };
   }, [moving, tracking, thinking, S, lookX, lookY, near, jump]);
 
-  // Handy kippen: Luna gleitet zur tieferen Seite, lehnt sich hinein und schaut dorthin
+  // Handy kippen oder seitlich schieben: Luna rutscht bis an den Rand (Trägheit: beim Ruck nach
+  // rechts rutscht sie nach links) und wird dort gegen die Kante gedrückt
   useEffect(() => {
     if (!tilting) {
       slide.set(withSpring(0, GLIDE));
@@ -339,6 +363,14 @@ export function NexyAvatar({
     let alive = true;
     let smooth = 0;
     let last = 0;
+    const measure = () =>
+      ref.current?.measureInWindow((x, _y, w) => {
+        if (!w) return;
+        const screen = Dimensions.get('window').width;
+        roomL.set(Math.max(0, x - EDGE_GAP));
+        roomR.set(Math.max(0, screen - x - w - EDGE_GAP));
+      });
+    measure();
     Accelerometer.isAvailableAsync()
       .then((ok) => {
         if (!ok || !alive) return;
@@ -346,18 +378,20 @@ export function NexyAvatar({
         sub = Accelerometer.addListener(({ x }) => {
           // iOS: rechte Kante nach unten = x positiv; Android meldet umgekehrt
           const raw = Platform.OS === 'ios' ? x : -x;
-          smooth = smooth * 0.75 + raw * 0.25; // Zittern glätten
-          // leichtes Schräghalten ignorieren, ab ~35° ganz am Rand
-          const dead = 0.07;
-          const t = Math.abs(smooth) < dead ? 0 : clamp((smooth - Math.sign(smooth) * dead) / 0.5, -1, 1);
+          // nur wenig glätten, damit auch ein kurzer Ruck zur Seite durchkommt
+          smooth = smooth * 0.55 + raw * 0.45;
+          // leichtes Schräghalten ignorieren, ab ~20° am Rand, stärker = fester dagegen gedrückt
+          const dead = 0.05;
+          const t = Math.abs(smooth) < dead ? 0 : clamp((smooth - Math.sign(smooth) * dead) / 0.28, -1.35, 1.35);
           if (Math.abs(t - last) < 0.02) return;
+          if (last === 0 && t !== 0) measure();
           last = t;
-          slide.set(withSpring(t, GLIDE));
+          slide.set(withSpring(t, WALL));
           if (t !== 0) {
             // beim Gleiten schaut sie in Fahrtrichtung, statt umherzuschauen
             lastMove.current = Date.now();
-            lookX.set(withSpring(t * 0.8, SPRING));
-            lookY.set(withSpring(Math.abs(t) * 0.15, SPRING));
+            lookX.set(withSpring(clamp(t, -1, 1) * 0.8, SPRING));
+            lookY.set(withSpring(Math.min(1, Math.abs(t)) * 0.15, SPRING));
           }
         });
       })
@@ -367,7 +401,7 @@ export function NexyAvatar({
       sub?.remove();
       slide.set(withSpring(0, GLIDE));
     };
-  }, [tilting, slide, lookX, lookY]);
+  }, [tilting, slide, lookX, lookY, roomL, roomR]);
 
   useEffect(() => {
     const list = timers.current;
@@ -402,26 +436,28 @@ export function NexyAvatar({
 
   // --- Stile ---
   const bodyStyle = useAnimatedStyle(() => {
+    const w = wall(slide.get(), roomL.get(), roomR.get(), S);
     const tilt =
       lookX.get() * (3 + near.get() * 6) +
       (mouthOpen.get() - 0.5) * (mouthOpen.get() > 0 ? 2 : 0) +
-      slide.get() * 12; // rollt beim Gleiten ein Stück mit
+      w.roll * 12; // rollt beim Gleiten ein Stück mit (an der Kante nicht mehr)
     const swell = 1 + voice.get() * 0.04 * attentive.get();
     return {
       transform: [
-        { translateX: lookX.get() * S * 0.03 * (0.4 + near.get()) + slide.get() * S * 0.95 },
+        { translateX: lookX.get() * S * 0.03 * (0.4 + near.get()) + w.x },
         { translateY: float.get() + jump.get() - mouthOpen.get() * S * 0.012 },
         { rotate: `${tilt}deg` },
-        { scaleX: squashX.get() * (1 - breathe.get() * 0.012) * swell },
-        { scaleY: squashY.get() * (1 + breathe.get() * 0.022) * swell },
+        { scaleX: squashX.get() * (1 - breathe.get() * 0.012) * swell * w.sx },
+        { scaleY: squashY.get() * (1 + breathe.get() * 0.022) * swell * w.sy },
       ],
     };
   });
   const shadowStyle = useAnimatedStyle(() => {
     const lift = (float.get() + jump.get()) / (S * 0.2); // negativ = höher
+    const w = wall(slide.get(), roomL.get(), roomR.get(), S);
     return {
       opacity: clamp(0.55 + lift * 0.9, 0.15, 0.75),
-      transform: [{ translateX: slide.get() * S * 0.95 }, { scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) }],
+      transform: [{ translateX: w.x }, { scaleX: clamp(1 + lift * 0.5, 0.55, 1.15) * w.sx }],
     };
   });
   const glowStyle = useAnimatedStyle(() => ({

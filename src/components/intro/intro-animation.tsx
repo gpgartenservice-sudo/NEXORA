@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   cancelAnimation,
+  FadeIn,
   Easing,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -15,6 +16,9 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { LETTER_IMAGES, letterFrames, wordmarkHeight, type LetterFrame } from '@/components/brand/letters';
 import { Colors } from '@/constants/theme';
+import { AppBackdrop } from '@/features/design/backgrounds';
+import { designActive } from '@/features/design/design-logic';
+import { useSavedDesign } from '@/features/design/saved-design';
 
 import {
   damped,
@@ -47,6 +51,7 @@ type Props = {
 
 export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }: Props) {
   const { width: screenW, height: screenH } = useWindowDimensions();
+  const design = useSavedDesign();
 
   // Größe des Schriftzugs während der Animation
   const wordW = Math.min(screenW * 0.8, 730);
@@ -184,7 +189,14 @@ export function IntroAnimation({ target, exitProgress, onExitStart, onFinished }
       onPress={skip}
       accessibilityRole="button"
       accessibilityLabel="Intro überspringen">
-      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]} />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
+        {/* zuletzt gewählter Hintergrund (Profil → Design) – blendet am Ende mit aus */}
+        {designActive(design) && (
+          <Animated.View entering={FadeIn.duration(500)} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <AppBackdrop design={design} />
+          </Animated.View>
+        )}
+      </Animated.View>
 
       <Animated.View
         pointerEvents="none"

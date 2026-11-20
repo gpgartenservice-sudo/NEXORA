@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type Vi
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { Colors, Radius } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
 import { GlassBackdrop, glassSurface } from './glass';
 
@@ -33,7 +34,10 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSound('tick');
+        onPress();
+      }}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={label}

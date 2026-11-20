@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -25,6 +25,20 @@ export const supabase = createClient(url, publishableKey, {
     detectSessionInUrl: false,
   },
 });
+
+const KEY: string = publishableKey;
+let side: SupabaseClient | null = null;
+
+/**
+ * Zweiter Anmelde-Client ohne Speicher: meldet weitere Konten an bzw. prüft sie, ohne das
+ * aktive Konto anzufassen (siehe lib/accounts.ts).
+ */
+export function sideAuth() {
+  side ??= createClient(SUPABASE_URL, KEY, {
+    auth: { storageKey: 'nexora-side-auth', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  return side.auth;
+}
 
 // Handy: Sitzung nur erneuern, solange die App im Vordergrund ist
 if (Platform.OS !== 'web') {

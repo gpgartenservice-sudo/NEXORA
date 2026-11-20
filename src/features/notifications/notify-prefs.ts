@@ -8,7 +8,7 @@ const KEY = 'nexora.notify-prefs';
 const listeners = new Set<(p: NotifyPrefs) => void>();
 let cache: NotifyPrefs | null = null;
 
-async function load(): Promise<NotifyPrefs> {
+export async function loadNotifyPrefs(): Promise<NotifyPrefs> {
   if (cache) return cache;
   try {
     const raw = await AsyncStorage.getItem(KEY);
@@ -22,14 +22,14 @@ async function load(): Promise<NotifyPrefs> {
 export function useNotifyPrefs() {
   const [prefs, setPrefs] = useState<NotifyPrefs>(cache ?? DEFAULT_PREFS);
   useEffect(() => {
-    void load().then(setPrefs);
+    void loadNotifyPrefs().then(setPrefs);
     listeners.add(setPrefs);
     return () => {
       listeners.delete(setPrefs);
     };
   }, []);
   const set = useCallback(async (key: NotifyKind, value: boolean) => {
-    const next = { ...(await load()), [key]: value };
+    const next = { ...(await loadNotifyPrefs()), [key]: value };
     cache = next;
     listeners.forEach((l) => l(next));
     try {

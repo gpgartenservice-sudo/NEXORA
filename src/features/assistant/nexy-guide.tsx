@@ -24,7 +24,7 @@ import Animated, {
 
 import { toLocalInput } from '@/components/ui/date-utils';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { playSound } from '@/features/sound/ui-sound';
 import { highlightRect, type Rect } from '@/features/tutorial/tutorial-logic';
 import { measure, type Node } from '@/features/tutorial/tutorial-overlay';
@@ -620,7 +620,7 @@ function SkipButton({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="Lunas Vorführung überspringen"
       {...hoverProps}
-      style={[styles.skip, glassSurface, hovered && styles.skipHover]}>
+      style={[styles.skip, glassSurface, hovered && [styles.skipHover, glassHover]]}>
       <GlassBackdrop radius={17} />
       <Text style={[styles.skipText, hovered && styles.skipTextHover]}>Überspringen</Text>
       {Platform.OS === 'web' && <Text style={styles.skipKey}>esc</Text>}

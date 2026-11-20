@@ -77,7 +77,7 @@ function useRefreshOnReturn(refresh: () => Promise<void>) {
 export function PlanScreen() {
   const { funktion } = useLocalSearchParams<{ funktion?: string }>();
   const feature = funktion && funktion in FEATURE_LABEL ? (funktion as ProFeature) : null;
-  const { info, missing, refresh } = usePlan();
+  const { info, missing, admin, refresh } = usePlan();
   const [now] = useState(() => new Date());
   const [interval, setBillingInterval] = useState<BillingInterval>('year');
   const [busy, setBusy] = useState<PaidTier | 'portal' | null>(null);
@@ -122,7 +122,9 @@ export function PlanScreen() {
               {planLabel(info, now)}
             </Text>
             <Text style={styles.body}>
-              {info.plan === 'trial' && info.trial_ends_at
+              {admin
+                ? 'Admin-Zugang: alles freigeschaltet, kostenlos – es wird nichts abgebucht.'
+                : info.plan === 'trial' && info.trial_ends_at
                 ? `Alle Pro-Funktionen bis zum ${formatDay(info.trial_ends_at.slice(0, 10))}. Danach Gratis – deine Daten bleiben.`
                 : paid
                   ? info.current_period_end
@@ -150,7 +152,7 @@ export function PlanScreen() {
               used={info.usage.voice.used}
               limit={info.usage.voice.limit}
             />
-            {paid && CAN_PAY && (
+            {paid && CAN_PAY && !admin && (
               <Button
                 label="Abo verwalten oder kündigen"
                 variant="secondary"
@@ -244,7 +246,7 @@ export function PlanScreen() {
                   : `Jährlich ${formatPrice(price.year)} – 2 Monate geschenkt.`}{' '}
                 {tier.text} {interval === 'year' ? 'Zum Jahresende kündbar.' : 'Monatlich kündbar.'}
               </Text>
-              {!current && CAN_PAY && (
+              {!current && CAN_PAY && !admin && (
                 <Button
                   label={paid ? `Zu ${tier.name} wechseln` : `${tier.name} holen`}
                   loading={busy === tier.key}

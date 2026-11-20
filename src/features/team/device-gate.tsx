@@ -5,18 +5,17 @@ import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Colors, Spacing } from '@/constants/theme';
-import { checkThisDevice, claimThisDevice, type DeviceStatus } from '@/lib/device';
-import { supabase } from '@/lib/supabase';
+import { checkThisDevice, deviceKind, KIND_LABEL, signOutHere, type DeviceStatus } from '@/lib/device';
 
 const CHECK_EVERY_MS = 60_000;
 
 /**
- * Pro/Business: ein Konto läuft auf einem Gerät gleichzeitig. Meldet man sich woanders an,
- * zeigt dieses Gerät beim nächsten Prüfen (Öffnen, zurück in die App, jede Minute) diesen
- * Hinweis – mit „Hier weiter nutzen“ holt man das Konto zurück.
+ * Pro/Business/Testphase: ein Konto läuft auf einem iPhone und einem Mac gleichzeitig.
+ * Ist der Platz schon von einem anderen Gerät der gleichen Art belegt, zeigt dieses Gerät
+ * den Hinweis, sich dort zuerst abzumelden (geprüft beim Öffnen, zurück in die App, jede Minute).
  */
 export function DeviceGate({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<DeviceStatus>({ active: true, limited: false });
+  const [status, setStatus] = useState<DeviceStatus>({ active: true, limited: false, devices: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const last = useRef(0);
@@ -48,30 +47,32 @@ export function DeviceGate({ children }: { children: ReactNode }) {
 
   if (status.active) return <>{children}</>;
 
-  const takeOver = async () => {
+  const retry = async () => {
     setBusy(true);
     setError(null);
-    await claimThisDevice();
+    last.current = 0;
     const next = await checkThisDevice();
     setBusy(false);
-    if (!next.active) setError('Das hat nicht geklappt. Prüfe deine Internetverbindung und versuch es noch einmal.');
+    if (!next.active) setError('Das andere Gerät ist noch angemeldet. Melde dich dort unter Profil → Abmelden ab.');
     setStatus(next);
   };
 
+  const kind = KIND_LABEL[status.otherKind ?? deviceKind()];
   return (
     <View style={styles.root}>
       <View style={styles.box}>
         <View style={styles.icon}>
           <MonitorSmartphone size={34} color={Colors.accent} strokeWidth={1.6} />
         </View>
-        <Text style={styles.title}>Dein Konto ist auf einem anderen Gerät aktiv</Text>
+        <Text style={styles.title}>Dein Konto ist schon auf einem anderen {kind} angemeldet</Text>
         <Text style={styles.text}>
-          {status.other ? `Zuletzt angemeldet: ${status.other}. ` : ''}Mit deinem Abo läuft Lunaxora auf einem Gerät
-          gleichzeitig. Wenn du hier weitermachst, wird das andere Gerät pausiert.
+          {status.other ? `Angemeldet auf: ${status.other}. ` : ''}Mit deinem Abo darfst du Lunaxora auf einem iPhone
+          und einem Mac gleichzeitig nutzen. Melde dich zuerst auf dem anderen {kind} ab (Profil → Abmelden) – dann
+          geht es hier weiter.
         </Text>
         {error && <Notice tone="error">{error}</Notice>}
-        <Button label="Hier weiter nutzen" loading={busy} onPress={() => void takeOver()} />
-        <Button label="Abmelden" variant="secondary" onPress={() => void supabase.auth.signOut({ scope: 'local' })} />
+        <Button label="Ich habe mich dort abgemeldet" loading={busy} onPress={() => void retry()} />
+        <Button label="Hier abmelden" variant="secondary" onPress={() => void signOutHere()} />
       </View>
     </View>
   );

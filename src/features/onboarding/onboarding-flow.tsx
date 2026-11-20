@@ -22,7 +22,7 @@ import { StepProgress } from '@/components/ui/step-progress';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
-import { supabase } from '@/lib/supabase';
+import { signOutHere } from '@/lib/device';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -190,7 +190,7 @@ export function OnboardingFlow() {
                   {stepIndex > 0 ? (
                     <TextLink label="← Zurück" onPress={back} />
                   ) : (
-                    <TextLink label="Abmelden" onPress={() => supabase.auth.signOut()} />
+                    <TextLink label="Abmelden" onPress={() => void signOutHere()} />
                   )}
                 </View>
               </View>

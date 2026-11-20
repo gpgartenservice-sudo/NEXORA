@@ -280,7 +280,7 @@ export function DunningPanel({ doc, customer }: { doc: StoredDocument; customer:
               icon={Send}
               label="Direkt senden"
               accessibilityLabel={`${nextStage.label} direkt senden`}
-              onPress={() => setDirect((v) => !v)}
+              onPress={() => (direct || gate('direct_mail')) && setDirect((v) => !v)}
               active={direct}
               disabled={busy || !input}
             />

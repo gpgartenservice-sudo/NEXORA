@@ -1,15 +1,17 @@
 /**
  * Benachrichtigungen – reine Logik: Was wann gemeldet wird (Termine, fällige Rechnungen,
- * To-dos, Ziele, Motivation). Geplant wird immer für die nächsten Tage neu.
+ * To-dos, Ziele, Motivation). Geplant wird immer für die nächsten Tage neu. Dazu sofort:
+ * Antworten auf Angebote (online angenommen oder abgelehnt).
  */
 
-export type NotifyKind = 'appointments' | 'invoices' | 'todos' | 'goals' | 'motivation';
+export type NotifyKind = 'appointments' | 'invoices' | 'offers' | 'todos' | 'goals' | 'motivation';
 
 export type NotifyPrefs = Record<NotifyKind, boolean>;
 
 export const DEFAULT_PREFS: NotifyPrefs = {
   appointments: true,
   invoices: true,
+  offers: true,
   todos: true,
   goals: true,
   motivation: true,
@@ -18,6 +20,7 @@ export const DEFAULT_PREFS: NotifyPrefs = {
 export const NOTIFY_OPTIONS: { key: NotifyKind; title: string; text: string }[] = [
   { key: 'appointments', title: 'Termine', text: 'Eine Stunde vorher (ganztägige morgens um 8).' },
   { key: 'invoices', title: 'Fällige Rechnungen', text: 'Am Tag, an dem eine Rechnung fällig wird – und am Tag danach, wenn sie noch offen ist.' },
+  { key: 'offers', title: 'Angebote', text: 'Sobald ein Kunde ein Angebot online annimmt oder ablehnt.' },
   { key: 'todos', title: 'To-dos für heute', text: 'Morgens um halb neun, wenn etwas ansteht.' },
   { key: 'goals', title: 'Ziele', text: 'Sonntagabends: wie weit du diese Woche gekommen bist.' },
   { key: 'motivation', title: 'Motivation', text: 'Ab und zu ein Impuls von Luna, der dich weiterbringt.' },
@@ -148,4 +151,48 @@ export function planNotifications(data: NotifyData, prefs: NotifyPrefs, now: Dat
   }
 
   return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, MAX);
+}
+
+/** Angebot mit Antwort des Kunden (über den Link zum Online-Annehmen) */
+export type OfferReply = {
+  id: string;
+  number: string;
+  total: number;
+  customerName: string | null;
+  accepted_at?: string | null;
+  accepted_name?: string | null;
+  declined_at?: string | null;
+  decline_note?: string | null;
+};
+
+export type ReplyNote = { id: string; title: string; body: string };
+
+/** Zeitpunkt der Antwort (angenommen oder abgelehnt) in ms – 0 ohne Antwort */
+export function replyTime(o: OfferReply): number {
+  const t = Date.parse(o.accepted_at ?? o.declined_at ?? '');
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Mitteilungen für Antworten, die nach `since` (ms) kamen – älteste zuerst */
+export function offerReplyNotes(offers: OfferReply[], since: number): ReplyNote[] {
+  return offers
+    .filter((o) => replyTime(o) > since)
+    .sort((a, b) => replyTime(a) - replyTime(b))
+    .map((o) => {
+      if (o.accepted_at) {
+        const who = o.accepted_name?.trim() || o.customerName || 'Dein Kunde';
+        return {
+          id: `offer-accepted-${o.id}`,
+          title: `Angebot ${o.number} angenommen`,
+          body: `${who} hat das Angebot über ${euro(o.total)} online angenommen.`,
+        };
+      }
+      const note = o.decline_note?.trim();
+      const short = note && note.length > 140 ? `${note.slice(0, 139)}…` : note;
+      return {
+        id: `offer-declined-${o.id}`,
+        title: `Angebot ${o.number} abgelehnt`,
+        body: `${o.customerName ?? 'Dein Kunde'} hat das Angebot abgelehnt.${short ? ` „${short}“` : ''}`,
+      };
+    });
 }

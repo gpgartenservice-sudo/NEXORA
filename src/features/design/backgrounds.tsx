@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -13,6 +13,9 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+
+import { Colors } from '@/constants/theme';
+import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 
 import {
   DEFAULT_DESIGN,
@@ -59,6 +62,24 @@ export function DesignProvider({ design, children }: { design: DesignSettings; c
 }
 
 export const useDesign = () => useContext(DesignCtx);
+
+/**
+ * Mac (breites Fenster): ein gemeinsamer Hintergrund liegt hinter Seitenleiste und Seiten
+ * (in (tabs)/_layout.tsx) – die Seiten selbst sind dann durchsichtig. Nur im Web/Mac: dort
+ * blendet der Seiten-Stapel verdeckte Seiten ganz aus (am iPad lägen sie darunter).
+ */
+export const sharedBackdropOn = (width: number, design: DesignSettings) =>
+  Platform.OS === 'web' && width >= SIDEBAR_BREAKPOINT && designActive(design);
+
+export function useWideBackdrop(): boolean {
+  const { width } = useWindowDimensions();
+  return sharedBackdropOn(width, useDesign());
+}
+
+/** Grundfarbe der Seiten-Stapel: am Mac mit Hintergrund durchsichtig */
+export function useStackBackground(): string {
+  return useWideBackdrop() ? 'transparent' : Colors.background;
+}
 
 /** Hintergrund-Ebene (liegt hinter dem Inhalt, fängt keine Klicks) */
 export function AppBackdrop({ design }: { design?: DesignSettings }) {

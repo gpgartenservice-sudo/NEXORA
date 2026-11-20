@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Check, Mail, MessageCircle, Share } from 'lucide-react-native';
+import { Check, Lock, Mail, MessageCircle, Share } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import type { Customer } from '@/features/crm/crm-provider';
+import { usePlan, useProGate } from '@/features/plan/plan-provider';
 
 import { documentMessage, mailtoUrl, whatsappNumber, whatsappUrl } from './document-logic';
 import { useDocuments, type StoredDocument } from './documents-provider';
@@ -47,7 +48,11 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   const { logoFor, shareOffer, seller } = useDocuments();
 
   const isOffer = doc.kind === 'offer';
-  const wantsLink = isOffer && !!WEB_URL;
+  // Link zum Online-Annehmen gibt es mit Pro – ohne Pro geht das Angebot als PDF raus
+  const { pro } = usePlan();
+  const gate = useProGate();
+  const linkLocked = isOffer && !pro;
+  const wantsLink = isOffer && !!WEB_URL && !linkLocked;
 
   // PDF vorab erzeugen, damit E-Mail/WhatsApp sofort beim Klick aufgehen
   useEffect(() => {
@@ -157,7 +162,7 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
           ? 'Beim Kunden ist keine Handynummer hinterlegt – in WhatsApp wählst du den Kontakt dann selbst.'
           : null;
 
-  const linkProblem = !isOffer
+  const linkProblem = !isOffer || linkLocked
     ? null
     : !WEB_URL
       ? 'Für den Link zum Annehmen fehlt die Adresse EXPO_PUBLIC_WEB_URL in der .env (supabase/README.md, Abschnitt 9).'
@@ -182,6 +187,12 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
         schickst selbst ab.
       </Text>
       {linkProblem && <Notice tone="info">{`Ohne Link zum Annehmen: ${linkProblem}`}</Notice>}
+      {linkLocked && (
+        <View style={styles.locked}>
+          <ActionChip icon={Lock} label="Link zum Online-Annehmen" onPress={() => gate('offer_link')} />
+          <Text style={styles.hint}>Mit Pro nimmt dein Kunde das Angebot mit einem Klick online an.</Text>
+        </View>
+      )}
       {missing && (
         <View style={styles.missing}>
           <Text style={styles.hint}>{missing}</Text>
@@ -205,6 +216,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   hint: { color: Colors.textFaint, fontSize: 13, lineHeight: 18 },
   missing: { gap: Spacing.xs },
+  locked: { gap: Spacing.xs, alignItems: 'flex-start' },
   mark: {
     flexDirection: 'row',
     flexWrap: 'wrap',

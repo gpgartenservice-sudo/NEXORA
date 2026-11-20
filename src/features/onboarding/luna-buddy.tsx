@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { GlassBackdrop, glassSurface, NATIVE_GLASS } from '@/components/ui/glass';
+import { GlassBackdrop, glassSurface, HAS_GLASS } from '@/components/ui/glass';
 import { Colors, Spacing } from '@/constants/theme';
 import { NexyAvatar, type NexyMood } from '@/features/assistant/nexy-avatar';
 
@@ -45,7 +45,7 @@ export function LunaBuddy({ message, mood = 'idle', compact }: { message: string
       </Animated.View>
       <Animated.View style={[styles.bubble, glassSurface, bubbleStyle]}>
         <GlassBackdrop radius={18} />
-        {!NATIVE_GLASS && <View style={styles.tail} />}
+        {!HAS_GLASS && <View style={styles.tail} />}
         <Text style={styles.text}>{shown}</Text>
       </Animated.View>
     </View>

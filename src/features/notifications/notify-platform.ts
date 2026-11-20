@@ -48,8 +48,11 @@ export async function schedule(list: PlannedNotification[]): Promise<void> {
   }
 }
 
-export async function sendTest(title: string, body: string): Promise<boolean> {
+/** Sofort eine Mitteilung (z. B. Angebot angenommen) */
+export async function notifyNow(title: string, body: string): Promise<boolean> {
   if ((await permission()) !== 'granted') return false;
   show(title, body);
   return true;
 }
+
+export const sendTest = notifyNow;

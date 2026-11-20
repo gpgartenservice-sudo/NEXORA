@@ -1,32 +1,52 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useCountUp } from '@/components/motion/count-up';
 import { burstMoney } from '@/components/motion/money-burst';
 import { Card } from '@/components/ui/card';
+import { Segmented } from '@/components/ui/segmented';
 import { Colors, Spacing } from '@/constants/theme';
 import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { useFinance } from '@/features/finance/finance-provider';
 import { monthLabel, monthKey } from '@/features/finance/finance-logic';
 
-import { allTimeIncome, celebrationDone, monthNumbers, useCelebration, type MoneyNumbers } from './money';
+import { allTimeIncome, celebrationDone, moneyNumbers, useCelebration, type MoneyNumbers, type MoneyRange } from './money';
 import { celebrateIncome } from './money-celebration';
 
 const ZERO: MoneyNumbers = { income: 0, expenses: 0, profit: 0 };
 
+/** Gewählter Zeitraum (Monat/Gesamt) – pro Gerät gemerkt */
+const RANGE_KEY = 'nexora.money-range';
+let savedRange: MoneyRange = 'month';
+const rangeLoaded = AsyncStorage.getItem(RANGE_KEY)
+  .then((v) => {
+    if (v === 'month' || v === 'total') savedRange = v;
+    return savedRange;
+  })
+  .catch(() => savedRange);
+
 /**
- * Startseite: Gewinn groß, Einnahmen kleiner, Ausgaben noch kleiner (laufender Monat).
- * Erscheint ab den ersten Einnahmen oder Ausgaben. Beim Öffnen der Startseite zählen die
- * Zahlen von 0 hoch; beim App-Start fliegen dazu Geldscheine, bei einer neuen Einnahme
- * kommt einmal die große Show (money-celebration.tsx).
+ * Startseite: Gewinn groß, Einnahmen kleiner, Ausgaben noch kleiner – für den laufenden
+ * Monat oder insgesamt (Umschalter oben). Erscheint ab den ersten Einnahmen oder Ausgaben.
+ * Beim Öffnen der Startseite zählen die Zahlen von 0 hoch; beim App-Start fliegen dazu
+ * Geldscheine, bei einer neuen Einnahme kommt einmal die große Show (money-celebration.tsx).
  */
 export function MoneyCard() {
   const { orders } = useCrm();
   const { expenses } = useFinance();
-  const numbers = monthNumbers(orders, expenses);
+  const [range, setRange] = useState<MoneyRange>(savedRange);
+  useEffect(() => {
+    let alive = true;
+    void rangeLoaded.then((r) => alive && setRange(r));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const numbers = moneyNumbers(range, orders, expenses);
   const hasAny = allTimeIncome(orders) > 0 || expenses.length > 0 || orders.some((o) => Number(o.expenses ?? 0) > 0);
 
   const celebration = useCelebration();
@@ -41,11 +61,23 @@ export function MoneyCard() {
     }, []),
   );
 
+  // aktueller Stand für die Feier (ohne sie bei jeder Zahl neu zu starten)
+  const latest = useRef({ range, numbers });
+  useEffect(() => {
+    latest.current = { range, numbers };
+  });
+
   useEffect(() => {
     if (!focused || !celebration) return;
     // kurz warten, bis die Seite eingeblendet ist
     const t = setTimeout(() => {
-      setReplay((r) => ({ n: r.n + 1, from: celebration.from }));
+      // celebration.from sind Monatszahlen – bei "Gesamt" vom Stand vor der Einnahme hochzählen
+      const { range: r, numbers: n } = latest.current;
+      const from =
+        r === 'total' && celebration.reason === 'income'
+          ? { income: n.income - celebration.amount, expenses: n.expenses, profit: n.profit - celebration.amount }
+          : celebration.from;
+      setReplay((p) => ({ n: p.n + 1, from }));
       // App-Start: Scheine fliegen. Neue Einnahme: die große Show mit Betrag und Luna
       if (celebration.reason === 'income') celebrateIncome(celebration.amount);
       else burstMoney(22);
@@ -58,13 +90,36 @@ export function MoneyCard() {
   const income = useCountUp(numbers.income, { from: replay.from.income, replay: replay.n, duration: 1400 });
   const spent = useCountUp(numbers.expenses, { from: replay.from.expenses, replay: replay.n, duration: 1200 });
 
+  const changeRange = (next: MoneyRange) => {
+    if (next === range) return;
+    // von den bisher gezeigten Zahlen zu den neuen zählen
+    setReplay((r) => ({ n: r.n + 1, from: numbers }));
+    setRange(next);
+    savedRange = next;
+    void AsyncStorage.setItem(RANGE_KEY, next).catch(() => {});
+  };
+
   if (!hasAny) return null;
 
   return (
     <Card onPress={() => router.navigate('/finanzen')} accessibilityLabel="Finanzen öffnen">
       <View style={styles.head}>
-        <Text style={styles.eyebrow}>DEIN GELD · {monthLabel(monthKey(new Date())).toUpperCase()}</Text>
-        <ArrowRight size={16} color={Colors.textMuted} />
+        <Text style={styles.eyebrow}>
+          DEIN GELD · {range === 'total' ? 'GESAMT' : monthLabel(monthKey(new Date())).toUpperCase()}
+        </Text>
+        <View style={styles.headRight}>
+          <View style={styles.rangeWrap}>
+            <Segmented
+              value={range}
+              onChange={changeRange}
+              options={[
+                { value: 'month', label: 'Monat' },
+                { value: 'total', label: 'Gesamt' },
+              ]}
+            />
+          </View>
+          <ArrowRight size={16} color={Colors.textMuted} />
+        </View>
       </View>
       <View style={styles.row}>
         <View style={styles.main}>
@@ -104,7 +159,9 @@ export function MoneyCard() {
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  head: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  rangeWrap: { width: 190 },
   eyebrow: { color: Colors.textFaint, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.2 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: Spacing.xl },
   main: { gap: 2, flexGrow: 1, minWidth: 200 },

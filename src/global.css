@@ -15,3 +15,13 @@ input:focus,
 textarea:focus {
   outline: none;
 }
+
+/* Symbole und Eingabefelder auf Glas: Die Glas-Ebene liegt absolut im selben Element und
+   würde statische SVGs (Lucide-Symbole wie das „?“) und Textfelder (z. B. „Schreib Luna …“)
+   überdecken und verwischen. Mit position: relative malt der Browser sie wie alle Views in
+   Aufbau-Reihenfolge – also über dem Glas. Absolut gesetzte behalten ihre eigene Position. */
+svg,
+input,
+textarea {
+  position: relative;
+}

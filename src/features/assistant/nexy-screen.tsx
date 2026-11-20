@@ -31,7 +31,9 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { ActionChip } from '@/components/ui/action-chip';
 import { Card } from '@/components/ui/card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
+import { AppBackdrop, useDesign, useWideBackdrop } from '@/features/design/backgrounds';
+import { designActive } from '@/features/design/design-logic';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 import { useScreenTop } from '@/features/navigation/use-screen-top';
 import { quotaText } from '@/features/plan/plan-logic';
@@ -99,6 +101,9 @@ const STARTERS = [
 /** Luna – Chat mit der KI-Assistentin. */
 export function NexyScreen() {
   const { messages, thinking, send, reset, blockers, executing } = useNexy();
+  // Hintergrund (Profil → Design) wie auf allen Seiten; am Mac liegt er schon hinter allem
+  const design = useDesign();
+  const sharedBackdrop = useWideBackdrop();
   const runProposals = useRunProposals();
   const runLatest = useRef(runProposals);
   // Führt Luna gerade etwas vor, verlässt sie den Chat nur kurz – der Sprachmodus bleibt an
@@ -203,7 +208,8 @@ export function NexyScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.root, sharedBackdrop && styles.clear]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {designActive(design) && !sharedBackdrop && <AppBackdrop />}
       <ScrollView
         ref={scroll}
         style={styles.scroll}
@@ -214,6 +220,7 @@ export function NexyScreen() {
           {messages.length === 0 ? (
             <View style={styles.hero}>
               <View style={styles.heroHelp}>
+                {voice.canSpeak && <ReadToggle on={readAloud} onPress={toggleReadAloud} />}
                 <TutorialButton id="nexy" />
               </View>
               <Reveal style={styles.heroFigure}>
@@ -249,21 +256,7 @@ export function NexyScreen() {
                 <Text style={styles.headTitle}>Luna</Text>
                 <Text style={styles.headSub}>Deine KI-Assistentin</Text>
               </View>
-              {voice.canSpeak && (
-                <Pressable
-                  onPress={toggleReadAloud}
-                  accessibilityRole="switch"
-                  aria-checked={readAloud}
-                  accessibilityLabel="Antworten vorlesen"
-                  style={[styles.readToggle, readAloud && styles.readToggleOn]}>
-                  {readAloud ? (
-                    <Volume2 size={15} color={Colors.accent} strokeWidth={2} />
-                  ) : (
-                    <VolumeX size={15} color={Colors.textMuted} strokeWidth={2} />
-                  )}
-                  <Text style={[styles.readText, readAloud && styles.readTextOn]}>Vorlesen</Text>
-                </Pressable>
-              )}
+              {voice.canSpeak && <ReadToggle on={readAloud} onPress={toggleReadAloud} />}
               <TutorialButton id="nexy" />
               <Pressable
                 onPress={() => {
@@ -353,9 +346,9 @@ export function NexyScreen() {
               style={styles.input}
               selectionColor={Colors.text}
             />
-            {voice.supported && !text.trim() ? (
-              <MicButton onPress={() => void voice.start()} disabled={thinking} />
-            ) : (
+            {/* Mikrofon immer sichtbar; Senden kommt dazu, sobald etwas getippt ist */}
+            {voice.supported && <MicButton onPress={() => void voice.start()} disabled={thinking} />}
+            {(!voice.supported || !!text.trim()) && (
               <Pressable
                 onPress={() => submit()}
                 disabled={!text.trim() || thinking}
@@ -455,6 +448,21 @@ function useTypewriter(text: string, enabled: boolean): string {
     return () => clearInterval(timer);
   }, [animate, text]);
   return animate ? text.slice(0, count) : text;
+}
+
+/** „Vorlesen“ an/aus – Luna spricht ihre Antworten */
+function ReadToggle({ on, onPress }: { on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="switch"
+      aria-checked={on}
+      accessibilityLabel="Antworten vorlesen"
+      style={[styles.readToggle, on && styles.readToggleOn]}>
+      {on ? <Volume2 size={15} color={Colors.accent} strokeWidth={2} /> : <VolumeX size={15} color={Colors.textMuted} strokeWidth={2} />}
+      <Text style={[styles.readText, on && styles.readTextOn]}>Vorlesen</Text>
+    </Pressable>
+  );
 }
 
 /** Mikrofon-Knopf im Eingabefeld: startet den Sprachmodus */
@@ -582,7 +590,7 @@ function Starter({ text, onPress }: { text: string; onPress: () => void }) {
       onPress={onPress}
       accessibilityRole="button"
       {...hoverProps}
-      style={[styles.starter, glassSurface, hovered && styles.starterHover]}>
+      style={[styles.starter, glassSurface, hovered && [styles.starterHover, glassHover]]}>
       <GlassBackdrop radius={Radius.md} />
       <Text style={styles.starterText}>{text}</Text>
     </Pressable>
@@ -606,10 +614,18 @@ function QuickReply({ text, onPress, disabled }: { text: string; onPress: () => 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+  clear: { backgroundColor: 'transparent' },
   scroll: { flex: 1 },
   inner: { width: '100%', maxWidth: 860, alignSelf: 'center', gap: Spacing.lg },
   hero: { alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.xxl },
-  heroHelp: { alignSelf: 'flex-end', marginTop: -Spacing.xxl, marginBottom: -Spacing.md },
+  heroHelp: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: -Spacing.xxl,
+    marginBottom: -Spacing.md,
+  },
   // Platz für Antenne oben und Schatten unten
   heroFigure: { paddingTop: Spacing.lg, paddingBottom: Spacing.xl },
   heroTitle: { color: Colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.6, textAlign: 'center' },

@@ -3,11 +3,12 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
-import { GlassBackdrop, NATIVE_GLASS, glassSurface } from './glass';
+import { GlassBackdrop, HAS_GLASS, glassSurface } from './glass';
 
-// iPhone mit Liquid Glass: kein sichtbarer Rand, das Glas hat seine eigene Kante
-const BORDER = NATIVE_GLASS ? 'rgba(0,0,0,0)' : Colors.border;
+// Mit Glas (iPhone, Mac): kein sichtbarer Rand, das Glas hat seine eigene Kante
+const BORDER = HAS_GLASS ? 'rgba(0,0,0,0)' : Colors.border;
 
 type Props = {
   children: ReactNode;
@@ -47,7 +48,10 @@ function PressableCard({ children, style, onPress, accessibilityLabel }: Props &
   }));
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSound('tick');
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onHoverIn={() => hover.set(withTiming(1, { duration: 200 }))}

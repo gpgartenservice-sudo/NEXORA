@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Colors, Spacing } from '@/constants/theme';
 import { todayIso } from '@/features/documents/document-logic';
-import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
+import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { useProfile } from '@/providers/profile-provider';
 
 import { GoalCard } from './goal-card';
@@ -24,7 +24,8 @@ export function TodayCard() {
   const [today] = useState(() => todayIso());
   const [failure, setFailure] = useState<string | null>(null);
   const { width } = useWindowDimensions();
-  const contentWidth = width >= SIDEBAR_BREAKPOINT ? width - SIDEBAR_WIDTH : width;
+  // Seitenleiste am Mac (eingeklappt schmaler) abziehen
+  const contentWidth = width - useSidebarWidth();
   const row = contentWidth >= 900;
   const list = todayTodos(todos, today, 5);
   const openToday = todos.filter((t) => !t.done && t.due_on && t.due_on <= today).length;

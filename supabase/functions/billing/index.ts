@@ -279,6 +279,8 @@ async function checkout(user: User, body: Record<string, unknown>, deps: Deps): 
   if (!tier || !interval) return json(400, { error: 'invalid_plan' });
 
   const row = await loadRow(deps, `user_id=eq.${encodeURIComponent(user.id)}`);
+  // Von Hand vergebenes Abo (Admin): nichts verkaufen, es soll nie etwas abgebucht werden
+  if (row?.source === 'admin') return json(409, { error: 'admin_plan' });
   // Läuft schon ein Abo: Wechsel (z. B. Pro -> Business) im Kundenportal statt doppelt zu zahlen
   if (row?.stripe_customer_id && hasRunningStripeSubscription(row, deps.now?.() ?? Date.now())) {
     return json(200, { url: await portalUrl(deps, row.stripe_customer_id), portal: true });

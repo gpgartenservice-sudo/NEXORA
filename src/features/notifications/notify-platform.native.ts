@@ -56,9 +56,11 @@ export async function schedule(list: PlannedNotification[]): Promise<void> {
   }
 }
 
-/** Sofort eine Test-Mitteilung */
-export async function sendTest(title: string, body: string): Promise<boolean> {
+/** Sofort eine Mitteilung (Test, Angebot angenommen …) */
+export async function notifyNow(title: string, body: string): Promise<boolean> {
   if (!N || (await permission()) !== 'granted') return false;
   await N.scheduleNotificationAsync({ content: { title, body }, trigger: null });
   return true;
 }
+
+export const sendTest = notifyNow;

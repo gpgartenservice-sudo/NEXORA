@@ -3,15 +3,16 @@ import { Platform } from 'react-native';
 import { desktop } from '@/lib/desktop';
 
 import { speechAudio, type SpeechAudioResult } from './assistant-api';
+import { nativeMicSupported, openNativeMic } from './native-mic';
 import { canPlaySpeech, playSpeechAudio } from './speech-player';
 import { createSpeechDetector, speechChunks, speechText, type DetectorOptions } from './voice-logic';
 
 /**
  * Sprachmodus von Luna – Mikrofon, Aufnahme mit Pausen-Erkennung, Vorlesen.
  *
- * Zuhören läuft im Mac-Fenster und im Browser (Web-APIs), Vorlesen zusätzlich
- * auf dem Handy. Die Aufnahme bleibt im Speicher und geht nur zur Umwandlung
- * in Text an die Server-Funktion.
+ * Zuhören läuft im Mac-Fenster und im Browser (Web-APIs) und auf dem iPhone
+ * (native-mic.native.ts), Vorlesen überall. Die Aufnahme bleibt im Speicher und
+ * geht nur zur Umwandlung in Text an die Server-Funktion.
  */
 
 type AudioContextClass = typeof AudioContext;
@@ -25,7 +26,8 @@ function audioContextClass(): AudioContextClass | null {
 
 /** Kann die App hier zuhören? */
 export function voiceSupported(): boolean {
-  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return false;
+  if (Platform.OS !== 'web') return nativeMicSupported();
+  if (typeof navigator === 'undefined') return false;
   return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined' && !!audioContextClass();
 }
 
@@ -77,6 +79,21 @@ export type Mic = {
 
 /** Mikrofon öffnen (fragt beim ersten Mal nach der Erlaubnis). */
 export async function openMic(): Promise<{ mic?: Mic; error?: string }> {
+  if (Platform.OS !== 'web') {
+    const opened = await openNativeMic();
+    if (!opened.mic) return opened;
+    const { close } = opened.mic;
+    micOpen = true;
+    return {
+      mic: {
+        ...opened.mic,
+        close: () => {
+          micOpen = false;
+          close();
+        },
+      },
+    };
+  }
   const Ctx = audioContextClass();
   if (!voiceSupported() || !Ctx) return { error: 'Sprache wird hier leider nicht unterstützt.' };
 

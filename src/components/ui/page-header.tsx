@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Colors, Spacing } from '@/constants/theme';
+import { useSwipeBack } from '@/features/navigation/edge-swipe';
 import { useHover } from '@/hooks/use-hover';
 
 type Props = {
@@ -22,6 +23,8 @@ type Props = {
 /** Seitenkopf mit optionalem Zurück-Link und Aktion rechts. */
 export function PageHeader({ title, subtitle, back, action, meta, help }: Props) {
   const { hovered, hoverProps } = useHover();
+  // Handy: vom linken Rand wischen = dieser Zurück-Link
+  useSwipeBack(back?.onPress);
   return (
     <View style={styles.wrap}>
       {back && (

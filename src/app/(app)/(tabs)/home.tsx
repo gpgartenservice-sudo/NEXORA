@@ -11,7 +11,7 @@ import { formatToday, greeting, impulseOfTheDay } from '@/features/dashboard/con
 import { FocusCard } from '@/features/dashboard/focus-card';
 import { MoneyCard } from '@/features/dashboard/money-card';
 import { TodayCard } from '@/features/goals/today-card';
-import { SIDEBAR_BREAKPOINT, SIDEBAR_WIDTH } from '@/features/navigation/nav-items';
+import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { nextSteps, stepsFor } from '@/features/roadmap/content';
 import { useRoadmap } from '@/features/roadmap/roadmap-provider';
 import { StepCheck } from '@/features/roadmap/step-check';
@@ -22,7 +22,8 @@ import { useProfile } from '@/providers/profile-provider';
 export default function DashboardScreen() {
   const { profile } = useProfile();
   const { width } = useWindowDimensions();
-  const contentWidth = width >= SIDEBAR_BREAKPOINT ? width - SIDEBAR_WIDTH : width;
+  // Seitenleiste am Mac (eingeklappt schmaler) abziehen
+  const contentWidth = width - useSidebarWidth();
   const twoColumns = contentWidth >= 900;
 
   const name = profile?.display_name?.trim().split(/\s+/)[0] ?? '';

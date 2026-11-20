@@ -10,6 +10,7 @@ import Animated, {
 
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 
 type Props = {
   title: string;
@@ -59,7 +60,10 @@ export function OptionCard({ title, description, emoji, selected, onPress, multi
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSound('tick');
+        onPress();
+      }}
       disabled={disabled}
       accessibilityRole={multiple ? 'checkbox' : 'radio'}
       accessibilityState={{ checked: selected, disabled }}

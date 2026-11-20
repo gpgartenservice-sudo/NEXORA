@@ -1,8 +1,10 @@
+import { ThemeProvider, useTheme } from 'expo-router';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
-import { useMemo } from 'react';
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { EdgeSwipe } from '@/features/navigation/edge-swipe';
 import { NavBar, NavButton } from '@/features/navigation/nav-bar';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 import { CrmProvider } from '@/features/crm/crm-provider';
@@ -22,9 +24,11 @@ import { TutorialProvider } from '@/features/tutorial/tutorial-provider';
 import { TeamProvider, useWorkspaceId } from '@/features/team/team-provider';
 import { DeviceGate } from '@/features/team/device-gate';
 import { AppExtras } from '@/features/dashboard/app-extras';
-import { DesignProvider } from '@/features/design/backgrounds';
+import { AppBackdrop, DesignProvider, sharedBackdropOn } from '@/features/design/backgrounds';
+import { saveDesign } from '@/features/design/saved-design';
 import { DEFAULT_DESIGN, readDesign } from '@/features/design/design-logic';
 import { usePlan } from '@/features/plan/plan-provider';
+import { PlanWall } from '@/features/plan/plan-wall';
 import { useProfile } from '@/providers/profile-provider';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -60,6 +64,13 @@ function Workspace() {
   const { pro } = usePlan();
   const rawDesign = profile?.design;
   const design = useMemo(() => (pro ? readDesign(rawDesign) : DEFAULT_DESIGN), [pro, rawDesign]);
+  // fürs nächste Öffnen merken: das Intro zeigt dann schon diesen Hintergrund
+  useEffect(() => saveDesign(design), [design]);
+  // Mac: Hintergrund (Profil → Design) einmal hinter Seitenleiste und Seiten
+  const sharedBackdrop = sharedBackdropOn(width, design);
+  // Die Seiten-Stapel malen im Web sonst die Theme-Farbe (Schwarz) über den Hintergrund
+  const navTheme = useTheme();
+  const clearTheme = useMemo(() => ({ ...navTheme, colors: { ...navTheme.colors, background: 'transparent' } }), [navTheme]);
 
   return (
     <DesignProvider design={design}>
@@ -76,7 +87,9 @@ function Workspace() {
                         <NexyProvider key={user?.id ?? ''}>
                           <TutorialProvider>
                             <GuideProvider>
-                              <Tabs style={[styles.root, wide ? styles.row : styles.columnReverse]}>
+                              <View style={styles.root}>
+                              {sharedBackdrop && <AppBackdrop />}
+                              <Tabs style={[styles.slot, wide ? styles.row : styles.columnReverse]}>
                                 <TabList asChild>
                                   <NavBar wide={wide}>
                                     {NAV_ITEMS.map((item) => (
@@ -86,9 +99,15 @@ function Workspace() {
                                     ))}
                                   </NavBar>
                                 </TabList>
-                                <TabSlot style={styles.slot} />
+                                <ThemeProvider value={sharedBackdrop ? clearTheme : navTheme}>
+                                  <EdgeSwipe enabled={!wide} style={styles.slot}>
+                                    <TabSlot style={styles.slot} />
+                                  </EdgeSwipe>
+                                </ThemeProvider>
                               </Tabs>
+                              </View>
                               <AppExtras />
+                              <PlanWall />
                             </GuideProvider>
                           </TutorialProvider>
                         </NexyProvider>

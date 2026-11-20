@@ -2,6 +2,7 @@ import { getRandomBytes } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
+import { showPlanWall } from '@/features/plan/plan-wall';
 import { supabase } from '@/lib/supabase';
 
 import { feedToken, type Appointment } from './appointment-logic';
@@ -42,7 +43,10 @@ function message(error: { code?: string; message?: string }, fallback: string): 
   if (error.code === '23514') return 'Eine Angabe ist ungültig – z. B. endet der Termin vor dem Beginn.';
   if ((error.code === 'PGRST204' || error.code === '42703') && /outdoor/.test(error.message ?? ''))
     return 'Für „Draußen“ fehlt noch das Datenbank-Skript 20261120090000_feinschliff.sql (siehe supabase/README.md). Schalte es aus, um den Termin zu speichern.';
-  if (isProRequired(error)) return proRequiredText('calendar_feed');
+  if (isProRequired(error)) {
+    showPlanWall({ feature: 'calendar_feed' });
+    return proRequiredText('calendar_feed');
+  }
   return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 

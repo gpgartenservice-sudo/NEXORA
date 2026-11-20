@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number };
@@ -23,7 +24,10 @@ export function ActionChip({ label, onPress, icon: Icon, accessibilityLabel, dis
   const color = active ? Colors.accent : Colors.text;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSound('tick');
+        onPress();
+      }}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}

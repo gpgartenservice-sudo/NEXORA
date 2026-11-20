@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from 'react';
 
 import {
+  expenseByMonth,
   monthKey,
+  orderExpenseByMonth,
   orderIncomeByMonth,
   summarize,
   type ExpenseFacts,
@@ -28,6 +30,27 @@ export function allTimeIncome(orders: OrderMoney[], today = new Date()): number 
 export function monthNumbers(orders: OrderMoney[], expenses: ExpenseFacts[], today = new Date()): MoneyNumbers {
   const [row] = summarize(orders, expenses, [monthKey(today)], today);
   return { income: row.income, expenses: row.expenses, profit: row.profit };
+}
+
+/** Einnahmen, Ausgaben, Gewinn insgesamt – alles bis einschließlich laufendem Monat */
+export function totalNumbers(orders: OrderMoney[], expenses: ExpenseFacts[], today = new Date()): MoneyNumbers {
+  const until = monthKey(today);
+  let income = 0;
+  let spent = 0;
+  for (const o of orders) {
+    for (const [k, v] of orderIncomeByMonth(o, today)) if (k <= until) income += v;
+    for (const [k, v] of orderExpenseByMonth(o)) if (k <= until) spent += v;
+  }
+  for (const e of expenses) for (const [k, v] of expenseByMonth(e, today)) if (k <= until) spent += v;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return { income: r2(income), expenses: r2(spent), profit: r2(income - spent) };
+}
+
+/** Startseite: Zeitraum der Geld-Karte */
+export type MoneyRange = 'month' | 'total';
+
+export function moneyNumbers(range: MoneyRange, orders: OrderMoney[], expenses: ExpenseFacts[], today = new Date()): MoneyNumbers {
+  return range === 'total' ? totalNumbers(orders, expenses, today) : monthNumbers(orders, expenses, today);
 }
 
 export type Celebration = {

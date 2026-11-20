@@ -3,8 +3,10 @@
  * App-Zwischenspeicher abgelegt, abgespielt und danach gleich wieder gelöscht.
  * Mac/Browser: speech-player.ts.
  */
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
+
+import { audioReady, holdAudio } from '@/features/sound/audio-session';
 
 import type { Playback, PlayEvents } from './speech-player';
 
@@ -12,17 +14,6 @@ export type { Playback, PlayEvents } from './speech-player';
 
 export function canPlaySpeech(): boolean {
   return true;
-}
-
-// Auch bei stummgeschaltetem iPhone hörbar; andere Musik wird kurz leiser statt gestoppt
-let mode: Promise<void> | null = null;
-function ensureAudioMode(): Promise<void> {
-  mode ??= setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers', allowsRecording: false }).catch(
-    () => {
-      mode = null;
-    },
-  );
-  return mode;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -42,6 +33,9 @@ export function playSpeechAudio(blob: Blob, rate: number, events: PlayEvents): P
   let file: File | null = null;
   let listener: { remove: () => void } | null = null;
   let playing = false;
+  // Solange Luna spricht: auch bei stummgeschaltetem iPhone hörbar, andere Musik wird leiser
+  // statt gestoppt. Danach gilt wieder die Einstellung für Klick-Töne (audio-session).
+  const releaseAudio = holdAudio('voice');
   // Sicherheitsnetz: kommt kein Ton oder kein Ende, hängt Luna nicht ewig
   let watchdog: ReturnType<typeof setTimeout> | null = null;
   const watch = (ms: number) => {
@@ -61,6 +55,7 @@ export function playSpeechAudio(blob: Blob, rate: number, events: PlayEvents): P
       // schon freigegeben
     }
     player = null;
+    releaseAudio();
     try {
       if (file?.exists) file.delete();
     } catch {
@@ -77,7 +72,7 @@ export function playSpeechAudio(blob: Blob, rate: number, events: PlayEvents): P
 
   void (async () => {
     try {
-      await ensureAudioMode();
+      await audioReady();
       const data = await blobToBase64(blob);
       if (over) return;
       const dir = new Directory(Paths.cache, 'luna-stimme');

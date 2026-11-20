@@ -13,8 +13,9 @@ export default function AppLayout() {
   if (initializing) return <View style={styles.blank} />;
   if (!session) return <Redirect href="/" />;
 
+  // key: beim Kontowechsel alles neu laden (keine Daten des vorigen Kontos stehen lassen)
   return (
-    <ProfileProvider userId={session.user.id}>
+    <ProfileProvider key={session.user.id} userId={session.user.id}>
       <ProfileGate />
     </ProfileProvider>
   );

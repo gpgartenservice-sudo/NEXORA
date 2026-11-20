@@ -1,7 +1,9 @@
 // Baut die kurzen App-Töne (assets/sounds/*.wav) – selbst erzeugt, keine fremden Dateien.
 //   node scripts/build-sounds.mjs
+// Weich und leise: wenig Obertöne, Tiefpass, kleiner Raum.
 // tick = Umschalten/Klick, check = Häkchen, done = Luna hat es erledigt,
 // money = Einnahme/bezahlt, success = Ziel/Phase geschafft.
+import { Buffer } from 'node:buffer';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,51 +85,120 @@ function wav(buf) {
   return Buffer.concat([head, data]);
 }
 
-const BELL = [
+/** weicher Tiefpass (zweimal einpolig): nimmt die harten, hohen Anteile weg */
+function lowpass(buf, cutoff) {
+  const a = 1 - Math.exp((-2 * Math.PI * cutoff) / SR);
+  for (let pass = 0; pass < 2; pass++) {
+    let y = 0;
+    for (let i = 0; i < buf.length; i++) buf[i] = y += a * (buf[i] - y);
+  }
+  return buf;
+}
+
+/** kleiner, warmer Raum (Schroeder-Hall) – lässt die Töne weich ausklingen statt abzubrechen */
+function room(buf, mix) {
+  const combs = [1116, 1188, 1277, 1356].map((d) => ({ d, line: new Float64Array(d), i: 0, lp: 0 }));
+  const allpasses = [556, 441].map((d) => ({ d, line: new Float64Array(d), i: 0 }));
+  const wet = new Float64Array(buf.length);
+  for (let n = 0; n < buf.length; n++) {
+    const x = buf[n] * 0.25;
+    let y = 0;
+    for (const c of combs) {
+      const out = c.line[c.i];
+      c.lp = out * 0.6 + c.lp * 0.4; // Höhen im Nachhall dämpfen
+      c.line[c.i] = x + c.lp * 0.72;
+      c.i = (c.i + 1) % c.d;
+      y += out;
+    }
+    for (const ap of allpasses) {
+      const out = ap.line[ap.i];
+      ap.line[ap.i] = y + out * 0.5;
+      ap.i = (ap.i + 1) % ap.d;
+      y = out - y * 0.5;
+    }
+    wet[n] = y;
+  }
+  for (let n = 0; n < buf.length; n++) buf[n] = buf[n] * (1 - mix) + wet[n] * mix;
+  return buf;
+}
+
+/** sanft ausblenden, damit nichts am Ende knackt */
+function fadeOut(buf, seconds) {
+  const n = Math.min(buf.length, Math.floor(seconds * SR));
+  for (let i = 0; i < n; i++) buf[buf.length - 1 - i] *= i / n;
+  return buf;
+}
+
+/** weiche Glocke: wenig Obertöne, kein Klirren */
+const SOFT_BELL = [
   [1, 1],
-  [2, 0.32],
-  [3, 0.12],
-  [4.16, 0.06],
+  [2, 0.18],
+  [3, 0.05],
+  [4.16, 0.025],
 ];
-const MARIMBA = [
+/** Holz: dumpfer Grundton mit einem kurzen Oberton (wie ein Klopfen) */
+const WOOD = [
   [1, 1],
-  [3.9, 0.14],
+  [2.76, 0.22],
 ];
 
 const SOUNDS = {
+  // leises, dumpfes „Tock“ – fällt beim Klicken kaum auf
   tick() {
-    const b = buffer(0.06);
-    note(b, { at: 0, freq: 1500, dur: 0.05, amp: 1, tau: 0.011, attack: 0.0015, glide: 0.35 });
-    return normalize(b, 0.22);
+    const b = buffer(0.05);
+    note(b, { at: 0, freq: 760, dur: 0.045, amp: 1, tau: 0.009, attack: 0.0008, glide: 0.06, partials: WOOD });
+    noise(b, { at: 0, dur: 0.006, amp: 0.18, seed: 3, tone: 0.2 });
+    lowpass(b, 2600);
+    fadeOut(b, 0.012);
+    return normalize(b, 0.16);
   },
+  // Häkchen: zwei weiche Töne nach oben
   check() {
-    const b = buffer(0.36);
-    note(b, { at: 0, freq: 880, dur: 0.22, amp: 0.8, tau: 0.06, partials: MARIMBA });
-    note(b, { at: 0.065, freq: 1318.5, dur: 0.28, amp: 1, tau: 0.08, partials: MARIMBA });
+    const b = buffer(0.55);
+    note(b, { at: 0, freq: 659.25, dur: 0.3, amp: 0.75, tau: 0.07, attack: 0.005, partials: SOFT_BELL });
+    note(b, { at: 0.07, freq: 987.77, dur: 0.4, amp: 1, tau: 0.1, attack: 0.005, partials: SOFT_BELL });
+    lowpass(b, 4200);
+    room(b, 0.16);
+    fadeOut(b, 0.12);
+    return normalize(b, 0.26);
+  },
+  // Luna hat es erledigt: kurzer, heller Dreiklang
+  done() {
+    const b = buffer(1);
+    [523.25, 659.25, 783.99].forEach((freq, i) =>
+      note(b, { at: i * 0.07, freq, dur: 0.6 - i * 0.07, amp: 0.75 + i * 0.12, tau: 0.16, attack: 0.006, partials: SOFT_BELL }),
+    );
+    lowpass(b, 4200);
+    room(b, 0.2);
+    fadeOut(b, 0.2);
+    return normalize(b, 0.28);
+  },
+  // Einnahme: leises Münz-Klimpern, dann zwei warme Glocken
+  money() {
+    const b = buffer(1.05);
+    noise(b, { at: 0, dur: 0.03, amp: 0.22, seed: 7, tone: 0.4 });
+    note(b, { at: 0.02, freq: 1174.66, dur: 0.4, amp: 0.7, tau: 0.11, attack: 0.004, partials: SOFT_BELL });
+    note(b, { at: 0.1, freq: 1567.98, dur: 0.75, amp: 1, tau: 0.22, attack: 0.005, partials: SOFT_BELL, vibrato: 0.003 });
+    lowpass(b, 5000);
+    room(b, 0.2);
+    fadeOut(b, 0.22);
     return normalize(b, 0.3);
   },
-  done() {
-    const b = buffer(0.85);
-    [1046.5, 1318.5, 1568].forEach((freq, i) => note(b, { at: i * 0.085, freq, dur: 0.75 - i * 0.085, amp: 0.8 + i * 0.1, tau: 0.22, partials: BELL }));
-    return normalize(b, 0.34);
-  },
-  money() {
-    const b = buffer(0.95);
-    noise(b, { at: 0, dur: 0.035, amp: 0.5, seed: 7 });
-    note(b, { at: 0.03, freq: 1975.5, dur: 0.5, amp: 0.8, tau: 0.16, partials: BELL });
-    note(b, { at: 0.1, freq: 2637, dur: 0.85, amp: 1, tau: 0.3, partials: BELL, vibrato: 0.004 });
-    return normalize(b, 0.38);
-  },
+  // Ziel geschafft: Dur-Arpeggio mit etwas Glitzern
   success() {
-    const b = buffer(1.3);
+    const b = buffer(1.5);
     const arp = [523.25, 659.25, 783.99, 1046.5];
-    arp.forEach((freq, i) => note(b, { at: i * 0.09, freq, dur: 1.2 - i * 0.09, amp: 0.7 + i * 0.12, tau: i === 3 ? 0.42 : 0.2, partials: BELL }));
-    // Funkeln am Ende
+    arp.forEach((freq, i) =>
+      note(b, { at: i * 0.085, freq, dur: 1.15 - i * 0.085, amp: 0.65 + i * 0.12, tau: i === 3 ? 0.38 : 0.18, attack: 0.006, partials: SOFT_BELL }),
+    );
     const r = rng(42);
-    for (let i = 0; i < 7; i++) {
-      note(b, { at: 0.34 + r() * 0.55, freq: 3000 + r() * 2200, dur: 0.12, amp: 0.12, tau: 0.03 });
+    for (let i = 0; i < 5; i++) {
+      note(b, { at: 0.36 + r() * 0.45, freq: 2093 + r() * 1100, dur: 0.14, amp: 0.06, tau: 0.04, attack: 0.003 });
     }
-    return normalize(b, 0.38);
+    lowpass(b, 4800);
+    room(b, 0.22);
+    fadeOut(b, 0.3);
+    return normalize(b, 0.32);
   },
 };
 
