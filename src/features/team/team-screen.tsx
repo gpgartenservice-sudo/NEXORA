@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
+import { useCompanies } from '@/features/companies/company-provider';
 import { BUSINESS_SEATS } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { copyText } from '@/features/social/copy-text';
@@ -38,6 +39,7 @@ export function TeamScreen() {
   const { user } = useAuth();
   const { team, missing, refresh } = useTeam();
   const plan = usePlan();
+  const companies = useCompanies();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function TeamScreen() {
   const canInvite = plan.missing || plan.info?.plan === 'business' || plan.info?.plan === 'trial';
   const used = (team?.members.length || 1) + (team?.invites.length ?? 0);
 
-  const run = async (key: string, fn: () => Promise<{ error?: string }>, success?: string) => {
+  const run = async (key: string, fn: () => Promise<{ error?: string; companyId?: string }>, success?: string) => {
     setBusy(key);
     setMessage(null);
     const r = await fn();
@@ -84,6 +86,8 @@ export function TeamScreen() {
       if (success) setMessage({ tone: 'success', text: success });
       await refresh();
       await plan.refresh();
+      // Beigetreten → diese Firma öffnen; verlassen → Firmenliste neu (zurück zur Standard-Firma)
+      if (key === 'join' || key === 'leave') await companies.reload(r.companyId);
     }
   };
 

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Colors, Spacing } from '@/constants/theme';
+import { CompanyProvider } from '@/features/companies/company-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { ProfileProvider, useProfile } from '@/providers/profile-provider';
 
@@ -16,7 +17,9 @@ export default function AppLayout() {
   // key: beim Kontowechsel alles neu laden (keine Daten des vorigen Kontos stehen lassen)
   return (
     <ProfileProvider key={session.user.id} userId={session.user.id}>
-      <ProfileGate />
+      <CompanyProvider userId={session.user.id}>
+        <ProfileGate />
+      </CompanyProvider>
     </ProfileProvider>
   );
 }

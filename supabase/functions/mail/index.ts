@@ -48,9 +48,20 @@ const KINDS = ['offer', 'invoice', 'reminder', 'review', 'other'];
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lunaxora-company',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+/**
+ * Offene Firma der App (mehrere Firmen pro Konto, Skript 20261127090000_mehrere_firmen.sql)
+ * an die Datenbank weiterreichen – sonst sieht die Datenbank nur die Standard-Firma.
+ */
+const COMPANY_HEADER = 'x-lunaxora-company';
+const COMPANY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function companyHeader(req: Request): Record<string, string> {
+  const id = req.headers.get(COMPANY_HEADER)?.trim();
+  return id && COMPANY_ID.test(id) ? { [COMPANY_HEADER]: id } : {};
+}
 
 /** Verschlüsselte Verbindung zum Mailserver (Deno.connectTls bzw. in Tests nachgebildet) */
 export type SmtpConn = {
@@ -371,7 +382,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
   const isInvite = body.kind === 'invite';
-  const db = { Authorization: auth, apikey, 'Content-Type': 'application/json' };
+  const db = { Authorization: auth, apikey, 'Content-Type': 'application/json', ...companyHeader(req) };
 
   // Datenschutz-Link: Empfänger und Text aus der Einladung des Nutzers (RLS)
   let invite: { email: string; token: string; expires_at: string } | null = null;
@@ -437,7 +448,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     : await deps
         .fetch(`${url}/rest/v1/rpc/my_plan`, {
           method: 'POST',
-          headers: { Authorization: auth, apikey, 'Content-Type': 'application/json' },
+          headers: db,
           body: '{}',
         })
         .catch(() => null);

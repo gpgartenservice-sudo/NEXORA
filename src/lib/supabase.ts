@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
+import { companyFetch } from './company-header';
+
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -24,6 +26,8 @@ export const supabase = createClient(url, publishableKey, {
     // Bestätigung läuft über einen Code in der App, nicht über Links
     detectSessionInUrl: false,
   },
+  // offene Firma mitschicken (mehrere Firmen in einem Konto)
+  global: { fetch: companyFetch },
 });
 
 const KEY: string = publishableKey;

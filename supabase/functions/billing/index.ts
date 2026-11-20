@@ -46,7 +46,7 @@ const SIGNATURE_TOLERANCE = 300; // Sekunden – ältere Webhook-Aufrufe werden 
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lunaxora-company',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 const json = (status: number, body: unknown) =>

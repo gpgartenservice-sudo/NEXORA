@@ -24,6 +24,12 @@ export const PRICES: Record<PaidTier, { month: number; year: number }> = {
   pro: { month: 23.99, year: 239.9 },
   business: { month: 150, year: 1500 },
 };
+/**
+ * Jede weitere Firma im selben Konto (Pro und Business, Skript 20261127090000_mehrere_firmen.sql):
+ * eigene Kunden, Rechnungen, Nummernkreise und eigenes Team. Luna-Kontingent und Personen
+ * teilen sich alle Firmen des Kontos. Jahr: zwei Monate geschenkt.
+ */
+export const EXTRA_COMPANY_PRICE = { month: 9.99, year: 99.9 };
 /** Business: so viele Konten (Personen) teilen sich ein Business – passend z. B. für eine GbR */
 export const BUSINESS_SEATS = 5;
 export const TRIAL_DAYS = 14;
@@ -92,6 +98,7 @@ export const COMPARISON: ({ label: string } & Record<'free' | PaidTier, Cell>)[]
   { label: FEATURE_LABEL.social_import, ...both(false, true) },
   { label: FEATURE_LABEL.design, ...both(false, true) },
   { label: 'Personen im Konto', ...both('1', '1', String(BUSINESS_SEATS)) },
+  { label: 'Weitere Firma im selben Konto (pro Monat)', ...both(false, '9,99 €') },
   { label: 'Geräte gleichzeitig (pro Person)', ...both('1', '1 iPhone + 1 Mac') },
 ];
 

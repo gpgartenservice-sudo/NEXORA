@@ -22,6 +22,8 @@ import { StepProgress } from '@/components/ui/step-progress';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { useCompanies } from '@/features/companies/company-provider';
+import { teamAnswers, teamJoin } from '@/features/team/team-provider';
 import { signOutHere } from '@/lib/device';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
@@ -46,8 +48,12 @@ import { PlanStep, type ChosenPlan } from './plan-step';
 import { PurchaseDone } from './purchase-done';
 import { SuccessBurst } from './success-burst';
 
-/** Die Fragen, in dieser Reihenfolge. 'purchased' (nur bei Pro/Business) und 'done' sind Abschluss-Screens. */
-const STEPS = ['name', 'stage', 'business', 'industry', 'legal', 'goals', 'plan', 'purchased', 'done'] as const;
+/**
+ * Die Fragen, in dieser Reihenfolge. 'purchased' (nur bei Pro/Business) und 'done' sind Abschluss-Screens.
+ * Gleich nach dem Namen kommt der Firmenname – dort kann man stattdessen mit einem Code einem
+ * Business-Team beitreten und überspringt den Rest.
+ */
+const STEPS = ['name', 'business', 'stage', 'industry', 'legal', 'goals', 'plan', 'purchased', 'done'] as const;
 type Step = (typeof STEPS)[number];
 const QUESTION_COUNT = STEPS.length - 2;
 
@@ -61,6 +67,7 @@ const AUTO_ADVANCE_MS = 420;
 export function OnboardingFlow() {
   const { user } = useAuth();
   const { profile, save } = useProfile();
+  const companies = useCompanies();
   const { width } = useWindowDimensions();
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -83,6 +90,16 @@ export function OnboardingFlow() {
   const [nameError, setNameError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Einem Business-Team beitreten (statt eigener Antworten)
+  const [teamMode, setTeamMode] = useState(false);
+  const [teamCode, setTeamCode] = useState('');
+  const [teamError, setTeamError] = useState<string>();
+  const [joining, setJoining] = useState(false);
+  /** Name des Teams, sobald beigetreten (Abschluss-Screen) */
+  const [teamName, setTeamName] = useState<string | null>(null);
+  // Beitritt hat geklappt, nur das Speichern nicht: beim nächsten Versuch nicht noch einmal beitreten
+  const joined = useRef<string | null>(null);
 
   // --- Übergang zwischen den Schritten: alter Inhalt gleitet raus, neuer blendet ein
   const leave = useSharedValue(0);
@@ -160,6 +177,52 @@ export function OnboardingFlow() {
     goTo(repeat || plan === 'free' ? STEPS.indexOf('done') : STEPS.indexOf('purchased'));
   };
 
+  /**
+   * Mit Code einem Team beitreten: übrige Fragen und Abo entfallen (es gilt das Business des
+   * Inhabers). Firmenname, Phase, Branche usw. kommen vom Inhaber, damit alle dasselbe sehen.
+   */
+  const joinTeam = async () => {
+    if (joining) return;
+    setJoining(true);
+    setTeamError(undefined);
+    if (joined.current === null) {
+      const r = await teamJoin(teamCode);
+      if (r.error) {
+        setJoining(false);
+        setTeamError(r.error);
+        return;
+      }
+      joined.current = r.ownerName ?? '';
+      // die Firma des Teams öffnen (mehrere Firmen pro Konto)
+      await companies.reload(r.companyId);
+    }
+    const answers = await teamAnswers();
+    const { error } = await save({
+      display_name: name.trim(),
+      business_name: answers?.business_name ?? null,
+      stage: answers?.stage ?? null,
+      industry: answers?.industry ?? null,
+      industry_other: answers?.industry_other ?? null,
+      legal_form: answers?.legal_form ?? null,
+      goals: answers?.goals ?? [],
+      onboarding_completed_at: profile?.onboarding_completed_at ?? new Date().toISOString(),
+    });
+    setJoining(false);
+    if (error) {
+      setTeamError(error);
+      return;
+    }
+    // für die Übersicht auf dem Abschluss-Screen
+    setBusiness(answers?.business_name ?? '');
+    setStage(answers?.stage ?? null);
+    setIndustry(answers?.industry ?? null);
+    setIndustryOther(answers?.industry_other ?? '');
+    setLegal(answers?.legal_form ?? null);
+    setGoals(answers?.goals ?? []);
+    setTeamName(joined.current || answers?.business_name || 'deinem Team');
+    goTo(STEPS.indexOf('done'));
+  };
+
   // --- Was Luna gerade sagt (reagiert auf jede Eingabe)
   const typedName = name.trim().split(/\s+/)[0];
   const luna = lunaLine(step, {
@@ -170,6 +233,7 @@ export function OnboardingFlow() {
     industryOther: industryOther.trim(),
     legal,
     goals,
+    team: teamMode,
   });
 
   const firstName = name.trim().split(/\s+/)[0];
@@ -251,24 +315,79 @@ export function OnboardingFlow() {
 
               {step === 'business' && (
                 <StepLayout
-                  title={stage === 'idea' ? 'Hat deine Idee schon einen Namen?' : 'Wie heißt dein Business?'}
-                  subtitle="Noch kein Name? Kannst du jederzeit ergänzen.">
-                  <Reveal delay={420}>
-                    <TextField
-                      label={stage === 'idea' ? 'Name deiner Idee' : 'Name deines Business'}
-                      value={business}
-                      onChangeText={setBusiness}
-                      placeholder="z. B. Lena Design Studio"
-                      autoFocus
-                      autoCapitalize="words"
-                      returnKeyType="next"
-                      onSubmitEditing={next}
-                      maxLength={120}
-                    />
-                  </Reveal>
-                  <Reveal delay={520}>
-                    <Button label={business.trim() ? 'Weiter' : 'Überspringen'} variant={business.trim() ? 'primary' : 'secondary'} onPress={next} />
-                  </Reveal>
+                  title={teamMode ? 'Welchem Team trittst du bei?' : 'Wie heißt dein Business?'}
+                  subtitle={
+                    teamMode
+                      ? 'Gib den Einladungscode ein, den du aus deinem Team bekommen hast.'
+                      : 'Noch kein Name? Kannst du jederzeit ergänzen.'
+                  }>
+                  {!teamMode && (
+                    <>
+                      <Reveal delay={420}>
+                        <TextField
+                          label="Name deines Business"
+                          value={business}
+                          onChangeText={setBusiness}
+                          placeholder="z. B. Lena Design Studio"
+                          autoFocus
+                          autoCapitalize="words"
+                          returnKeyType="next"
+                          onSubmitEditing={next}
+                          maxLength={120}
+                        />
+                      </Reveal>
+                      <Reveal delay={520}>
+                        <Button
+                          label={business.trim() ? 'Weiter' : 'Überspringen'}
+                          variant={business.trim() ? 'primary' : 'secondary'}
+                          onPress={next}
+                        />
+                      </Reveal>
+                    </>
+                  )}
+                  {/* Antworten ändern (Profil): kein Team-Beitritt hier, das geht unter Profil → Team */}
+                  {!repeating && (
+                    <Reveal delay={teamMode ? 0 : 640}>
+                      <OptionCard
+                        emoji="🤝"
+                        title="Ich trete einem Team bei"
+                        description="Du hast einen Einladungscode? Dann überspringst du die restlichen Fragen und siehst alles, was dein Team sieht."
+                        selected={teamMode}
+                        onPress={() => {
+                          setTeamMode((on) => !on);
+                          setTeamError(undefined);
+                        }}
+                      />
+                    </Reveal>
+                  )}
+                  {teamMode && (
+                    <Reveal distance={10}>
+                      <View style={styles.otherBox}>
+                        <TextField
+                          label="Einladungscode"
+                          value={teamCode}
+                          onChangeText={(v) => {
+                            setTeamCode(v.toUpperCase());
+                            if (teamError) setTeamError(undefined);
+                          }}
+                          error={teamError}
+                          placeholder="z. B. 7K2P9QXA"
+                          autoFocus
+                          autoCapitalize="characters"
+                          autoCorrect={false}
+                          returnKeyType="go"
+                          onSubmitEditing={() => teamCode.trim().length >= 6 && void joinTeam()}
+                          maxLength={12}
+                        />
+                        <Button
+                          label="Team beitreten"
+                          loading={joining}
+                          disabled={teamCode.trim().length < 6}
+                          onPress={() => void joinTeam()}
+                        />
+                      </View>
+                    </Reveal>
+                  )}
                 </StepLayout>
               )}
 
@@ -399,9 +518,17 @@ export function OnboardingFlow() {
               {step === 'done' && (
                 <View style={styles.done}>
                   <SuccessBurst />
-                  <AnimatedTitle text={`Dein Lunaxora ist bereit, ${firstName}.`} style={styles.title} delay={450} />
+                  <AnimatedTitle
+                    text={teamName ? `Willkommen im Team, ${firstName}!` : `Dein Lunaxora ist bereit, ${firstName}.`}
+                    style={styles.title}
+                    delay={450}
+                  />
                   <Reveal delay={800}>
-                    <Text style={styles.subtitle}>Wir haben alles auf dich eingestellt.</Text>
+                    <Text style={styles.subtitle}>
+                      {teamName
+                        ? `Du bist jetzt bei ${teamName} und siehst dasselbe wie alle im Team – Kunden, Aufträge, Umsatz und mehr.`
+                        : 'Wir haben alles auf dich eingestellt.'}
+                    </Text>
                   </Reveal>
                   <View style={styles.pills}>
                     {[
@@ -505,6 +632,8 @@ type LunaFacts = {
   industryOther: string;
   legal: LegalForm | null;
   goals: Goal[];
+  /** „Ich trete einem Team bei“ gewählt */
+  team: boolean;
 };
 
 const STAGE_REPLY: Record<Stage, string> = {
@@ -543,6 +672,7 @@ function lunaLine(step: Step, f: LunaFacts): { text: string; mood: 'idle' | 'hap
     case 'stage':
       return f.stage ? { text: STAGE_REPLY[f.stage], mood: 'happy' } : { text: `Erzähl mal, ${f.name || 'du'} – wo stehst du gerade?`, mood: 'listening' };
     case 'business':
+      if (f.team) return { text: 'Du hast einen Code von deinem Team? Gib ihn ein, dann bist du gleich drin! 🤝', mood: 'listening' };
       return f.business.length >= 2
         ? { text: `„${f.business}“ – klingt richtig gut! ✨`, mood: 'happy' }
         : { text: 'Wie heißt dein Business? Noch kein Name? Auch okay!', mood: 'listening' };

@@ -35,6 +35,7 @@ import { Wordmark } from '@/components/brand/wordmark';
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Glass, WEB_GLASS } from '@/components/ui/glass';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useCompanyName } from '@/features/companies/company-provider';
 import { usePlan } from '@/features/plan/plan-provider';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
@@ -302,6 +303,7 @@ const PLAN_SHORT = { free: 'Gratis', trial: 'Pro-Test', pro: 'Pro', business: 'B
 
 function UserChip({ isFocused, compact, ...pressable }: ItemProps) {
   const { profile } = useProfile();
+  const companyName = useCompanyName();
   const { info, missing } = usePlan();
   const plan = info && !missing ? info.plan : null;
   const { active, hover, press, handlers } = useNavAnimation(isFocused);
@@ -331,7 +333,7 @@ function UserChip({ isFocused, compact, ...pressable }: ItemProps) {
             )}
           </View>
           <Text style={styles.userSub} numberOfLines={1}>
-            {profile?.business_name || 'Profil & Einstellungen'}
+            {companyName || 'Profil & Einstellungen'}
           </Text>
         </View>
         )}

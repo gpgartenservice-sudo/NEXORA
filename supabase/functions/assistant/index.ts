@@ -69,9 +69,20 @@ const VOCABULARY =
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lunaxora-company',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+/**
+ * Offene Firma der App (mehrere Firmen pro Konto, Skript 20261127090000_mehrere_firmen.sql)
+ * an die Datenbank weiterreichen – sonst zählt der Verbrauch bei der Standard-Firma.
+ */
+const COMPANY_HEADER = 'x-lunaxora-company';
+const COMPANY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function companyHeader(req: Request): Record<string, string> {
+  const id = req.headers.get(COMPANY_HEADER)?.trim();
+  return id && COMPANY_ID.test(id) ? { [COMPANY_HEADER]: id } : {};
+}
 
 // ---------------------------------------------------------------------------
 // Antwortformat (Structured Outputs) – bewusst klein: Claude übersetzt das
@@ -380,6 +391,12 @@ async function readReceipt(body: Body, deps: Deps, meter: Meter): Promise<Respon
 const SYSTEM = `Du bist Luna, die Assistentin in Lunaxora – einer App für junge Selbstständige und Gründer in Deutschland.
 Du sprichst Deutsch, duzt den Nutzer und bist freundlich, klar und motivierend – wie ein erfahrener Gründer-Kumpel. Antworte kurz und auf den Punkt (meist 1–4 Sätze, Listen nur wenn sie helfen).
 
+Wer hinter Lunaxora steckt (nur erzählen, wenn jemand danach fragt – z. B. „Wer hat die App gemacht?“, „Von wem bist du?“):
+- Lunaxora ist von Tom Grau und Pascal Pape, beide 18 Jahre alt, aus NRW in Deutschland.
+- Die beiden führen zusammen einen Gartenservice und arbeiten neben der Schule und einem Teilzeitjob an vielen eigenen Projekten.
+- Pascal geht noch zur Schule. Tom hat nach der 12. Klasse mit der Schule aufgehört, um sich selbstständig zu machen.
+- Mehr weißt du über die beiden nicht – erfinde nichts dazu und gib keine weiteren persönlichen Daten (Adresse, Telefon, Schule o. Ä.) heraus.
+
 Was du kannst:
 1. Fragen beantworten – zu den eigenen Zahlen und Einträgen des Nutzers (stehen in <daten>) und allgemein zum Selbstständigsein (Kunden finden, Preise, Angebote, Rechnungen, Kleinunternehmerregelung, Gewerbe, Social Media …). Bei Steuer- und Rechtsfragen gibst du eine verständliche Orientierung und empfiehlst für den Einzelfall eine Steuerberatung.
 2. Einträge vorschlagen – in actions, je Vorschlag type und data. data ist ein JSON-Objekt als Text, z. B. {"customer_name":"Peter Müller","title":"Hecke schneiden","price":120}. Felder ohne Angabe weglassen. Die App führt die Vorschläge sofort aus, ohne Rückfrage – der Nutzer sieht dabei zu:
@@ -460,6 +477,7 @@ async function consumeQuota(req: Request, deps: Deps, kind: QuotaKind): Promise<
         Authorization: req.headers.get('Authorization') ?? '',
         apikey: req.headers.get('apikey') ?? '',
         'Content-Type': 'application/json',
+        ...companyHeader(req),
       },
       body: JSON.stringify({ p_kind: kind }),
     })
@@ -483,6 +501,7 @@ async function refundQuota(req: Request, deps: Deps, kind: QuotaKind) {
         Authorization: req.headers.get('Authorization') ?? '',
         apikey: req.headers.get('apikey') ?? '',
         'Content-Type': 'application/json',
+        ...companyHeader(req),
       },
       body: JSON.stringify({ p_kind: kind }),
     })

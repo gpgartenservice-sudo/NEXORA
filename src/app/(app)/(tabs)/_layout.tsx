@@ -20,6 +20,7 @@ import { GuideProvider } from '@/features/assistant/nexy-guide';
 import { NexyProvider } from '@/features/assistant/nexy-provider';
 import { AppointmentsProvider } from '@/features/appointments/appointments-provider';
 import { PlanProvider } from '@/features/plan/plan-provider';
+import { useCompanies } from '@/features/companies/company-provider';
 import { TutorialProvider } from '@/features/tutorial/tutorial-provider';
 import { TeamProvider, useWorkspaceId } from '@/features/team/team-provider';
 import { DeviceGate } from '@/features/team/device-gate';
@@ -40,8 +41,10 @@ import { useAuth } from '@/providers/auth-provider';
  */
 export default function TabsLayout() {
   const { user } = useAuth();
+  // Firma gewechselt → Abo, Team und alle Daten der neuen Firma laden
+  const { currentId } = useCompanies();
   return (
-    <PlanProvider userId={user?.id ?? ''}>
+    <PlanProvider key={currentId} userId={user?.id ?? ''}>
       <TeamProvider userId={user?.id ?? ''}>
         <DeviceGate>
           <Workspace />

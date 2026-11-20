@@ -7,6 +7,7 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
 import { UpcomingAppointments } from '@/features/appointments/upcoming-card';
+import { useCompanyName } from '@/features/companies/company-provider';
 import { formatToday, greeting, impulseOfTheDay } from '@/features/dashboard/content';
 import { FocusCard } from '@/features/dashboard/focus-card';
 import { MoneyCard } from '@/features/dashboard/money-card';
@@ -21,6 +22,7 @@ import { useProfile } from '@/providers/profile-provider';
 /** Startseite nach dem Login – passend zu den Antworten aus dem Onboarding. */
 export default function DashboardScreen() {
   const { profile } = useProfile();
+  const companyName = useCompanyName();
   const { width } = useWindowDimensions();
   // Seitenleiste am Mac (eingeklappt schmaler) abziehen
   const contentWidth = width - useSidebarWidth();
@@ -49,9 +51,9 @@ export default function DashboardScreen() {
           align="left"
           delay={80}
         />
-        {!!profile?.business_name && (
+        {!!companyName && (
           <Reveal delay={260}>
-            <Text style={styles.subtitle}>{profile.business_name}</Text>
+            <Text style={styles.subtitle}>{companyName}</Text>
           </Reveal>
         )}
       </View>

@@ -48,7 +48,7 @@ const DAY = 24 * 60 * 60 * 1000;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lunaxora-company',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 

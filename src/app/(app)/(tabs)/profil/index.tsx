@@ -15,6 +15,7 @@ import { useDocuments } from '@/features/documents/documents-provider';
 import { goalLabel, industryLabel, legalFormLabel, stageLabel } from '@/features/onboarding/options';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { AccountSwitcher } from '@/features/accounts/account-switcher';
+import { CompaniesCard } from '@/features/companies/companies-card';
 import { DevicesCard } from '@/features/team/devices-card';
 import { useTeam } from '@/features/team/team-provider';
 import { planLabel, quotaText } from '@/features/plan/plan-logic';
@@ -116,6 +117,10 @@ export default function ProfileScreen() {
             <ChevronRight size={18} color={Colors.textFaint} />
           </View>
         </Card>
+      </Reveal>
+
+      <Reveal delay={428}>
+        <CompaniesCard />
       </Reveal>
 
       <Reveal delay={435}>

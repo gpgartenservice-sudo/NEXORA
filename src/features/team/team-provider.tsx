@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { AppState, Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import type { ProfileUpdate } from '@/providers/profile-provider';
 
 /**
  * Business-Team (Skript 20261120090000_feinschliff.sql): bis zu 5 Personen teilen sich
@@ -126,8 +127,7 @@ const TEAM_ERRORS: Record<string, string> = {
   team_member_cannot_invite: 'Nur der Inhaber des Business kann Leute einladen.',
   invite_invalid: 'Diesen Code kennen wir nicht oder er wurde schon benutzt.',
   invite_own: 'Das ist dein eigener Einladungscode.',
-  owner_has_team: 'Du hast selbst schon ein Team. Entferne zuerst deine Mitglieder, um einem anderen Team beizutreten.',
-};
+  owner_has_team: 'Du hast selbst schon ein Team. Entferne zuerst deine Mitglieder, um einem anderen Team beizutreten.',};
 
 export function teamErrorText(message: string): string {
   const key = Object.keys(TEAM_ERRORS).find((k) => message.includes(k));
@@ -139,10 +139,25 @@ export async function teamInvite(email: string): Promise<{ code?: string; error?
   return error ? { error: teamErrorText(error.message) } : { code: String(data) };
 }
 
-export async function teamJoin(code: string): Promise<{ ownerName?: string; error?: string }> {
+export async function teamJoin(code: string): Promise<{ ownerName?: string; companyId?: string; error?: string }> {
   const { data, error } = await supabase.rpc('team_join', { p_code: code.trim().toUpperCase() });
   if (error) return { error: teamErrorText(error.message) };
-  return { ownerName: (data as { owner_name?: string } | null)?.owner_name ?? undefined };
+  const r = data as { owner_name?: string; company_id?: string } | null;
+  // company_id: Firma, der man beigetreten ist (seit 20261127090000_mehrere_firmen.sql)
+  return { ownerName: r?.owner_name ?? undefined, companyId: r?.company_id ?? undefined };
+}
+
+/** Antworten des Inhabers aus dessen Anmeldung (Skript 20261126090000_team_antworten.sql) */
+export type TeamAnswers = Pick<ProfileUpdate, 'business_name' | 'stage' | 'industry' | 'industry_other' | 'legal_form' | 'goals'>;
+
+/** Nur für Teammitglieder – sonst (oder ohne Skript) null */
+export async function teamAnswers(): Promise<TeamAnswers | null> {
+  const { data, error } = await supabase.rpc('team_answers');
+  if (error) {
+    if (!MISSING.includes(String(error.code))) console.warn('[Team]', error);
+    return null;
+  }
+  return data && typeof data === 'object' ? (data as TeamAnswers) : null;
 }
 
 export async function teamLeave() {
