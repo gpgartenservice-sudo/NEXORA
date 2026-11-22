@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
@@ -18,7 +18,6 @@ import { Colors } from '@/constants/theme';
 import { SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
 
 import {
-  DEFAULT_DESIGN,
   designActive,
   directionVector,
   iconCount,
@@ -47,6 +46,7 @@ import {
   Sparkle,
   SPARKLE_COLORS,
 } from './sprites';
+import { useDesign } from './design-context';
 
 /**
  * Design (Pro/Business, Profil → Design): Hintergrund hinter allen Seiten –
@@ -54,14 +54,7 @@ import {
  * Mondnacht, Raketen …). Die Motive sind gezeichnet (sprites.tsx) und bewegen
  * sich in 3D: Scheine flattern und drehen sich, Flammen züngeln, Herzen schlagen.
  */
-const DesignCtx = createContext<DesignSettings>(DEFAULT_DESIGN);
-
-/** Liefert allen Seiten das gewählte Design (Gratis: immer klassisch). */
-export function DesignProvider({ design, children }: { design: DesignSettings; children: ReactNode }) {
-  return <DesignCtx.Provider value={design}>{children}</DesignCtx.Provider>;
-}
-
-export const useDesign = () => useContext(DesignCtx);
+export { DesignProvider, useDesign } from './design-context';
 
 /**
  * Mac (breites Fenster): ein gemeinsamer Hintergrund liegt hinter Seitenleiste und Seiten

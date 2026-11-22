@@ -11,6 +11,7 @@ import { EXTRA_COMPANY_PRICE, formatPrice } from '@/features/plan/plan-logic';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 
+import { CompanyLogo } from './company-logo';
 import type { Company } from './company-logic';
 import { useCompanies } from './company-provider';
 
@@ -60,9 +61,7 @@ function CompanyRow({ company, current, onPress }: { company: Company; current: 
       accessibilityLabel={current ? `${company.name}, gerade offen` : `Zu ${company.name} wechseln`}
       testID="switch-company"
       style={({ pressed }) => [styles.row, hovered && !current && [styles.rowHover, glassHover], pressed && styles.pressed]}>
-      <View style={[styles.avatar, current && styles.avatarCurrent]}>
-        <Text style={styles.avatarText}>{(company.name.trim()[0] ?? '?').toUpperCase()}</Text>
-      </View>
+      <CompanyLogo companyId={company.id} name={company.name} size={40} current={current} />
       <View style={styles.texts}>
         <Text style={styles.name} numberOfLines={1}>
           {company.name}
@@ -95,16 +94,6 @@ const styles = StyleSheet.create({
   },
   rowHover: { backgroundColor: 'rgba(255,255,255,0.05)' },
   pressed: { opacity: 0.7 },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarCurrent: { backgroundColor: Colors.accentSoft },
-  avatarText: { color: Colors.text, fontSize: 15, fontWeight: '700' },
   texts: { flex: 1 },
   name: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   sub: { color: Colors.textFaint, fontSize: 12.5 },

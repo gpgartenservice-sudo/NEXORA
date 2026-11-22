@@ -9,10 +9,14 @@ import { useAuth } from '@/providers/auth-provider';
 
 import { roleErrorText } from './roles';
 import {
+  addDays,
+  dayIso,
   directPartner,
   isChatKey,
+  isoWeek,
   KIND_LABEL,
   rangeLabel,
+  weekStart,
   type AbsenceKind,
   type ChatKey,
   type ChatMessage,
@@ -37,8 +41,11 @@ type Hub = {
   openRequests: number;
   /** Ändert sich, sobald jemand einen Antrag stellt oder entschieden wird → Listen neu laden */
   absenceVersion: number;
+  /** Ändert sich, sobald ein Wochenplan fertiggestellt, aktualisiert oder zurückgezogen wird */
+  planVersion: number;
   refresh: () => Promise<void>;
   refreshAbsences: () => Promise<void>;
+  refreshPlans: () => Promise<void>;
   /** Chat, der gerade offen ist: dafür keine Mitteilung */
   setOpenChat: (key: ChatKey | null) => void;
   markRead: (key: ChatKey) => Promise<void>;
@@ -90,6 +97,7 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [openRequests, setOpenRequests] = useState(0);
   const [absenceVersion, setAbsenceVersion] = useState(0);
+  const [planVersion, setPlanVersion] = useState(0);
   const openChat = useRef<ChatKey | null>(null);
   const listeners = useRef(new Set<(m: ChatMessage) => void>());
 
@@ -231,20 +239,70 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body);
   }, [active, ws, hr, me]);
 
+  // --- Fertige Wochenpläne (Skript 20261129090000_einsaetze.sql) -----------------
+  const seenPlans = useRef<Map<string, number> | null>(null);
+
+  const refreshPlans = useCallback(async () => {
+    if (!active) return;
+    const from = addDays(weekStart(dayIso(new Date())), -7);
+    const { data, error } = await supabase
+      .from('work_plans')
+      .select('week_start, version, published_by')
+      .eq('company_id', ws)
+      .gte('week_start', from);
+    if (error) {
+      if (!/work_plans|PGRST205|42P01/.test(`${error.message} ${error.code}`)) console.warn('[Arbeitsplan]', error);
+      return;
+    }
+    const rows = (data ?? []) as { week_start: string; version: number; published_by: string | null }[];
+    const first = !seenPlans.current;
+    const seen = seenPlans.current ?? new Map<string, number>();
+    seenPlans.current = seen;
+    let changed = false;
+    const notes: { title: string; body: string }[] = [];
+    for (const r of rows) {
+      const before = seen.get(r.week_start);
+      if (before === r.version) continue;
+      seen.set(r.week_start, r.version);
+      changed = true;
+      if (first || r.published_by === me) continue;
+      notes.push({
+        title: before ? `Arbeitsplan KW ${isoWeek(r.week_start)} geändert` : `Arbeitsplan KW ${isoWeek(r.week_start)} ist fertig`,
+        body: 'Ansehen unter Team → Arbeitsplan.',
+      });
+    }
+    // zurückgezogen
+    for (const week of [...seen.keys()])
+      if (!rows.some((r) => r.week_start === week)) {
+        seen.delete(week);
+        changed = true;
+      }
+    if (changed && !first) setPlanVersion((v) => v + 1);
+    if (!notes.length) return;
+    const prefs = await loadNotifyPrefs();
+    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body);
+  }, [active, ws, me]);
+
   useEffect(() => {
     if (!active) return;
     // Firma oder Rolle gewechselt: neu anfangen (nichts nachträglich melden)
     notified.current = null;
     seenAbsences.current = null;
+    seenPlans.current = null;
     const first = setTimeout(() => {
       void refresh();
       void refreshAbsences();
+      void refreshPlans();
     }, 0);
     const chatTimer = setInterval(() => void refresh(), CHATS_EVERY);
-    const absenceTimer = setInterval(() => void refreshAbsences(), ABSENCES_EVERY);
+    const absenceTimer = setInterval(() => {
+      void refreshAbsences();
+      void refreshPlans();
+    }, ABSENCES_EVERY);
     const onActive = () => {
       void refresh();
       void refreshAbsences();
+      void refreshPlans();
     };
     const sub = AppState.addEventListener('change', (s) => s === 'active' && onActive());
     const web = Platform.OS === 'web' && typeof window !== 'undefined';
@@ -256,7 +314,7 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
       sub.remove();
       if (web) window.removeEventListener('focus', onActive);
     };
-  }, [active, refresh, refreshAbsences]);
+  }, [active, refresh, refreshAbsences, refreshPlans]);
 
   const unread = useMemo(() => chats.reduce((s, c) => s + c.unread, 0), [chats]);
 
@@ -268,15 +326,17 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
       unread,
       openRequests,
       absenceVersion,
+      planVersion,
       refresh,
       refreshAbsences,
+      refreshPlans,
       setOpenChat,
       markRead,
       onMessage,
       nameOf,
       chatName,
     }),
-    [active, me, chats, unread, openRequests, absenceVersion, refresh, refreshAbsences, setOpenChat, markRead, onMessage, nameOf, chatName],
+    [active, me, chats, unread, openRequests, absenceVersion, planVersion, refresh, refreshAbsences, refreshPlans, setOpenChat, markRead, onMessage, nameOf, chatName],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -297,6 +357,8 @@ export function staffErrorText(error: { code?: string; message?: string }, fallb
   if (role) return role;
   if (/row-level security|violates row-level/i.test(msg))
     return `${fallback} Ein Team mit Chat, Arbeitsplan und Urlaub gibt es mit Lunaxora Business und Teams.`;
+  if (/work_plans|work_plan_publish|site|assignment_id|is_lead/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
+    return 'Die Datenbank ist für Einsätze und den fertigen Plan noch nicht eingerichtet (Skript 20261129090000_einsaetze.sql fehlt).';
   if (['PGRST202', 'PGRST205', '42P01', '42883'].includes(String(error.code)))
     return 'Die Datenbank ist dafür noch nicht eingerichtet (Skript 20261128090000_teams.sql fehlt).';
   return `${fallback}\n\nTechnische Details: ${msg || 'unbekannt'}`;

@@ -8,9 +8,26 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 import { supabase } from '@/lib/supabase';
 
-import { addDays, dayIso, dayLabel, KIND_LABEL, shiftLabel, type Shift, type TeamAbsence } from './staff-logic';
+import {
+  addDays,
+  dayIso,
+  dayLabel,
+  groupJobs,
+  KIND_LABEL,
+  myPlanJobs,
+  parsePlanSnapshot,
+  SHIFT_COLUMNS,
+  shiftLabel,
+  weekStart,
+  type Shift,
+  type TeamAbsence,
+} from './staff-logic';
+
 import { useTeamHub } from './team-hub-provider';
 import { useAccess, useTeam } from './team-provider';
+
+/** Eigener Einsatz (aus dem Plan – Mitarbeiter: aus dem fertigen Plan) */
+type MyJob = { day: string; starts_at: string; ends_at: string; site: string | null; note: string | null; lead: boolean; crew: number };
 
 type Icon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
@@ -24,38 +41,63 @@ export function TeamDayCard() {
   const hub = useTeamHub();
   const ws = team?.owner_id ?? '';
   const me = hub.me;
-  const [shifts, setShifts] = useState<Shift[] | null>(null);
+  const [shifts, setShifts] = useState<MyJob[] | null>(null);
   const [away, setAway] = useState<TeamAbsence[]>([]);
   const today = dayIso(new Date());
+  const hr = access.hr;
 
   useEffect(() => {
     if (!access.inTeam || !ws || !me) return;
     let alive = true;
-    void Promise.all([
-      supabase
-        .from('work_shifts')
-        .select('id, member_id, day, starts_at, ends_at, note')
-        .eq('company_id', ws)
-        .eq('member_id', me)
-        .gte('day', today)
-        .lte('day', addDays(today, 13))
-        .order('day')
-        .order('starts_at'),
-      supabase.rpc('team_absences', { p_from: today, p_to: today }),
-    ]).then(([s, a]) => {
+    const until = addDays(today, 13);
+    // Leitung: der aktuelle Plan. Mitarbeiter: nur, was fertiggestellt ist.
+    const mine = hr
+      ? supabase
+          .from('work_shifts')
+          .select(SHIFT_COLUMNS)
+          .eq('company_id', ws)
+          .gte('day', today)
+          .lte('day', until)
+          .order('day')
+          .order('starts_at')
+          .then(({ data, error }) =>
+            error
+              ? []
+              : groupJobs((data ?? []) as Shift[])
+                  .filter((j) => j.members.includes(me))
+                  .map<MyJob>((j) => ({ ...j, lead: j.lead === me, crew: j.members.length })),
+          )
+      : supabase
+          .from('work_plans')
+          .select('snapshot')
+          .eq('company_id', ws)
+          .gte('week_start', weekStart(today))
+          .lte('week_start', weekStart(until))
+          .then(({ data, error }) =>
+            error
+              ? []
+              : (data ?? [])
+                  .map((r) => parsePlanSnapshot(r.snapshot))
+                  .flatMap((p) => (p ? myPlanJobs(p, me) : []))
+                  .filter((j) => j.day >= today && j.day <= until)
+                  .sort((a, b) => a.day.localeCompare(b.day) || a.starts_at.localeCompare(b.starts_at))
+                  .map<MyJob>((j) => ({ ...j, lead: j.lead === me, crew: j.members.length })),
+          );
+    void Promise.all([mine, supabase.rpc('team_absences', { p_from: today, p_to: today })]).then(([jobs, a]) => {
       if (!alive) return;
-      setShifts(s.error ? [] : ((s.data ?? []) as Shift[]));
+      setShifts(jobs);
       setAway(Array.isArray(a.data) ? (a.data as TeamAbsence[]) : []);
     });
     return () => {
       alive = false;
     };
-  }, [access.inTeam, ws, me, today, hub.absenceVersion]);
+  }, [access.inTeam, ws, me, today, hr, hub.absenceVersion, hub.planVersion]);
 
   if (!access.inTeam || shifts === null) return null;
 
   const todays = shifts.filter((s) => s.day === today);
   const next = shifts.find((s) => s.day > today);
+  const where = (j: MyJob) => [j.site, j.lead && j.crew > 1 ? 'du bist Teamleiter' : null].filter(Boolean).join(' · ');
   const meAway = away.find((a) => a.member_id === me);
   const others = away.filter((a) => a.member_id !== me);
 
@@ -63,10 +105,11 @@ export function TeamDayCard() {
     ? `Heute: ${KIND_LABEL[meAway.kind]}`
     : todays.length
       ? `Heute ${todays.map(shiftLabel).join(' und ')}`
-      : 'Heute keine Schicht';
+      : 'Heute kein Einsatz';
   const sub = [
+    ...todays.map(where),
     todays.find((s) => s.note)?.note,
-    !todays.length && next ? `Nächste: ${dayLabel(next.day)} · ${shiftLabel(next)}` : null,
+    !todays.length && next ? `Nächster Einsatz: ${dayLabel(next.day)} · ${shiftLabel(next)}${next.site ? ` · ${next.site}` : ''}` : null,
   ]
     .filter(Boolean)
     .join(' · ');

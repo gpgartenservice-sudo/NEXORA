@@ -67,7 +67,11 @@ function Workspace() {
   const { profile } = useProfile();
   const { pro } = usePlan();
   const rawDesign = profile?.design;
-  const design = useMemo(() => (pro ? readDesign(rawDesign) : DEFAULT_DESIGN), [pro, rawDesign]);
+  // Hintergrund/Symbole nur mit Pro – Lunas Farbe und Hut für alle
+  const design = useMemo(() => {
+    const chosen = readDesign(rawDesign);
+    return pro ? chosen : { ...DEFAULT_DESIGN, luna: chosen.luna };
+  }, [pro, rawDesign]);
   // fürs nächste Öffnen merken: das Intro zeigt dann schon diesen Hintergrund
   useEffect(() => saveDesign(design), [design]);
   // Mac: Hintergrund (Profil → Design) einmal hinter Seitenleiste und Seiten

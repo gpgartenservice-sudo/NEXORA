@@ -15,6 +15,9 @@ import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { LunaHatArt } from '@/features/assistant/luna-hat';
+import { LUNA_COLORS, LUNA_HATS, type LunaHat, type LunaLook } from '@/features/assistant/luna-look';
+import { NexyAvatar } from '@/features/assistant/nexy-avatar';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
 import { useProfile } from '@/providers/profile-provider';
@@ -60,13 +63,16 @@ const DENSITY_OPTIONS: { value: Density; label: string }[] = [
   { value: 'many', label: 'Viele' },
 ];
 
-/** Profil → Design (Pro/Business): Farbe oder Farbverlauf + Symbole – wirkt sofort, speichert von selbst. */
+/**
+ * Profil → Design: Lunas Farbe und Hut (alle Abos), dazu Hintergrund – Farbe oder Farbverlauf –
+ * und Symbole (Pro/Business). Wirkt sofort, speichert von selbst.
+ */
 export function DesignScreen() {
   const { profile } = useProfile();
   if (!profile) {
     return (
       <Screen maxWidth={760}>
-        <PageHeader title="Design" back={{ label: 'Profil', onPress: back }} meta={<ProBadge />} />
+        <PageHeader title="Design" back={{ label: 'Profil', onPress: back }} />
       </Screen>
     );
   }
@@ -97,6 +103,8 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
     }
     setDraft(next);
   };
+  /** Luna gibt es für alle – auch wenn ein früherer Pro-Hintergrund noch gespeichert ist */
+  const updateLuna = (patch: Partial<LunaLook>) => setDraft((d) => ({ ...d, luna: { ...d.luna, ...patch } }));
 
   // von selbst speichern, kurz nachdem sich nichts mehr ändert
   useEffect(() => {
@@ -162,19 +170,27 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
     setSlot(0);
   };
 
-  const shown = pro ? draft : DEFAULT_DESIGN;
+  const shown = pro ? draft : { ...DEFAULT_DESIGN, luna: draft.luna };
 
   return (
     <DesignProvider design={shown}>
       <Screen maxWidth={760}>
         <PageHeader
           title="Design"
-          subtitle="Farbe oder Farbverlauf, dazu Motive wie Geldscheine oder Blitze – wirkt sofort."
+          subtitle="Lunas Farbe und Hut, dazu Hintergrund und Motive wie Geldscheine oder Blitze – wirkt sofort."
           back={{ label: 'Profil', onPress: back }}
-          meta={<ProBadge />}
         />
-        {!pro && <Notice>Design-Einstellungen gibt es mit Lunaxora Pro und Business.</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
+
+        <Reveal delay={40}>
+          <LunaCard look={draft.luna} onChange={updateLuna} />
+        </Reveal>
+
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Hintergrund & Symbole</Text>
+          <ProBadge />
+        </View>
+        {!pro && <Notice>Hintergrund und Symbole gibt es mit Lunaxora Pro und Business. Luna kannst du mit jedem Abo anpassen.</Notice>}
 
         <Reveal delay={80}>
           <Preview design={shown} />
@@ -317,13 +333,89 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
               label="Auf Klassisch zurücksetzen"
               onPress={() => {
                 setSlot(0);
-                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient] });
+                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient], luna: draft.luna });
               }}
             />
           )}
         </Card>
       </Screen>
     </DesignProvider>
+  );
+}
+
+/** Luna anpassen: große Vorschau, Farben und Hüte (für alle Abos) */
+function LunaCard({ look, onChange }: { look: LunaLook; onChange: (patch: Partial<LunaLook>) => void }) {
+  const colorName = LUNA_COLORS.find((c) => c.hex === look.color)?.name ?? '';
+  const hatName = LUNA_HATS.find((h) => h.key === look.hat)?.title ?? '';
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Luna</Text>
+      <Text style={styles.hint}>Gib deiner Assistentin eine Farbe und einen Hut – für alle Abos.</Text>
+      <View style={styles.lunaRow}>
+        <View style={styles.lunaStage} accessibilityLabel={`Luna in ${colorName}${look.hat !== 'none' ? ` mit ${hatName}` : ''}`}>
+          <NexyAvatar size={96} interactive look={look} />
+        </View>
+        <View style={styles.lunaControls}>
+          <Text style={styles.label}>FARBE · {colorName.toUpperCase()}</Text>
+          <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Lunas Farbe">
+            {LUNA_COLORS.map((c) => (
+              <Swatch
+                key={c.hex}
+                hex={c.hex}
+                name={c.name}
+                active={look.color === c.hex}
+                onPress={() => onChange({ color: c.hex })}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+      <Text style={styles.label}>HUT</Text>
+      <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Hut">
+        {LUNA_HATS.map((h) => (
+          <HatTile
+            key={h.key}
+            hat={h.key}
+            title={h.title}
+            accent={look.color}
+            active={look.hat === h.key}
+            onPress={() => onChange({ hat: h.key })}
+          />
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function HatTile({
+  hat,
+  title,
+  accent,
+  active,
+  onPress,
+}: {
+  hat: LunaHat;
+  title: string;
+  accent: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { hovered, hoverProps } = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      {...hoverProps}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      accessibilityLabel={title}
+      style={[styles.hat, active && styles.hatActive, hovered && !active && styles.tileHover]}>
+      <View style={styles.hatArt}>
+        {hat === 'none' ? <X size={22} color={Colors.textFaint} /> : <LunaHatArt hat={hat} width={44} accent={accent} />}
+      </View>
+      <Text style={[styles.hatTitle, active && styles.hatTitleActive]} numberOfLines={1}>
+        {title}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -508,6 +600,38 @@ const styles = StyleSheet.create({
   hint: { color: Colors.textMuted, fontSize: 13, lineHeight: 18 },
   status: { color: Colors.text, fontSize: 14, fontWeight: '600' },
   flex: { flex: 1 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
+  sectionTitle: { color: Colors.text, fontSize: 19, fontWeight: '700', letterSpacing: -0.2 },
+
+  lunaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.lg },
+  lunaStage: {
+    width: 150,
+    height: 160,
+    borderRadius: 18,
+    backgroundColor: '#05070A',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 26,
+  },
+  lunaControls: { flex: 1, minWidth: 220, gap: Spacing.sm },
+  hats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  hat: {
+    width: 108,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  hatActive: { borderColor: Colors.accent },
+  hatArt: { width: 44, height: 36, alignItems: 'center', justifyContent: 'center' },
+  hatTitle: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
+  hatTitleActive: { color: Colors.text },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
 
   preview: {

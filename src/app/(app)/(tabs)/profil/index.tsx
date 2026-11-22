@@ -163,7 +163,7 @@ export default function ProfileScreen() {
 
       <Reveal delay={240}>
         <SettingsGroup title="App">
-          <SettingsRow icon={Palette} label="Design" badge={<ProBadge />} value="Farbverlauf, Geldregen, Blitze, Mondnacht" onPress={() => router.push('/profil/design')} />
+          <SettingsRow icon={Palette} label="Design" value="Luna mit Hut, Farbverlauf, Geldregen, Blitze" onPress={() => router.push('/profil/design')} />
           <SettingsRow
             icon={Bell}
             label="Benachrichtigungen"

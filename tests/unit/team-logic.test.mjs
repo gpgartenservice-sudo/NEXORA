@@ -19,19 +19,28 @@ import {
   chatOf,
   chatTime,
   copyWeek,
+  crewLabel,
   dayLabel,
   directKey,
   easter,
+  groupJobs,
   holidayName,
   hoursLabel,
   inChat,
   isChatKey,
   isoWeek,
+  jobRows,
   layoutMessages,
   linkParts,
   mergeMessages,
+  myPlanJobs,
+  parsePlanSnapshot,
   parseTime,
+  planSnapshot,
   rangeLabel,
+  recentSites,
+  samePlan,
+  SHIFT_COLUMNS,
   shiftLabel,
   shiftMinutes,
   vacationDays,
@@ -114,8 +123,91 @@ test('Vorwoche übernehmen: nur die Woche davor, nichts doppelt', () => {
   const s = (id, day, member = 'a') => ({ id, member_id: member, day, starts_at: '08:00:00', ends_at: '16:00:00', note: null });
   const prev = [s('1', '2026-11-16'), s('2', '2026-11-20', 'b'), s('3', '2026-11-09')];
   const existing = [s('4', '2026-11-23')];
-  const copy = copyWeek(prev, existing, '2026-11-23');
+  const copy = copyWeek(prev, existing, '2026-11-23', () => 'neu');
   assert.deepEqual(copy.map((c) => [c.member_id, c.day]), [['b', '2026-11-27']]);
+});
+
+test('Vorwoche übernehmen: Einsätze bleiben zusammen und bekommen neue IDs', () => {
+  const s = (id, day, member, assignment_id, is_lead = false) => ({
+    id, member_id: member, day, starts_at: '07:00:00', ends_at: '15:30:00', note: null, site: 'Baustelle Müller', address: 'Hauptstr. 1', assignment_id, is_lead,
+  });
+  const prev = [s('1', '2026-11-16', 'a', 'x', true), s('2', '2026-11-16', 'b', 'x'), s('3', '2026-11-17', 'a', 'y', true)];
+  let n = 0;
+  const copy = copyWeek(prev, [], '2026-11-23', () => `neu-${++n}`);
+  assert.deepEqual(copy.map((c) => [c.member_id, c.day, c.assignment_id, c.is_lead, c.site]), [
+    ['a', '2026-11-23', 'neu-1', true, 'Baustelle Müller'],
+    ['b', '2026-11-23', 'neu-1', false, 'Baustelle Müller'],
+    ['a', '2026-11-24', 'neu-2', true, 'Baustelle Müller'],
+  ]);
+});
+
+test('Einsätze: zusammenfassen, Teamleiter zuerst, sortiert', () => {
+  const s = (id, day, member, start, extra = {}) => ({ id, member_id: member, day, starts_at: start, ends_at: '16:00:00', note: null, ...extra });
+  const jobs = groupJobs([
+    s('1', '2026-11-23', 'b', '07:00:00', { assignment_id: 'x', site: 'Müller' }),
+    s('2', '2026-11-23', 'a', '07:00:00', { assignment_id: 'x', site: 'Müller', is_lead: true }),
+    s('3', '2026-11-23', 'c', '06:00:00'),
+    s('4', '2026-11-22', 'c', '09:00:00'),
+  ]);
+  assert.deepEqual(jobs.map((j) => [j.day, j.key, j.lead, j.members]), [
+    ['2026-11-22', 's:4', null, ['c']],
+    ['2026-11-23', 's:3', null, ['c']],
+    ['2026-11-23', 'a:x', 'a', ['a', 'b']],
+  ]);
+  assert.equal(crewLabel(jobs[2], (id) => id.toUpperCase()), 'A (Teamleiter), B');
+  // Speichern: je Tag und Person eine Zeile
+  const rows = jobRows({ assignment_id: 'z', days: ['2026-11-24', '2026-11-25'], starts_at: '07:00', ends_at: '15:00', site: 'Müller', address: null, note: null, lead: 'b', members: ['a', 'b'] });
+  assert.deepEqual(rows.map((r) => [r.day, r.member_id, r.is_lead, r.assignment_id]), [
+    ['2026-11-24', 'a', false, 'z'],
+    ['2026-11-24', 'b', true, 'z'],
+    ['2026-11-25', 'a', false, 'z'],
+    ['2026-11-25', 'b', true, 'z'],
+  ]);
+});
+
+test('Zuletzt benutzte Orte', () => {
+  const list = recentSites([
+    { site: 'Müller', address: null, day: '2026-11-20' },
+    { site: ' müller ', address: 'Hauptstr. 1', day: '2026-11-21' },
+    { site: 'Schmidt', address: null, day: '2026-11-22' },
+    { site: null, address: null, day: '2026-11-23' },
+  ]);
+  assert.deepEqual(list, [
+    { site: 'Schmidt', address: null },
+    { site: 'müller', address: 'Hauptstr. 1' },
+  ]);
+});
+
+test('Fertiger Plan: festhalten, vergleichen, wieder lesen', () => {
+  const s = (id, day, member, extra = {}) => ({ id, member_id: member, day, starts_at: '07:00:00', ends_at: '15:30:00', note: null, ...extra });
+  const shifts = [
+    s('1', '2026-11-23', 'a', { assignment_id: 'x', site: 'Müller', is_lead: true }),
+    s('2', '2026-11-23', 'b', { assignment_id: 'x', site: 'Müller' }),
+    s('3', '2026-11-30', 'a'), // nächste Woche: nicht dabei
+  ];
+  const away = [{ member_id: 'c', starts_on: '2026-11-20', ends_on: '2026-11-24', kind: 'krank' }];
+  const names = new Map([['a', 'Anna'], ['b', 'Ben'], ['c', 'Cem']]);
+  const plan = planSnapshot('2026-11-23', shifts, away, names);
+  assert.equal(plan.days.length, 7);
+  assert.deepEqual(plan.days[0], {
+    day: '2026-11-23',
+    holiday: null,
+    jobs: [{ starts_at: '07:00', ends_at: '15:30', site: 'Müller', address: null, note: null, lead: 'a', members: ['a', 'b'] }],
+    away: ['c'],
+  });
+  assert.deepEqual(plan.days[1].away, ['c']);
+  assert.deepEqual(plan.days[2].away, []);
+  assert.deepEqual(plan.people, { a: 'Anna', b: 'Ben', c: 'Cem' });
+  // Grund der Abwesenheit steht nicht drin
+  assert.equal(JSON.stringify(plan).includes('krank'), false);
+  assert.equal(samePlan(plan, planSnapshot('2026-11-23', shifts, away, names)), true);
+  assert.equal(samePlan(plan, planSnapshot('2026-11-23', shifts.slice(1), away, names)), false);
+  assert.equal(samePlan(plan, null), false);
+  // aus der Datenbank: dasselbe zurück, Unsinn wird verworfen
+  assert.deepEqual(parsePlanSnapshot(JSON.parse(JSON.stringify(plan))), plan);
+  assert.equal(parsePlanSnapshot({ v: 2 }), null);
+  assert.equal(parsePlanSnapshot('quatsch'), null);
+  assert.deepEqual(myPlanJobs(plan, 'b').map((j) => [j.day, j.site]), [['2026-11-23', 'Müller']]);
 });
 
 test('Feiertage NRW und Urlaubstage', () => {
@@ -200,4 +292,16 @@ test('Chat: Links, Mail-Adressen und Nummern werden antippbar', () => {
   ]);
   // Uhrzeiten, Daten und Beträge bleiben Text
   assert.deepEqual(linkParts('Morgen 08:00 – 16:30, am 24.11.2026, 150 €'), [{ text: 'Morgen 08:00 – 16:30, am 24.11.2026, 150 €' }]);
+});
+
+test('Arbeitsplan: jede Spalte, die die App liest, legen die Skripte an', () => {
+  const einsaetze = readFileSync(new URL('../../supabase/migrations/20261129090000_einsaetze.sql', import.meta.url), 'utf8');
+  const table = SQL.slice(SQL.indexOf('create table if not exists public.work_shifts'), SQL.indexOf(');', SQL.indexOf('create table if not exists public.work_shifts')));
+  for (const col of SHIFT_COLUMNS.split(',').map((c) => c.trim())) {
+    const inTeams = new RegExp(`\\n\\s+${col}\\s`).test(table);
+    const added = einsaetze.includes(`add column if not exists ${col} `);
+    assert.ok(inTeams || added, `Spalte ${col} fehlt`);
+  }
+  assert.match(einsaetze, /create or replace function public\.work_plan_publish\(p_week date, p_snapshot jsonb\)/);
+  assert.match(einsaetze, /nexora_guard_write\('personal'\)/);
 });

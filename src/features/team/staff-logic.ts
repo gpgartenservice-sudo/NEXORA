@@ -12,7 +12,17 @@ export type Shift = {
   starts_at: string;
   ends_at: string;
   note: string | null;
+  /** Einsatzort, z. B. „Baustelle Müller“ (Skript 20261129090000_einsaetze.sql) */
+  site?: string | null;
+  address?: string | null;
+  /** Schichten mit derselben ID sind ein Einsatz (mehrere Leute gleichzeitig) */
+  assignment_id?: string | null;
+  /** Teamleiter dieses Einsatzes */
+  is_lead?: boolean;
 };
+
+/** Spalten für work_shifts */
+export const SHIFT_COLUMNS = 'id, member_id, day, starts_at, ends_at, note, site, address, assignment_id, is_lead';
 
 export type AbsenceKind = 'urlaub' | 'krank' | 'frei';
 export type AbsenceStatus = 'offen' | 'genehmigt' | 'abgelehnt' | 'gemeldet';
@@ -163,17 +173,249 @@ export const SHIFT_PRESETS: { label: string; starts_at: string; ends_at: string 
   { label: 'Spät', starts_at: '14:00', ends_at: '22:00' },
 ];
 
-/** Schichten der Vorwoche in die neue Woche übernehmen (ohne doppelte) */
-export function copyWeek(previous: Shift[], existing: Shift[], targetMonday: string): Omit<Shift, 'id'>[] {
+/**
+ * Schichten der Vorwoche in die neue Woche übernehmen (ohne doppelte). Einsätze bleiben
+ * zusammen: Jeder übernommene Einsatz bekommt eine neue ID (`newId`).
+ */
+export function copyWeek(
+  previous: Shift[],
+  existing: Shift[],
+  targetMonday: string,
+  newId: () => string,
+): Omit<Shift, 'id'>[] {
   const key = (s: Pick<Shift, 'member_id' | 'day' | 'starts_at' | 'ends_at'>) =>
     `${s.member_id}|${s.day}|${timeLabel(s.starts_at)}|${timeLabel(s.ends_at)}`;
   const have = new Set(existing.map(key));
   const to = weekStart(targetMonday);
   const from = addDays(to, -7);
+  const ids = new Map<string, string>();
+  const groupId = (old: string) => {
+    let id = ids.get(old);
+    if (!id) {
+      id = newId();
+      ids.set(old, id);
+    }
+    return id;
+  };
   return previous
     .filter((s) => s.day >= from && s.day < to)
-    .map((s) => ({ member_id: s.member_id, day: addDays(s.day, 7), starts_at: s.starts_at, ends_at: s.ends_at, note: s.note }))
+    .map((s) => ({
+      member_id: s.member_id,
+      day: addDays(s.day, 7),
+      starts_at: s.starts_at,
+      ends_at: s.ends_at,
+      note: s.note,
+      site: s.site ?? null,
+      address: s.address ?? null,
+      assignment_id: s.assignment_id ? groupId(s.assignment_id) : null,
+      is_lead: !!s.is_lead,
+    }))
     .filter((s) => !have.has(key(s)));
+}
+
+// ---------------------------------------------------------------------------
+// Einsätze: mehrere Leute gleichzeitig am selben Ort, einer davon Teamleiter
+// ---------------------------------------------------------------------------
+
+export type Job = {
+  /** assignment_id bzw. bei einzelnen Schichten deren ID */
+  key: string;
+  assignment_id: string | null;
+  day: string;
+  starts_at: string;
+  ends_at: string;
+  site: string | null;
+  address: string | null;
+  note: string | null;
+  /** Teamleiter (member_id) */
+  lead: string | null;
+  /** alle im Einsatz, Teamleiter zuerst */
+  members: string[];
+  shifts: Shift[];
+};
+
+/** Schichten zu Einsätzen zusammenfassen – je Tag nach Beginn, dann Ort sortiert */
+export function groupJobs(shifts: Shift[]): Job[] {
+  const jobs = new Map<string, Job>();
+  for (const s of shifts) {
+    const key = s.assignment_id ? `a:${s.assignment_id}` : `s:${s.id}`;
+    let job = jobs.get(key);
+    if (!job) {
+      job = {
+        key,
+        assignment_id: s.assignment_id ?? null,
+        day: s.day,
+        starts_at: s.starts_at,
+        ends_at: s.ends_at,
+        site: s.site ?? null,
+        address: s.address ?? null,
+        note: s.note,
+        lead: null,
+        members: [],
+        shifts: [],
+      };
+      jobs.set(key, job);
+    }
+    job.shifts.push(s);
+    if (!job.members.includes(s.member_id)) job.members.push(s.member_id);
+    if (s.is_lead && !job.lead) job.lead = s.member_id;
+  }
+  for (const job of jobs.values()) {
+    if (job.lead) job.members = [job.lead, ...job.members.filter((m) => m !== job.lead)];
+  }
+  return [...jobs.values()].sort(
+    (a, b) =>
+      a.day.localeCompare(b.day) ||
+      timeLabel(a.starts_at).localeCompare(timeLabel(b.starts_at)) ||
+      (a.site ?? '').localeCompare(b.site ?? '', 'de'),
+  );
+}
+
+/** Zuletzt benutzte Orte (für schnelles Auswählen), neueste zuerst, ohne doppelte */
+export function recentSites(shifts: Pick<Shift, 'site' | 'address' | 'day'>[], max = 8): { site: string; address: string | null }[] {
+  const seen = new Map<string, { site: string; address: string | null; day: string }>();
+  for (const s of shifts) {
+    const site = s.site?.trim();
+    if (!site) continue;
+    const k = site.toLowerCase();
+    const before = seen.get(k);
+    if (!before || s.day > before.day) seen.set(k, { site, address: s.address ?? before?.address ?? null, day: s.day });
+  }
+  return [...seen.values()]
+    .sort((a, b) => b.day.localeCompare(a.day) || a.site.localeCompare(b.site, 'de'))
+    .slice(0, max)
+    .map(({ site, address }) => ({ site, address }));
+}
+
+/** Schichten, die für einen Einsatz gespeichert werden (je Person eine Zeile) */
+export function jobRows(job: {
+  assignment_id: string;
+  days: string[];
+  starts_at: string;
+  ends_at: string;
+  site: string | null;
+  address: string | null;
+  note: string | null;
+  lead: string | null;
+  members: string[];
+}): Omit<Shift, 'id'>[] {
+  return job.days.flatMap((day) =>
+    job.members.map((member_id) => ({
+      member_id,
+      day,
+      starts_at: job.starts_at,
+      ends_at: job.ends_at,
+      note: job.note,
+      site: job.site,
+      address: job.address,
+      assignment_id: job.assignment_id,
+      is_lead: member_id === job.lead,
+    })),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fertiger Wochenplan (work_plans): so festgehalten, wie er beim Fertigstellen war
+// ---------------------------------------------------------------------------
+
+export type PlanJob = {
+  starts_at: string;
+  ends_at: string;
+  site: string | null;
+  address: string | null;
+  note: string | null;
+  lead: string | null;
+  members: string[];
+};
+export type PlanDay = { day: string; holiday: string | null; jobs: PlanJob[]; away: string[] };
+export type PlanSnapshot = {
+  v: 1;
+  /** Montag */
+  week: string;
+  /** member_id → Name (wie beim Fertigstellen) */
+  people: Record<string, string>;
+  days: PlanDay[];
+};
+
+/**
+ * Plan einer Woche festhalten. Abwesende stehen nur als „abwesend“ drin (ohne Grund) –
+ * den Plan sehen alle im Team.
+ */
+export function planSnapshot(
+  monday: string,
+  shifts: Shift[],
+  absences: Pick<TeamAbsence, 'member_id' | 'starts_on' | 'ends_on'>[],
+  names: Map<string, string> | Record<string, string>,
+): PlanSnapshot {
+  const nameOf = (id: string) => (names instanceof Map ? names.get(id) : names[id]) ?? 'Ehemaliges Mitglied';
+  const jobs = groupJobs(shifts.filter((s) => s.day >= monday && s.day <= addDays(monday, 6)));
+  const people: Record<string, string> = {};
+  const days = weekDays(monday).map((day) => {
+    const dayJobs = jobs
+      .filter((j) => j.day === day)
+      .map<PlanJob>((j) => ({
+        starts_at: timeLabel(j.starts_at),
+        ends_at: timeLabel(j.ends_at),
+        site: j.site,
+        address: j.address,
+        note: j.note,
+        lead: j.lead,
+        members: j.members,
+      }));
+    const away = [...new Set(absences.filter((a) => a.starts_on <= day && a.ends_on >= day).map((a) => a.member_id))];
+    for (const id of [...dayJobs.flatMap((j) => j.members), ...away]) people[id] = nameOf(id);
+    return { day, holiday: holidayName(day), jobs: dayJobs, away };
+  });
+  return { v: 1, week: monday, people, days };
+}
+
+/** Hat sich der Plan seit dem Fertigstellen geändert? */
+export const samePlan = (a: PlanSnapshot | null, b: PlanSnapshot | null) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+
+const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
+
+/** Gespeicherten Plan prüfen (aus der Datenbank) – unbrauchbar: null */
+export function parsePlanSnapshot(raw: unknown): PlanSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.v !== 1 || typeof r.week !== 'string' || !Array.isArray(r.days)) return null;
+  const people: Record<string, string> = {};
+  if (r.people && typeof r.people === 'object')
+    for (const [k, v] of Object.entries(r.people as Record<string, unknown>)) if (typeof v === 'string') people[k] = v;
+  const days: PlanDay[] = [];
+  for (const d of r.days as Record<string, unknown>[]) {
+    if (!d || typeof d.day !== 'string') continue;
+    const jobs: PlanJob[] = [];
+    for (const j of Array.isArray(d.jobs) ? (d.jobs as Record<string, unknown>[]) : []) {
+      if (!j || typeof j.starts_at !== 'string' || typeof j.ends_at !== 'string') continue;
+      jobs.push({
+        starts_at: j.starts_at,
+        ends_at: j.ends_at,
+        site: str(j.site),
+        address: str(j.address),
+        note: str(j.note),
+        lead: str(j.lead),
+        members: Array.isArray(j.members) ? j.members.filter((m): m is string => typeof m === 'string') : [],
+      });
+    }
+    days.push({
+      day: d.day,
+      holiday: str(d.holiday),
+      jobs,
+      away: Array.isArray(d.away) ? d.away.filter((m): m is string => typeof m === 'string') : [],
+    });
+  }
+  return { v: 1, week: r.week, people, days };
+}
+
+/** Eigene Einsätze aus einem fertigen Plan (Start: „Dein Tag im Team“) */
+export function myPlanJobs(plan: PlanSnapshot, me: string): (PlanJob & { day: string })[] {
+  return plan.days.flatMap((d) => d.jobs.filter((j) => j.members.includes(me)).map((j) => ({ ...j, day: d.day })));
+}
+
+/** „Max (Teamleiter), Lisa, Tom“ */
+export function crewLabel(job: Pick<PlanJob, 'lead' | 'members'>, nameOf: (id: string) => string): string {
+  return job.members.map((m) => (m === job.lead ? `${nameOf(m)} (Teamleiter)` : nameOf(m))).join(', ');
 }
 
 // ---------------------------------------------------------------------------

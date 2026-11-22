@@ -18,7 +18,10 @@ import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-na
 import { Accelerometer } from 'expo-sensors';
 
 import { Colors } from '@/constants/theme';
+import { useDesign } from '@/features/design/design-context';
 
+import { hatFrame, LunaHatArt } from './luna-hat';
+import { hatHidesAntenna, lunaPalette, type LunaLook } from './luna-look';
 import { speakReaction } from './voice';
 
 export type NexyMood = 'idle' | 'thinking' | 'happy' | 'listening' | 'talking';
@@ -34,6 +37,8 @@ type Props = {
   talk?: boolean;
   /** Lautstärke am Mikrofon 0..1 (beim Zuhören) */
   level?: SharedValue<number>;
+  /** Aussehen fest vorgeben (Vorschau in Profil → Design); sonst wie im Profil gewählt */
+  look?: LunaLook;
 };
 
 const EYE = '#F2FFF9';
@@ -84,6 +89,7 @@ const clamp = (v: number, min: number, max: number) => {
  *   Bildschirmrand und wird dagegen gedrückt (plattgedrückt, federt zurück)
  * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Luna ruhig
+ * - Farbe und Hut wählt man in Profil → Design → Luna (für alle Abos)
  */
 export function NexyAvatar({
   size: S = 40,
@@ -92,6 +98,7 @@ export function NexyAvatar({
   interactive = false,
   talk = false,
   level,
+  look,
 }: Props) {
   const reduce = useReducedMotion();
   const moving = animate && !reduce;
@@ -434,6 +441,15 @@ export function NexyAvatar({
     burst.set(withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) }));
   }, [talk, reduce, S, squashX, squashY, jump, burst]);
 
+  // --- Aussehen (Farbe, Hut) ---
+  const chosen = useDesign().luna;
+  const lunaLook = look ?? chosen;
+  const pal = lunaPalette(lunaLook.color);
+  const detail = S >= 26; // Bäckchen, Antenne, Mund, Hut erst ab dieser Größe
+  const hat = detail ? lunaLook.hat : 'none';
+  const frame = hatFrame(hat, S);
+  const hatTilt = frame.rotate;
+
   // --- Stile ---
   const bodyStyle = useAnimatedStyle(() => {
     const w = wall(slide.get(), roomL.get(), roomR.get(), S);
@@ -483,6 +499,10 @@ export function NexyAvatar({
     transform: [{ rotate: `${sway.get() - lookX.get() * 14 + jump.get() * 0.6}deg` }],
   }));
   const orbitStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.get()}deg` }] }));
+  // Hut wippt etwas mit und neigt sich zur Blickrichtung
+  const hatStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${hatTilt + sway.get() * 0.35 - lookX.get() * 4 + jump.get() * 0.3}deg` }],
+  }));
   const tipStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + voice.get() * 0.8 * attentive.get() + attentive.get() * 0.12 + mouthOpen.get() * 0.15 }],
   }));
@@ -491,9 +511,8 @@ export function NexyAvatar({
   const eyeW = S * 0.19;
   const eyeH = S * 0.23;
   const pupil = S * 0.105;
-  const detail = S >= 26; // Bäckchen, Antenne, Mund erst ab dieser Größe
   const stroke = S >= 60 ? 1.6 : 1.2;
-  const id = `nexy-${Math.round(S)}`;
+  const id = `nexy-${Math.round(S)}-${pal.accent.slice(1)}`;
   const mouthW = S * 0.15;
 
   const content = (
@@ -504,7 +523,15 @@ export function NexyAvatar({
           pointerEvents="none"
           style={[
             styles.shadow,
-            { width: S * 0.62, height: S * 0.1, left: S * 0.19, top: S * 1.08, borderRadius: S },
+            {
+              width: S * 0.62,
+              height: S * 0.1,
+              left: S * 0.19,
+              top: S * 1.08,
+              borderRadius: S,
+              backgroundColor: pal.glow(0.22),
+              boxShadow: `0 0 18px ${pal.glow(0.35)}`,
+            },
             shadowStyle,
           ]}
         />
@@ -512,10 +539,12 @@ export function NexyAvatar({
       {/* Zuhören: Schallringe, die der Stimme folgen */}
       {listening &&
         S >= 50 &&
-        [0, 1].map((i) => <SoundRing key={i} index={i} size={S} level={voice} breathe={breathe} />)}
+        [0, 1].map((i) => (
+          <SoundRing key={i} index={i} size={S} level={voice} breathe={breathe} color={pal.accent} />
+        ))}
       <Animated.View style={[StyleSheet.absoluteFill, bodyStyle]}>
-        {/* Antenne */}
-        {detail && (
+        {/* Antenne (unter den meisten Hüten nicht zu sehen) */}
+        {detail && !hatHidesAntenna(hat) && (
           <Animated.View
             pointerEvents="none"
             style={[
@@ -523,7 +552,7 @@ export function NexyAvatar({
               { left: S / 2 - S * 0.02, top: -S * 0.15, width: S * 0.04, height: S * 0.2 },
               antennaStyle,
             ]}>
-            <View style={[styles.stem, { width: S * 0.04, borderRadius: S * 0.02 }]} />
+            <View style={[styles.stem, { width: S * 0.04, borderRadius: S * 0.02, backgroundColor: pal.accent }]} />
             <Animated.View
               style={[
                 styles.tip,
@@ -533,7 +562,8 @@ export function NexyAvatar({
                   borderRadius: S * 0.055,
                   left: -S * 0.035,
                   top: -S * 0.06,
-                  boxShadow: `0 0 ${S * 0.12}px rgba(47,227,154,0.9)`,
+                  backgroundColor: pal.accent,
+                  boxShadow: `0 0 ${S * 0.12}px ${pal.glow(0.9)}`,
                 },
                 tipStyle,
               ]}
@@ -545,7 +575,11 @@ export function NexyAvatar({
           pointerEvents="none"
           style={[
             styles.glow,
-            { borderRadius: S / 2, boxShadow: `0 0 ${S * 0.45}px ${S * 0.08}px rgba(47,227,154,0.45)` },
+            {
+              borderRadius: S / 2,
+              backgroundColor: pal.glow(0.08),
+              boxShadow: `0 0 ${S * 0.45}px ${S * 0.08}px ${pal.glow(0.45)}`,
+            },
             glowStyle,
           ]}
         />
@@ -553,9 +587,9 @@ export function NexyAvatar({
         <Svg width={S} height={S} style={StyleSheet.absoluteFill}>
           <Defs>
             <RadialGradient id={`${id}-body`} cx="40%" cy="32%" r="75%">
-              <Stop offset="0" stopColor="#23775A" />
-              <Stop offset="0.55" stopColor="#0D261C" />
-              <Stop offset="1" stopColor="#050A08" />
+              <Stop offset="0" stopColor={pal.body[0]} />
+              <Stop offset="0.55" stopColor={pal.body[1]} />
+              <Stop offset="1" stopColor={pal.body[2]} />
             </RadialGradient>
           </Defs>
           <Circle
@@ -563,7 +597,7 @@ export function NexyAvatar({
             cy={S / 2}
             r={S / 2 - stroke}
             fill={`url(#${id}-body)`}
-            stroke={Colors.accent}
+            stroke={pal.accent}
             strokeWidth={stroke}
             strokeOpacity={0.9}
           />
@@ -658,6 +692,25 @@ export function NexyAvatar({
             </>
           )}
         </Animated.View>
+        {/* Hut */}
+        {hat !== 'none' && (
+          <Animated.View
+            pointerEvents="none"
+            testID="luna-hat"
+            style={[
+              styles.hat,
+              {
+                width: frame.width,
+                height: frame.height,
+                left: frame.left,
+                top: frame.top,
+                transformOrigin: frame.origin,
+              },
+              hatStyle,
+            ]}>
+            <LunaHatArt hat={hat} width={frame.width} accent={pal.accent} />
+          </Animated.View>
+        )}
         {/* Schläfrig: kleines z */}
         {sleepy && S >= 60 && (
           <Animated.Text
@@ -676,6 +729,7 @@ export function NexyAvatar({
               style={[
                 styles.dot,
                 {
+                  backgroundColor: pal.accent,
                   width: S * (0.11 - i * 0.025),
                   height: S * (0.11 - i * 0.025),
                   opacity: 1 - i * 0.3,
@@ -687,12 +741,13 @@ export function NexyAvatar({
         </Animated.View>
       )}
       {/* Funken beim Freuen/Anstupsen */}
-      {moving && [0, 1, 2, 3, 4, 5].map((i) => <Sparkle key={i} index={i} size={S} burst={burst} />)}
+      {moving &&
+        [0, 1, 2, 3, 4, 5].map((i) => <Sparkle key={i} index={i} size={S} burst={burst} color={pal.accent} />)}
       {/* Sprechblase */}
       {speech && (
         <Animated.View
           entering={FadeIn.duration(180)}
-          style={[styles.bubble, { left: S * 0.82, top: -S * 0.12 }]}
+          style={[styles.bubble, { left: S * 0.82, top: -S * 0.12, borderColor: pal.glow(0.4) }]}
           pointerEvents="none">
           <Text style={styles.bubbleText} numberOfLines={1}>
             {speech}
@@ -785,11 +840,13 @@ function SoundRing({
   size: S,
   level,
   breathe,
+  color,
 }: {
   index: number;
   size: number;
   level: SharedValue<number>;
   breathe: SharedValue<number>;
+  color: string;
 }) {
   const style = useAnimatedStyle(() => {
     const l = level.get();
@@ -803,13 +860,27 @@ function SoundRing({
     <Animated.View
       pointerEvents="none"
       testID={index === 0 ? 'nexy-sound-ring' : undefined}
-      style={[styles.ring, { width: S, height: S, borderRadius: S / 2, borderWidth: Math.max(1.5, S * 0.018) }, style]}
+      style={[
+        styles.ring,
+        { width: S, height: S, borderRadius: S / 2, borderWidth: Math.max(1.5, S * 0.018), borderColor: color },
+        style,
+      ]}
     />
   );
 }
 
 /** Ein Funke, der beim Freuen/Anstupsen nach außen fliegt */
-function Sparkle({ index, size: S, burst }: { index: number; size: number; burst: SharedValue<number> }) {
+function Sparkle({
+  index,
+  size: S,
+  burst,
+  color,
+}: {
+  index: number;
+  size: number;
+  burst: SharedValue<number>;
+  color: string;
+}) {
   const angle = (index / 6) * Math.PI * 2 - Math.PI / 2 + (index % 2 ? 0.25 : -0.1);
   const dist = S * (index % 2 ? 0.78 : 0.68);
   const style = useAnimatedStyle(() => {
@@ -835,7 +906,7 @@ function Sparkle({ index, size: S, burst }: { index: number; size: number; burst
           height: d,
           left: S / 2 - d / 2,
           top: S / 2 - d / 2,
-          backgroundColor: index % 3 === 0 ? CHEEK : Colors.accent,
+          backgroundColor: index % 3 === 0 ? CHEEK : color,
         },
         style,
       ]}
@@ -873,15 +944,12 @@ export function NexyGlyph({
 
 const styles = StyleSheet.create({
   press: { alignSelf: 'center' },
-  shadow: {
-    position: 'absolute',
-    backgroundColor: 'rgba(47,227,154,0.22)',
-    boxShadow: '0 0 18px rgba(47,227,154,0.35)',
-  },
-  glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(47,227,154,0.08)' },
+  shadow: { position: 'absolute' },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   antenna: { position: 'absolute', transformOrigin: 'bottom' },
-  stem: { flex: 1, backgroundColor: Colors.accent, opacity: 0.85 },
-  tip: { position: 'absolute', backgroundColor: Colors.accent },
+  stem: { flex: 1, opacity: 0.85 },
+  tip: { position: 'absolute' },
+  hat: { position: 'absolute' },
   eyes: {
     position: 'absolute',
     left: 0,
@@ -897,7 +965,7 @@ const styles = StyleSheet.create({
   mouth: { position: 'absolute', alignItems: 'center' },
   z: { position: 'absolute', color: Colors.textMuted, fontWeight: '700' },
   orbit: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', borderRadius: 999, backgroundColor: Colors.accent },
+  dot: { position: 'absolute', borderRadius: 999 },
   sparkle: { position: 'absolute', borderRadius: 2 },
   talkMouth: {
     backgroundColor: '#06140F',
@@ -907,14 +975,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   tongue: { backgroundColor: CHEEK, opacity: 0.9 },
-  ring: { position: 'absolute', top: 0, left: 0, borderColor: Colors.accent },
+  ring: { position: 'absolute', top: 0, left: 0 },
   bubble: {
     position: 'absolute',
     borderRadius: 14,
     borderBottomLeftRadius: 4,
     backgroundColor: Colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.4)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     boxShadow: '0 8px 24px rgba(0,0,0,0.45)',

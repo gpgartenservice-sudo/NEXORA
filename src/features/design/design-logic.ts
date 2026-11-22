@@ -5,9 +5,13 @@
  * 1. Hintergrund: klassisch schwarz, eine Farbe oder ein eigener Farbverlauf
  * 2. Symbole darüber: Geld (💵), Blitze, Mondnacht, Raketen …
  *
+ * 3. Lunas Aussehen (Farbe, Hut) – für alle, auch ohne Pro.
+ *
  * Gespeichert in profiles.design (jsonb). Alte Einstellungen (nur `background`)
  * werden beim Lesen übernommen.
  */
+
+import { DEFAULT_LUNA, readLunaLook, type LunaLook } from '../assistant/luna-look';
 
 export type BaseMode = 'classic' | 'color' | 'gradient';
 export type GradientDirection = 'down' | 'diagonal' | 'right' | 'up';
@@ -39,6 +43,8 @@ export type DesignSettings = {
   strength: Strength;
   icons: IconKey;
   density: Density;
+  /** Lunas Farbe und Hut – für alle Abos (zählt nicht als Pro-Design) */
+  luna: LunaLook;
 };
 
 /** Auswahl an Farben (kräftig – die App dunkelt sie je nach Stärke ab) */
@@ -150,6 +156,7 @@ export const DEFAULT_DESIGN: DesignSettings = {
   strength: 'medium',
   icons: 'none',
   density: 'normal',
+  luna: DEFAULT_LUNA,
 };
 
 const HEX = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i;
@@ -203,6 +210,7 @@ export function readDesign(raw: unknown): DesignSettings {
   out.strength = pick(d.strength, STRENGTHS, out.strength);
   if (d.icons !== undefined) out.icons = pick(d.icons, ICONS, out.icons);
   out.density = pick(d.density, DENSITIES, out.density);
+  out.luna = readLunaLook(d.luna);
   return out;
 }
 
@@ -217,6 +225,7 @@ export function designToJson(s: DesignSettings): Record<string, unknown> {
     strength: s.strength,
     icons: s.icons,
     density: s.density,
+    luna: { color: s.luna.color, hat: s.luna.hat },
   };
 }
 

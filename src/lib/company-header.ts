@@ -24,11 +24,15 @@ function urlOf(input: RequestInfo | URL): string {
   return input.url;
 }
 
-/** fetch für den Supabase-Client: hängt die offene Firma an */
+/**
+ * fetch für den Supabase-Client: hängt die offene Firma an. Eine Anfrage, die selbst eine Firma
+ * nennt (z. B. das Logo einer anderen Firma in Profil → Firmen), behält ihre.
+ */
 export const companyFetch: typeof fetch = (input, init) => {
   const id = current;
   if (!id || !NEEDS_COMPANY.test(urlOf(input))) return fetch(input, init);
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+  if (headers.has(COMPANY_HEADER)) return fetch(input, init);
   headers.set(COMPANY_HEADER, id);
   return fetch(input, { ...init, headers });
 };
