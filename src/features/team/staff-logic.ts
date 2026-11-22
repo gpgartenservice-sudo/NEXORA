@@ -38,7 +38,16 @@ export type Absence = {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string;
+  /** Krankmeldung: beim Arzt gewesen – Krankschreibung (eAU) kommt (Skript 20261130090000_krank_chat.sql) */
+  doctor?: boolean;
+  /** Krankmeldung: von der Leitung gesehen */
+  seen_by?: string | null;
+  seen_at?: string | null;
 };
+/** Spalten für absences */
+export const ABSENCE_COLUMNS =
+  'id, member_id, kind, starts_on, ends_on, note, status, decided_by, decided_at, decision_note, created_at, doctor, seen_by, seen_at';
+
 /** Für den Arbeitsplan: bei Kollegen ohne Grund („abwesend“) */
 export type TeamAbsence = {
   id: string;
@@ -487,6 +496,71 @@ export function vacationDays(absences: Absence[], memberId: string, year: number
   return { approved: sum('genehmigt'), pending: sum('offen') };
 }
 
+export type VacationAccount = {
+  /** Urlaubstage im Jahr (Anspruch) */
+  total: number;
+  /** genehmigt und schon vorbei bzw. heute */
+  taken: number;
+  /** genehmigt, kommt noch */
+  planned: number;
+  /** beantragt, noch ohne Antwort */
+  pending: number;
+  /** übrig = Anspruch − genommen − geplant */
+  left: number;
+  /** Krankheitstage (Arbeitstage) im Jahr */
+  sick: number;
+  /** nächster genehmigter Urlaub bzw. freie Tage */
+  next: Absence | null;
+};
+
+/** Urlaubskonto einer Person für ein Jahr (Arbeitstage, ohne Wochenenden und Feiertage) */
+export function vacationAccount(absences: Absence[], memberId: string, total: number, year: number, today: string): VacationAccount {
+  const mine = absences.filter((a) => a.member_id === memberId);
+  const days = (a: Absence, from = a.starts_on, to = a.ends_on) => (to < from ? 0 : workingDays(from, to, year));
+  let taken = 0;
+  let planned = 0;
+  let pending = 0;
+  let sick = 0;
+  for (const a of mine) {
+    if (a.kind === 'krank') sick += days(a);
+    if (a.kind !== 'urlaub') continue;
+    if (a.status === 'offen') pending += days(a);
+    if (a.status !== 'genehmigt') continue;
+    // Urlaub, der gerade läuft: bis heute genommen, der Rest geplant
+    taken += days(a, a.starts_on, a.ends_on < today ? a.ends_on : today);
+    planned += days(a, a.starts_on > today ? a.starts_on : addDays(today, 1), a.ends_on);
+  }
+  const next =
+    mine
+      .filter((a) => (a.kind === 'urlaub' || a.kind === 'frei') && a.status === 'genehmigt' && a.ends_on >= today)
+      .sort((a, b) => (a.starts_on < b.starts_on ? -1 : 1))[0] ?? null;
+  return { total, taken, planned, pending, left: total - taken - planned, sick, next };
+}
+
+/** Eigene Krankmeldung, die heute gilt (sonst null) */
+export const sickToday = (absences: Absence[], memberId: string, today: string) =>
+  absences.find((a) => a.member_id === memberId && a.kind === 'krank' && a.starts_on <= today && a.ends_on >= today) ?? null;
+
+/** Krankmeldungen, die die Leitung noch nicht gesehen hat (ohne die eigenen, nicht älter als 2 Wochen) */
+export function unseenSickNotes(absences: Absence[], me: string, today: string): Absence[] {
+  const since = addDays(today, -14);
+  return absences
+    .filter((a) => a.kind === 'krank' && a.member_id !== me && !a.seen_at && a.ends_on >= since)
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+}
+
+/** Wer ist in den nächsten Tagen weg (genehmigt oder krank gemeldet), nach Beginn sortiert */
+export function awaySoon(absences: Absence[], today: string, days = 14): Absence[] {
+  const until = addDays(today, days);
+  return absences
+    .filter((a) => (a.status === 'genehmigt' || a.status === 'gemeldet') && a.ends_on >= today && a.starts_on <= until)
+    .sort((a, b) => (a.starts_on < b.starts_on ? -1 : a.starts_on > b.starts_on ? 1 : 0));
+}
+
+/** Kalendertage einer Abwesenheit (für den Hinweis zur Krankschreibung ab Tag 4) */
+export const calendarDays = (from: string, to: string) =>
+  to < from ? 0 : Math.round((parseDay(to).getTime() - parseDay(from).getTime()) / 86_400_000) + 1;
+
 /** Ist die Person an diesem Tag abwesend? */
 export const absentOn = (list: TeamAbsence[], memberId: string, day: string) =>
   list.find((a) => a.member_id === memberId && a.starts_on <= day && a.ends_on >= day) ?? null;
@@ -504,6 +578,8 @@ export type ChatMessage = {
   sender_id: string;
   body: string;
   created_at: string;
+  /** Antwort auf diese Nachricht (Skript 20261130090000_krank_chat.sql) */
+  reply_to?: string | null;
 };
 export type ChatSummary = { chat: ChatKey; body: string; sender_id: string; at: string; unread: number };
 
@@ -513,6 +589,60 @@ export const directPartner = (key: string) => (key.startsWith('direkt:') ? key.s
 export function isChatKey(v: unknown): v is ChatKey {
   return v === 'alle' || v === 'leitung' || (typeof v === 'string' && /^direkt:[0-9a-f-]{36}$/.test(v));
 }
+
+/** Live-Kanal eines Chats für „schreibt gerade …“ – für beide Personen eines Direkt-Chats gleich */
+export function chatTopic(company: string, key: ChatKey, me: string): string {
+  const other = directPartner(key);
+  return other ? `team:${company}:direkt-${[me, other].sort().join('-')}` : `team:${company}:${key}`;
+}
+
+/** Live-Kanal der Firma für „online“ */
+export const onlineTopic = (company: string) => `team:${company}`;
+
+export type ChatReader = { user_id: string; read_at: string };
+
+/** Wer hat die Nachricht schon gelesen (gelesen bis ≥ gesendet) */
+export const readersOf = (m: Pick<ChatMessage, 'created_at'>, readers: ChatReader[]) =>
+  readers.filter((r) => r.read_at >= m.created_at).map((r) => r.user_id);
+
+/** Häkchen unter eigenen Nachrichten: gesendet, von manchen gelesen, von allen gelesen */
+export function readState(m: Pick<ChatMessage, 'created_at'>, readers: ChatReader[], others: string[]): 'sent' | 'some' | 'all' {
+  if (!others.length) return 'sent';
+  const read = new Set(readersOf(m, readers));
+  const n = others.filter((id) => read.has(id)).length;
+  return n === 0 ? 'sent' : n === others.length ? 'all' : 'some';
+}
+
+/** „Gelesen von Anna und Tom“, „Gelesen von allen“ */
+export function readLine(names: string[], all: boolean): string {
+  if (!names.length) return '';
+  if (all && names.length > 2) return 'Gelesen von allen';
+  if (names.length === 1) return `Gelesen von ${names[0]}`;
+  if (names.length <= 3) return `Gelesen von ${names.slice(0, -1).join(', ')} und ${names.at(-1)}`;
+  return `Gelesen von ${names.slice(0, 2).join(', ')} und ${names.length - 2} weiteren`;
+}
+
+/** „Anna schreibt …“, „Anna und Tom schreiben …“, „3 Leute schreiben …“ */
+export function typingLine(names: string[]): string {
+  if (!names.length) return '';
+  if (names.length === 1) return `${names[0]} schreibt …`;
+  if (names.length === 2) return `${names[0]} und ${names[1]} schreiben …`;
+  return `${names.length} Leute schreiben …`;
+}
+
+/** Feste Farbe je Person (Namen im Gruppenchat) */
+export const PERSON_COLORS = ['#4FB3FF', '#FF9F45', '#A78BFA', '#FF7AB6', '#2DD4BF', '#FBBF24', '#FF5A5F', '#9AE66E'];
+export function personColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PERSON_COLORS[h % PERSON_COLORS.length];
+}
+
+/** Kurzer Auszug für das Zitat einer Antwort (eine Zeile) */
+export const quoteText = (body: string, max = 90) => {
+  const one = body.replace(/\s+/g, ' ').trim();
+  return one.length > max ? `${one.slice(0, max - 1)}…` : one;
+};
 
 /** Gehört die Nachricht in diesen Chat (aus Sicht von `me`)? */
 export function inChat(m: ChatMessage, key: ChatKey, me: string): boolean {
