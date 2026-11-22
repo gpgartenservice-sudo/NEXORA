@@ -28,7 +28,7 @@ export const AREAS: { key: Area; label: string; hint: string; toggle?: boolean }
   { key: 'kunden', label: 'Kunden', hint: 'Kontakte, Adressen, Notizen' },
   { key: 'auftraege', label: 'Aufträge', hint: 'Aufträge und ihr Stand' },
   { key: 'termine', label: 'Termine', hint: 'Kalender und Wetter' },
-  { key: 'aufgaben', label: 'To-dos & Ziele', hint: 'Aufgaben abhaken' },
+  { key: 'aufgaben', label: 'To-dos & Ziele', hint: 'Mitarbeiter: nur eigene To-dos sehen und abhaken' },
   { key: 'dokumente', label: 'Angebote & Rechnungen', hint: 'PDFs, Mahnungen, Versand' },
   { key: 'finanzen', label: 'Finanzen & Steuern', hint: 'Einnahmen, Ausgaben, Belege' },
   { key: 'lager', label: 'Lagerbestand', hint: 'Geräte und Material' },
@@ -36,7 +36,7 @@ export const AREAS: { key: Area; label: string; hint: string; toggle?: boolean }
   { key: 'firma', label: 'Firma', hint: 'Firmendaten und Logo' },
   { key: 'luna', label: 'Luna', hint: 'Die Assistentin benutzen', toggle: true },
   { key: 'fahrplan', label: 'Fahrplan', hint: 'Gründer-Checklisten', toggle: true },
-  { key: 'personal', label: 'Personal', hint: 'Arbeitsplan eintragen, Urlaub genehmigen', toggle: true },
+  { key: 'personal', label: 'Personal', hint: 'Arbeitsplan, Urlaub genehmigen, Stunden aller', toggle: true },
 ];
 
 export const AREA_LABEL = Object.fromEntries(AREAS.map((a) => [a.key, a.label])) as Record<Area, string>;
@@ -52,13 +52,13 @@ export const ROLE_HINT: Record<MemberRole, string> = {
   inhaber: 'Gehört die Firma, sieht alles, verwaltet Team und Abo.',
   mitgruender: 'Arbeitgeber: sieht alles, verwaltet das Team, im Leitungs-Chat.',
   teamleitung: 'Plant das Team, genehmigt Urlaub – Rechte stellst du ein.',
-  mitarbeiter: 'Sieht seinen Arbeitsplan, beantragt Urlaub – Rechte stellst du ein.',
+  mitarbeiter: 'Bekommt To-dos von der Leitung, trägt Stunden ein, beantragt Urlaub – Rechte stellst du ein.',
 };
 
 const all = (level: Level): Access =>
   Object.fromEntries(AREAS.map((a) => [a.key, level])) as Access;
 
-/** Vorlagen – gleiche Werte wie nexora_role_default() in 20261128090000_teams.sql */
+/** Vorlagen – gleiche Werte wie nexora_role_default() (zuletzt in 20261201090000_aufgaben_stunden.sql) */
 export const DEFAULT_ACCESS: Record<EditableRole, Access> = {
   teamleitung: {
     kunden: 'write',
@@ -74,16 +74,17 @@ export const DEFAULT_ACCESS: Record<EditableRole, Access> = {
     fahrplan: 'off',
     personal: 'write',
   },
+  // Kunden, Firma und Finanzen standardmäßig aus; To-dos bekommen Mitarbeiter von der Leitung
   mitarbeiter: {
-    kunden: 'read',
+    kunden: 'off',
     auftraege: 'read',
     termine: 'read',
-    aufgaben: 'write',
+    aufgaben: 'read',
     dokumente: 'off',
     finanzen: 'off',
     lager: 'write',
     social: 'off',
-    firma: 'read',
+    firma: 'off',
     luna: 'off',
     fahrplan: 'off',
     personal: 'off',
@@ -149,7 +150,18 @@ export function accessSummary(access: Access): string {
  * Fehler der Datenbank „role_forbidden:kunden“ (Trigger nexora_guard_write) → verständlicher Text,
  * sonst null.
  */
+const TEAM_RULES: Record<string, string> = {
+  todo_employee_only: 'To-dos bekommst du von der Leitung – du kannst sie abhaken, aber nicht selbst anlegen oder ändern.',
+  todo_not_yours: 'Dieses To-do ist nicht für dich.',
+  assignee_not_member: 'Diese Person ist nicht (mehr) im Team.',
+  hours_invalid: 'Die Pause ist länger als die Arbeitszeit – bitte Beginn, Ende und Pause prüfen.',
+  hours_day_invalid: 'Stunden kannst du für heute und die letzten 62 Tage eintragen.',
+  hours_locked: 'Stunden, die älter als 62 Tage sind, kann nur noch die Leitung ändern.',
+};
+
 export function roleErrorText(message: string | null | undefined): string | null {
+  const rule = Object.keys(TEAM_RULES).find((k) => (message ?? '').includes(k));
+  if (rule) return TEAM_RULES[rule];
   const m = /role_forbidden(?::([a-z]+))?/.exec(message ?? '');
   if (!m) return null;
   const area = m[1] as Area | undefined;

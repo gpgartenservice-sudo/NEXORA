@@ -175,6 +175,140 @@ export function hoursLabel(totalMinutes: number): string {
   return `${String(h).replace('.', ',')} Std.`;
 }
 
+// ---------------------------------------------------------------------------
+// Stunden (Tabelle work_hours, Skript 20261201090000_aufgaben_stunden.sql)
+// ---------------------------------------------------------------------------
+
+export type WorkHours = {
+  id: string;
+  member_id: string;
+  /** JJJJ-MM-TT */
+  day: string;
+  /** HH:MM[:SS] */
+  starts_at: string;
+  ends_at: string;
+  break_minutes: number;
+  /** Arbeitszeit ohne Pause (rechnet die Datenbank) */
+  minutes: number;
+  note: string | null;
+  created_by?: string | null;
+};
+
+export const HOURS_COLUMNS = 'id, member_id, day, starts_at, ends_at, break_minutes, minutes, note, created_by';
+
+/** Ohne Recht „Personal“: nur die letzten 62 Tage (wie die Datenbank) */
+export const HOURS_EDIT_DAYS = 62;
+
+/** Arbeitszeit ohne Pause in Minuten (≤ 0 = so nicht möglich) */
+export function workMinutes(starts_at: string, ends_at: string, breakMinutes: number): number {
+  if (minutes(starts_at) === minutes(ends_at)) return 0;
+  return shiftMinutes({ starts_at, ends_at }) - Math.max(0, breakMinutes);
+}
+
+/** Pause: „30“, „0:45“, „1,5 h“, „1 Std“ → Minuten (0–600), sonst null */
+export function parseBreak(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/\s+/g, '');
+  if (!t) return 0;
+  let m: number;
+  const clock = /^(\d{1,2}):(\d{2})$/.exec(t);
+  const hours = /^(\d+(?:[.,]\d+)?)(?:h|std\.?|stunden?)$/.exec(t);
+  const mins = /^(\d{1,3})(?:m|min\.?|minuten)?$/.exec(t);
+  if (clock) m = Number(clock[1]) * 60 + Number(clock[2]);
+  else if (hours) m = Math.round(Number(hours[1].replace(',', '.')) * 60);
+  else if (mins) m = Number(mins[1]);
+  else return null;
+  return m >= 0 && m <= 600 ? m : null;
+}
+
+/** „30 Min. Pause“ / „1 Std. Pause“ / „1,5 Std. Pause“ / „ohne Pause“ */
+export function breakLabel(m: number): string {
+  if (!m) return 'ohne Pause';
+  return m % 60 === 0 || m > 90 ? `${hoursLabel(m)} Pause` : `${m} Min. Pause`;
+}
+
+/** Darf man den Eintrag ohne Recht „Personal“ noch ändern? */
+export const hoursEditable = (day: string, today: string) => day >= addDays(today, -HOURS_EDIT_DAYS);
+
+/** Tag ohne Recht „Personal“ erlaubt? (letzte 62 Tage bis morgen) */
+export const hoursDayOk = (day: string, today: string) => hoursEditable(day, today) && day <= addDays(today, 1);
+
+/** „2026-11“ des Tages */
+export const monthOf = (iso: string) => iso.slice(0, 7);
+
+/** Erster und letzter Tag eines Monats */
+export function monthBounds(month: string): { from: string; to: string } {
+  const [y, m] = month.split('-').map(Number);
+  const last = new Date(y, m, 0, 12).getDate();
+  return { from: `${month}-01`, to: `${month}-${pad(last)}` };
+}
+
+/** Monat davor/danach */
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1, 12);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+}
+
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+/** „November 2026“ */
+export function monthName(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${y}`;
+}
+
+export type HoursTotal = { member_id: string; minutes: number; days: number; entries: number };
+
+/** Summe je Person (meiste Stunden zuerst) */
+export function hoursByMember(rows: Pick<WorkHours, 'member_id' | 'day' | 'minutes'>[]): HoursTotal[] {
+  const map = new Map<string, { minutes: number; days: Set<string>; entries: number }>();
+  for (const r of rows) {
+    const t = map.get(r.member_id) ?? { minutes: 0, days: new Set<string>(), entries: 0 };
+    t.minutes += r.minutes;
+    t.days.add(r.day);
+    t.entries += 1;
+    map.set(r.member_id, t);
+  }
+  return [...map.entries()]
+    .map(([member_id, t]) => ({ member_id, minutes: t.minutes, days: t.days.size, entries: t.entries }))
+    .sort((a, b) => b.minutes - a.minutes || a.member_id.localeCompare(b.member_id));
+}
+
+/** Vorschlag fürs nächste Eintragen: Zeiten vom letzten Eintrag, sonst 8–16:30 mit 30 Min. Pause */
+export function hoursSuggestion(rows: Pick<WorkHours, 'member_id' | 'day' | 'starts_at' | 'ends_at' | 'break_minutes'>[], memberId: string) {
+  const last = rows
+    .filter((r) => r.member_id === memberId)
+    .sort((a, b) => b.day.localeCompare(a.day))[0];
+  return last
+    ? { starts_at: timeLabel(last.starts_at), ends_at: timeLabel(last.ends_at), break_minutes: last.break_minutes }
+    : { starts_at: '08:00', ends_at: '16:30', break_minutes: 30 };
+}
+
+/** Stunden als CSV für Excel/Lohnbüro (Semikolon, Komma, UTF-8 mit BOM – wie der Steuer-Export) */
+export function hoursCsv(rows: WorkHours[], nameOf: (id: string) => string): string {
+  const cell = (v: string) => {
+    const t = v.replace(/\r?\n/g, ' ');
+    return /[";]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const head = ['Name', 'Datum', 'Beginn', 'Ende', 'Pause (Min.)', 'Stunden', 'Notiz'];
+  const lines = [...rows]
+    .sort(
+      (a, b) =>
+        nameOf(a.member_id).localeCompare(nameOf(b.member_id)) ||
+        a.day.localeCompare(b.day) ||
+        a.starts_at.localeCompare(b.starts_at),
+    )
+    .map((r) => [
+      nameOf(r.member_id),
+      dateLabel(r.day),
+      timeLabel(r.starts_at),
+      timeLabel(r.ends_at),
+      String(r.break_minutes),
+      (Math.round((r.minutes / 60) * 100) / 100).toFixed(2).replace('.', ','),
+      r.note ?? '',
+    ]);
+  return '\uFEFF' + [head, ...lines].map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
+}
+
 /** Vorlagen für schnelles Eintragen */
 export const SHIFT_PRESETS: { label: string; starts_at: string; ends_at: string }[] = [
   { label: 'Früh', starts_at: '06:00', ends_at: '14:00' },

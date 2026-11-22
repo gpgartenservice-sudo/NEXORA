@@ -8,6 +8,19 @@
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
 import { periodsFor, type GoalKind, type GoalPeriod } from '../goals/goals-logic';
+import { AREAS, type Access, type Area, type EditableRole, type Level, type MemberRole } from '../team/roles';
+import {
+  hoursDayOk,
+  HOURS_EDIT_DAYS,
+  KIND_LABEL,
+  parseTime,
+  rangeLabel,
+  workMinutes,
+  type AbsenceKind,
+  type ChatKey,
+} from '../team/staff-logic';
+
+import { chatFor, matchMember, teamDarf, type TeamKnown } from './nexy-team';
 import { toDate, toMs } from '../../lib/dates';
 
 export const EXPENSE_CATEGORY_KEYS = [
@@ -63,6 +76,13 @@ export type RawAction = {
   goal_change?: Obj | null;
   company_change?: Obj | null;
   mark_unpaid?: Obj | null;
+  team_message?: Obj | null;
+  team_member?: Obj | null;
+  team_invite?: Obj | null;
+  team_access?: Obj | null;
+  absence?: Obj | null;
+  absence_decide?: Obj | null;
+  hours?: Obj | null;
   open?: Obj | null;
 };
 export type RawResult = { actions?: unknown; reply?: unknown; quick_replies?: unknown };
@@ -125,7 +145,16 @@ export type KnownEvent = {
 /** Neues To-do */
 export type TodoDraft = { title: string; due_on: string | null; notes: string | null; important: boolean };
 /** Vorhandenes To-do – so, wie Luna es kennt */
-export type KnownTodo = { id: string; title: string; due_on: string | null; important: boolean; done: boolean };
+export type KnownTodo = {
+  id: string;
+  title: string;
+  due_on: string | null;
+  important: boolean;
+  done: boolean;
+  assignee_id?: string | null;
+};
+/** Für wen ein To-do ist (id null = Name gibt es im Team nicht) */
+export type Assignee = { id: string | null; name: string };
 /** Änderung an einem To-do (null = bleibt; due_on "" = Datum entfernen) */
 export type TodoChange = {
   title: string | null;
@@ -134,6 +163,8 @@ export type TodoChange = {
   important: boolean | null;
   done: boolean | null;
   remove: boolean;
+  /** neue Person (im Team) */
+  assignee?: Assignee;
 };
 export type GoalDraft = {
   kind: GoalKind;
@@ -302,8 +333,46 @@ export const PAGES = {
   neue_ausgabe: { href: '/finanzen/ausgabe/neu', label: 'Neue Ausgabe' },
   neuer_post: { href: '/social/neu', label: 'Neue Post-Idee' },
   neues_ziel: { href: '/aufgaben/ziele/neu', label: 'Neues Ziel' },
+  team: { href: '/team?tab=chats', label: 'Team-Chats' },
+  arbeitsplan: { href: '/team?tab=plan', label: 'Arbeitsplan' },
+  stunden: { href: '/team?tab=stunden', label: 'Stunden' },
+  urlaub: { href: '/team?tab=urlaub', label: 'Krank & Urlaub' },
+  team_verwalten: { href: '/profil/team', label: 'Mitglieder & Rechte' },
 } as const;
 export type PageKey = keyof typeof PAGES;
+
+// --- Team (Business/Teams) ---
+export type InviteRole = Exclude<MemberRole, 'inhaber'>;
+export type TeamMemberChange = {
+  memberId: string;
+  name: string;
+  role: InviteRole | null;
+  /** '' = Bezeichnung löschen */
+  title: string | null;
+  vacationDays: number | null;
+  remove: boolean;
+};
+export type AbsenceDraft = {
+  kind: AbsenceKind;
+  starts_on: string;
+  ends_on: string;
+  memberId: string;
+  /** für jemand anderen (Name), sonst null */
+  name: string | null;
+  note: string | null;
+  doctor: boolean;
+};
+export type HoursDraft = {
+  memberId: string;
+  name: string | null;
+  day: string;
+  starts_at: string;
+  ends_at: string;
+  break_minutes: number;
+  note: string | null;
+  minutes: number;
+};
+export type AbsenceDecision = 'approve' | 'reject' | 'seen';
 
 /** Zu welchem Kunden gehört etwas? Vorhanden, neu aus diesem Gespräch, oder noch offen. */
 export type CustomerLink = { existingId: string | null; newRef: string | null; name: string | null };
@@ -356,8 +425,31 @@ export type Proposal =
       customer: CustomerLink;
       order: OrderLink;
     }
-  | { id: string; kind: 'todo'; include: boolean; data: TodoDraft; customer: CustomerLink; order: OrderLink }
-  | { id: string; kind: 'todo_change'; include: boolean; data: TodoChange; todo: KnownTodo }
+  | {
+      id: string;
+      kind: 'todo';
+      include: boolean;
+      data: TodoDraft;
+      customer: CustomerLink;
+      order: OrderLink;
+      assignee?: Assignee;
+      /** darf der Nutzer nicht (Rechte im Team) */
+      denied?: string;
+    }
+  | { id: string; kind: 'todo_change'; include: boolean; data: TodoChange; todo: KnownTodo; denied?: string }
+  | { id: string; kind: 'team_message'; include: boolean; data: { chat: ChatKey; label: string; text: string }; denied?: string }
+  | { id: string; kind: 'team_member'; include: boolean; data: TeamMemberChange; denied?: string }
+  | { id: string; kind: 'team_invite'; include: boolean; data: { email: string; role: InviteRole }; denied?: string }
+  | { id: string; kind: 'team_access'; include: boolean; data: { role: EditableRole; change: Partial<Access> }; denied?: string }
+  | { id: string; kind: 'absence'; include: boolean; data: AbsenceDraft; denied?: string }
+  | {
+      id: string;
+      kind: 'absence_decide';
+      include: boolean;
+      data: { absenceId: string; decision: AbsenceDecision; note: string | null; who: string; what: string };
+      denied?: string;
+    }
+  | { id: string; kind: 'hours'; include: boolean; data: HoursDraft; denied?: string }
   | { id: string; kind: 'goal'; include: boolean; data: GoalDraft }
   | { id: string; kind: 'customer_change'; include: boolean; data: CustomerChange; customer: { id: string; name: string } }
   | { id: string; kind: 'order_change'; include: boolean; data: OrderChange; customer: CustomerLink; order: OrderLink }
@@ -423,6 +515,8 @@ export type Known = {
   postRefs?: Record<string, string>;
   goals?: KnownGoal[];
   goalRefs?: Record<string, string>;
+  /** Team: wer dabei ist, was der Nutzer darf, Anträge (U1 …) */
+  team?: TeamKnown;
   /** aktuelle Firmendaten (damit nichts „geändert“ wird, was schon so ist) */
   seller?: Partial<Record<CompanyTextField, string | null>> & {
     small_business?: boolean;
@@ -978,6 +1072,9 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
           customer = fresh.customer;
         }
       }
+      const team = known.team;
+      const who = team ? str(t.assignee, 120) : null;
+      const member = who && team ? matchMember(who, team.members, team.me) : null;
       out.push({
         id: id(),
         kind: 'todo',
@@ -985,6 +1082,8 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
         data: { title, due_on: due, notes: str(t.notes, 2000), important: t.important === true },
         customer,
         order,
+        ...(who ? { assignee: member ? { id: member.id, name: member.name } : { id: null, name: who } } : {}),
+        ...(team && !team.canTodo ? { denied: 'Neue To-dos verteilt bei euch die Leitung.' } : {}),
       });
     } else if (a.type === 'todo_change' && a.todo_change) {
       const c = a.todo_change;
@@ -1008,9 +1107,19 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
         if (typeof c.important === 'boolean' && c.important !== todo.important) change.important = c.important;
         const done = c.done === 'done' ? true : c.done === 'open' ? false : null;
         if (done !== null && done !== todo.done) change.done = done;
+        const who = known.team ? str(c.assignee, 120) : null;
+        if (who && known.team) {
+          const m = matchMember(who, known.team.members, known.team.me);
+          if (!m) change.assignee = { id: null, name: who };
+          else if (m.id !== todo.assignee_id) change.assignee = { id: m.id, name: m.name };
+        }
         if (!Object.entries(change).some(([k, v]) => k !== 'remove' && v !== null)) continue;
       }
-      out.push({ id: id(), kind: 'todo_change', include: true, data: change, todo });
+      // Mitarbeiter: nur abhaken
+      const onlyDone =
+        !remove && change.title === null && change.due_on === null && change.notes === null && change.important === null && !change.assignee;
+      const denied = known.team && !known.team.canTodo && !onlyDone ? 'Ändern kann das bei euch nur die Leitung – abhaken geht.' : null;
+      out.push({ id: id(), kind: 'todo_change', include: true, data: change, todo, ...(denied ? { denied } : {}) });
     } else if (a.type === 'goal' && a.goal) {
       const g = a.goal;
       const kind = oneOf(g.kind, ['revenue', 'customers', 'orders', 'posts', 'custom'] as const, 'custom');
@@ -1263,6 +1372,175 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
         change.offer_validity_days = validity;
       if (Object.keys(change).length === 0) continue;
       out.push({ id: id(), kind: 'company_change', include: true, data: change });
+    } else if (a.type === 'team_message' && a.team_message && known.team) {
+      const team = known.team;
+      const m = a.team_message;
+      const text = str(m.text, 2000);
+      if (!text) continue;
+      const chat = chatFor(str(m.chat, 40), str(m.person, 120), team.members, team.me);
+      const key: ChatKey = 'key' in chat ? chat.key : 'alle';
+      if (out.some((p) => p.kind === 'team_message' && p.data.chat === key && p.data.text === text)) continue;
+      const denied =
+        'error' in chat
+          ? chat.error
+          : key === 'leitung' && !teamDarf(team).leitung_chat
+            ? 'Den Leitungs-Chat gibt es nur für Inhaber und Mitgründer.'
+            : null;
+      out.push({
+        id: id(),
+        kind: 'team_message',
+        include: true,
+        data: { chat: key, label: 'key' in chat ? chat.label : (str(m.person, 120) ?? 'Team'), text },
+        ...(denied ? { denied } : {}),
+      });
+    } else if (a.type === 'team_member' && a.team_member && known.team) {
+      const team = known.team;
+      const c = a.team_member;
+      const m = matchMember(str(c.person, 120), team.members, team.me);
+      if (!m || out.some((p) => p.kind === 'team_member' && p.data.memberId === m.id)) continue;
+      const remove = c.remove === true;
+      const role = inList(c.role, ['mitgruender', 'teamleitung', 'mitarbeiter'] as const);
+      const days = num(c.vacation_days);
+      const change: TeamMemberChange = {
+        memberId: m.id,
+        name: m.name,
+        role: !remove && role && role !== m.role ? role : null,
+        title: remove ? null : textChange(c.title, 60, m.title ?? null),
+        vacationDays:
+          !remove && days !== null && days >= 0 && days <= 60 && Math.round(days) !== m.vacation_days ? Math.round(days) : null,
+        remove,
+      };
+      if (!remove && change.role === null && change.title === null && change.vacationDays === null) continue;
+      const denied = !teamDarf(team).team_verwalten
+        ? 'Das Team verwalten bei euch Inhaber und Mitgründer.'
+        : m.role === 'inhaber'
+          ? 'Beim Inhaber lässt sich das nicht ändern.'
+          : m.id === team.me && (remove || change.role)
+            ? 'Deine eigene Rolle kannst du nicht ändern.'
+            : (change.role === 'mitgruender' || m.role === 'mitgruender') && team.role !== 'inhaber' && (remove || change.role)
+              ? 'Mitgründer ernennt oder ändert nur der Inhaber.'
+              : null;
+      out.push({ id: id(), kind: 'team_member', include: true, data: change, ...(denied ? { denied } : {}) });
+    } else if (a.type === 'team_invite' && a.team_invite && known.team) {
+      const team = known.team;
+      const c = a.team_invite;
+      const email = str(c.email, 200)?.toLowerCase() ?? null;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) continue;
+      if (out.some((p) => p.kind === 'team_invite' && p.data.email === email)) continue;
+      const role = inList(c.role, ['mitgruender', 'teamleitung', 'mitarbeiter'] as const) ?? 'mitarbeiter';
+      const denied = !teamDarf(team).team_verwalten
+        ? 'Einladen können bei euch Inhaber und Mitgründer.'
+        : role === 'mitgruender' && team.role !== 'inhaber'
+          ? 'Mitgründer lädt nur der Inhaber ein.'
+          : null;
+      out.push({ id: id(), kind: 'team_invite', include: true, data: { email, role }, ...(denied ? { denied } : {}) });
+    } else if (a.type === 'team_access' && a.team_access && known.team) {
+      const team = known.team;
+      const c = a.team_access;
+      const role = inList(c.role, ['teamleitung', 'mitarbeiter'] as const);
+      if (!role || out.some((p) => p.kind === 'team_access' && p.data.role === role)) continue;
+      const change: Partial<Access> = {};
+      for (const area of AREAS) {
+        let level = inList(c[area.key], ['off', 'read', 'write'] as const) as Level | null;
+        if (!level) continue;
+        // Schalter-Bereiche kennen nur an/aus
+        if (area.toggle && level === 'read') level = 'write';
+        if (team.roles?.[role]?.[area.key] === level) continue;
+        change[area.key as Area] = level;
+      }
+      if (!Object.keys(change).length) continue;
+      const denied = !teamDarf(team).team_verwalten ? 'Rechte stellen bei euch Inhaber und Mitgründer ein.' : null;
+      out.push({ id: id(), kind: 'team_access', include: true, data: { role, change }, ...(denied ? { denied } : {}) });
+    } else if (a.type === 'absence' && a.absence && known.team) {
+      const team = known.team;
+      const c = a.absence;
+      const kind = inList(c.kind, ['krank', 'urlaub', 'frei'] as const);
+      if (!kind) continue;
+      const from = validDay(str(c.starts_on, 10)) ?? (kind === 'krank' ? today : null);
+      if (!from) continue;
+      const until = validDay(str(c.ends_on, 10));
+      const to = until && until >= from ? until : from;
+      const who = str(c.person, 120);
+      const m = who ? matchMember(who, team.members, team.me) : null;
+      if (who && !m) continue;
+      const memberId = m?.id ?? team.me;
+      const forOther = memberId !== team.me;
+      if (out.some((p) => p.kind === 'absence' && p.data.memberId === memberId && p.data.starts_on === from)) continue;
+      const denied = forOther && !team.hr ? 'Für andere trägt das bei euch die Leitung ein.' : null;
+      out.push({
+        id: id(),
+        kind: 'absence',
+        include: true,
+        data: {
+          kind,
+          starts_on: from,
+          ends_on: to,
+          memberId,
+          name: forOther && m ? m.name : null,
+          note: str(c.note, 300),
+          doctor: kind === 'krank' && c.doctor === true,
+        },
+        ...(denied ? { denied } : {}),
+      });
+    } else if (a.type === 'absence_decide' && a.absence_decide && known.team) {
+      const team = known.team;
+      const c = a.absence_decide;
+      const abs = byRef(c.ref, team.absenceRefs, team.absences);
+      const decision = inList(c.decision, ['approve', 'reject', 'seen'] as const);
+      if (!abs || !decision || out.some((p) => p.kind === 'absence_decide' && p.data.absenceId === abs.id)) continue;
+      if (decision === 'seen' ? abs.kind !== 'krank' : abs.status !== 'offen') continue;
+      const who = team.members.find((m) => m.id === abs.member_id)?.name ?? 'Ehemaliges Mitglied';
+      const denied = !team.hr ? 'Anträge entscheidet bei euch die Leitung.' : null;
+      out.push({
+        id: id(),
+        kind: 'absence_decide',
+        include: true,
+        data: {
+          absenceId: abs.id,
+          decision,
+          note: decision === 'seen' ? null : str(c.note, 300),
+          who,
+          what: `${KIND_LABEL[abs.kind]} ${rangeLabel(abs.starts_on, abs.ends_on)}`,
+        },
+        ...(denied ? { denied } : {}),
+      });
+    } else if (a.type === 'hours' && a.hours && known.team) {
+      const team = known.team;
+      const c = a.hours;
+      const day = validDay(str(c.day, 10)) ?? today;
+      const starts = parseTime(String(c.starts_at ?? ''));
+      const ends = parseTime(String(c.ends_at ?? ''));
+      const pause = num(c.break_minutes) ?? 0;
+      if (!starts || !ends || pause < 0 || pause > 600) continue;
+      const minutes = workMinutes(starts, ends, Math.round(pause));
+      if (minutes <= 0) continue;
+      const who = str(c.person, 120);
+      const m = who ? matchMember(who, team.members, team.me) : null;
+      if (who && !m) continue;
+      const memberId = m?.id ?? team.me;
+      const forOther = memberId !== team.me;
+      const denied =
+        forOther && !team.hr
+          ? 'Stunden für andere trägt bei euch die Leitung ein.'
+          : !team.hr && !hoursDayOk(day, today)
+            ? `Stunden eintragen geht für die letzten ${HOURS_EDIT_DAYS} Tage.`
+            : null;
+      out.push({
+        id: id(),
+        kind: 'hours',
+        include: true,
+        data: {
+          memberId,
+          name: forOther && m ? m.name : null,
+          day,
+          starts_at: starts,
+          ends_at: ends,
+          break_minutes: Math.round(pause),
+          note: str(c.note, 300),
+          minutes,
+        },
+        ...(denied ? { denied } : {}),
+      });
     } else if (a.type === 'open' && a.open) {
       if (out.some((p) => p.kind === 'open')) continue;
       const target = openTarget(a.open, known);
@@ -1305,6 +1583,10 @@ export function openTarget(o: Obj, known: Known): { href: string; label: string 
 /** Kann der Vorschlag ausgeführt werden? (Zuordnung zu Kunde/Auftrag) */
 export function proposalProblem(p: Proposal, all: Proposal[]): string | null {
   const included = (ref: string | null) => !!ref && !!all.find((x) => x.id === ref)?.include;
+  // Rechte im Team
+  if ('denied' in p && p.denied) return p.denied;
+  if (p.kind === 'todo' && p.assignee && !p.assignee.id) return `${p.assignee.name} gibt es im Team nicht.`;
+  if (p.kind === 'todo_change' && p.data.assignee && !p.data.assignee.id) return `${p.data.assignee.name} gibt es im Team nicht.`;
   if (p.kind === 'order') {
     if (p.customer.existingId) return null;
     if (p.customer.newRef) return included(p.customer.newRef) ? null : 'Der neue Kunde dafür ist abgewählt.';
@@ -1414,13 +1696,44 @@ export function proposalLabel(p: Proposal): string {
     case 'order_price':
       return `Preis ${formatPrice(p.data.price)}${p.data.billing === 'monthly' || (!p.data.billing && p.data.beforeBilling === 'monthly') ? ' pro Monat' : ''}${p.order.title ? ` für „${p.order.title}“` : ''}`;
     case 'todo':
-      return `To-do „${p.data.title}“${p.data.due_on ? ` bis ${p.data.due_on.split('-').reverse().join('.')}` : ''}`;
+      return `To-do „${p.data.title}“${p.assignee?.id && p.assignee.id !== '' ? ` für ${p.assignee.name}` : ''}${p.data.due_on ? ` bis ${p.data.due_on.split('-').reverse().join('.')}` : ''}`;
     case 'todo_change':
       return p.data.remove
         ? `To-do „${p.todo.title}“ löschen`
         : p.data.done === true
           ? `To-do „${p.todo.title}“ abhaken`
-          : `To-do „${p.todo.title}“ ändern`;
+          : p.data.assignee
+            ? `To-do „${p.todo.title}“ an ${p.data.assignee.name} geben`
+            : `To-do „${p.todo.title}“ ändern`;
+    case 'team_message':
+      return `Nachricht an ${p.data.label}: „${p.data.text.length > 60 ? `${p.data.text.slice(0, 59)}…` : p.data.text}“`;
+    case 'team_member': {
+      if (p.data.remove) return `${p.data.name} aus dem Team entfernen`;
+      const parts = [
+        p.data.role ? `wird ${ROLE_WORD[p.data.role]}` : null,
+        p.data.title === '' ? 'ohne Bezeichnung' : p.data.title ? `Bezeichnung „${p.data.title}“` : null,
+        p.data.vacationDays !== null ? `${p.data.vacationDays} Urlaubstage` : null,
+      ].filter(Boolean);
+      return `${p.data.name}: ${parts.join(', ')}`;
+    }
+    case 'team_invite':
+      return `${p.data.email} als ${ROLE_WORD[p.data.role]} einladen`;
+    case 'team_access':
+      return `Rechte ${p.data.role === 'teamleitung' ? 'Teamleitung' : 'Mitarbeiter'}: ${(Object.entries(p.data.change) as [Area, Level][])
+        .map(([area, level]) => `${AREAS.find((x) => x.key === area)?.label ?? area} ${LEVEL_WORD[level]}`)
+        .join(', ')}`;
+    case 'absence': {
+      const range = rangeLabel(p.data.starts_on, p.data.ends_on);
+      const forWhom = p.data.name ? ` für ${p.data.name}` : '';
+      if (p.data.kind === 'krank') return `Krankmeldung${forWhom} ${range}${p.data.doctor ? ' (beim Arzt)' : ''}`;
+      return `${p.data.kind === 'urlaub' ? 'Urlaub' : 'Frei'}${forWhom} ${range}`;
+    }
+    case 'absence_decide':
+      return p.data.decision === 'seen'
+        ? `Krankmeldung von ${p.data.who} bestätigen`
+        : `${p.data.what} von ${p.data.who} ${p.data.decision === 'approve' ? 'genehmigen' : 'ablehnen'}`;
+    case 'hours':
+      return `${hoursText(p.data.minutes)} am ${p.data.day.split('-').reverse().join('.')}${p.data.name ? ` für ${p.data.name}` : ''} (${p.data.starts_at} – ${p.data.ends_at})`;
     case 'goal':
       return `Ziel: ${goalLabel(p.data)}`;
     case 'appointment_change': {
@@ -1434,6 +1747,10 @@ export function proposalLabel(p: Proposal): string {
 }
 
 export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
+
+const ROLE_WORD: Record<InviteRole, string> = { mitgruender: 'Mitgründer', teamleitung: 'Teamleitung', mitarbeiter: 'Mitarbeiter' };
+const LEVEL_WORD: Record<Level, string> = { off: 'aus', read: 'ansehen', write: 'bearbeiten' };
+const hoursText = (m: number) => `${String(Math.round((m / 60) * 10) / 10).replace('.', ',')} Std.`;
 
 /** Bezeichnungen der Firmendaten (wie im Bereich Firma) */
 export const COMPANY_FIELD_LABEL: Record<keyof CompanyChange, string> = {
@@ -1494,6 +1811,10 @@ export function runnableNow(
 export const EXECUTION_ORDER: Proposal['kind'][] = [
   // Firmendaten zuerst: neue Bankverbindung o. Ä. soll schon auf der Rechnung stehen
   'company_change',
+  // Team: erst Leute und Rechte, dann To-dos für sie
+  'team_invite',
+  'team_member',
+  'team_access',
   'customer',
   'customer_change',
   'order',
@@ -1511,6 +1832,11 @@ export const EXECUTION_ORDER: Proposal['kind'][] = [
   'expense_change',
   'post',
   'post_change',
+  'absence',
+  'absence_decide',
+  'hours',
+  // Nachrichten nach allem anderen (z. B. „hab dir ein To-do gegeben“)
+  'team_message',
   'mark_paid',
   'existing_pdf',
   'income_proof',

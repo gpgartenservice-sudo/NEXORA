@@ -6,7 +6,7 @@ import { roleErrorText } from '@/features/team/roles';
 import type { Goal, Todo } from './goals-logic';
 
 export type TodoInput = Pick<Todo, 'title'> &
-  Partial<Pick<Todo, 'notes' | 'due_on' | 'important' | 'done' | 'customer_id' | 'order_id'>>;
+  Partial<Pick<Todo, 'notes' | 'due_on' | 'important' | 'done' | 'customer_id' | 'order_id' | 'assignee_id'>>;
 export type GoalInput = Pick<Goal, 'kind' | 'period' | 'target'> &
   Partial<Pick<Goal, 'title' | 'progress' | 'due_on' | 'archived'>>;
 
@@ -24,6 +24,8 @@ type State = {
   createGoal: (input: GoalInput) => Promise<Result<Goal>>;
   updateGoal: (id: string, input: Partial<GoalInput>) => Promise<Result<Goal>>;
   deleteGoal: (id: string) => Promise<Result>;
+  /** Neu laden (z. B. wenn die Leitung ein To-do für einen eingetragen hat) */
+  reload: () => Promise<void>;
 };
 
 const Ctx = createContext<State | null>(null);
@@ -34,6 +36,8 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'To-dos und Ziele können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261111090000_todos_goals.sql, siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig – bitte prüfe Titel und Zahlen.';
+  if (/assignee_id|created_by|done_by/.test(error.message ?? '') && ['PGRST204', '42703'].includes(String(error.code)))
+    return 'To-dos für andere im Team brauchen noch das Datenbank-Skript 20261201090000_aufgaben_stunden.sql.';
   return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
@@ -86,6 +90,13 @@ export function GoalsProvider({ userId, children }: { userId: string; children: 
     };
   }, [userId]);
 
+  const reload = useCallback(async () => {
+    const r = await fetchAll();
+    if ('missing' in r || 'failed' in r) return;
+    setTodos((prev) => (JSON.stringify(prev) === JSON.stringify(r.todos) ? prev : r.todos));
+    setGoals((prev) => (JSON.stringify(prev) === JSON.stringify(r.goals) ? prev : r.goals));
+  }, []);
+
   const createTodo = useCallback(async (input: TodoInput): Promise<Result<Todo>> => {
     const { data, error: err } = await supabase.from('todos').insert(input).select('*').single();
     if (err) return { error: message(err, 'Das To-do konnte nicht gespeichert werden.') };
@@ -133,8 +144,8 @@ export function GoalsProvider({ userId, children }: { userId: string; children: 
   }, []);
 
   const value = useMemo<State>(
-    () => ({ todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal }),
-    [todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal],
+    () => ({ todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload }),
+    [todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

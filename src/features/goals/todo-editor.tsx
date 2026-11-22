@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Star } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TextField } from '@/components/auth/text-field';
 import { Screen } from '@/components/layout/screen';
@@ -14,12 +15,14 @@ import { OptionCard } from '@/components/ui/option-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
+import { todayIso } from '@/features/documents/document-logic';
 import { TourTarget } from '@/features/tutorial/tour-target';
 import { useCrm } from '@/features/crm/crm-provider';
 
-import type { Todo } from './goals-logic';
+import { dueLabel, todoTeamNotes, type Todo } from './goals-logic';
 import { useGoals } from './goals-provider';
+import { useTodoTeam } from './use-todo-team';
 
 /** Zurück zu den To-dos (sonst neu öffnen) */
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/aufgaben'));
@@ -28,6 +31,7 @@ const back = () => (router.canGoBack() ? router.back() : router.navigate('/aufga
 export function TodoEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { todos, loading } = useGoals();
+  const { canWrite } = useTodoTeam();
   const todo = todos.find((t) => t.id === id);
   if (!todo) {
     return (
@@ -37,13 +41,68 @@ export function TodoEditScreen() {
       </Screen>
     );
   }
+  // Mitarbeiter (und wer nur ansehen darf): nur ansehen und abhaken
+  if (!canWrite) return <TodoView todo={todo} />;
   // Schlüssel aus dem Inhalt: von außen geändert (z. B. Luna) -> frisch mit den neuen Werten
   return <TodoEditor key={JSON.stringify(todo)} todo={todo} />;
+}
+
+/** To-do ansehen – Mitarbeiter haken ihre eigenen hier ab */
+function TodoView({ todo }: { todo: Todo }) {
+  const { updateTodo } = useGoals();
+  const { orders } = useCrm();
+  const team = useTodoTeam();
+  const [today] = useState(() => todayIso());
+  const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const order = todo.order_id ? orders.find((o) => o.id === todo.order_id) : undefined;
+  const notes = team.inTeam ? todoTeamNotes(todo, team.me, team.nameOf) : [];
+  const meta = [todo.due_on ? `Fällig: ${dueLabel(todo.due_on, today)}` : 'Ohne Datum', ...notes];
+
+  const toggle = async () => {
+    setSaving(true);
+    setFailure(null);
+    const { error } = await updateTodo(todo.id, { done: !todo.done });
+    setSaving(false);
+    if (error) setFailure(error);
+  };
+
+  return (
+    <Screen maxWidth={680}>
+      <PageHeader title="To-do" back={{ label: 'To-dos', onPress: back }} />
+      <Reveal delay={120}>
+        <Card>
+          <View style={styles.viewHead}>
+            {todo.important && !todo.done && (
+              <Star size={16} color={Colors.accent} fill={Colors.accent} accessibilityLabel="wichtig" />
+            )}
+            <Text style={[styles.viewTitle, todo.done && styles.viewDone]}>{todo.title}</Text>
+          </View>
+          <Text style={styles.viewMeta}>{meta.join(' · ')}</Text>
+          {!!todo.notes && <Text style={styles.viewNotes}>{todo.notes}</Text>}
+          {order && <TextLink label={`Auftrag: ${order.title} →`} onPress={() => router.push(`/auftraege/${order.id}`)} />}
+        </Card>
+      </Reveal>
+      {failure && <Notice tone="error">{failure}</Notice>}
+      {team.canToggle(todo) ? (
+        <Button
+          label={todo.done ? 'Wieder offen' : 'Erledigt ✓'}
+          variant={todo.done ? 'secondary' : 'primary'}
+          onPress={() => void toggle()}
+          loading={saving}
+        />
+      ) : (
+        <Notice>Dieses To-do kann nur die Leitung ändern.</Notice>
+      )}
+    </Screen>
+  );
 }
 
 function TodoEditor({ todo }: { todo: Todo }) {
   const { updateTodo, deleteTodo } = useGoals();
   const { customers, orders, customerById } = useCrm();
+  const team = useTodoTeam();
+  const [assignee, setAssignee] = useState<string | null>(todo.assignee_id ?? null);
   const [title, setTitle] = useState(todo.title);
   const [notes, setNotes] = useState(todo.notes ?? '');
   const [due, setDue] = useState<string | null>(todo.due_on);
@@ -85,6 +144,8 @@ function TodoEditor({ todo }: { todo: Todo }) {
       done,
       customer_id: order ? order.customer_id : customerId,
       order_id: orderId,
+      // nur im Team mitschicken (ohne Skript gibt es die Spalte nicht)
+      ...(team.canAssign && assignee !== (todo.assignee_id ?? null) ? { assignee_id: assignee } : {}),
     });
     setSaving(false);
     if (error) return setFailure(error);
@@ -111,6 +172,37 @@ function TodoEditor({ todo }: { todo: Todo }) {
             {due && <TextLink label="Ohne Datum" onPress={() => setDue(null)} />}
             <ToggleRow label="Wichtig" value={important} onChange={setImportant} />
             <ToggleRow label="Erledigt" value={done} onChange={setDone} />
+            {team.canAssign && team.others.length > 0 && (
+              <View style={styles.forWrap}>
+                <Text style={styles.forLabel}>Für wen?</Text>
+                <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Für wen">
+                  {[
+                    { id: team.me, name: 'Mich' },
+                    ...team.others,
+                    // ausgeschiedene Person: weiter anzeigen
+                    ...(assignee && assignee !== team.me && !team.others.some((m) => m.id === assignee)
+                      ? [{ id: assignee, name: team.nameOf(assignee) ?? 'Ehemaliges Mitglied' }]
+                      : []),
+                  ].map((m) => {
+                    const active = m.id === (assignee ?? team.me);
+                    return (
+                      <Pressable
+                        key={m.id}
+                        onPress={() => setAssignee(m.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: active }}
+                        aria-checked={active}
+                        style={[styles.chip, active && styles.chipActive]}>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{m.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {todo.created_by && todo.created_by !== team.me && team.nameOf(todo.created_by) && (
+                  <Text style={styles.forHint}>Angelegt von {team.nameOf(todo.created_by)}</Text>
+                )}
+              </View>
+            )}
           </Card>
         </Reveal>
       </TourTarget>
@@ -209,4 +301,23 @@ const styles = StyleSheet.create({
   selectedName: { color: Colors.text, fontSize: 15, fontWeight: '600', flex: 1 },
   picker: { gap: Spacing.sm },
   multiline: { minHeight: 80, paddingVertical: Spacing.md, textAlignVertical: 'top' },
+  forWrap: { gap: Spacing.xs },
+  forLabel: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
+  forHint: { color: Colors.textFaint, fontSize: 12.5 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
+  chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '500' },
+  chipTextActive: { color: Colors.text, fontWeight: '600' },
+  viewHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  viewTitle: { color: Colors.text, fontSize: 19, fontWeight: '700', flexShrink: 1 },
+  viewDone: { color: Colors.textFaint, textDecorationLine: 'line-through' },
+  viewMeta: { color: Colors.textMuted, fontSize: 13.5 },
+  viewNotes: { color: Colors.text, fontSize: 15, lineHeight: 22 },
 });

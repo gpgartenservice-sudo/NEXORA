@@ -7,7 +7,8 @@ import { useCrm } from '@/features/crm/crm-provider';
 import { StepCheck } from '@/features/roadmap/step-check';
 import { useHover } from '@/hooks/use-hover';
 
-import { dueLabel, type Todo } from './goals-logic';
+import { dueLabel, todoTeamNotes, type Todo } from './goals-logic';
+import { useTodoTeam } from './use-todo-team';
 
 type Props = {
   todo: Todo;
@@ -21,6 +22,7 @@ type Props = {
 export function TodoRow({ todo, today, onToggle, hideDue }: Props) {
   const { customerById, orders } = useCrm();
   const { hovered, hoverProps } = useHover();
+  const team = useTodoTeam();
   const order = todo.order_id ? orders.find((o) => o.id === todo.order_id) : undefined;
   const customer = todo.customer_id ? customerById(todo.customer_id) : undefined;
   const overdue = !todo.done && !!todo.due_on && todo.due_on < today;
@@ -28,11 +30,18 @@ export function TodoRow({ todo, today, onToggle, hideDue }: Props) {
     !hideDue && todo.due_on && !todo.done ? dueLabel(todo.due_on, today) : null,
     order ? order.title : null,
     customer && !order ? customer.name : null,
+    ...(team.inTeam ? todoTeamNotes(todo, team.me, team.nameOf) : []),
   ].filter(Boolean);
 
   return (
     <View style={styles.row}>
-      <StepCheck checked={todo.done} onToggle={() => onToggle(todo)} label={todo.title} size={24} />
+      <StepCheck
+        checked={todo.done}
+        onToggle={() => onToggle(todo)}
+        label={todo.title}
+        size={24}
+        disabled={!team.canToggle(todo)}
+      />
       <Pressable
         onPress={() => router.push(`/aufgaben/${todo.id}`)}
         accessibilityRole="link"

@@ -21,7 +21,8 @@ import { Colors } from '@/constants/theme';
 import { useDesign } from '@/features/design/design-context';
 
 import { hatFrame, LunaHatArt } from './luna-hat';
-import { hatHidesAntenna, lunaPalette, type LunaHat } from './luna-look';
+import { DEFAULT_LUNA, hatHidesAntenna, lunaPalette, type LunaHat, type LunaLook } from './luna-look';
+import { LunaBodyWearArt, LunaGlassesArt } from './luna-wear';
 import { speakReaction } from './voice';
 
 export type NexyMood = 'idle' | 'thinking' | 'happy' | 'listening' | 'talking';
@@ -37,8 +38,11 @@ type Props = {
   talk?: boolean;
   /** Lautstärke am Mikrofon 0..1 (beim Zuhören) */
   level?: SharedValue<number>;
-  /** Farbe/Hut fest vorgeben (Vorschau in Profil → Design); sonst Akzentfarbe und Hut aus dem Profil */
+  /** Farbe/Aussehen fest vorgeben (Vorschau in Profil → Design); sonst Akzentfarbe und Look aus dem Profil */
   color?: string;
+  /** ganzer Look (Hut, Brille, Hals, Kleidung) */
+  look?: LunaLook;
+  /** nur den Hut ändern (der Rest kommt aus `look` bzw. dem Profil) */
   hat?: LunaHat;
 };
 
@@ -90,7 +94,8 @@ const clamp = (v: number, min: number, max: number) => {
  *   Bildschirmrand und wird dagegen gedrückt (plattgedrückt, federt zurück)
  * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Luna ruhig
- * - Farbe (= Akzentfarbe der App) und Hut wählt man in Profil → Design (für alle Abos)
+ * - Farbe (= Akzentfarbe der App), Hut, Brille, Hals (Fliege, Krawatte, Schal …), Kleidung
+ *   und fertige Sets wählt man in Profil → Design (für alle Abos) – Luna trägt sie überall
  */
 export function NexyAvatar({
   size: S = 40,
@@ -100,6 +105,7 @@ export function NexyAvatar({
   talk = false,
   level,
   color,
+  look,
   hat: hatProp,
 }: Props) {
   const reduce = useReducedMotion();
@@ -443,11 +449,13 @@ export function NexyAvatar({
     burst.set(withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) }));
   }, [talk, reduce, S, squashX, squashY, jump, burst]);
 
-  // --- Aussehen (Farbe, Hut) ---
+  // --- Aussehen (Farbe, Hut, Accessoires) ---
   const design = useDesign();
   const pal = lunaPalette(color ?? design.accent);
-  const detail = S >= 26; // Bäckchen, Antenne, Mund, Hut erst ab dieser Größe
-  const hat = detail ? (hatProp ?? design.luna.hat) : 'none';
+  const detail = S >= 26; // Bäckchen, Antenne, Mund, Hut und Accessoires erst ab dieser Größe
+  const chosen = look ?? design.luna;
+  const wear = detail ? { ...chosen, hat: hatProp ?? chosen.hat } : DEFAULT_LUNA;
+  const hat = wear.hat;
   const frame = hatFrame(hat, S);
   const hatTilt = frame.rotate;
 
@@ -604,6 +612,18 @@ export function NexyAvatar({
           />
           <Ellipse cx={S * 0.3} cy={S * 0.2} rx={S * 0.1} ry={S * 0.045} fill="#FFFFFF" opacity={0.08} />
         </Svg>
+        {/* Kleidung und Hals (Anzug, Fliege, Schal …) – bleiben am Körper, das Gesicht schaut darüber */}
+        {(wear.outfit !== 'none' || wear.neck !== 'none') && (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill} testID="luna-wear">
+            <LunaBodyWearArt
+              outfit={wear.outfit}
+              neck={wear.neck}
+              size={S}
+              accent={pal.accent}
+              inset={(150 * stroke) / S}
+            />
+          </View>
+        )}
         {/* Gesicht */}
         <Animated.View style={[StyleSheet.absoluteFill, faceStyle]} pointerEvents="none">
           <View style={[styles.eyes, { top: S * 0.3, gap: S * 0.11 }]}>
@@ -691,6 +711,12 @@ export function NexyAvatar({
                 )}
               </View>
             </>
+          )}
+          {/* Brille – wandert mit dem Blick mit */}
+          {wear.glasses !== 'none' && (
+            <View pointerEvents="none" style={StyleSheet.absoluteFill} testID="luna-glasses">
+              <LunaGlassesArt glasses={wear.glasses} size={S} accent={pal.accent} />
+            </View>
           )}
         </Animated.View>
         {/* Hut */}

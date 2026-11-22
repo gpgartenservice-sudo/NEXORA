@@ -28,9 +28,20 @@ import { stepsFor } from '@/features/social/social-logic';
 import { useSocial, type PostInput } from '@/features/social/social-provider';
 import type { ExpenseInput } from '@/features/finance/finance-provider';
 import type { GoalInput } from '@/features/goals/goals-provider';
+import { isChatKey, type Absence, type AbsenceStatus, type ChatSummary } from '@/features/team/staff-logic';
+import { staffErrorText } from '@/features/team/team-hub-provider';
+import {
+  teamInvite,
+  teamRemove,
+  teamSetAccess,
+  teamSetMember,
+  useAccess,
+  useTeam,
+  useWorkspaceId,
+} from '@/features/team/team-provider';
+import { supabase } from '@/lib/supabase';
 import { validateEmail } from '@/lib/validation';
 import { useAuth } from '@/providers/auth-provider';
-import { useWorkspaceId } from '@/features/team/team-provider';
 
 import { askAssistant, type HistoryEntry } from './assistant-api';
 import {
@@ -87,10 +98,12 @@ import {
   todoChangeSteps,
   todoDone,
   todoSteps,
+  teamSteps,
   type GuideOrder,
   type GuideStep,
 } from './guide-logic';
 import { buildNexyContext, nexyExpenses, nexyPosts } from './nexy-context';
+import { hiddenAreas, limitNexyContext, nexyTeam, type TeamKnown } from './nexy-team';
 
 export type NexyResult = { label: string; href?: string; note?: string };
 
@@ -177,6 +190,53 @@ export function NexyProvider({ children }: { children: ReactNode }) {
   const plan = usePlan();
   const workspaceId = useWorkspaceId();
   const { percent: taxPercent } = useTaxReservePercent(workspaceId);
+  const { user } = useAuth();
+  const me = user?.id ?? '';
+  const { team, refresh: refreshTeam } = useTeam();
+  const access = useAccess();
+
+  /** Team für Luna: wer dabei ist, Rechte, ungelesene Chats, Anträge (U1 …), Urlaubskonto */
+  const loadTeam = useCallback(async (): Promise<{ context: Record<string, unknown>; known: TeamKnown } | null> => {
+    if (!access.inTeam || !team || !me) return null;
+    const year = new Date().getFullYear();
+    const [chatsRes, absRes] = await Promise.all([
+      supabase.rpc('team_chats'),
+      supabase
+        .from('absences')
+        .select('*')
+        .eq('company_id', team.owner_id)
+        .gte('ends_on', `${year}-01-01`)
+        .order('starts_on')
+        .limit(400),
+    ]);
+    const chats: ChatSummary[] = Array.isArray(chatsRes.data)
+      ? (chatsRes.data as Record<string, unknown>[])
+          .filter((r) => r && isChatKey(r.chat))
+          .map((r) => ({
+            chat: r.chat as ChatSummary['chat'],
+            body: String(r.body ?? ''),
+            sender_id: String(r.sender_id ?? ''),
+            at: String(r.at ?? ''),
+            unread: Number(r.unread) || 0,
+          }))
+      : [];
+    const known: TeamKnown = {
+      me,
+      role: access.role,
+      hr: access.hr,
+      canTodo: access.can('aufgaben', 'write'),
+      members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role, title: m.title, vacation_days: m.vacation_days })),
+      roles: access.employer ? team.roles : undefined,
+    };
+    const built = nexyTeam({
+      team: known,
+      chats,
+      absences: (absRes.data ?? []) as Absence[],
+      invites: team.invites.length,
+      today: todayIso(),
+    });
+    return { context: built.context, known: { ...known, absences: built.absences, absenceRefs: built.absenceRefs } };
+  }, [access, team, me]);
   const [messages, setMessages] = useState<NexyMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
@@ -207,13 +267,16 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       const todoCtx = nexyTodos(goals.todos, {
         customer: (id) => crm.customers.find((c) => c.id === id)?.name ?? null,
         order: (id) => crm.orders.find((o) => o.id === id)?.title ?? null,
+        // im Team: für wen (ich selbst → nichts)
+        person: access.inTeam ? (id) => (id === me ? null : (team?.members.find((m) => m.id === id)?.name ?? null)) : undefined,
       });
+      const teamInfo = await loadTeam();
       // Ausgaben (E1 …), Posts (P1 …) und Ziele (Z1 …) mit Kurzzeichen: darüber ändert/löscht Luna sie
       const expenseCtx = nexyExpenses(finance.expenses);
       const postCtx = nexyPosts(social.posts);
       const activeGoals = goals.goals.filter((g) => !g.archived).slice(0, 10);
       const goalRefs = Object.fromEntries(activeGoals.map((g, i) => [`Z${i + 1}`, g.id]));
-      const context = buildNexyContext({
+      const full = buildNexyContext({
         seller: docs.seller,
         customers: crm.customers,
         orders: crm.orders,
@@ -240,6 +303,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             )?.delta ?? null,
         })),
       });
+      // Bereiche ohne Recht (z. B. Finanzen bei Mitarbeitern) bekommt Luna gar nicht erst
+      const context = limitNexyContext(
+        teamInfo ? { ...full, team: teamInfo.context } : full,
+        hiddenAreas((area) => access.can(area)),
+      );
       const { data, error, notSetUp, quota } = await askAssistant(text, historyOf(before).slice(-16), context);
       setThinking(false);
       void plan.refresh(); // Verbrauch aktualisieren
@@ -273,6 +341,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           goals: activeGoals,
           goalRefs,
           seller: docs.seller,
+          team: teamInfo?.known,
         },
         todayIso(),
       );
@@ -304,6 +373,10 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       followups,
       taxPercent,
       plan,
+      access,
+      team,
+      me,
+      loadTeam,
     ],
   );
 
@@ -598,10 +671,12 @@ export function NexyProvider({ children }: { children: ReactNode }) {
             ...p.data,
             customer_id: newOrder?.customer_id ?? customerId,
             order_id: p.order.existingId ?? newOrder?.id ?? null,
+            // im Team: für wen (ohne Angabe für einen selbst)
+            ...(access.inTeam ? { assignee_id: p.assignee?.id ?? me } : {}),
           });
           if (error || !data) return finish(error ?? 'Das To-do konnte nicht gespeichert werden.');
           results.push({
-            label: `To-do ${data.title}`,
+            label: `To-do ${data.title}${p.assignee?.id && p.assignee.id !== me ? ` für ${p.assignee.name}` : ''}`,
             note: data.due_on ? `fällig ${data.due_on.split('-').reverse().join('.')}` : undefined,
             href: `/aufgaben/${data.id}`,
           });
@@ -620,9 +695,11 @@ export function NexyProvider({ children }: { children: ReactNode }) {
               ...(c.notes ? { notes: c.notes } : {}),
               ...(c.important !== null ? { important: c.important } : {}),
               ...(c.done !== null ? { done: c.done } : {}),
+              ...(c.assignee?.id ? { assignee_id: c.assignee.id } : {}),
             });
             if (error) return finish(error);
-            const note = c.done === true ? 'erledigt' : c.done === false ? 'wieder offen' : 'geändert';
+            const note =
+              c.done === true ? 'erledigt' : c.done === false ? 'wieder offen' : c.assignee ? `jetzt für ${c.assignee.name}` : 'geändert';
             results.push({ label: `To-do ${c.title ?? p.todo.title}`, note, href: `/aufgaben/${p.todo.id}` });
           }
           await show(todoChangeDone(p));
@@ -771,6 +848,91 @@ export function NexyProvider({ children }: { children: ReactNode }) {
           if (error) return finish(error);
           results.push({ label: proposalLabel(p), href: '/firma' });
           await show(companyChangeDone());
+        } else if (p.kind === 'team_message') {
+          await show(teamSteps(p));
+          const other = p.data.chat.startsWith('direkt:') ? p.data.chat.slice(7) : null;
+          const { error } = await supabase.from('team_messages').insert({
+            company_id: team?.owner_id ?? workspaceId,
+            channel: other ? 'direkt' : p.data.chat,
+            recipient_id: other,
+            body: p.data.text,
+          });
+          if (error) return finish(staffErrorText(error, 'Die Nachricht konnte nicht gesendet werden.'));
+          results.push({ label: `Nachricht an ${p.data.label}`, note: 'gesendet', href: `/team/chat/${p.data.chat}` });
+        } else if (p.kind === 'team_member') {
+          await show(teamSteps(p));
+          const r = p.data.remove
+            ? await teamRemove(p.data.memberId)
+            : await teamSetMember(p.data.memberId, {
+                ...(p.data.role ? { role: p.data.role } : {}),
+                ...(p.data.title !== null ? { title: p.data.title } : {}),
+                ...(p.data.vacationDays !== null ? { vacationDays: p.data.vacationDays } : {}),
+              });
+          if (r.error) return finish(r.error);
+          await refreshTeam();
+          results.push({ label: proposalLabel(p), href: '/profil/team' });
+        } else if (p.kind === 'team_invite') {
+          await show(teamSteps(p));
+          const r = await teamInvite(p.data.email, p.data.role);
+          if (r.error || !r.code) return finish(r.error ?? 'Die Einladung hat nicht geklappt.');
+          await refreshTeam();
+          results.push({
+            label: `Einladung für ${p.data.email}`,
+            note: `Code ${r.code} – unter Profil → Team weiterschicken`,
+            href: '/profil/team',
+          });
+        } else if (p.kind === 'team_access') {
+          await show(teamSteps(p));
+          const r = await teamSetAccess(p.data.role, p.data.change);
+          if (r.error) return finish(r.error);
+          await refreshTeam();
+          results.push({ label: proposalLabel(p), href: '/profil/team' });
+        } else if (p.kind === 'absence') {
+          await show(teamSteps(p));
+          const { data, error } = await supabase
+            .from('absences')
+            .insert({
+              company_id: team?.owner_id ?? workspaceId,
+              member_id: p.data.memberId,
+              kind: p.data.kind,
+              starts_on: p.data.starts_on,
+              ends_on: p.data.ends_on,
+              note: p.data.note,
+              ...(p.data.doctor ? { doctor: true } : {}),
+            })
+            .select('status')
+            .single();
+          if (error) return finish(staffErrorText(error, 'Das hat nicht geklappt.'));
+          const status = (data as { status?: AbsenceStatus } | null)?.status;
+          results.push({
+            label: proposalLabel(p),
+            note: status === 'offen' ? 'beantragt – die Leitung entscheidet' : status === 'gemeldet' ? 'gemeldet' : 'eingetragen',
+            href: '/team?tab=urlaub',
+          });
+        } else if (p.kind === 'absence_decide') {
+          await show(teamSteps(p));
+          const { error } =
+            p.data.decision === 'seen'
+              ? await supabase.rpc('absence_seen', { p_id: p.data.absenceId })
+              : await supabase.rpc('absence_decide', {
+                  p_id: p.data.absenceId,
+                  p_approve: p.data.decision === 'approve',
+                  p_note: p.data.note,
+                });
+          if (error) return finish(staffErrorText(error, 'Das hat nicht geklappt.'));
+          results.push({ label: proposalLabel(p), href: '/team?tab=urlaub' });
+        } else if (p.kind === 'hours') {
+          await show(teamSteps(p));
+          const { error } = await supabase.from('work_hours').insert({
+            member_id: p.data.memberId,
+            day: p.data.day,
+            starts_at: p.data.starts_at,
+            ends_at: p.data.ends_at,
+            break_minutes: p.data.break_minutes,
+            note: p.data.note,
+          });
+          if (error) return finish(staffErrorText(error, 'Die Stunden konnten nicht gespeichert werden.'));
+          results.push({ label: proposalLabel(p), note: 'eingetragen', href: '/team?tab=stunden' });
         } else if (p.kind === 'open') {
           if (live) await show(openSteps(p));
           else router.navigate(p.data.href as never);
@@ -808,7 +970,7 @@ export function NexyProvider({ children }: { children: ReactNode }) {
       }
       return finish();
     },
-    [blockers, crm, docs, finance, social, appts, goals, patch],
+    [blockers, crm, docs, finance, social, appts, goals, patch, access, me, team, workspaceId, refreshTeam],
   );
 
   const dismiss = useCallback((messageId: string) => patch(messageId, { status: 'dismissed' }), [patch]);

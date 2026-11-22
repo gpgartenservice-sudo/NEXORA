@@ -18,13 +18,15 @@ type Props = {
   onToggle: () => void;
   label: string;
   size?: number;
+  /** nur ansehen (z. B. To-do einer anderen Person) */
+  disabled?: boolean;
 };
 
 /**
  * Runder Haken zum Abhaken: füllt sich weiß, das Häkchen springt herein
  * und ein Lichtring breitet sich aus.
  */
-export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
+export function StepCheck({ checked, onToggle, label, size = 26, disabled }: Props) {
   const fill = useSharedValue(checked ? 1 : 0);
   const pop = useSharedValue(checked ? 1 : 0);
   const ring = useSharedValue(0);
@@ -60,8 +62,10 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
         onToggle();
       }}
       hitSlop={8}
+      disabled={disabled}
+      style={disabled ? styles.disabled : undefined}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
+      accessibilityState={{ checked, disabled }}
       aria-checked={checked}
       accessibilityLabel={label}
       onHoverIn={() => hover.set(withTiming(1, { duration: 150 }))}
@@ -79,6 +83,7 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
 }
 
 const styles = StyleSheet.create({
+  disabled: { opacity: 0.45 },
   circle: { borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   ring: {
     position: 'absolute',

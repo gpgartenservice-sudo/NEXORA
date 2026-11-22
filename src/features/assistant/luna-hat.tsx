@@ -13,9 +13,11 @@ const FIT: Record<Exclude<LunaHat, 'none' | 'bow' | 'flower'>, { w: number; brim
   crown: { w: 0.8, brim: 0.18 },
   santa: { w: 0.95, brim: 0.22 },
   tophat: { w: 0.85, brim: 0.16 },
+  fedora: { w: 1.0, brim: 0.21 },
   witch: { w: 0.95, brim: 0.18 },
   cap: { w: 1.0, brim: 0.27 },
   beanie: { w: 1.0, brim: 0.27 },
+  beret: { w: 0.94, brim: 0.24 },
   helmet: { w: 1.04, brim: 0.26 },
   grad: { w: 0.92, brim: 0.2 },
 };
@@ -82,6 +84,15 @@ export function LunaHatArt({ hat, width, accent }: { hat: LunaHat; width: number
           <Rect x={30.6} y={52} width={38.8} height={9} fill={accent} />
         </>
       )}
+      {hat === 'fedora' && (
+        <>
+          <Path d="M24 66 C22 46 27 28 37 22 Q50 31 63 22 C73 28 78 46 76 66 Z" fill="#3A3A45" />
+          <Path d="M50 29 Q48.5 40 50 50" stroke="rgba(0,0,0,0.35)" strokeWidth={2} fill="none" strokeLinecap="round" />
+          <Path d="M24.4 55 L75.6 55 L76 65 L24 65 Z" fill={accent} />
+          <Path d="M4 68 Q50 56 96 68 Q92 77 50 77 Q8 77 4 68 Z" fill="#2B2B34" />
+          <Ellipse cx={34} cy={36} rx={4} ry={8} fill="#FFFFFF" opacity={0.08} />
+        </>
+      )}
       {hat === 'witch' && (
         <>
           <Ellipse cx={50} cy={70} rx={44} ry={8} fill="#2A1B3D" />
@@ -106,6 +117,14 @@ export function LunaHatArt({ hat, width, accent }: { hat: LunaHat; width: number
           <Rect x={16} y={56} width={68} height={16} rx={6} fill="#D9434A" />
           <Path d="M26 58 L26 70 M36 58 L36 70 M46 58 L46 70 M56 58 L56 70 M66 58 L66 70 M76 58 L76 70" stroke="rgba(0,0,0,0.18)" strokeWidth={2} />
           <Circle cx={50} cy={16} r={9} fill="#FFFFFF" />
+        </>
+      )}
+      {hat === 'beret' && (
+        <>
+          <Rect x={52} y={26} width={5} height={8} rx={2} fill="#7A1428" />
+          <Path d="M8 58 C6 40 32 30 56 32 C80 34 97 46 91 60 C85 71 18 73 8 58 Z" fill="#9F1D35" />
+          <Path d="M18 63 Q52 73 84 63 L84 68 Q52 78 18 68 Z" fill="#7A1428" />
+          <Ellipse cx={36} cy={44} rx={12} ry={4} fill="#FFFFFF" opacity={0.1} />
         </>
       )}
       {hat === 'helmet' && (

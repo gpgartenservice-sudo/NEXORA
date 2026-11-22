@@ -50,9 +50,14 @@ import {
 } from '../../src/features/team/staff-logic.ts';
 
 const SQL = readFileSync(new URL('../../supabase/migrations/20261128090000_teams.sql', import.meta.url), 'utf8');
+// Die Vorlagen der Rollen stehen zuletzt hier (überschreibt die aus teams.sql)
+const ROLE_SQL = readFileSync(new URL('../../supabase/migrations/20261201090000_aufgaben_stunden.sql', import.meta.url), 'utf8');
 
 test('Vorlagen der Rollen = Vorlagen in der Datenbank (nexora_role_default)', () => {
-  const body = SQL.slice(SQL.indexOf('function public.nexora_role_default'), SQL.indexOf('$$;', SQL.indexOf('function public.nexora_role_default')));
+  const body = ROLE_SQL.slice(
+    ROLE_SQL.indexOf('function public.nexora_role_default'),
+    ROLE_SQL.indexOf('$$;', ROLE_SQL.indexOf('function public.nexora_role_default')),
+  );
   const json = (role) => {
     const at = role ? body.indexOf(`when '${role}' then`) : body.indexOf('else');
     const start = body.indexOf("'{", at);
@@ -73,15 +78,19 @@ test('Rechte lesen und prüfen', () => {
   assert.equal(a.luna, 'write'); // Ein/Aus-Bereich kennt kein „ansehen“
   assert.equal(parseAccess(null, DEFAULT_ACCESS.teamleitung).personal, 'write');
   assert.equal(can(null, 'finanzen', 'write'), true);
-  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'kunden'), true);
-  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'kunden', 'write'), false);
+  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'auftraege'), true);
+  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'auftraege', 'write'), false);
+  // Standard: Kunden, Firma und Finanzen aus, To-dos nur ansehen/abhaken
+  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'kunden'), false);
+  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'firma'), false);
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'finanzen'), false);
+  assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'aufgaben', 'write'), false);
   assert.equal(isEmployer('mitgruender'), true);
   assert.equal(isEmployer('teamleitung'), false);
   assert.equal(navArea('inventar'), 'lager');
   assert.equal(navArea('assistent'), 'luna');
   assert.equal(navArea('home'), null);
-  assert.match(accessSummary(DEFAULT_ACCESS.mitarbeiter), /^Bearbeitet: To-dos & Ziele, Lagerbestand · Sieht: Kunden, Aufträge, Termine, Firma$/);
+  assert.match(accessSummary(DEFAULT_ACCESS.mitarbeiter), /^Bearbeitet: Lagerbestand · Sieht: Aufträge, Termine, To-dos & Ziele$/);
 });
 
 test('Fehler „role_forbidden“ der Datenbank wird verständlich', () => {

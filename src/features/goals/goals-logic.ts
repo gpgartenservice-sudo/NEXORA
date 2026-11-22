@@ -20,6 +20,10 @@ export type Todo = {
   order_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Team (Skript 20261201090000_aufgaben_stunden.sql): für wen, von wem, abgehakt von wem */
+  assignee_id?: string | null;
+  created_by?: string | null;
+  done_by?: string | null;
 };
 
 export type GoalKind = 'revenue' | 'customers' | 'orders' | 'posts' | 'custom';
@@ -318,13 +322,47 @@ export function parseTarget(input: string, allowZero = false): number | null | '
 // Für Luna
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// To-dos im Team (Leitung verteilt, Mitarbeiter haken ab)
+// ---------------------------------------------------------------------------
+
+/** Mein To-do? (ohne Person = von früher bzw. allein → gehört allen in der Leitung) */
+export const isMyTodo = (t: Pick<Todo, 'assignee_id'>, me: string) => !t.assignee_id || t.assignee_id === me;
+
+/** 'alle', 'meine' oder die ID einer Person */
+export type TodoFilter = 'alle' | 'meine' | (string & {});
+
+export function filterTodos(todos: Todo[], filter: TodoFilter, me: string): Todo[] {
+  if (filter === 'alle') return todos;
+  if (filter === 'meine') return todos.filter((t) => isMyTodo(t, me));
+  return todos.filter((t) => t.assignee_id === filter);
+}
+
+/** Zusatz im Team: „für Anna“, „von Pascal“, „erledigt von Anna“ (nichts für mich selbst) */
+export function todoTeamNotes(t: Todo, me: string, nameOf: (id: string) => string | null): string[] {
+  const notes: string[] = [];
+  const name = (id: string | null | undefined) => (id && id !== me ? nameOf(id) : null);
+  const forWhom = name(t.assignee_id);
+  if (forWhom) notes.push(`für ${forWhom}`);
+  const from = t.assignee_id === me ? name(t.created_by) : null;
+  if (from) notes.push(`von ${from}`);
+  const doneBy = t.done ? name(t.done_by) : null;
+  if (doneBy && doneBy !== forWhom) notes.push(`erledigt von ${doneBy}`);
+  return notes;
+}
+
 /**
  * Offene To-dos für Luna mit Kurzzeichen (A1, A2 …), über das Luna sie
  * ändern kann; `refs` übersetzt es zurück.
  */
 export function nexyTodos(
   todos: Todo[],
-  names: { customer: (id: string) => string | null; order: (id: string) => string | null },
+  names: {
+    customer: (id: string) => string | null;
+    order: (id: string) => string | null;
+    /** im Team: Name zu einer Person (ich selbst → null) */
+    person?: (id: string) => string | null;
+  },
   max = 30,
 ) {
   const list = todos
@@ -342,6 +380,7 @@ export function nexyTodos(
       ...(t.important ? { wichtig: true } : {}),
       ...(t.customer_id && names.customer(t.customer_id) ? { kunde: names.customer(t.customer_id) } : {}),
       ...(t.order_id && names.order(t.order_id) ? { auftrag: names.order(t.order_id) } : {}),
+      ...(t.assignee_id && names.person?.(t.assignee_id) ? { fuer: names.person(t.assignee_id) } : {}),
     };
   });
   return { entries, refs, open: todos.filter((t) => !t.done).length };

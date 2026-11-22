@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { useGoals } from '@/features/goals/goals-provider';
 import { notifyNow, onNotificationOpen } from '@/features/notifications/notify-platform';
 import { loadNotifyPrefs } from '@/features/notifications/notify-prefs';
 import { playSound } from '@/features/sound/ui-sound';
@@ -360,13 +361,75 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body, { kind: 'team', tab: 'plan' });
   }, [active, ws, me]);
 
+  // --- To-dos von der Leitung (Skript 20261201090000_aufgaben_stunden.sql) ----------
+  // Mitarbeiter: „Neues To-do von …“, Leitung: „Anna hat erledigt ✓“
+  const { reload: reloadTodos } = useGoals();
+  const seenTodos = useRef<Map<string, string> | null>(null);
+
+  const refreshTodos = useCallback(async () => {
+    if (!active) return;
+    const { data, error } = await supabase
+      .from('todos')
+      .select('id, title, done, done_by, assignee_id, created_by, updated_at')
+      .eq('user_id', ws)
+      .not('assignee_id', 'is', null)
+      .or(`assignee_id.eq.${me},created_by.eq.${me}`)
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    if (error) {
+      // ohne das Skript gibt es die Spalten noch nicht
+      if (!/assignee_id|created_by|42703|PGRST204|PGRST205/.test(`${error.message} ${error.code}`)) console.warn('[To-dos]', error);
+      return;
+    }
+    type Row = {
+      id: string;
+      title: string;
+      done: boolean;
+      done_by: string | null;
+      assignee_id: string | null;
+      created_by: string | null;
+      updated_at: string;
+    };
+    const rows = (data ?? []) as Row[];
+    const first = !seenTodos.current;
+    const seen = seenTodos.current ?? new Map<string, string>();
+    seenTodos.current = seen;
+    let changed = false;
+    const notes: { title: string; body: string; id: string }[] = [];
+    for (const r of rows) {
+      const state = `${r.done ? 1 : 0}|${r.assignee_id}|${r.updated_at}`;
+      const before = seen.get(r.id);
+      if (before === state) continue;
+      seen.set(r.id, state);
+      changed = true;
+      if (first) continue;
+      const [wasDone, wasFor] = before?.split('|') ?? [];
+      const name = (id: string | null) => (id ? latest.current.nameOf(id) : 'Jemand');
+      if (r.assignee_id === me && r.created_by !== me && !r.done && wasFor !== me)
+        notes.push({ title: `Neues To-do von ${name(r.created_by)}`, body: r.title, id: r.id });
+      else if (r.created_by === me && r.assignee_id !== me && r.done && wasDone === '0' && r.done_by !== me)
+        notes.push({ title: `${name(r.done_by ?? r.assignee_id)} hat erledigt ✓`, body: r.title, id: r.id });
+    }
+    for (const id of [...seen.keys()])
+      if (!rows.some((r) => r.id === id)) {
+        seen.delete(id);
+        changed = true;
+      }
+    if (changed && !first) void reloadTodos();
+    if (!notes.length) return;
+    const prefs = await loadNotifyPrefs();
+    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body, { kind: 'team', path: `/aufgaben/${n.id}` });
+  }, [active, ws, me, reloadTodos]);
+
   // Mitteilung angetippt/angeklickt: den Chat bzw. den Bereich im Team öffnen
   useEffect(
     () =>
       onNotificationOpen((data) => {
         if (data.kind !== 'team') return;
-        if (isChatKey(data.chat)) router.push({ pathname: '/team/chat/[key]', params: { key: data.chat } });
-        else if (data.tab === 'urlaub' || data.tab === 'plan') router.push({ pathname: '/team', params: { tab: data.tab } });
+        if (typeof data.path === 'string' && /^\/aufgaben\/[0-9a-f-]{36}$/.test(data.path))
+          router.push({ pathname: '/aufgaben/[id]', params: { id: data.path.slice('/aufgaben/'.length) } });
+        else if (isChatKey(data.chat)) router.push({ pathname: '/team/chat/[key]', params: { key: data.chat } });
+        else if (data.tab === 'urlaub' || data.tab === 'plan' || data.tab === 'stunden') router.push({ pathname: '/team', params: { tab: data.tab } });
         else router.push('/team');
       }),
     [],
@@ -378,20 +441,24 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     notified.current = null;
     seenAbsences.current = null;
     seenPlans.current = null;
+    seenTodos.current = null;
     const first = setTimeout(() => {
       void refresh();
       void refreshAbsences();
       void refreshPlans();
+      void refreshTodos();
     }, 0);
     const chatTimer = setInterval(() => void refresh(), CHATS_EVERY);
     const absenceTimer = setInterval(() => {
       void refreshAbsences();
       void refreshPlans();
+      void refreshTodos();
     }, ABSENCES_EVERY);
     const onActive = () => {
       void refresh();
       void refreshAbsences();
       void refreshPlans();
+      void refreshTodos();
     };
     const sub = AppState.addEventListener('change', (s) => s === 'active' && onActive());
     const web = Platform.OS === 'web' && typeof window !== 'undefined';
@@ -403,7 +470,7 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
       sub.remove();
       if (web) window.removeEventListener('focus', onActive);
     };
-  }, [active, refresh, refreshAbsences, refreshPlans]);
+  }, [active, refresh, refreshAbsences, refreshPlans, refreshTodos]);
 
   const unread = useMemo(() => chats.reduce((s, c) => s + c.unread, 0), [chats]);
 
@@ -466,6 +533,8 @@ export function staffErrorText(error: { code?: string; message?: string }, fallb
     return `${fallback} Ein Team mit Chat, Arbeitsplan und Urlaub gibt es mit Lunaxora Business und Teams.`;
   if (/seen_at|seen_by|doctor|absence_seen|absence_sick_update|reply_to|team_chat_readers/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
     return 'Die Datenbank ist für Krankmeldungen und den neuen Chat noch nicht eingerichtet (Skript 20261130090000_krank_chat.sql fehlt).';
+  if (/work_hours/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
+    return 'Die Datenbank ist für Stunden noch nicht eingerichtet (Skript 20261201090000_aufgaben_stunden.sql fehlt).';
   if (/work_plans|work_plan_publish|site|assignment_id|is_lead/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
     return 'Die Datenbank ist für Einsätze und den fertigen Plan noch nicht eingerichtet (Skript 20261129090000_einsaetze.sql fehlt).';
   if (['PGRST202', 'PGRST205', '42P01', '42883'].includes(String(error.code)))

@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Settings2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
@@ -15,16 +15,17 @@ import { useHover } from '@/hooks/use-hover';
 import { AbsencePanel } from './absence-panel';
 import { GateNotice } from './area-gate';
 import { ChatList } from './chat-list';
+import { HoursPanel } from './hours-panel';
 import { ROLE_LABEL } from './roles';
 import { SchedulePanel } from './schedule-panel';
 import { useTeamHub } from './team-hub-provider';
 import { useAccess, useTeam } from './team-provider';
 
-type Tab = 'chats' | 'plan' | 'urlaub';
-const isTab = (v: unknown): v is Tab => v === 'chats' || v === 'plan' || v === 'urlaub';
+type Tab = 'chats' | 'plan' | 'stunden' | 'urlaub';
+const isTab = (v: unknown): v is Tab => v === 'chats' || v === 'plan' || v === 'stunden' || v === 'urlaub';
 
 /**
- * Team (Menü): Chats, Arbeitsplan sowie Krank & Urlaub – für alle im Team.
+ * Team (Menü): Chats, Arbeitsplan, Stunden sowie Krank & Urlaub – für alle im Team.
  * Mitglieder einladen und Rechte einstellen: Profil → Team.
  */
 export function TeamHubScreen() {
@@ -40,6 +41,8 @@ export function TeamHubScreen() {
   const access = useAccess();
   const { info } = usePlan();
   const hub = useTeamHub();
+  // Handy: kürzere Namen, damit vier Knöpfe passen
+  const narrow = useWindowDimensions().width < 560;
   const teamPlan = hasTeamPlan(team?.plan ?? info?.plan);
 
   if (!access.inTeam) {
@@ -47,14 +50,14 @@ export function TeamHubScreen() {
       return (
         <GateNotice
           title="Team gibt es mit Business und Teams"
-          text="Mit Lunaxora Business (bis 5 Personen) oder Teams (bis 30) habt ihr hier eure Chats – einen nur für die Leitung und einen für alle –, den Arbeitsplan und Urlaubsanträge."
+          text="Mit Lunaxora Business (bis 5 Personen) oder Teams (bis 30) habt ihr hier eure Chats – einen nur für die Leitung und einen für alle –, den Arbeitsplan, Stunden und Urlaubsanträge."
           action={{ label: 'Abos ansehen', onPress: () => openPlanScreen('team') }}
         />
       );
     return (
       <GateNotice
         title="Lade dein Team ein"
-        text="Sobald jemand dabei ist, habt ihr hier eure Chats, den Arbeitsplan und Urlaubsanträge. Einladen und Rechte einstellen kannst du unter Profil → Team."
+        text="Sobald jemand dabei ist, habt ihr hier eure Chats, den Arbeitsplan, Stunden und Urlaubsanträge. Einladen und Rechte einstellen kannst du unter Profil → Team."
         action={{ label: 'Team einladen', onPress: () => router.push('/profil/team') }}
       />
     );
@@ -74,13 +77,22 @@ export function TeamHubScreen() {
           onChange={setView}
           options={[
             { value: 'chats', label: `Chats${count(hub.unread)}` },
-            { value: 'plan', label: 'Arbeitsplan' },
-            { value: 'urlaub', label: `Krank & Urlaub${count(hub.openRequests)}` },
+            { value: 'plan', label: narrow ? 'Plan' : 'Arbeitsplan' },
+            { value: 'stunden', label: 'Stunden' },
+            { value: 'urlaub', label: `${narrow ? 'Krank/Urlaub' : 'Krank & Urlaub'}${count(hub.openRequests)}` },
           ]}
         />
       </Reveal>
       <Reveal delay={180} key={view}>
-        {view === 'chats' ? <ChatList /> : view === 'plan' ? <SchedulePanel /> : <AbsencePanel />}
+        {view === 'chats' ? (
+          <ChatList />
+        ) : view === 'plan' ? (
+          <SchedulePanel />
+        ) : view === 'stunden' ? (
+          <HoursPanel />
+        ) : (
+          <AbsencePanel />
+        )}
       </Reveal>
     </Screen>
   );

@@ -707,6 +707,53 @@ export function companyChangeDone(): GuideStep[] {
 }
 
 /** Seite öffnen – dort bleibt man danach */
+// ——— Team: hingehen und sagen, was Luna macht (gespeichert wird direkt) ———
+
+type TeamKind = 'team_message' | 'team_member' | 'team_invite' | 'team_access' | 'absence' | 'absence_decide' | 'hours';
+
+export function teamSteps(p: Of<TeamKind>): GuideStep[] {
+  switch (p.kind) {
+    case 'team_message':
+      return [
+        go(`/team/chat/${p.data.chat}`),
+        show(undefined, p.data.chat.startsWith('direkt:') ? `Ich schreibe ${p.data.label}.` : `Ich schreibe in „${p.data.label}“.`),
+      ];
+    case 'team_member':
+      return [go('/profil/team'), show(undefined, p.data.remove ? `Ich nehme ${p.data.name} aus dem Team.` : `Ich ändere das bei ${p.data.name}.`)];
+    case 'team_invite':
+      return [go('/profil/team'), show(undefined, `Ich lade ${p.data.email} ins Team ein.`)];
+    case 'team_access':
+      return [
+        go('/profil/team'),
+        show(undefined, `Ich stelle die Rechte für ${p.data.role === 'teamleitung' ? 'die Teamleitung' : 'Mitarbeiter'} um.`),
+      ];
+    case 'absence':
+      return [
+        go('/team?tab=urlaub'),
+        show(
+          undefined,
+          p.data.kind === 'krank'
+            ? p.data.name
+              ? `Ich trage die Krankmeldung für ${p.data.name} ein.`
+              : 'Ich melde dich krank. Gute Besserung!'
+            : `Ich trage ${p.data.kind === 'urlaub' ? 'den Urlaub' : 'den freien Tag'}${p.data.name ? ` für ${p.data.name}` : ''} ein.`,
+        ),
+      ];
+    case 'absence_decide':
+      return [
+        go('/team?tab=urlaub'),
+        show(
+          undefined,
+          p.data.decision === 'seen'
+            ? `Ich bestätige die Krankmeldung von ${p.data.who}.`
+            : `Ich ${p.data.decision === 'approve' ? 'genehmige' : 'lehne'} den Antrag von ${p.data.who}${p.data.decision === 'reject' ? ' ab' : ''}.`,
+        ),
+      ];
+    case 'hours':
+      return [go('/team?tab=stunden'), show(undefined, `Ich trage die Stunden${p.data.name ? ` für ${p.data.name}` : ''} ein.`)];
+  }
+}
+
 export function openSteps(p: Of<'open'>): GuideStep[] {
   return [show(undefined, `Ich öffne ${p.data.label}.`), go(p.data.href)];
 }

@@ -17,10 +17,20 @@ import { todayIso } from '@/features/documents/document-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { GoalCard } from './goal-card';
-import { DUE_PRESETS, goalTitle, groupTodos, presetDue, type DuePreset, type Todo } from './goals-logic';
+import {
+  DUE_PRESETS,
+  filterTodos,
+  goalTitle,
+  groupTodos,
+  presetDue,
+  type DuePreset,
+  type Todo,
+  type TodoFilter,
+} from './goals-logic';
 import { useGoals } from './goals-provider';
 import { TodoRow } from './todo-row';
 import { useGoalProgress } from './use-goal-data';
+import { useTodoTeam } from './use-todo-team';
 
 type View_ = 'todos' | 'ziele';
 
@@ -76,7 +86,13 @@ function TodosView() {
   const [failure, setFailure] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const input = useRef<TextInputInstance>(null);
-  const { groups, done, openCount } = groupTodos(todos, today);
+  const team = useTodoTeam();
+  const [filter, setFilter] = useState<TodoFilter>('alle');
+  // für wen das neue To-do ist (im Team; leer = ich)
+  const [assignee, setAssignee] = useState<string | null>(null);
+  const forWhom = assignee && team.others.some((m) => m.id === assignee) ? assignee : team.me;
+  const showFilter = team.canAssign && team.others.length > 0;
+  const { groups, done, openCount } = groupTodos(showFilter ? filterTodos(todos, filter, team.me) : todos, today);
 
   const add = async () => {
     const t = title.trim();
@@ -86,7 +102,12 @@ function TodosView() {
     }
     setSaving(true);
     setFailure(null);
-    const { error } = await createTodo({ title: t, due_on: presetDue(preset, today), important });
+    const { error } = await createTodo({
+      title: t,
+      due_on: presetDue(preset, today),
+      important,
+      ...(team.inTeam && forWhom ? { assignee_id: forWhom } : {}),
+    });
     setSaving(false);
     if (error) return setFailure(error);
     setTitle('');
@@ -95,60 +116,123 @@ function TodosView() {
   };
 
   const toggle = async (todo: Todo) => {
+    if (!team.canToggle(todo)) return;
     const { error } = await updateTodo(todo.id, { done: !todo.done });
     if (error) setFailure(error);
   };
 
   return (
     <>
-      <TourTarget id="aufgaben.neu">
+      {!team.canWrite && (
         <Reveal delay={180}>
           <Card>
-            <TextField
-              ref={input}
-              label="Neues To-do"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="z. B. Steuerberater anrufen"
-              onSubmitEditing={() => void add()}
-              returnKeyType="done"
-              maxLength={200}
-              editable={loadError !== 'setup'}
-            />
-            <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Fällig">
-              {DUE_PRESETS.map((p) => {
-                const active = p.key === preset;
-                return (
-                  <Pressable
-                    key={p.key}
-                    onPress={() => setPreset(p.key)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: active }}
-                    aria-checked={active}
-                    style={[styles.chip, active && styles.chipActive]}>
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
-                  </Pressable>
-                );
-              })}
-              <Pressable
-                onPress={() => setImportant((v) => !v)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: important }}
-                aria-checked={important}
-                accessibilityLabel="Wichtig"
-                style={[styles.chip, important && styles.chipActive]}>
-                <Star
-                  size={13}
-                  color={important ? Colors.accent : Colors.textMuted}
-                  fill={important ? Colors.accent : 'transparent'}
-                />
-                <Text style={[styles.chipText, important && styles.chipTextActive]}>Wichtig</Text>
-              </Pressable>
-            </View>
-            <Button label="Hinzufügen" onPress={() => void add()} loading={saving} disabled={loadError === 'setup'} />
+            <Text style={styles.emptyTitle}>{team.employee ? 'Deine To-dos' : 'To-dos ansehen'}</Text>
+            <Text style={styles.body}>
+              {team.employee
+                ? 'Deine To-dos bekommst du von der Leitung. Hak ab, was erledigt ist – die Leitung sieht es sofort.'
+                : 'Du kannst die To-dos ansehen. Anlegen und ändern darf, wer das Recht „To-dos & Ziele bearbeiten“ hat.'}
+            </Text>
           </Card>
         </Reveal>
-      </TourTarget>
+      )}
+      {team.canWrite && (
+        <TourTarget id="aufgaben.neu">
+          <Reveal delay={180}>
+            <Card>
+              <TextField
+                ref={input}
+                label="Neues To-do"
+                value={title}
+                onChangeText={setTitle}
+                placeholder={team.canAssign ? 'z. B. Lager aufräumen' : 'z. B. Steuerberater anrufen'}
+                onSubmitEditing={() => void add()}
+                returnKeyType="done"
+                maxLength={200}
+                editable={loadError !== 'setup'}
+              />
+              <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Fällig">
+                {DUE_PRESETS.map((p) => {
+                  const active = p.key === preset;
+                  return (
+                    <Pressable
+                      key={p.key}
+                      onPress={() => setPreset(p.key)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: active }}
+                      aria-checked={active}
+                      style={[styles.chip, active && styles.chipActive]}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  onPress={() => setImportant((v) => !v)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: important }}
+                  aria-checked={important}
+                  accessibilityLabel="Wichtig"
+                  style={[styles.chip, important && styles.chipActive]}>
+                  <Star
+                    size={13}
+                    color={important ? Colors.accent : Colors.textMuted}
+                    fill={important ? Colors.accent : 'transparent'}
+                  />
+                  <Text style={[styles.chipText, important && styles.chipTextActive]}>Wichtig</Text>
+                </Pressable>
+              </View>
+              {team.canAssign && team.others.length > 0 && (
+                <View style={styles.forWrap}>
+                  <Text style={styles.forLabel}>Für wen?</Text>
+                  <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Für wen">
+                    {[{ id: team.me, name: 'Mich' }, ...team.others].map((m) => {
+                      const active = m.id === forWhom;
+                      return (
+                        <Pressable
+                          key={m.id}
+                          onPress={() => setAssignee(m.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: active }}
+                          aria-checked={active}
+                          style={[styles.chip, active && styles.chipActive]}>
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{m.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+              <Button
+                label="Hinzufügen"
+                onPress={() => void add()}
+                loading={saving}
+                disabled={loadError === 'setup'}
+              />
+            </Card>
+          </Reveal>
+        </TourTarget>
+      )}
+      {showFilter && (
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Welche To-dos">
+          {[{ id: 'alle', name: 'Alle' }, { id: 'meine', name: 'Meine' }, ...team.others].map((m) => {
+            const active = m.id === filter;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => {
+                  setFilter(m.id);
+                  // Person gewählt: neue To-dos gleich für sie
+                  if (m.id !== 'alle' && m.id !== 'meine') setAssignee(m.id);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                aria-checked={active}
+                style={[styles.chip, active && styles.chipActive]}>
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{m.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
       {failure && <Notice tone="error">{failure}</Notice>}
 
       {groups.length === 0 && loadError !== 'setup' && (
@@ -156,7 +240,11 @@ function TodosView() {
           <Card>
             <Text style={styles.emptyTitle}>{done.length ? 'Alles erledigt. Stark! 🎉' : 'Noch keine To-dos'}</Text>
             <Text style={styles.body}>
-              Schreib oben, was ansteht – oder sag es Luna.
+              {team.employee
+                ? 'Gerade hast du nichts zu tun. Neue To-dos von der Leitung erscheinen hier.'
+                : team.canWrite
+                  ? 'Schreib oben, was ansteht – oder sag es Luna.'
+                  : 'Gerade steht nichts an.'}
             </Text>
           </Card>
         </Reveal>
@@ -207,6 +295,7 @@ function GoalsView() {
   const [showArchive, setShowArchive] = useState(false);
   const active = useGoalProgress(goals, today);
   const archived = goals.filter((g) => g.archived);
+  const { canWrite } = useTodoTeam();
 
   const step = async (id: string, current: number, delta: number) => {
     const { error } = await updateGoal(id, { progress: Math.max(0, current + delta) });
@@ -218,12 +307,14 @@ function GoalsView() {
       <Reveal delay={180}>
         <View style={styles.goalsHead}>
           <Text style={styles.body}>Ziele zählen automatisch mit.</Text>
-          <Button
-            label="+ Ziel hinzufügen"
-            variant="secondary"
-            onPress={() => router.push('/aufgaben/ziele/neu')}
-            disabled={loadError === 'setup'}
-          />
+          {canWrite && (
+            <Button
+              label="+ Ziel hinzufügen"
+              variant="secondary"
+              onPress={() => router.push('/aufgaben/ziele/neu')}
+              disabled={loadError === 'setup'}
+            />
+          )}
         </View>
       </Reveal>
       {failure && <Notice tone="error">{failure}</Notice>}
@@ -232,8 +323,11 @@ function GoalsView() {
         <Reveal delay={240}>
           <Card>
             <Text style={styles.emptyTitle}>Noch keine Ziele</Text>
-            <Text style={styles.body}>Ein klares Ziel hilft dranzubleiben. Zum Beispiel:</Text>
-            <View style={styles.chips}>
+            <Text style={styles.body}>
+              {canWrite ? 'Ein klares Ziel hilft dranzubleiben. Zum Beispiel:' : 'Die Leitung hat noch keine Ziele gesetzt.'}
+            </Text>
+            {canWrite && (
+              <View style={styles.chips}>
               {SUGGESTIONS.map((s) => (
                 <Pressable
                   key={s.label}
@@ -249,7 +343,8 @@ function GoalsView() {
                   <Text style={styles.chipText}>{s.label}</Text>
                 </Pressable>
               ))}
-            </View>
+              </View>
+            )}
           </Card>
         </Reveal>
       )}
@@ -261,7 +356,7 @@ function GoalsView() {
               goal={goal}
               progress={progress}
               delay={300 + i * 60}
-              onStep={goal.kind === 'custom' ? (d) => void step(goal.id, goal.progress, d) : undefined}
+              onStep={goal.kind === 'custom' && canWrite ? (d) => void step(goal.id, goal.progress, d) : undefined}
             />
           </Reveal>
         ))}
@@ -314,4 +409,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   goals: { gap: Spacing.md },
+  forWrap: { gap: Spacing.xs },
+  forLabel: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
 });

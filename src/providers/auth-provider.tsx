@@ -59,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+export const __AuthCtx = AuthContext; // TESTSEITE
+
 export function useAuth(): AuthState {
   return useContext(AuthContext);
 }

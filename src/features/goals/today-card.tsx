@@ -11,14 +11,18 @@ import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { useProfile } from '@/providers/profile-provider';
 
 import { GoalCard } from './goal-card';
-import { todayTodos, type Todo } from './goals-logic';
+import { isMyTodo, todayTodos, type Todo } from './goals-logic';
 import { useGoals } from './goals-provider';
 import { TodoRow } from './todo-row';
 import { useGoalProgress } from './use-goal-data';
+import { useTodoTeam } from './use-todo-team';
 
 /** Startseite: To-dos für heute (inkl. überfällige) und die wichtigsten Ziele. */
 export function TodayCard() {
-  const { todos, goals, updateTodo, createTodo, error } = useGoals();
+  const { todos: all, goals, updateTodo, createTodo, error } = useGoals();
+  const team = useTodoTeam();
+  // im Team: nur meine (To-dos für andere stehen unter To-dos & Ziele)
+  const todos = team.inTeam ? all.filter((t) => isMyTodo(t, team.me)) : all;
   const { profile } = useProfile();
   const [adding, setAdding] = useState<string | null>(null);
   const [today] = useState(() => todayIso());
@@ -34,6 +38,7 @@ export function TodayCard() {
   if (error) return null;
 
   const toggle = async (todo: Todo) => {
+    if (!team.canToggle(todo)) return;
     const { error: err } = await updateTodo(todo.id, { done: !todo.done });
     setFailure(err ?? null);
   };
@@ -46,7 +51,11 @@ export function TodayCard() {
             <Text style={styles.eyebrow}>HEUTE ZU TUN</Text>
             {openToday > list.length && <Text style={styles.more}>+{openToday - list.length} weitere</Text>}
           </View>
-          {todos.length === 0 ? (
+          {todos.length === 0 && !team.canWrite ? (
+            <Text style={styles.body}>
+              {team.employee ? 'Gerade keine To-dos für dich. Neue von der Leitung erscheinen hier.' : 'Heute steht nichts an.'}
+            </Text>
+          ) : todos.length === 0 ? (
             // Ganz am Anfang: erster Schritt mit Vorschlägen zum Antippen
             <View style={styles.starter}>
               <View style={styles.starterHead}>
@@ -83,7 +92,10 @@ export function TodayCard() {
           ) : (
             list.map((t) => <TodoRow key={t.id} todo={t} today={today} onToggle={toggle} />)
           )}
-          <Link label={list.length ? 'Alle To-dos' : 'To-do hinzufügen'} onPress={() => router.navigate('/aufgaben')} />
+          <Link
+            label={list.length || !team.canWrite ? 'Alle To-dos' : 'To-do hinzufügen'}
+            onPress={() => router.navigate('/aufgaben')}
+          />
         </View>
         <View style={[styles.col, row && styles.colNarrow]} testID="today-goals">
           <Text style={styles.eyebrow}>DEINE ZIELE</Text>

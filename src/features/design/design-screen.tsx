@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Check, Plus, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -16,9 +16,19 @@ import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { ACCENT_COLORS, accentName, rgbaOf } from '@/constants/accent';
 import { applyAccentNow, canApplyAccentNow, storeAccent } from '@/constants/accent-store';
-import { ACCENT, Colors, Spacing } from '@/constants/theme';
+import { ACCENT, accentAlpha, Colors, Spacing } from '@/constants/theme';
 import { LunaHatArt } from '@/features/assistant/luna-hat';
-import { LUNA_HATS, type LunaHat } from '@/features/assistant/luna-look';
+import {
+  activeSet,
+  describeLook,
+  LUNA_GLASSES,
+  LUNA_HATS,
+  LUNA_NECK,
+  LUNA_OUTFITS,
+  LUNA_SETS,
+  type LunaLook,
+} from '@/features/assistant/luna-look';
+import { LunaWearPreview } from '@/features/assistant/luna-wear';
 import { NexyAvatar } from '@/features/assistant/nexy-avatar';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
@@ -66,7 +76,7 @@ const DENSITY_OPTIONS: { value: Density; label: string }[] = [
 ];
 
 /**
- * Profil → Design: Akzentfarbe der App (= Lunas Farbe) und Lunas Hut (alle Abos), dazu
+ * Profil → Design: Akzentfarbe der App (= Lunas Farbe) und Lunas Outfit (alle Abos), dazu
  * Hintergrund – Farbe oder Farbverlauf – und Symbole (Pro/Business). Speichert von selbst.
  */
 export function DesignScreen() {
@@ -107,7 +117,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
   };
   /** Luna gibt es für alle – auch wenn ein früherer Pro-Hintergrund noch gespeichert ist */
   const setAccent = (accent: string) => setDraft((d) => ({ ...d, accent }));
-  const setHat = (hat: LunaHat) => setDraft((d) => ({ ...d, luna: { ...d.luna, hat } }));
+  const setLook = (patch: Partial<LunaLook>) => setDraft((d) => ({ ...d, luna: { ...d.luna, ...patch } }));
 
   /** Mac/Browser: speichern und die App neu laden, damit die Farbe überall gilt */
   const [applying, setApplying] = useState(false);
@@ -194,7 +204,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
       <Screen maxWidth={760}>
         <PageHeader
           title="Design"
-          subtitle="Lunas Farbe und Hut, dazu Hintergrund und Motive wie Geldscheine oder Blitze – wirkt sofort."
+          subtitle="Lunas Farbe und Outfit, dazu Hintergrund und Motive wie Geldscheine oder Blitze – wirkt sofort."
           back={{ label: 'Profil', onPress: back }}
         />
         {error && <Notice tone="error">{error}</Notice>}
@@ -202,9 +212,9 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
         <Reveal delay={40}>
           <AccentCard
             accent={draft.accent}
-            hat={draft.luna.hat}
+            look={draft.luna}
             onAccent={setAccent}
-            onHat={setHat}
+            onLook={setLook}
             applying={applying}
             onApply={() => void applyAccent()}
           />
@@ -367,35 +377,48 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
   );
 }
 
-/** Akzentfarbe + Luna: Vorschau, Farben und Hüte (für alle Abos) */
+type WardrobeTab = 'sets' | 'hat' | 'glasses' | 'neck' | 'outfit';
+
+const WARDROBE_TABS: { value: WardrobeTab; label: string }[] = [
+  { value: 'sets', label: 'Sets' },
+  { value: 'hat', label: 'Hut' },
+  { value: 'glasses', label: 'Brille' },
+  { value: 'neck', label: 'Fliege & Co.' },
+  { value: 'outfit', label: 'Kleidung' },
+];
+
+/** Akzentfarbe + Luna: Vorschau, Farben, fertige Sets und einzelne Teile (für alle Abos) */
 function AccentCard({
   accent,
-  hat,
+  look,
   onAccent,
-  onHat,
+  onLook,
   applying,
   onApply,
 }: {
   accent: string;
-  hat: LunaHat;
+  look: LunaLook;
   onAccent: (hex: string) => void;
-  onHat: (hat: LunaHat) => void;
+  onLook: (patch: Partial<LunaLook>) => void;
   applying: boolean;
   onApply: () => void;
 }) {
   const name = accentName(accent);
-  const hatName = LUNA_HATS.find((h) => h.key === hat)?.title ?? '';
+  const wearing = describeLook(look);
+  const [tab, setTab] = useState<WardrobeTab>('sets');
+  const current = activeSet(look);
   // die App läuft noch mit der Farbe vom Start
   const pending = accent !== ACCENT;
   return (
     <Card>
       <Text style={styles.cardTitle}>Farbe & Luna</Text>
       <Text style={styles.hint}>
-        Die Akzentfarbe färbt Buttons, Haken, Auswahl und Luna. Dazu bekommt Luna einen Hut – für alle Abos.
+        Die Akzentfarbe färbt Buttons, Haken, Auswahl und Luna. Dazu kannst du Luna anziehen – ein fertiges Set oder
+        Hut, Brille, Fliege und Anzug einzeln. Für alle Abos.
       </Text>
       <View style={styles.lunaRow}>
-        <View style={styles.lunaStage} accessibilityLabel={`Luna in ${name}${hat !== 'none' ? ` mit ${hatName}` : ''}`}>
-          <NexyAvatar size={96} interactive color={accent} hat={hat} />
+        <View style={styles.lunaStage} accessibilityLabel={`Luna in ${name}${wearing ? ` mit ${wearing}` : ''}`}>
+          <NexyAvatar size={96} interactive color={accent} look={look} />
         </View>
         <View style={styles.lunaControls}>
           <Text style={styles.label}>AKZENTFARBE · {name.toUpperCase()}</Text>
@@ -434,28 +457,107 @@ function AccentCard({
           )}
         </View>
       )}
-      <Text style={styles.label}>HUT</Text>
-      <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Hut">
-        {LUNA_HATS.map((h) => (
-          <HatTile key={h.key} hat={h.key} title={h.title} accent={accent} active={hat === h.key} onPress={() => onHat(h.key)} />
+      <Text style={styles.label}>LUNA ANZIEHEN</Text>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {WARDROBE_TABS.map((t) => (
+          <WardrobeTabButton key={t.value} label={t.label} active={tab === t.value} onPress={() => setTab(t.value)} />
         ))}
       </View>
+
+      {tab === 'sets' && (
+        <>
+          <Text style={styles.hint}>Ein Tipp zieht Luna komplett an – danach kannst du jedes Teil einzeln tauschen.</Text>
+          <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Fertige Sets für Luna">
+            {LUNA_SETS.map((set) => (
+              <LookTile
+                key={set.key}
+                title={set.title}
+                label={`${set.title}${describeLook(set.look) ? `: ${describeLook(set.look)}` : ''}`}
+                active={current === set.key}
+                onPress={() => onLook(set.look)}
+                tall>
+                <View style={styles.setStage}>
+                  <NexyAvatar size={46} animate={false} color={accent} look={set.look} />
+                </View>
+              </LookTile>
+            ))}
+          </View>
+        </>
+      )}
+      {tab === 'hat' && (
+        <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Hut">
+          {LUNA_HATS.map((h) => (
+            <LookTile key={h.key} title={h.title} active={look.hat === h.key} onPress={() => onLook({ hat: h.key })}>
+              {h.key === 'none' ? <X size={22} color={Colors.textFaint} /> : <LunaHatArt hat={h.key} width={44} accent={accent} />}
+            </LookTile>
+          ))}
+        </View>
+      )}
+      {tab === 'glasses' && (
+        <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Brille">
+          {LUNA_GLASSES.map((g) => (
+            <LookTile key={g.key} title={g.title} active={look.glasses === g.key} onPress={() => onLook({ glasses: g.key })}>
+              <LunaWearPreview size={64} accent={accent} glasses={g.key} focus="face" />
+            </LookTile>
+          ))}
+        </View>
+      )}
+      {tab === 'neck' && (
+        <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Fliege, Krawatte, Schal und Ketten">
+          {LUNA_NECK.map((n) => (
+            <LookTile key={n.key} title={n.title} active={look.neck === n.key} onPress={() => onLook({ neck: n.key })}>
+              <LunaWearPreview size={64} accent={accent} neck={n.key} focus="body" />
+            </LookTile>
+          ))}
+        </View>
+      )}
+      {tab === 'outfit' && (
+        <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Kleidung">
+          {LUNA_OUTFITS.map((o) => (
+            <LookTile key={o.key} title={o.title} active={look.outfit === o.key} onPress={() => onLook({ outfit: o.key })}>
+              <LunaWearPreview size={64} accent={accent} outfit={o.key} focus="body" />
+            </LookTile>
+          ))}
+        </View>
+      )}
     </Card>
   );
 }
 
-function HatTile({
-  hat,
+function WardrobeTabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { hovered, hoverProps } = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      {...hoverProps}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+      style={[styles.tab, active && styles.tabActive, hovered && !active && styles.tileHover]}>
+      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Lange Wörter in schmalen Kacheln an der Wortfuge trennen statt mitten im Wort („Weihnachts-mütze“) */
+const breakable = (title: string) => title.replace(/^(Weihnachts)(?=\S)/, '$1\u00AD');
+
+/** Kachel für ein Set oder ein einzelnes Teil */
+function LookTile({
   title,
-  accent,
+  label,
   active,
   onPress,
+  tall,
+  children,
 }: {
-  hat: LunaHat;
   title: string;
-  accent: string;
+  label?: string;
   active: boolean;
   onPress: () => void;
+  /** Platz für eine ganze Luna mit Hut (Sets) */
+  tall?: boolean;
+  children: ReactNode;
 }) {
   const { hovered, hoverProps } = useHover();
   return (
@@ -464,14 +566,17 @@ function HatTile({
       {...hoverProps}
       accessibilityRole="radio"
       accessibilityState={{ checked: active }}
-      accessibilityLabel={title}
+      accessibilityLabel={label ?? title}
       style={[styles.hat, active && styles.hatActive, hovered && !active && styles.tileHover]}>
-      <View style={styles.hatArt}>
-        {hat === 'none' ? <X size={22} color={Colors.textFaint} /> : <LunaHatArt hat={hat} width={44} accent={accent} />}
-      </View>
-      <Text style={[styles.hatTitle, active && styles.hatTitleActive]} numberOfLines={1}>
-        {title}
+      <View style={[styles.hatArt, tall && styles.hatArtTall]}>{children}</View>
+      <Text style={[styles.hatTitle, active && styles.hatTitleActive]} numberOfLines={2}>
+        {breakable(title)}
       </Text>
+      {active && (
+        <View style={styles.tileCheck}>
+          <Check size={12} color="#000" strokeWidth={3.2} />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -699,22 +804,49 @@ const styles = StyleSheet.create({
   applyText: { flex: 1, minWidth: 220, color: Colors.text, fontSize: 13.5, lineHeight: 19 },
   applyButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   applyBusy: { opacity: 0.6 },
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tabActive: { borderColor: Colors.accent, backgroundColor: accentAlpha(0.14) },
+  tabText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '600' },
+  tabTextActive: { color: Colors.text },
   hats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   hat: {
-    width: 120,
+    flexBasis: 82,
+    flexGrow: 1,
+    maxWidth: 132,
     alignItems: 'center',
     gap: 4,
     paddingVertical: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
   },
-  hatActive: { borderColor: Colors.accent },
-  hatArt: { width: 44, height: 36, alignItems: 'center', justifyContent: 'center' },
-  hatTitle: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
+  hatActive: { borderColor: Colors.accent, backgroundColor: accentAlpha(0.06) },
+  hatArt: { width: 66, height: 56, alignItems: 'center', justifyContent: 'center' },
+  hatArtTall: { height: 74 },
+  setStage: { paddingTop: 20 },
+  hatTitle: { color: Colors.textMuted, fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
   hatTitleActive: { color: Colors.text },
+  tileCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
 
   preview: {

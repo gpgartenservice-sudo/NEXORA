@@ -11,7 +11,7 @@
  * werden beim Lesen übernommen.
  */
 
-import { DEFAULT_LUNA, readLunaLook, type LunaLook } from '../assistant/luna-look';
+import { DEFAULT_LUNA, lunaLookToJson, readLunaLook, type LunaLook } from '../assistant/luna-look';
 import { DEFAULT_ACCENT, readAccent } from '../../constants/accent';
 
 export type BaseMode = 'classic' | 'color' | 'gradient';
@@ -46,7 +46,7 @@ export type DesignSettings = {
   density: Density;
   /** Akzentfarbe der App und Lunas Farbe – für alle Abos (zählt nicht als Pro-Design) */
   accent: string;
-  /** Lunas Hut – für alle Abos */
+  /** Lunas Hut, Brille, Hals und Kleidung – für alle Abos */
   luna: LunaLook;
 };
 
@@ -233,7 +233,7 @@ export function designToJson(s: DesignSettings): Record<string, unknown> {
     icons: s.icons,
     density: s.density,
     accent: s.accent,
-    luna: { hat: s.luna.hat },
+    luna: lunaLookToJson(s.luna),
   };
 }
 

@@ -9,16 +9,22 @@ import {
   CalendarX,
   Check,
   CircleCheck,
+  Clock,
   Download,
   Euro,
   FileText,
   Goal as GoalIcon,
+  HeartPulse,
+  KeyRound,
   ListChecks,
+  MailPlus,
   Megaphone,
+  MessageCircle,
   Pencil,
   Receipt,
   RotateCcw,
   Trash,
+  UserCog,
   UserRound,
   UserX,
   Wallet,
@@ -39,6 +45,7 @@ import { categoryLabel, incomeProofMonths, monthLabel } from '@/features/finance
 import { shortDateTime } from '@/features/social/post-card';
 import { FORMATS, platformLabel } from '@/features/social/social-logic';
 import { PERIOD_LABEL } from '@/features/goals/goals-logic';
+import { AREA_LABEL, AREAS, ROLE_LABEL, type Area, type Level } from '@/features/team/roles';
 import { toDate, toMs } from '@/lib/dates';
 
 import {
@@ -122,7 +129,29 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
     case 'order_price':
       return { icon: Euro, kind: 'Preis im Auftrag', title: p.order.title ?? 'Auftrag wählen' };
     case 'todo':
-      return { icon: ListChecks, kind: 'Neues To-do', title: p.data.title };
+      return { icon: ListChecks, kind: p.assignee?.id ? `To-do für ${p.assignee.name}` : 'Neues To-do', title: p.data.title };
+    case 'team_message':
+      return { icon: MessageCircle, kind: 'Nachricht im Team', title: p.data.label };
+    case 'team_member':
+      return { icon: p.data.remove ? UserX : UserCog, kind: p.data.remove ? 'Aus dem Team entfernen' : 'Person im Team ändern', title: p.data.name };
+    case 'team_invite':
+      return { icon: MailPlus, kind: 'Ins Team einladen', title: p.data.email };
+    case 'team_access':
+      return { icon: KeyRound, kind: 'Rechte ändern', title: p.data.role === 'teamleitung' ? 'Teamleitung' : 'Mitarbeiter' };
+    case 'absence':
+      return {
+        icon: p.data.kind === 'krank' ? HeartPulse : CalendarPlus,
+        kind: p.data.kind === 'krank' ? 'Krank melden' : p.data.kind === 'urlaub' ? 'Urlaub' : 'Frei',
+        title: p.data.name ?? 'Du',
+      };
+    case 'absence_decide':
+      return {
+        icon: p.data.decision === 'reject' ? Ban : CircleCheck,
+        kind: p.data.decision === 'seen' ? 'Krankmeldung bestätigen' : p.data.decision === 'approve' ? 'Antrag genehmigen' : 'Antrag ablehnen',
+        title: p.data.who,
+      };
+    case 'hours':
+      return { icon: Clock, kind: 'Stunden eintragen', title: p.data.name ?? 'Du' };
     case 'todo_change':
       return {
         icon: ListChecks,
@@ -340,13 +369,39 @@ function rows(p: Proposal): [string, string][] {
     else if (p.customer.existingId || p.customer.newRef)
       r.push(['Kunde', `${p.customer.name}${p.customer.newRef ? ' (neu)' : ''}`]);
     if (p.data.notes) r.push(['Notiz', p.data.notes]);
+    if (p.assignee) r.push(['Für', p.assignee.name]);
   } else if (p.kind === 'todo_change') {
     const c = p.data;
+    if (c.assignee) r.push(['Für', c.assignee.name]);
     if (c.title) r.push(['Neuer Titel', c.title]);
     if (c.due_on !== null) r.push(['Fällig', c.due_on ? c.due_on.split('-').reverse().join('.') : 'ohne Datum']);
     if (c.important !== null) r.push(['Wichtig', c.important ? 'ja' : 'nein']);
     if (c.notes) r.push(['Notiz', c.notes]);
     if (c.done !== null) r.push(['Status', c.done ? 'erledigt' : 'wieder offen']);
+  } else if (p.kind === 'team_message') {
+    r.push(['Nachricht', p.data.text]);
+  } else if (p.kind === 'team_member') {
+    if (p.data.role) r.push(['Neue Rolle', ROLE_LABEL[p.data.role]]);
+    if (p.data.title !== null) r.push(['Bezeichnung', p.data.title || 'entfernen']);
+    if (p.data.vacationDays !== null) r.push(['Urlaubstage', String(p.data.vacationDays)]);
+  } else if (p.kind === 'team_invite') {
+    r.push(['Rolle', ROLE_LABEL[p.data.role]]);
+    r.push(['Danach', 'Einladungscode weiterschicken']);
+  } else if (p.kind === 'team_access') {
+    for (const [area, level] of Object.entries(p.data.change) as [Area, Level][])
+      r.push([AREA_LABEL[area], level === 'off' ? 'aus' : level === 'read' ? 'nur ansehen' : AREAS.find((a) => a.key === area)?.toggle ? 'an' : 'bearbeiten']);
+  } else if (p.kind === 'absence') {
+    r.push(['Zeitraum', p.data.starts_on === p.data.ends_on ? day(p.data.starts_on) : `${day(p.data.starts_on)} – ${day(p.data.ends_on)}`]);
+    if (p.data.doctor) r.push(['Beim Arzt', 'ja']);
+    if (p.data.note) r.push(['Notiz', p.data.note]);
+  } else if (p.kind === 'absence_decide') {
+    r.push(['Antrag', p.data.what]);
+    if (p.data.note) r.push(['Antwort', p.data.note]);
+  } else if (p.kind === 'hours') {
+    r.push(['Tag', day(p.data.day)]);
+    r.push(['Zeit', `${p.data.starts_at} – ${p.data.ends_at}`]);
+    r.push(['Pause', p.data.break_minutes ? `${p.data.break_minutes} Min.` : 'keine']);
+    if (p.data.note) r.push(['Notiz', p.data.note]);
   } else if (p.kind === 'goal') {
     if (p.data.kind !== 'custom') r.push(['Zählt', GOAL_COUNTS[p.data.kind]]);
     if (p.data.due_on) r.push(['Bis', p.data.due_on.split('-').reverse().join('.')]);
