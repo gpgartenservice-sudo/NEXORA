@@ -1,5 +1,6 @@
 // TESTSEITE – nur zum Ansehen ohne Login, wieder löschen
 import { useLocalSearchParams } from 'expo-router';
+import { useLayoutEffect } from 'react';
 import { View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
@@ -117,6 +118,7 @@ function builder(table: string) {
     update: (p: Record<string, unknown>) => ((op = 'update'), (payload = p), b),
     delete: () => ((op = 'delete'), b),
     eq: (k: string, v: unknown) => (filters.push((r) => r[k] === v), b),
+    is: (k: string, v: unknown) => (filters.push((r) => (r[k] ?? null) === v), b),
     gte: (k: string, v: string) => (filters.push((r) => String(r[k] ?? '') >= v), b),
     lte: (k: string, v: string) => (filters.push((r) => String(r[k] ?? '') <= v), b),
     not: chain,
@@ -172,10 +174,14 @@ sb.removeChannel = async () => {};
 
 export default function TestTeam() {
   const { as, view } = useLocalSearchParams<{ as?: string; view?: string }>();
-  me = as === 'anna' ? ANNA : as === 'ben' ? BEN : TOM;
+  const who = as === 'anna' ? ANNA : as === 'ben' ? BEN : TOM;
+  // Layout-Effekte laufen vor den Lade-Effekten der Provider darunter.
+  useLayoutEffect(() => {
+    me = who;
+  }, [who]);
   return (
-    <__AuthCtx.Provider value={{ session: {} as never, user: { id: me } as never, initializing: false }}>
-      <TeamProvider userId={me} key={me}>
+    <__AuthCtx.Provider value={{ session: {} as never, user: { id: who } as never, initializing: false }}>
+      <TeamProvider userId={who} key={who}>
         <CrmProvider userId={WS}>
           <GoalsProvider userId={WS}>
             <TeamHubProvider>
