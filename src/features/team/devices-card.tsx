@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { checkThisDevice, KIND_LABEL, type AccountDevice, type DeviceKind } from '@/lib/device';
 
 const KINDS: DeviceKind[] = ['phone', 'computer'];
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.4)',
+    borderColor: accentAlpha(0.4),
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,

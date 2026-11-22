@@ -12,7 +12,7 @@ import { DateField } from '@/components/ui/date-field';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { TourTarget } from '@/features/tutorial/tour-target';
 import { readReceipt } from '@/features/assistant/assistant-api';
 import { formatEuro, parseEuro } from '@/features/crm/order-logic';
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  chipActive: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '500' },
   chipTextActive: { color: Colors.text, fontWeight: '600' },
   multiline: { minHeight: 80, paddingVertical: Spacing.md, textAlignVertical: 'top' },

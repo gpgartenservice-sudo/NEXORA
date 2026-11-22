@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
-import { Colors, Radius } from '@/constants/theme';
+import { Colors, Radius, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 
 import { GlassBackdrop, glassSurface } from './glass';
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: Colors.buttonPrimary },
   secondary: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
   glow: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: Radius.md },
-  glowPrimary: { boxShadow: '0 0 0 1px rgba(47,227,154,0.5), 0 10px 40px rgba(47,227,154,0.35)' },
+  glowPrimary: { boxShadow: `0 0 0 1px ${accentAlpha(0.5)}, 0 10px 40px ${accentAlpha(0.35)}` },
   glowSecondary: { boxShadow: '0 0 0 1px rgba(255,255,255,0.18), 0 8px 28px rgba(255,255,255,0.08)' },
   disabled: { opacity: 0.4 },
   label: { fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },

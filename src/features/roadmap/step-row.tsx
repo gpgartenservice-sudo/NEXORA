@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import type { Goal } from '@/features/onboarding/options';
 
 import type { RoadmapStep } from './content';
@@ -88,7 +88,7 @@ export function StepRow({ step, done, onToggle, userGoals, isNext }: Props) {
 
 const styles = StyleSheet.create({
   row: { borderRadius: Radius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.md },
-  rowNext: { borderWidth: 1, borderColor: 'rgba(47,227,154,0.35)', boxShadow: '0 0 30px rgba(47,227,154,0.08)' },
+  rowNext: { borderWidth: 1, borderColor: accentAlpha(0.35), boxShadow: `0 0 30px ${accentAlpha(0.08)}` },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
   titleArea: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, minHeight: 26 },
   titleTexts: { flex: 1, gap: 6, paddingTop: 2 },

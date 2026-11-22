@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 
 type Props = {
@@ -43,7 +43,7 @@ export function StepCheck({ checked, onToggle, label, size = 26 }: Props) {
   }, [checked, fill, pop, ring]);
 
   const circle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(fill.get(), [0, 1], ['rgba(47,227,154,0)', Colors.accent]),
+    backgroundColor: interpolateColor(fill.get(), [0, 1], [accentAlpha(0), Colors.accent]),
     borderColor: interpolateColor(Math.max(fill.get(), hover.get()), [0, 1], [Colors.borderFocus, Colors.accent]),
     transform: [{ scale: 1 + 0.08 * hover.get() * (1 - fill.get()) }],
   }));

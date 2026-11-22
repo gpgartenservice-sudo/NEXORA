@@ -5,13 +5,14 @@
  * 1. Hintergrund: klassisch schwarz, eine Farbe oder ein eigener Farbverlauf
  * 2. Symbole darüber: Geld (💵), Blitze, Mondnacht, Raketen …
  *
- * 3. Lunas Aussehen (Farbe, Hut) – für alle, auch ohne Pro.
+ * 3. Akzentfarbe der App (= Lunas Farbe) und Lunas Hut – für alle, auch ohne Pro.
  *
  * Gespeichert in profiles.design (jsonb). Alte Einstellungen (nur `background`)
  * werden beim Lesen übernommen.
  */
 
 import { DEFAULT_LUNA, readLunaLook, type LunaLook } from '../assistant/luna-look';
+import { DEFAULT_ACCENT, readAccent } from '../../constants/accent';
 
 export type BaseMode = 'classic' | 'color' | 'gradient';
 export type GradientDirection = 'down' | 'diagonal' | 'right' | 'up';
@@ -43,7 +44,9 @@ export type DesignSettings = {
   strength: Strength;
   icons: IconKey;
   density: Density;
-  /** Lunas Farbe und Hut – für alle Abos (zählt nicht als Pro-Design) */
+  /** Akzentfarbe der App und Lunas Farbe – für alle Abos (zählt nicht als Pro-Design) */
+  accent: string;
+  /** Lunas Hut – für alle Abos */
   luna: LunaLook;
 };
 
@@ -156,6 +159,7 @@ export const DEFAULT_DESIGN: DesignSettings = {
   strength: 'medium',
   icons: 'none',
   density: 'normal',
+  accent: DEFAULT_ACCENT,
   luna: DEFAULT_LUNA,
 };
 
@@ -210,6 +214,9 @@ export function readDesign(raw: unknown): DesignSettings {
   out.strength = pick(d.strength, STRENGTHS, out.strength);
   if (d.icons !== undefined) out.icons = pick(d.icons, ICONS, out.icons);
   out.density = pick(d.density, DENSITIES, out.density);
+  // kurz gab es nur „Lunas Farbe“ (design.luna.color) – die gilt jetzt als Akzentfarbe
+  const oldLuna = d.luna && typeof d.luna === 'object' ? (d.luna as Record<string, unknown>) : {};
+  out.accent = readAccent(d.accent ?? oldLuna.color);
   out.luna = readLunaLook(d.luna);
   return out;
 }
@@ -225,7 +232,8 @@ export function designToJson(s: DesignSettings): Record<string, unknown> {
     strength: s.strength,
     icons: s.icons,
     density: s.density,
-    luna: { color: s.luna.color, hat: s.luna.hat },
+    accent: s.accent,
+    luna: { hat: s.luna.hat },
   };
 }
 

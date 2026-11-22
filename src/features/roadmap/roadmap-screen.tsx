@@ -6,7 +6,7 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useProfile } from '@/providers/profile-provider';
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   progressTotal: { color: Colors.textFaint, fontSize: 20, fontWeight: '600' },
   progressPercent: { color: Colors.textMuted, fontSize: 15, fontWeight: '600' },
   progressText: { color: Colors.textMuted, fontSize: 14.5 },
-  cardRecommended: { borderColor: 'rgba(47,227,154,0.3)' },
+  cardRecommended: { borderColor: accentAlpha(0.3) },
   cardComplete: { opacity: 0.85 },
   phaseHead: { flexDirection: 'row', gap: Spacing.lg, alignItems: 'flex-start' },
   phaseIcon: {

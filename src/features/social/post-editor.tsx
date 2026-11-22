@@ -15,7 +15,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { TourTarget } from '@/features/tutorial/tour-target';
 
 import { copyText } from './copy-text';
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.4)',
+    borderColor: accentAlpha(0.4),
     backgroundColor: Colors.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   label: { color: Colors.textMuted, fontSize: 13, fontWeight: '500' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '500' },
   chipTextActive: { color: Colors.text, fontWeight: '600' },
   multilineLarge: { minHeight: 110, paddingVertical: Spacing.md, textAlignVertical: 'top' },

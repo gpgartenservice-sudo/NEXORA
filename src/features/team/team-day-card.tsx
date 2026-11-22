@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 import { supabase } from '@/lib/supabase';
 
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     maxWidth: '100%',
   },
-  chipStrong: { borderColor: 'rgba(47,227,154,0.45)', backgroundColor: Colors.accentSoft },
+  chipStrong: { borderColor: accentAlpha(0.45), backgroundColor: Colors.accentSoft },
   chipHover: { borderColor: Colors.borderFocus },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '600', flexShrink: 1 },
   chipTextStrong: { color: Colors.text },

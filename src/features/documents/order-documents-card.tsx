@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import type { Customer, Order } from '@/features/crm/crm-provider';
 import { DunningPanel, ReviewPanel } from '@/features/dunning/dunning-panel';
 import { useFollowups } from '@/features/dunning/followups-provider';
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   docDeclined: { color: Colors.danger, fontSize: 12.5 },
   state: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
   stateOpen: { borderColor: 'rgba(245,185,74,0.35)', backgroundColor: 'rgba(245,185,74,0.10)' },
-  statePaid: { borderColor: 'rgba(47,227,154,0.4)', backgroundColor: Colors.accentSoft },
+  statePaid: { borderColor: accentAlpha(0.4), backgroundColor: Colors.accentSoft },
   stateOverdue: { borderColor: 'rgba(255,107,107,0.35)', backgroundColor: 'rgba(255,107,107,0.08)' },
   stateText: { color: '#F5B94A', fontSize: 12, fontWeight: '600' },
   stateTextPaid: { color: Colors.accent },

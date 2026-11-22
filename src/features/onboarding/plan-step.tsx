@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Notice } from '@/components/ui/notice';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { BUSINESS_SEATS, formatPrice, LIMITS, PRICES, TEAMS_SEATS } from '@/features/plan/plan-logic';
 import { redeemVoucher } from '@/features/plan/voucher';
 import { useHover } from '@/hooks/use-hover';
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   cardBusiness: { borderWidth: 0, borderRadius: 14.5, backgroundColor: Colors.surface },
-  cardRecommended: { borderColor: 'rgba(47,227,154,0.5)' },
+  cardRecommended: { borderColor: accentAlpha(0.5) },
   cardHover: { backgroundColor: Colors.surfaceRaised },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   name: { color: Colors.text, fontSize: 18, fontWeight: '700' },

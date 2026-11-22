@@ -14,9 +14,11 @@ import { ProBadge } from '@/components/ui/pro-badge';
 import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { ACCENT_COLORS, accentName, rgbaOf } from '@/constants/accent';
+import { applyAccentNow, canApplyAccentNow, storeAccent } from '@/constants/accent-store';
+import { ACCENT, Colors, Spacing } from '@/constants/theme';
 import { LunaHatArt } from '@/features/assistant/luna-hat';
-import { LUNA_COLORS, LUNA_HATS, type LunaHat, type LunaLook } from '@/features/assistant/luna-look';
+import { LUNA_HATS, type LunaHat } from '@/features/assistant/luna-look';
 import { NexyAvatar } from '@/features/assistant/nexy-avatar';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
@@ -64,8 +66,8 @@ const DENSITY_OPTIONS: { value: Density; label: string }[] = [
 ];
 
 /**
- * Profil → Design: Lunas Farbe und Hut (alle Abos), dazu Hintergrund – Farbe oder Farbverlauf –
- * und Symbole (Pro/Business). Wirkt sofort, speichert von selbst.
+ * Profil → Design: Akzentfarbe der App (= Lunas Farbe) und Lunas Hut (alle Abos), dazu
+ * Hintergrund – Farbe oder Farbverlauf – und Symbole (Pro/Business). Speichert von selbst.
  */
 export function DesignScreen() {
   const { profile } = useProfile();
@@ -104,7 +106,22 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
     setDraft(next);
   };
   /** Luna gibt es für alle – auch wenn ein früherer Pro-Hintergrund noch gespeichert ist */
-  const updateLuna = (patch: Partial<LunaLook>) => setDraft((d) => ({ ...d, luna: { ...d.luna, ...patch } }));
+  const setAccent = (accent: string) => setDraft((d) => ({ ...d, accent }));
+  const setHat = (hat: LunaHat) => setDraft((d) => ({ ...d, luna: { ...d.luna, hat } }));
+
+  /** Mac/Browser: speichern und die App neu laden, damit die Farbe überall gilt */
+  const [applying, setApplying] = useState(false);
+  const applyAccent = async () => {
+    setApplying(true);
+    const r = await save({ design: designToJson(draft) });
+    if (r.error) {
+      setApplying(false);
+      setError(r.error);
+      return;
+    }
+    storeAccent(draft.accent);
+    applyAccentNow();
+  };
 
   // von selbst speichern, kurz nachdem sich nichts mehr ändert
   useEffect(() => {
@@ -170,7 +187,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
     setSlot(0);
   };
 
-  const shown = pro ? draft : { ...DEFAULT_DESIGN, luna: draft.luna };
+  const shown = pro ? draft : { ...DEFAULT_DESIGN, accent: draft.accent, luna: draft.luna };
 
   return (
     <DesignProvider design={shown}>
@@ -183,7 +200,14 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
         {error && <Notice tone="error">{error}</Notice>}
 
         <Reveal delay={40}>
-          <LunaCard look={draft.luna} onChange={updateLuna} />
+          <AccentCard
+            accent={draft.accent}
+            hat={draft.luna.hat}
+            onAccent={setAccent}
+            onHat={setHat}
+            applying={applying}
+            onApply={() => void applyAccent()}
+          />
         </Reveal>
 
         <View style={styles.sectionHead}>
@@ -333,7 +357,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
               label="Auf Klassisch zurücksetzen"
               onPress={() => {
                 setSlot(0);
-                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient], luna: draft.luna });
+                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient], accent: draft.accent, luna: draft.luna });
               }}
             />
           )}
@@ -343,44 +367,77 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
   );
 }
 
-/** Luna anpassen: große Vorschau, Farben und Hüte (für alle Abos) */
-function LunaCard({ look, onChange }: { look: LunaLook; onChange: (patch: Partial<LunaLook>) => void }) {
-  const colorName = LUNA_COLORS.find((c) => c.hex === look.color)?.name ?? '';
-  const hatName = LUNA_HATS.find((h) => h.key === look.hat)?.title ?? '';
+/** Akzentfarbe + Luna: Vorschau, Farben und Hüte (für alle Abos) */
+function AccentCard({
+  accent,
+  hat,
+  onAccent,
+  onHat,
+  applying,
+  onApply,
+}: {
+  accent: string;
+  hat: LunaHat;
+  onAccent: (hex: string) => void;
+  onHat: (hat: LunaHat) => void;
+  applying: boolean;
+  onApply: () => void;
+}) {
+  const name = accentName(accent);
+  const hatName = LUNA_HATS.find((h) => h.key === hat)?.title ?? '';
+  // die App läuft noch mit der Farbe vom Start
+  const pending = accent !== ACCENT;
   return (
     <Card>
-      <Text style={styles.cardTitle}>Luna</Text>
-      <Text style={styles.hint}>Gib deiner Assistentin eine Farbe und einen Hut – für alle Abos.</Text>
+      <Text style={styles.cardTitle}>Farbe & Luna</Text>
+      <Text style={styles.hint}>
+        Die Akzentfarbe färbt Buttons, Haken, Auswahl und Luna. Dazu bekommt Luna einen Hut – für alle Abos.
+      </Text>
       <View style={styles.lunaRow}>
-        <View style={styles.lunaStage} accessibilityLabel={`Luna in ${colorName}${look.hat !== 'none' ? ` mit ${hatName}` : ''}`}>
-          <NexyAvatar size={96} interactive look={look} />
+        <View style={styles.lunaStage} accessibilityLabel={`Luna in ${name}${hat !== 'none' ? ` mit ${hatName}` : ''}`}>
+          <NexyAvatar size={96} interactive color={accent} hat={hat} />
         </View>
         <View style={styles.lunaControls}>
-          <Text style={styles.label}>FARBE · {colorName.toUpperCase()}</Text>
-          <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Lunas Farbe">
-            {LUNA_COLORS.map((c) => (
-              <Swatch
-                key={c.hex}
-                hex={c.hex}
-                name={c.name}
-                active={look.color === c.hex}
-                onPress={() => onChange({ color: c.hex })}
-              />
+          <Text style={styles.label}>AKZENTFARBE · {name.toUpperCase()}</Text>
+          <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Akzentfarbe">
+            {ACCENT_COLORS.map((c) => (
+              <Swatch key={c.hex} hex={c.hex} name={c.name} active={accent === c.hex} onPress={() => onAccent(c.hex)} />
             ))}
+          </View>
+          {/* So sehen Buttons und Auswahl in der Farbe aus */}
+          <View style={styles.sample} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <View style={[styles.sampleButton, { backgroundColor: accent }]}>
+              <Text style={styles.sampleButtonText}>Speichern</Text>
+            </View>
+            <View style={[styles.sampleChip, { borderColor: rgbaOf(accent, 0.5), backgroundColor: rgbaOf(accent, 0.12) }]}>
+              <Check size={14} color={accent} strokeWidth={3} />
+              <Text style={[styles.sampleChipText, { color: accent }]}>Erledigt</Text>
+            </View>
           </View>
         </View>
       </View>
+      {pending && (
+        <View style={[styles.applyBar, { borderColor: rgbaOf(accent, 0.45) }]}>
+          <Text style={styles.applyText}>
+            {canApplyAccentNow
+              ? `Luna ist schon in ${name}. Übernimm die Farbe, damit sie überall gilt – die App lädt dafür kurz neu.`
+              : `Luna ist schon in ${name}. Überall sonst gilt die Farbe ab dem nächsten Öffnen der App.`}
+          </Text>
+          {canApplyAccentNow && (
+            <Pressable
+              onPress={onApply}
+              disabled={applying}
+              accessibilityRole="button"
+              style={[styles.applyButton, { backgroundColor: accent }, applying && styles.applyBusy]}>
+              <Text style={styles.sampleButtonText}>{applying ? 'Wird übernommen …' : 'Farbe übernehmen'}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
       <Text style={styles.label}>HUT</Text>
       <View style={styles.hats} accessibilityRole="radiogroup" accessibilityLabel="Lunas Hut">
         {LUNA_HATS.map((h) => (
-          <HatTile
-            key={h.key}
-            hat={h.key}
-            title={h.title}
-            accent={look.color}
-            active={look.hat === h.key}
-            onPress={() => onChange({ hat: h.key })}
-          />
+          <HatTile key={h.key} hat={h.key} title={h.title} accent={accent} active={hat === h.key} onPress={() => onHat(h.key)} />
         ))}
       </View>
     </Card>
@@ -616,9 +673,35 @@ const styles = StyleSheet.create({
     paddingTop: 26,
   },
   lunaControls: { flex: 1, minWidth: 220, gap: Spacing.sm },
+  sample: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs },
+  sampleButton: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12 },
+  sampleButtonText: { color: '#000', fontSize: 14, fontWeight: '700' },
+  sampleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  sampleChipText: { fontSize: 13, fontWeight: '700' },
+  applyBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: 14,
+    borderWidth: 1,
+    backgroundColor: Colors.surfaceRaised,
+  },
+  applyText: { flex: 1, minWidth: 220, color: Colors.text, fontSize: 13.5, lineHeight: 19 },
+  applyButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  applyBusy: { opacity: 0.6 },
   hats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   hat: {
-    width: 108,
+    width: 120,
     alignItems: 'center',
     gap: 4,
     paddingVertical: 10,

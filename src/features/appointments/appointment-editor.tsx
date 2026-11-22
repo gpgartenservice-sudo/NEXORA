@@ -15,7 +15,7 @@ import { OptionCard } from '@/components/ui/option-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { TourTarget } from '@/features/tutorial/tour-target';
 import { useCrm } from '@/features/crm/crm-provider';
 import { toDate, toIso, toMs } from '@/lib/dates';
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   durationWrap: { gap: Spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '500' },
   chipTextActive: { color: Colors.text, fontWeight: '600' },
   selected: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },

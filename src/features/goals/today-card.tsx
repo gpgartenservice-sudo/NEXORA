@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { todayIso } from '@/features/documents/document-logic';
 import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { useProfile } from '@/providers/profile-provider';
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.25)',
+    borderColor: accentAlpha(0.25),
     backgroundColor: Colors.accentSoft,
   },
   starterHead: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(47,227,154,0.18)',
+    backgroundColor: accentAlpha(0.18),
     alignItems: 'center',
     justifyContent: 'center',
   },

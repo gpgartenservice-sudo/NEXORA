@@ -21,7 +21,7 @@ import { Colors } from '@/constants/theme';
 import { useDesign } from '@/features/design/design-context';
 
 import { hatFrame, LunaHatArt } from './luna-hat';
-import { hatHidesAntenna, lunaPalette, type LunaLook } from './luna-look';
+import { hatHidesAntenna, lunaPalette, type LunaHat } from './luna-look';
 import { speakReaction } from './voice';
 
 export type NexyMood = 'idle' | 'thinking' | 'happy' | 'listening' | 'talking';
@@ -37,8 +37,9 @@ type Props = {
   talk?: boolean;
   /** Lautstärke am Mikrofon 0..1 (beim Zuhören) */
   level?: SharedValue<number>;
-  /** Aussehen fest vorgeben (Vorschau in Profil → Design); sonst wie im Profil gewählt */
-  look?: LunaLook;
+  /** Farbe/Hut fest vorgeben (Vorschau in Profil → Design); sonst Akzentfarbe und Hut aus dem Profil */
+  color?: string;
+  hat?: LunaHat;
 };
 
 const EYE = '#F2FFF9';
@@ -89,7 +90,7 @@ const clamp = (v: number, min: number, max: number) => {
  *   Bildschirmrand und wird dagegen gedrückt (plattgedrückt, federt zurück)
  * - Ohne Mausbewegung wird Luna irgendwann schläfrig – und wacht wieder auf
  * - Bei "Bewegung reduzieren" bleibt Luna ruhig
- * - Farbe und Hut wählt man in Profil → Design → Luna (für alle Abos)
+ * - Farbe (= Akzentfarbe der App) und Hut wählt man in Profil → Design (für alle Abos)
  */
 export function NexyAvatar({
   size: S = 40,
@@ -98,7 +99,8 @@ export function NexyAvatar({
   interactive = false,
   talk = false,
   level,
-  look,
+  color,
+  hat: hatProp,
 }: Props) {
   const reduce = useReducedMotion();
   const moving = animate && !reduce;
@@ -442,11 +444,10 @@ export function NexyAvatar({
   }, [talk, reduce, S, squashX, squashY, jump, burst]);
 
   // --- Aussehen (Farbe, Hut) ---
-  const chosen = useDesign().luna;
-  const lunaLook = look ?? chosen;
-  const pal = lunaPalette(lunaLook.color);
+  const design = useDesign();
+  const pal = lunaPalette(color ?? design.accent);
   const detail = S >= 26; // Bäckchen, Antenne, Mund, Hut erst ab dieser Größe
-  const hat = detail ? lunaLook.hat : 'none';
+  const hat = detail ? (hatProp ?? design.luna.hat) : 'none';
   const frame = hatFrame(hat, S);
   const hatTilt = frame.rotate;
 

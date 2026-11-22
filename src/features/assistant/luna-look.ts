@@ -1,6 +1,9 @@
+import { ACCENT_COLORS, rgbOf, toHex } from '../../constants/accent';
+
 /**
- * Lunas Aussehen (Profil → Design → Luna): Farbe und Hut – reine Logik (ohne App, mit Unit-Tests).
- * Gespeichert im Profil unter design.luna, für alle Abos.
+ * Lunas Aussehen (Profil → Design): Hut und die Farben der Figur – reine Logik (ohne App,
+ * mit Unit-Tests). Die Farbe ist die Akzentfarbe der App, der Hut steht unter design.luna.
+ * Für alle Abos.
  */
 
 export type LunaHat =
@@ -17,27 +20,8 @@ export type LunaHat =
   | 'bow'
   | 'flower';
 
-export type LunaLook = { color: string; hat: LunaHat };
-
-export type LunaColor = {
-  hex: string;
-  name: string;
-  /** Verlauf des Körpers (hell → dunkel); sonst aus der Farbe berechnet */
-  body?: [string, string, string];
-};
-
-/** Lunas Farben – Grün ist die Lunaxora-Farbe */
-export const LUNA_COLORS: LunaColor[] = [
-  { hex: '#2FE39A', name: 'Lunaxora-Grün', body: ['#23775A', '#0D261C', '#050A08'] },
-  { hex: '#2DD4BF', name: 'Türkis' },
-  { hex: '#4FB3FF', name: 'Himmelblau' },
-  { hex: '#A78BFA', name: 'Lila' },
-  { hex: '#FF7AB6', name: 'Pink' },
-  { hex: '#FF5A5F', name: 'Rot' },
-  { hex: '#FF9F45', name: 'Orange' },
-  { hex: '#FBBF24', name: 'Gold' },
-  { hex: '#D4D8E0', name: 'Mondsilber' },
-];
+/** Lunas Hut – ihre Farbe ist die Akzentfarbe der App (siehe constants/accent.ts) */
+export type LunaLook = { hat: LunaHat };
 
 export const LUNA_HATS: { key: LunaHat; title: string }[] = [
   { key: 'none', title: 'Ohne' },
@@ -54,28 +38,18 @@ export const LUNA_HATS: { key: LunaHat; title: string }[] = [
   { key: 'flower', title: 'Blume' },
 ];
 
-export const DEFAULT_LUNA: LunaLook = { color: '#2FE39A', hat: 'none' };
+export const DEFAULT_LUNA: LunaLook = { hat: 'none' };
 
 /** Schleife und Blume sitzen seitlich – die Antenne bleibt sichtbar */
 export const hatHidesAntenna = (hat: LunaHat) => hat !== 'none' && hat !== 'bow' && hat !== 'flower';
 
 const HATS = LUNA_HATS.map((h) => h.key);
 
-/** Gespeichertes Aussehen lesen – Unbekanntes fällt auf den Standard zurück */
+/** Gespeichertes Aussehen lesen – unbekannte Hüte fallen auf „Ohne“ zurück */
 export function readLunaLook(raw: unknown): LunaLook {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const wanted = typeof r.color === 'string' ? r.color.toLowerCase() : null;
-  const color = LUNA_COLORS.find((c) => c.hex.toLowerCase() === wanted)?.hex;
-  const hat = HATS.includes(r.hat as LunaHat) ? (r.hat as LunaHat) : DEFAULT_LUNA.hat;
-  return { color: color ?? DEFAULT_LUNA.color, hat };
+  return { hat: HATS.includes(r.hat as LunaHat) ? (r.hat as LunaHat) : DEFAULT_LUNA.hat };
 }
-
-function rgbOf(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) || 0) as [number, number, number];
-}
-
-const toHex = (rgb: number[]) => `#${rgb.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 
 export type LunaPalette = {
   /** Rand, Antenne, Punkte, Funken */
@@ -88,7 +62,7 @@ export type LunaPalette = {
 
 /** Farben für die Figur – der Körper ist eine dunkle Kugel in Lunas Farbe */
 export function lunaPalette(hex: string): LunaPalette {
-  const known = LUNA_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase());
+  const known = ACCENT_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase());
   const [r, g, b] = rgbOf(known?.hex ?? hex);
   const scale = (f: number) => toHex([r * f, g * f, b * f]);
   return {

@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { formatEuro } from '@/features/crm/order-logic';
 import { StatRow, StatTile } from '@/features/crm/ui';
 import { playSound } from '@/features/sound/ui-sound';
@@ -39,7 +39,7 @@ import {
 import { useInventory } from './inventory-provider';
 
 const TONE = {
-  ok: { bg: Colors.accentSoft, fg: Colors.accent, border: 'rgba(47,227,154,0.4)' },
+  ok: { bg: Colors.accentSoft, fg: Colors.accent, border: accentAlpha(0.4) },
   warn: { bg: 'rgba(245,185,74,0.10)', fg: '#F5B94A', border: 'rgba(245,185,74,0.35)' },
   bad: { bg: 'rgba(255,107,107,0.08)', fg: Colors.danger, border: 'rgba(255,107,107,0.35)' },
   info: { bg: 'rgba(96,165,250,0.10)', fg: '#7DB4FF', border: 'rgba(96,165,250,0.35)' },

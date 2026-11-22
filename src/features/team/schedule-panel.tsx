@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { PDF_SAVED, pdfSupported } from '@/features/documents/save-pdf';
 import { playSound } from '@/features/sound/ui-sound';
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  publishDone: { borderColor: 'rgba(47,227,154,0.4)', backgroundColor: 'rgba(47,227,154,0.06)' },
+  publishDone: { borderColor: accentAlpha(0.4), backgroundColor: accentAlpha(0.06) },
   publishChanged: { borderColor: 'rgba(251,191,36,0.45)', backgroundColor: 'rgba(251,191,36,0.06)' },
   publishTexts: { flex: 1, minWidth: 220, gap: 3 },
   publishTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
   paperHoliday: { color: PAPER_MUTED, fontSize: 12, fontWeight: '700' },
   paperNone: { color: PAPER_MUTED, fontSize: 13, fontStyle: 'italic', marginLeft: 10 },
   paperJob: { flexDirection: 'row', gap: Spacing.md, paddingVertical: 6, paddingHorizontal: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#D9D9DE' },
-  paperJobMine: { backgroundColor: 'rgba(47,227,154,0.14)', borderRadius: 8, borderBottomWidth: 0 },
+  paperJobMine: { backgroundColor: accentAlpha(0.14), borderRadius: 8, borderBottomWidth: 0 },
   paperTime: { color: PAPER_INK, fontSize: 13.5, fontWeight: '700', width: 112, fontVariant: ['tabular-nums'] },
   paperSite: { color: PAPER_INK, fontSize: 14, fontWeight: '700' },
   paperMuted: { color: PAPER_MUTED, fontSize: 12.5 },

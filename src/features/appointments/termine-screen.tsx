@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { useCrm } from '@/features/crm/crm-provider';
 import { StatRow, StatTile } from '@/features/crm/ui';
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     padding: 8,
   },
-  columnToday: { borderColor: 'rgba(47,227,154,0.45)' },
+  columnToday: { borderColor: accentAlpha(0.45) },
   columnHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: 2 },
   columnDay: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
   columnDayToday: { color: Colors.accent },

@@ -12,7 +12,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { todayIso } from '@/features/documents/document-logic';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  chipActive: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '500' },
   chipTextActive: { color: Colors.text, fontWeight: '600' },
   emptyTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },

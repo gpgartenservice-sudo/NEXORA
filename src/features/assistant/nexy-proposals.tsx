@@ -28,7 +28,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { clashes, DEFAULT_MINUTES, timeLabel, type CalendarEvent } from '@/features/appointments/appointment-logic';
 import { useCalendarEvents } from '@/features/appointments/use-calendar-events';
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.3)',
+    borderColor: accentAlpha(0.3),
     backgroundColor: Colors.accentSoft,
     padding: Spacing.md,
   },

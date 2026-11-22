@@ -3,7 +3,7 @@ import { StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 
 type Props = {
   tone?: 'info' | 'error' | 'success';
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   error: { borderColor: 'rgba(255,107,107,0.35)', backgroundColor: 'rgba(255,107,107,0.08)' },
-  success: { borderColor: 'rgba(47,227,154,0.4)', backgroundColor: 'rgba(47,227,154,0.06)', boxShadow: '0 8px 30px rgba(47,227,154,0.08)' },
+  success: { borderColor: accentAlpha(0.4), backgroundColor: accentAlpha(0.06), boxShadow: `0 8px 30px ${accentAlpha(0.08)}` },
   text: { color: Colors.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   errorText: { color: Colors.danger },
   successText: { color: Colors.text },

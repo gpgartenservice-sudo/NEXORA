@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { Notice } from '@/components/ui/notice';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { AppBackdrop, useDesign, useWideBackdrop } from '@/features/design/backgrounds';
 import { designActive } from '@/features/design/design-logic';
 import { useSwipeBack } from '@/features/navigation/edge-swipe';
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   unreadLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md },
-  unreadRule: { flex: 1, height: 1, backgroundColor: 'rgba(47,227,154,0.35)' },
+  unreadRule: { flex: 1, height: 1, backgroundColor: accentAlpha(0.35) },
   unreadText: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
 
   line: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: '86%' },
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   colOther: { alignItems: 'flex-start' },
   sender: { color: Colors.textMuted, fontSize: 12, fontWeight: '700', marginLeft: Spacing.sm },
   bubble: { borderRadius: 18, paddingHorizontal: 13, paddingTop: 8, paddingBottom: 6, gap: 1 },
-  bubbleMine: { backgroundColor: 'rgba(47,227,154,0.16)', borderWidth: 1, borderColor: 'rgba(47,227,154,0.32)', borderBottomRightRadius: 6 },
+  bubbleMine: { backgroundColor: accentAlpha(0.16), borderWidth: 1, borderColor: accentAlpha(0.32), borderBottomRightRadius: 6 },
   bubbleOther: { backgroundColor: Colors.surfaceRaised, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 6 },
   bubbleSending: { opacity: 0.6 },
   bubbleFailed: { borderColor: 'rgba(255,107,107,0.6)', backgroundColor: 'rgba(255,107,107,0.08)' },

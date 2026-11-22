@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   hover: { borderColor: Colors.borderFocus },
-  active: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(47,227,154,0.55)' },
+  active: { backgroundColor: Colors.accentSoft, borderColor: accentAlpha(0.55) },
   text: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '600' },
   textActive: { color: Colors.text },
 });

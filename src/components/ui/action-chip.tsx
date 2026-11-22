@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   hover: { borderColor: Colors.borderFocus },
-  active: { borderColor: 'rgba(47,227,154,0.45)', backgroundColor: Colors.accentSoft },
+  active: { borderColor: accentAlpha(0.45), backgroundColor: Colors.accentSoft },
   disabled: { opacity: 0.45 },
   text: { fontSize: 13, fontWeight: '600' },
 });

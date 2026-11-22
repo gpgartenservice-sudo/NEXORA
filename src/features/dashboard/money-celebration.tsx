@@ -15,7 +15,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { burstMoney } from '@/components/motion/money-burst';
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { NexyAvatar, type NexyMood } from '@/features/assistant/nexy-avatar';
 import { autoplayAllowed, speak, speechSupported, type Speech } from '@/features/assistant/voice';
 import { formatEuro } from '@/features/crm/order-logic';
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.accent,
     fontWeight: '900',
-    textShadowColor: 'rgba(47,227,154,0.75)',
+    textShadowColor: accentAlpha(0.75),
     textShadowRadius: 26,
     textShadowOffset: { width: 0, height: 0 },
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: 360,
     backgroundColor: 'rgba(28,28,31,0.97)',
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     borderWidth: 1,
     borderRadius: 20,
     paddingVertical: 14,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(28,28,31,0.97)',
     borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     transform: [{ rotate: '45deg' }],
   },
   tailCenter: { alignSelf: 'center' },

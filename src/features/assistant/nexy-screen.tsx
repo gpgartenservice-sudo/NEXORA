@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { ActionChip } from '@/components/ui/action-chip';
 import { Card } from '@/components/ui/card';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { AppBackdrop, useDesign, useWideBackdrop } from '@/features/design/backgrounds';
 import { designActive } from '@/features/design/design-logic';
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 6,
     backgroundColor: Colors.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.28)',
+    borderColor: accentAlpha(0.28),
     paddingHorizontal: Spacing.lg,
     paddingVertical: 10,
   },
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   quickChip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.4)',
+    borderColor: accentAlpha(0.4),
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
@@ -736,8 +736,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendOff: { opacity: 0.35 },
-  mic: { boxShadow: '0 0 0 0 rgba(47,227,154,0)' },
-  micHover: { boxShadow: '0 0 0 5px rgba(47,227,154,0.18)' },
+  mic: { boxShadow: `0 0 0 0 ${accentAlpha(0)}` },
+  micHover: { boxShadow: `0 0 0 5px ${accentAlpha(0.18)}` },
   voiceTag: {
     position: 'absolute',
     top: -7,
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  readToggleOn: { borderColor: 'rgba(47,227,154,0.45)', backgroundColor: Colors.accentSoft },
+  readToggleOn: { borderColor: accentAlpha(0.45), backgroundColor: Colors.accentSoft },
   readText: { color: Colors.textMuted, fontSize: 12.5, fontWeight: '600' },
   readTextOn: { color: Colors.text },
   voicePanel: {
@@ -770,12 +770,12 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     backgroundColor: Colors.surface,
     paddingLeft: Spacing.sm,
     paddingRight: Spacing.sm,
     paddingVertical: Spacing.xs,
-    boxShadow: '0 10px 30px rgba(0,0,0,0.45), 0 0 24px rgba(47,227,154,0.12)',
+    boxShadow: `0 10px 30px rgba(0,0,0,0.45), 0 0 24px ${accentAlpha(0.12)}`,
   },
   voiceFigure: { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
   voiceTexts: { flex: 1, minWidth: 0, gap: 3 },

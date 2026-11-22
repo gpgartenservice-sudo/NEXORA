@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1,
   },
-  pillOk: { borderColor: 'rgba(47,227,154,0.35)', backgroundColor: Colors.accentSoft },
+  pillOk: { borderColor: accentAlpha(0.35), backgroundColor: Colors.accentSoft },
   pillWarn: { borderColor: 'rgba(255,107,107,0.4)', backgroundColor: 'rgba(255,107,107,0.08)' },
   pillText: { color: Colors.text, fontSize: 12, fontWeight: '600' },
   pillTextWarn: { color: Colors.danger },
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  chipAccent: { borderColor: 'rgba(47,227,154,0.45)', backgroundColor: Colors.accentSoft },
+  chipAccent: { borderColor: accentAlpha(0.45), backgroundColor: Colors.accentSoft },
   chipHover: { borderColor: Colors.borderFocus },
   chipText: { color: Colors.text, fontSize: 13, fontWeight: '500' },
   smallLink: { color: Colors.textMuted, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },

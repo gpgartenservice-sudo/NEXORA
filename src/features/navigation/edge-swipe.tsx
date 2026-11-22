@@ -12,7 +12,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 
 import { NAV_ITEMS } from './nav-items';
@@ -200,8 +200,8 @@ export function EdgeSwipe({ enabled, style, children }: Props) {
     const ready = [BACK_DISTANCE - 12, BACK_DISTANCE + 6];
     return {
       opacity: interpolate(p, [0, 40], [0, 1], Extrapolation.CLAMP),
-      backgroundColor: interpolateColor(p, ready, ['rgba(38,38,42,0.92)', 'rgba(47,227,154,0.28)']),
-      borderColor: interpolateColor(p, ready, ['rgba(255,255,255,0.14)', 'rgba(47,227,154,0.6)']),
+      backgroundColor: interpolateColor(p, ready, ['rgba(38,38,42,0.92)', accentAlpha(0.28)]),
+      borderColor: interpolateColor(p, ready, ['rgba(255,255,255,0.14)', accentAlpha(0.6)]),
       transform: [
         { translateX: -ARROW + Math.min(p, 160) * 0.45 },
         { translateY: y.get() - ARROW / 2 },

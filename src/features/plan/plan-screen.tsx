@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Segmented } from '@/components/ui/segmented';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { formatDay } from '@/features/documents/document-logic';
 
 import { type BillingInterval, openBillingPortal, startCheckout } from './billing-api';
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   rowLabelNarrow: { fontSize: 13, lineHeight: 18, paddingRight: Spacing.xs },
   cellText: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
   proText: { color: Colors.text },
-  offer: { borderColor: 'rgba(47,227,154,0.35)' },
+  offer: { borderColor: accentAlpha(0.35) },
   offerBusiness: { borderWidth: 0 },
   flex: { flex: 1 },
   offerHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

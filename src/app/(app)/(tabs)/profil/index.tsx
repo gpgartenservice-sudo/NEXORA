@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { ProBadge } from '@/components/ui/pro-badge';
 import { SettingsGroup, SettingsRow } from '@/components/ui/settings-list';
 import { ToggleSwitch } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { AccountSwitcher } from '@/features/accounts/account-switcher';
 import { useCompanies } from '@/features/companies/company-provider';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
 
       <Reveal delay={240}>
         <SettingsGroup title="App">
-          <SettingsRow icon={Palette} label="Design" value="Luna mit Hut, Farbverlauf, Geldregen, Blitze" onPress={() => router.push('/profil/design')} />
+          <SettingsRow icon={Palette} label="Design" value="Akzentfarbe, Luna mit Hut, Farbverlauf, Geldregen" onPress={() => router.push('/profil/design')} />
           <SettingsRow
             icon={Bell}
             label="Benachrichtigungen"
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     backgroundColor: Colors.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 3,

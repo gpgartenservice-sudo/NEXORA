@@ -11,7 +11,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useCrm } from '@/features/crm/crm-provider';
 import { formatEuro } from '@/features/crm/order-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   hint: { color: Colors.textFaint, fontSize: 12.5, lineHeight: 18 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 14, paddingVertical: 7 },
-  chipActive: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  chipActive: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   chipText: { color: Colors.textMuted, fontSize: 13.5, fontWeight: '600' },
   chipTextActive: { color: Colors.text },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },

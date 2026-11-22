@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { toLocalInput } from '@/components/ui/date-utils';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { playSound } from '@/features/sound/ui-sound';
 import { highlightRect, type Rect } from '@/features/tutorial/tutorial-logic';
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     // Rest der Seite etwas abdunkeln, die Stelle bleibt hell
     boxShadow: '0 0 0 4000px rgba(0,0,0,0.38)',
   },
-  ringPressed: { backgroundColor: 'rgba(47,227,154,0.16)' },
+  ringPressed: { backgroundColor: accentAlpha(0.16) },
   glow: {
     position: 'absolute',
     left: -2,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     right: -2,
     bottom: -2,
     borderRadius: Radius.md,
-    boxShadow: '0 0 0 4px rgba(47,227,154,0.22), 0 0 30px rgba(47,227,154,0.55)',
+    boxShadow: `0 0 0 4px ${accentAlpha(0.22)}, 0 0 30px ${accentAlpha(0.55)}`,
   },
   nexy: { position: 'absolute', left: 0, top: 0, width: SIZE, height: SIZE },
   bubble: { position: 'absolute', minHeight: 44, justifyContent: 'center' },
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     boxShadow: '0 12px 36px rgba(0,0,0,0.5)',

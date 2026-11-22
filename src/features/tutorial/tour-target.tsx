@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle, type HostInstance } from 'react-native';
 
 import { GlassBackdrop } from '@/components/ui/glass';
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
 import { TUTORIALS, type TutorialId } from './tutorial-content';
@@ -68,5 +68,5 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.26)',
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  helpHover: { borderColor: 'rgba(47,227,154,0.7)', backgroundColor: 'rgba(47,227,154,0.14)' },
+  helpHover: { borderColor: accentAlpha(0.7), backgroundColor: accentAlpha(0.14) },
 });

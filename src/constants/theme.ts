@@ -1,12 +1,25 @@
 import '@/global.css';
 import { Platform } from 'react-native';
 
+import { rgbaOf, rgbOf } from './accent';
+import { loadAccent } from './accent-store';
+
+/** Akzentfarbe (Profil → Design) – beim Start gelesen, gilt für die ganze App */
+export const ACCENT = loadAccent();
+const [AR, AG, AB] = rgbOf(ACCENT);
+
+/** Akzentfarbe mit Deckkraft (Rahmen, Leuchten) – geht auch in Animationen */
+export function accentAlpha(alpha: number): string {
+  'worklet';
+  return `rgba(${AR},${AG},${AB},${alpha})`;
+}
+
 /**
  * Lunaxora – Farben & Abstände.
  *
- * Logo und Grundlook sind schwarz-weiß. Die Akzentfarbe "Wachstums-Grün"
- * kommt nur dort zum Einsatz, wo etwas passiert: Hauptbuttons, Fortschritt,
- * Haken, Auswahl, Erfolgsmeldungen, aktiver Bereich in der Navigation.
+ * Logo und Grundlook sind schwarz-weiß. Die Akzentfarbe (Standard "Wachstums-Grün",
+ * wählbar in Profil → Design) kommt nur dort zum Einsatz, wo etwas passiert: Hauptbuttons,
+ * Fortschritt, Haken, Auswahl, Erfolgsmeldungen, aktiver Bereich in der Navigation.
  */
 export const Colors = {
   background: '#000000',
@@ -18,13 +31,13 @@ export const Colors = {
   textMuted: '#8E8E93',
   textFaint: '#55555A',
   danger: '#FF6B6B',
-  /** Wachstums-Grün – Kontrast auf Schwarz 12.6:1 */
-  accent: '#2FE39A',
-  /** Schrift auf grünen Flächen */
+  /** Akzentfarbe (Standard Wachstums-Grün, Kontrast auf Schwarz 12.6:1) */
+  accent: ACCENT,
+  /** Schrift auf Flächen in der Akzentfarbe */
   onAccent: '#000000',
-  accentGlow: 'rgba(47,227,154,0.45)',
-  accentSoft: 'rgba(47,227,154,0.12)',
-  buttonPrimary: '#2FE39A',
+  accentGlow: rgbaOf(ACCENT, 0.45),
+  accentSoft: rgbaOf(ACCENT, 0.12),
+  buttonPrimary: ACCENT,
   buttonPrimaryText: '#000000',
 } as const;
 

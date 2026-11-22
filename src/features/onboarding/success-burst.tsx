@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { LETTER_IMAGES, LETTER_LAYOUT, WORDMARK_ASPECT_RATIO } from '@/components/brand/letters';
-import { Colors } from '@/constants/theme';
+import { Colors, accentAlpha } from '@/constants/theme';
 
 const GLOW = require('@/assets/images/glow.png');
 const SIZE = 168;
@@ -76,6 +76,6 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: SIZE / 2,
     borderWidth: 1.5,
-    borderColor: 'rgba(47,227,154,0.8)',
+    borderColor: accentAlpha(0.8),
   },
 });

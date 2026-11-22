@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
 import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
 import { supabase } from '@/lib/supabase';
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   balanceText: { color: Colors.textMuted, fontSize: 14 },
   bar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: Colors.surfaceRaised, borderWidth: 1, borderColor: Colors.border },
   barUsed: { backgroundColor: Colors.accent },
-  barPending: { backgroundColor: 'rgba(47,227,154,0.35)' },
+  barPending: { backgroundColor: accentAlpha(0.35) },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   action: {
     flexGrow: 1,
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   linkDanger: { color: Colors.danger, fontSize: 13.5, fontWeight: '600' },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2, borderWidth: 1 },
   pillText: { color: Colors.text, fontSize: 12, fontWeight: '600' },
-  pillOk: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(47,227,154,0.45)' },
+  pillOk: { backgroundColor: Colors.accentSoft, borderColor: accentAlpha(0.45) },
   pillNo: { backgroundColor: 'rgba(255,107,107,0.12)', borderColor: 'rgba(255,107,107,0.45)' },
   pillOpen: { backgroundColor: 'rgba(251,191,36,0.12)', borderColor: 'rgba(251,191,36,0.45)' },
   pillInfo: { backgroundColor: 'rgba(167,139,250,0.14)', borderColor: 'rgba(167,139,250,0.4)' },

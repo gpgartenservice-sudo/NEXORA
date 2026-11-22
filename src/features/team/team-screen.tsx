@@ -14,7 +14,7 @@ import { ProBadge } from '@/components/ui/pro-badge';
 import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { ToggleRow } from '@/components/ui/toggle-row';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useCompanies } from '@/features/companies/company-provider';
 import { BUSINESS_SEATS, hasTeamPlan, TEAMS_SEATS } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
+    borderColor: accentAlpha(0.45),
     backgroundColor: Colors.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   level: { paddingHorizontal: 10, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  levelOn: { backgroundColor: Colors.accentSoft, borderWidth: 1, borderColor: 'rgba(47,227,154,0.45)' },
+  levelOn: { backgroundColor: Colors.accentSoft, borderWidth: 1, borderColor: accentAlpha(0.45) },
   levelOff: { backgroundColor: Colors.surfaceRaised, borderWidth: 1, borderColor: Colors.borderFocus },
   levelText: { color: Colors.textMuted, fontSize: 12.5, fontWeight: '600' },
   levelTextActive: { color: Colors.text },

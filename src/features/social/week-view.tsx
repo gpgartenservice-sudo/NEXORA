@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
 import { PostCard, shortDateTime } from './post-card';
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   stepHover: { borderColor: Colors.borderFocus },
   hint: { color: Colors.textMuted, fontSize: 13.5, lineHeight: 19 },
   day: { gap: Spacing.sm, paddingVertical: Spacing.md },
-  today: { borderColor: 'rgba(47,227,154,0.45)' },
+  today: { borderColor: accentAlpha(0.45) },
   dayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dayName: { color: Colors.text, fontSize: 14.5, fontWeight: '700' },
   dayToday: { color: Colors.text },

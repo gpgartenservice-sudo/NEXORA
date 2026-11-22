@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { playSound } from '@/features/sound/ui-sound';
 
 type Props = {
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderRadius: Radius.lg,
-    boxShadow: '0 0 0 3px rgba(47,227,154,0.12), 0 12px 36px rgba(47,227,154,0.14)',
+    boxShadow: `0 0 0 3px ${accentAlpha(0.12)}, 0 12px 36px ${accentAlpha(0.14)}`,
   },
   emoji: { fontSize: 28 },
   emojiCompact: { fontSize: 22 },

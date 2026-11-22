@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/brand/wordmark';
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Glass, WEB_GLASS } from '@/components/ui/glass';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { useCompanyName } from '@/features/companies/company-provider';
 import { useNavVisible } from '@/features/team/area-gate';
 import { useTeamHubOptional } from '@/features/team/team-hub-provider';
@@ -459,8 +459,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.45)',
-    backgroundColor: 'rgba(47,227,154,0.12)',
+    borderColor: accentAlpha(0.45),
+    backgroundColor: accentAlpha(0.12),
     borderRadius: 6,
     paddingHorizontal: 5,
     paddingVertical: 1,

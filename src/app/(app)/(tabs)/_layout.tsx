@@ -3,7 +3,7 @@ import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { ACCENT, Colors } from '@/constants/theme';
 import { EdgeSwipe } from '@/features/navigation/edge-swipe';
 import { NavBar, NavButton } from '@/features/navigation/nav-bar';
 import { NAV_ITEMS, SIDEBAR_BREAKPOINT } from '@/features/navigation/nav-items';
@@ -28,6 +28,7 @@ import { DeviceGate } from '@/features/team/device-gate';
 import { AppExtras } from '@/features/dashboard/app-extras';
 import { AppBackdrop, DesignProvider, sharedBackdropOn } from '@/features/design/backgrounds';
 import { saveDesign } from '@/features/design/saved-design';
+import { storeAccent } from '@/constants/accent-store';
 import { DEFAULT_DESIGN, readDesign } from '@/features/design/design-logic';
 import { usePlan } from '@/features/plan/plan-provider';
 import { PlanWall } from '@/features/plan/plan-wall';
@@ -67,13 +68,20 @@ function Workspace() {
   const { profile } = useProfile();
   const { pro } = usePlan();
   const rawDesign = profile?.design;
-  // Hintergrund/Symbole nur mit Pro – Lunas Farbe und Hut für alle
+  // Hintergrund/Symbole nur mit Pro – Akzentfarbe und Lunas Hut für alle
   const design = useMemo(() => {
     const chosen = readDesign(rawDesign);
-    return pro ? chosen : { ...DEFAULT_DESIGN, luna: chosen.luna };
+    // solange das Profil lädt: die Farbe, mit der die App gestartet ist (kein Aufblitzen)
+    const accent = rawDesign === undefined ? ACCENT : chosen.accent;
+    return pro ? { ...chosen, accent } : { ...DEFAULT_DESIGN, accent, luna: chosen.luna };
   }, [pro, rawDesign]);
   // fürs nächste Öffnen merken: das Intro zeigt dann schon diesen Hintergrund
   useEffect(() => saveDesign(design), [design]);
+  // Akzentfarbe auf dem Gerät merken – gilt ab dem nächsten Start (z. B. am Handy gewählt → Mac)
+  const hasProfile = !!profile;
+  useEffect(() => {
+    if (hasProfile) storeAccent(design.accent);
+  }, [hasProfile, design.accent]);
   // Mac: Hintergrund (Profil → Design) einmal hinter Seitenleiste und Seiten
   const sharedBackdrop = sharedBackdropOn(width, design);
   // Die Seiten-Stapel malen im Web sonst die Theme-Farbe (Schwarz) über den Hintergrund

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type HostInstance } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { NexyAvatar } from '@/features/assistant/nexy-avatar';
 import { useHover } from '@/hooks/use-hover';
@@ -239,14 +239,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 2,
     borderColor: Colors.accent,
-    boxShadow: '0 0 0 4px rgba(47,227,154,0.18), 0 0 28px rgba(47,227,154,0.35)',
+    boxShadow: `0 0 0 4px ${accentAlpha(0.18)}, 0 0 28px ${accentAlpha(0.35)}`,
   },
   card: {
     position: 'absolute',
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(47,227,154,0.35)',
+    borderColor: accentAlpha(0.35),
     padding: Spacing.lg,
     gap: Spacing.sm,
     boxShadow: '0 18px 50px rgba(0,0,0,0.55)',

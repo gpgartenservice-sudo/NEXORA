@@ -3,7 +3,7 @@ import { Minus, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { useHover } from '@/hooks/use-hover';
 
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   title: { color: Colors.text, fontSize: 15, fontWeight: '600', flex: 1 },
   titleHover: { textDecorationLine: 'underline' },
   badge: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeDone: { borderColor: 'rgba(47,227,154,0.5)', backgroundColor: Colors.accentSoft },
+  badgeDone: { borderColor: accentAlpha(0.5), backgroundColor: Colors.accentSoft },
   badgeBehind: { borderColor: 'rgba(255,107,107,0.45)' },
   badgeText: { color: Colors.textMuted, fontSize: 11.5, fontWeight: '600' },
   badgeTextDone: { color: Colors.accent },

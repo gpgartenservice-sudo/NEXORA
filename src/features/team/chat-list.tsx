@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
 import { ROLE_LABEL } from './roles';
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   rowHover: { backgroundColor: 'rgba(255,255,255,0.04)' },
   dot: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceRaised, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  groupDot: { backgroundColor: Colors.accentSoft, borderColor: 'rgba(47,227,154,0.35)' },
+  groupDot: { backgroundColor: Colors.accentSoft, borderColor: accentAlpha(0.35) },
   leadDot: { backgroundColor: 'rgba(167,139,250,0.14)', borderColor: 'rgba(167,139,250,0.4)' },
   dotText: { color: Colors.text, fontWeight: '700' },
   texts: { flex: 1, gap: 3, minWidth: 0 },
