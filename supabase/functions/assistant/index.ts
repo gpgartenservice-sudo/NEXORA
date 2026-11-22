@@ -450,9 +450,9 @@ Was du kannst:
    - Team – nur, wenn <daten> einen Block team hat (Lunaxora Business/Teams). Wer der Nutzer ist und was er darf, steht in team.du_bist und team.darf; Namen immer wie in team.mitglieder:
      - todo bzw. todo_change mit assignee = Person, für die das To-do ist („gib Anna das To-do …“, „Ben soll …“); "ich" = für den Nutzer selbst; ohne assignee = für den Nutzer selbst. To-dos anlegen und anderen geben geht nur mit team.darf.todos_verteilen. Mitarbeiter bekommen To-dos von der Leitung und können nur ihre eigenen abhaken (todo_change mit done).
      - team_message – Nachricht in einen Team-Chat schicken, im Namen des Nutzers (Ich-Form, so wie er es sagt; nichts dazuerfinden): chat "alle" (ganzes Team), "leitung" (nur Inhaber/Mitgründer, nur wenn team.darf.leitung_chat) oder "direkt" mit person; text = die Nachricht. Nur, wenn der Nutzer wirklich etwas verschicken will („schreib dem Team …“, „sag Anna, dass …“). Ungelesenes steht in team.chats.
-     - team_member – Person im Team ändern (nur mit team.darf.team_verwalten): person, dazu nur, was sich ändert: role "mitgruender" (nur der Inhaber darf das), "teamleitung" oder "mitarbeiter", title = Bezeichnung wie „Azubi“ oder „Vorarbeiter“ ("none" = löschen), vacation_days = Urlaubstage pro Jahr (0–60), remove true = aus dem Team entfernen (nur, wenn ausdrücklich gesagt).
-     - team_invite – jemanden ins Team einladen (nur mit team.darf.team_verwalten): email (Pflicht – sonst nachfragen), role "mitarbeiter" (Standard), "teamleitung" oder "mitgruender". Die App erstellt einen Einladungscode; den schickt der Nutzer selbst weiter.
-     - team_access – Rechte einer Rolle ändern (nur mit team.darf.team_verwalten): role "teamleitung" oder "mitarbeiter", dazu nur die Bereiche, die sich ändern, jeweils "off" (kein Zugriff), "read" (nur ansehen) oder "write" (bearbeiten): kunden, auftraege, termine, aufgaben (To-dos & Ziele), dokumente (Angebote & Rechnungen), finanzen (Finanzen & Steuern), lager, social, firma, luna, fahrplan, personal (Arbeitsplan, Urlaub genehmigen, Stunden aller). Bei luna, fahrplan und personal nur "off" oder "write". Der aktuelle Stand steht in team.rechte.
+     - team_member – Person im Team ändern (nur mit team.darf.team_verwalten): person, dazu nur, was sich ändert: role "mitgruender" (nur der Inhaber darf das) oder "mitarbeiter" (eine feste Rolle Teamleitung gibt es nicht – Teamleiter bestimmt die Leitung im Arbeitsplan pro Einsatz), title = Bezeichnung wie „Azubi“ oder „Vorarbeiter“ ("none" = löschen), vacation_days = Urlaubstage pro Jahr (0–60), remove true = aus dem Team entfernen (nur, wenn ausdrücklich gesagt).
+     - team_invite – jemanden ins Team einladen (nur mit team.darf.team_verwalten): email (Pflicht – sonst nachfragen), role "mitarbeiter" (Standard) oder "mitgruender". Die App erstellt einen Einladungscode; den schickt der Nutzer selbst weiter.
+     - team_access – Rechte der Mitarbeiter ändern (nur mit team.darf.team_verwalten): role "mitarbeiter", dazu nur die Bereiche, die sich ändern, jeweils "off" (kein Zugriff), "read" (nur ansehen) oder "write" (bearbeiten): kunden, auftraege, termine, aufgaben (To-dos & Ziele), dokumente (Angebote & Rechnungen), finanzen (Finanzen & Steuern), lager, social, firma, luna, fahrplan, personal (Arbeitsplan, Urlaub genehmigen, Stunden aller). Bei luna, fahrplan und personal nur "off" oder "write". Der aktuelle Stand steht in team.rechte.
      - absence – krank melden, Urlaub oder frei: kind "krank", "urlaub" oder "frei", starts_on, ends_on (bei krank ohne Angabe wie starts_on), note nur, wenn genannt, doctor true = war beim Arzt (nur bei krank), person nur, wenn die Leitung (team.darf.personal) es für jemand anderen einträgt. Urlaub/frei von Mitarbeitern ist ein Antrag, den die Leitung genehmigt; das Urlaubskonto steht in team.urlaubskonto.
      - absence_decide – (nur mit team.darf.personal) offenen Antrag aus team.offene_antraege genehmigen (decision "approve") oder ablehnen ("reject"), note = kurze Antwort (optional); neue Krankmeldung aus team.neue_krankmeldungen bestätigen (decision "seen"). ref genau wie dort (z. B. "U1").
      - hours – Arbeitszeit eintragen: day, starts_at und ends_at als "HH:MM", break_minutes = Pause in Minuten (nur, wenn genannt), note nur, wenn genannt, person nur, wenn die Leitung (team.darf.personal) für jemand anderen einträgt. Ohne Leitung gehen nur die letzten 62 Tage. Fehlen Beginn oder Ende, frag nach.
@@ -568,6 +568,7 @@ type Body = {
   hints?: unknown;
   file?: unknown;
   say?: unknown;
+  voice?: unknown;
 };
 
 type Segment = { text?: unknown; no_speech_prob?: unknown; avg_logprob?: unknown };
@@ -649,23 +650,43 @@ async function transcribe(body: Body, deps: Deps, meter: Meter): Promise<Respons
   return json(200, { text: transcriptText(data) });
 }
 
+/**
+ * Lunas Stimmen (App: Profil → Design). „luna“ ist die eigene Stimme aus ELEVENLABS_VOICE_ID.
+ * Die anderen sind Standardstimmen von ElevenLabs (gibt es in jedem Konto) – mit dem
+ * Geheimnis daneben lässt sich jede durch eine andere Stimme ersetzen.
+ */
+const TTS_VOICES: Record<string, { secret: string; fallback?: string }> = {
+  luna: { secret: 'ELEVENLABS_VOICE_ID' },
+  male: { secret: 'ELEVENLABS_VOICE_ID_MALE', fallback: 'TX3LPaxmHKxFdv7VOQHJ' }, // „Liam“
+  calm: { secret: 'ELEVENLABS_VOICE_ID_CALM', fallback: 'SAz9YHcvj6GT2YYXdXww' }, // „River“
+};
+
+/** Welche ElevenLabs-Stimme spricht – Unbekanntes ist Lunas normale Stimme */
+export function ttsVoice(choice: unknown, env: (name: string) => string | undefined) {
+  const key = typeof choice === 'string' && Object.hasOwn(TTS_VOICES, choice) ? choice : 'luna';
+  const { secret, fallback } = TTS_VOICES[key];
+  return { secret, id: env(secret)?.trim() || fallback, own: key === 'luna' };
+}
+
 /** Text -> gesprochene Sprache (ElevenLabs, MP3). Zählt als Vorlesen (eigenes Kontingent), nicht als Luna-Nachricht. */
 async function speak(body: Body, deps: Deps, meter: Meter): Promise<Response> {
   const key = deps.env('ELEVENLABS_API_KEY');
   if (!key) return json(500, { error: 'missing_elevenlabs_key' });
-  const voice = deps.env('ELEVENLABS_VOICE_ID')?.trim();
-  if (!voice) return json(500, { error: 'missing_elevenlabs_voice' });
+  const voice = ttsVoice(body.voice, deps.env);
+  if (!voice.id) return json(500, { error: 'missing_elevenlabs_voice' });
   const text = typeof body.say === 'string' ? body.say.trim() : '';
   if (!text) return json(400, { error: 'empty_say' });
   if (text.length > MAX_SPEAK_TEXT) return json(400, { error: 'say_too_long', max: MAX_SPEAK_TEXT });
 
   const model = deps.env('ELEVENLABS_MODEL') || DEFAULT_TTS_MODEL;
+  // Die Standardstimmen sind englisch – auf Deutsch festlegen, sonst sprechen sie mit Akzent
+  const tts = voice.own ? { text, model_id: model } : { text, model_id: model, language_code: 'de' };
   let res: Response;
   try {
-    res = await deps.fetch(`${ELEVENLABS_TTS_URL}/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
+    res = await deps.fetch(`${ELEVENLABS_TTS_URL}/${encodeURIComponent(voice.id)}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: model }),
+      body: JSON.stringify(tts),
     });
   } catch (error) {
     console.error('ElevenLabs', error);
@@ -677,7 +698,8 @@ async function speak(body: Body, deps: Deps, meter: Meter): Promise<Response> {
     // Credits aufgebraucht meldet ElevenLabs als 401 mit "quota_exceeded"
     if (/quota_exceeded/i.test(detail)) return json(402, { error: 'elevenlabs_quota' });
     if (res.status === 401 || res.status === 403) return json(500, { error: 'invalid_elevenlabs_key' });
-    if (res.status === 404 || /voice_not_found/i.test(detail)) return json(500, { error: 'elevenlabs_voice_not_found' });
+    if (res.status === 404 || /voice_not_found/i.test(detail))
+      return json(500, { error: 'elevenlabs_voice_not_found', detail: voice.secret });
     if (res.status === 429) return json(429, { error: 'rate_limited' });
     return json(502, { error: 'tts_error', status: res.status, detail });
   }

@@ -13,6 +13,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing } from '@/constants/theme';
 
+import { useAccess } from '@/features/team/team-provider';
+
 import { useCrm } from './crm-provider';
 import { parseEuro } from './order-logic';
 import { CrmSetupNotice } from './ui';
@@ -24,6 +26,8 @@ import { CrmSetupNotice } from './ui';
 export function OrderNewScreen() {
   const params = useLocalSearchParams<{ customer?: string }>();
   const { customers, createOrder, customerById, error } = useCrm();
+  // Preis nur mit Recht „Finanzen“
+  const money = useAccess().can('finanzen');
   const [customerId, setCustomerId] = useState<string | null>(params.customer ?? null);
   const [query, setQuery] = useState('');
   const [title, setTitle] = useState('');
@@ -134,6 +138,7 @@ export function OrderNewScreen() {
             style={styles.multiline}
             maxLength={5000}
           />
+          {money && (
           <TextField
             label="Preis in €"
             value={price}
@@ -146,6 +151,7 @@ export function OrderNewScreen() {
             placeholder="z. B. 1.250,00"
             keyboardType="decimal-pad"
           />
+          )}
         </Card>
       </Reveal>
 

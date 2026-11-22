@@ -12,6 +12,7 @@
  */
 
 import { DEFAULT_LUNA, lunaLookToJson, readLunaLook, type LunaLook } from '../assistant/luna-look';
+import { DEFAULT_VOICE, readLunaVoice, type LunaVoice } from '../assistant/luna-voice';
 import { DEFAULT_ACCENT, readAccent } from '../../constants/accent';
 
 export type BaseMode = 'classic' | 'color' | 'gradient';
@@ -48,6 +49,8 @@ export type DesignSettings = {
   accent: string;
   /** Lunas Hut, Brille, Hals und Kleidung – für alle Abos */
   luna: LunaLook;
+  /** Lunas Stimme beim Vorlesen – für alle Abos */
+  voice: LunaVoice;
 };
 
 /** Auswahl an Farben (kräftig – die App dunkelt sie je nach Stärke ab) */
@@ -161,6 +164,7 @@ export const DEFAULT_DESIGN: DesignSettings = {
   density: 'normal',
   accent: DEFAULT_ACCENT,
   luna: DEFAULT_LUNA,
+  voice: DEFAULT_VOICE,
 };
 
 const HEX = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i;
@@ -218,6 +222,7 @@ export function readDesign(raw: unknown): DesignSettings {
   const oldLuna = d.luna && typeof d.luna === 'object' ? (d.luna as Record<string, unknown>) : {};
   out.accent = readAccent(d.accent ?? oldLuna.color);
   out.luna = readLunaLook(d.luna);
+  out.voice = readLunaVoice(d.voice);
   return out;
 }
 
@@ -234,6 +239,7 @@ export function designToJson(s: DesignSettings): Record<string, unknown> {
     density: s.density,
     accent: s.accent,
     luna: lunaLookToJson(s.luna),
+    voice: s.voice,
   };
 }
 

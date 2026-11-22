@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
+import { useAccess } from '@/features/team/team-provider';
 import { TourTarget, TutorialButton } from '@/features/tutorial/tour-target';
 
 import { useCrm } from './crm-provider';
@@ -30,6 +31,9 @@ const FILTERS: { key: Filter; label: string }[] = [
 /** Alle Aufträge mit Filter nach Status. */
 export function OrdersScreen() {
   const { orders, customerById, loading, error, customers } = useCrm();
+  const access = useAccess();
+  const money = access.can('finanzen');
+  const canWrite = access.can('auftraege', 'write');
   const [filter, setFilter] = useState<Filter>('all');
   // Die Einführung kommt beim ersten Kunden (Kundenakte) – hier nur über das ?
 
@@ -47,7 +51,7 @@ export function OrdersScreen() {
         title="Aufträge"
         subtitle={orders.length ? `${count('new') + count('progress')} offen · ${count('done')} abgeschlossen` : undefined}
         action={
-          orders.length ? (
+          orders.length && canWrite ? (
             <TourTarget id="auftraege.neu">
               <Button label="+ Neuer Auftrag" onPress={newOrder} style={styles.action} />
             </TourTarget>
@@ -68,7 +72,7 @@ export function OrdersScreen() {
               <Text style={styles.emptyText}>
                 Vom ersten Kontakt bis zum Abschluss – der Status läuft von selbst mit.
               </Text>
-              <Button label={customers.length ? '+ Ersten Auftrag anlegen' : '+ Erst einen Kunden anlegen'} onPress={newOrder} />
+              {canWrite && <Button label={customers.length ? '+ Ersten Auftrag anlegen' : '+ Erst einen Kunden anlegen'} onPress={newOrder} />}
             </Card>
           </Reveal>
         </TourTarget>
@@ -78,8 +82,8 @@ export function OrdersScreen() {
             <Reveal delay={150}>
               <StatRow>
                 <StatTile label="Offene Aufträge" value={String(count('new') + count('progress'))} />
-                <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />
-                <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />
+                {money && <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />}
+                {money && <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />}
               </StatRow>
             </Reveal>
           </TourTarget>

@@ -76,9 +76,10 @@ export async function renderWorkPlanPdf({ plan, seller, logo, version, published
     const crew = wrap(crewLabel(j, nameOf), regular, 9.5, bodyWidth);
     const note = j.note ? wrap(j.note, oblique, 9, bodyWidth) : [];
     const address = j.address ? wrap(j.address, regular, 9, bodyWidth) : [];
+    const order = j.order_title && j.order_title !== j.site ? wrap(`Auftrag: ${j.order_title}`, regular, 9, bodyWidth) : [];
     const showCrew = !!j.site || j.members.length > 1;
-    const height = 14 + address.length * 12 + (showCrew ? crew.length * 13 : 0) + note.length * 12 + 10;
-    return { crew, note, address, showCrew, height };
+    const height = 14 + (address.length + order.length) * 12 + (showCrew ? crew.length * 13 : 0) + note.length * 12 + 10;
+    return { crew, note, address, order, showCrew, height };
   };
 
   for (const d of plan.days) {
@@ -96,12 +97,12 @@ export async function renderWorkPlanPdf({ plan, seller, logo, version, published
     }
     for (const j of d.jobs) {
       const title = j.site ?? (j.members.length === 1 ? nameOf(j.members[0]) : 'Einsatz');
-      const { crew, note, address, showCrew, height } = layout(j);
+      const { crew, note, address, order, showCrew, height } = layout(j);
       need(height);
       text(page, shiftLabel(j), col.time, y, 10, bold);
       text(page, title, col.body, y, 10.5, bold);
       y -= 14;
-      for (const l of address) {
+      for (const l of [...address, ...order]) {
         text(page, l, col.body, y, 9, regular, MUTED);
         y -= 12;
       }

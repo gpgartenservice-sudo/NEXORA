@@ -9,7 +9,7 @@ import {
   can as canWith,
   DEFAULT_ACCESS,
   isEmployer,
-  isRole,
+  parseRole,
   parseAccess,
   roleErrorText,
   type Access,
@@ -73,7 +73,7 @@ export function parseTeam(raw: unknown): TeamInfo | null {
   if (typeof r.owner_id !== 'string') return null;
   const role = r.role === 'owner' || r.role === 'member' ? r.role : 'solo';
   // ältere Datenbank ohne Rollen: Mitglieder sahen alles (= Mitgründer)
-  const myRole: MemberRole = isRole(r.my_role) ? r.my_role : role === 'member' ? 'mitgruender' : 'inhaber';
+  const myRole: MemberRole = parseRole(r.my_role) ?? (role === 'member' ? 'mitgruender' : 'inhaber');
   const rolesRaw = (r.roles ?? {}) as Record<string, unknown>;
   const members = (Array.isArray(r.members) ? r.members : []).map((m: Record<string, unknown>) => ({
     id: String(m.id),
@@ -81,7 +81,7 @@ export function parseTeam(raw: unknown): TeamInfo | null {
     email: typeof m.email === 'string' ? m.email : null,
     owner: !!m.owner,
     joined_at: typeof m.joined_at === 'string' ? m.joined_at : null,
-    role: isRole(m.role) ? m.role : m.owner ? 'inhaber' : 'mitgruender',
+    role: parseRole(m.role) ?? (m.owner ? 'inhaber' : 'mitgruender'),
     title: typeof m.title === 'string' && m.title ? m.title : null,
     vacation_days: typeof m.vacation_days === 'number' ? m.vacation_days : m.vacation_days != null ? Number(m.vacation_days) : null,
   })) as TeamMember[];
@@ -89,7 +89,7 @@ export function parseTeam(raw: unknown): TeamInfo | null {
     code: String(i.code),
     email: typeof i.email === 'string' ? i.email : null,
     created_at: String(i.created_at ?? ''),
-    role: isRole(i.role) ? i.role : 'mitarbeiter',
+    role: parseRole(i.role) ?? 'mitarbeiter',
   })) as TeamInvite[];
   return {
     role,
@@ -101,7 +101,6 @@ export function parseTeam(raw: unknown): TeamInfo | null {
     seats_used: typeof r.seats_used === 'number' ? r.seats_used : (members.length || 1) + invites.length,
     access: isEmployer(myRole) || !r.access ? null : parseAccess(r.access, DEFAULT_ACCESS[myRole as EditableRole] ?? DEFAULT_ACCESS.mitarbeiter),
     roles: {
-      teamleitung: parseAccess(rolesRaw.teamleitung, DEFAULT_ACCESS.teamleitung),
       mitarbeiter: parseAccess(rolesRaw.mitarbeiter, DEFAULT_ACCESS.mitarbeiter),
     },
     members,
@@ -248,7 +247,7 @@ export async function teamSetMember(
   return error ? { error: teamErrorText(error.message) } : {};
 }
 
-/** Rechte einer Rolle (Teamleitung / Mitarbeiter) speichern */
+/** Rechte der Mitarbeiter speichern */
 export async function teamSetAccess(role: EditableRole, access: Partial<Access>): Promise<{ access?: Access; error?: string }> {
   const { data, error } = await supabase.rpc('team_set_access', { p_role: role, p_access: access });
   return error ? { error: teamErrorText(error.message) } : { access: parseAccess(data, DEFAULT_ACCESS[role]) };

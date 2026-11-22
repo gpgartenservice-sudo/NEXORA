@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import type { ReceiptReading } from '@/features/finance/receipt-logic';
 
 import type { RawResult } from './assistant-logic';
+import { speechVoice, type LunaVoice } from './luna-voice';
 
 export type AskResult = {
   data?: RawResult;
@@ -157,9 +158,14 @@ export type SpeechAudioResult = {
  * Text -> gesprochene Sprache mit der natürlichen Stimme (Server-Funktion,
  * Modus "speak", ElevenLabs). Die Fehlertexte stehen in den Einstellungen.
  */
-export async function speechAudio(text: string, signal?: AbortSignal): Promise<SpeechAudioResult> {
+export async function speechAudio(
+  text: string,
+  signal?: AbortSignal,
+  voice: LunaVoice = speechVoice(),
+): Promise<SpeechAudioResult> {
   const { data, error } = await supabase.functions.invoke('assistant', {
-    body: { mode: 'speak', say: text },
+    // voice: gewählte Stimme (Profil → Design) – eine ältere Server-Funktion übergeht das Feld
+    body: { mode: 'speak', say: text, voice },
     signal,
   });
   if (!error) {
@@ -184,7 +190,10 @@ export async function speechAudio(text: string, signal?: AbortSignal): Promise<S
     if (http.code === 'invalid_elevenlabs_key')
       return { error: 'Der ElevenLabs-Schlüssel ist ungültig oder darf kein Text to Speech.', notSetUp: true };
     if (http.code === 'elevenlabs_voice_not_found')
-      return { error: 'Die Stimme aus ELEVENLABS_VOICE_ID gibt es bei ElevenLabs nicht (mehr).', notSetUp: true };
+      return {
+        error: `Die Stimme aus ${http.detail ?? 'ELEVENLABS_VOICE_ID'} gibt es bei ElevenLabs nicht (mehr).`,
+        notSetUp: true,
+      };
     if (http.code === 'role_forbidden') return { error: 'In deiner Rolle im Team ist Luna ausgeschaltet.' };
     if (http.code === 'quota_exceeded') {
       const text = quotaExceededText('voice', http.plan, http.limit);

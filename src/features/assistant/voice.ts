@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { desktop } from '@/lib/desktop';
 
 import { speechAudio, type SpeechAudioResult } from './assistant-api';
+import { speechVoice, type LunaVoice } from './luna-voice';
 import { nativeMicSupported, openNativeMic } from './native-mic';
 import { canPlaySpeech, playSpeechAudio } from './speech-player';
 import { createSpeechDetector, speechChunks, speechText, type DetectorOptions } from './voice-logic';
@@ -247,6 +248,8 @@ type SpeakOptions = {
   onError?: (error: string, notSetUp: boolean) => void;
   /** Aufnahme merken (für kurze, wiederkehrende Sätze) */
   cache?: boolean;
+  /** andere Stimme als die gewählte (Probehören in Profil → Design) */
+  voice?: LunaVoice;
 };
 
 /** Laufender Vorgang: abbrechbar, merkt sich, ob schon Ton kam */
@@ -277,11 +280,13 @@ function playAudio(blob: Blob, run: Run): Promise<boolean> {
   });
 }
 
-async function fetchChunk(text: string, run: Run, keep: boolean): Promise<SpeechAudioResult> {
-  const hit = keep ? cache.get(text) : undefined;
+async function fetchChunk(text: string, run: Run, keep: boolean, voice: LunaVoice): Promise<SpeechAudioResult> {
+  // je Stimme merken – sonst käme nach dem Wechsel noch die alte Stimme aus dem Speicher
+  const key = `${voice}|${text}`;
+  const hit = keep ? cache.get(key) : undefined;
   if (hit) return { audio: hit };
-  const result = await speechAudio(text, run.signal);
-  if (keep && result.audio) cache.set(text, result.audio);
+  const result = await speechAudio(text, run.signal, voice);
+  if (keep && result.audio) cache.set(key, result.audio);
   return result;
 }
 
@@ -322,7 +327,8 @@ export function speak(text: string, options: SpeakOptions = {}): Speech {
 
   void (async () => {
     const keep = !!options.cache;
-    let next = fetchChunk(chunks[0], run, keep);
+    const voice = options.voice ?? speechVoice();
+    let next = fetchChunk(chunks[0], run, keep, voice);
     for (let i = 0; i < chunks.length; i++) {
       const result = await next;
       if (cancelled) break;
@@ -331,7 +337,7 @@ export function speak(text: string, options: SpeakOptions = {}): Speech {
         break;
       }
       // das nächste Stück schon holen, während dieses läuft
-      if (i + 1 < chunks.length) next = fetchChunk(chunks[i + 1], run, keep);
+      if (i + 1 < chunks.length) next = fetchChunk(chunks[i + 1], run, keep, voice);
       if (!(await playAudio(result.audio, run))) break;
     }
     if (active === speech) active = null;

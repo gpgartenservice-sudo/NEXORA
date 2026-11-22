@@ -10,6 +10,7 @@ import {
   DEFAULT_ACCESS,
   FULL_ACCESS,
   isEmployer,
+  parseRole,
   navArea,
   parseAccess,
   roleErrorText,
@@ -63,7 +64,6 @@ test('Vorlagen der Rollen = Vorlagen in der Datenbank (nexora_role_default)', ()
     const start = body.indexOf("'{", at);
     return JSON.parse(body.slice(start + 1, body.indexOf("}'", start) + 1).replace(/\s+/g, ''));
   };
-  assert.deepEqual(json('teamleitung'), DEFAULT_ACCESS.teamleitung);
   assert.deepEqual(json('mitarbeiter'), DEFAULT_ACCESS.mitarbeiter);
   assert.deepEqual(json(null), FULL_ACCESS);
   // dieselben Bereiche wie team_set_access
@@ -76,7 +76,7 @@ test('Rechte lesen und prüfen', () => {
   assert.equal(a.kunden, 'write');
   assert.equal(a.finanzen, 'off');
   assert.equal(a.luna, 'write'); // Ein/Aus-Bereich kennt kein „ansehen“
-  assert.equal(parseAccess(null, DEFAULT_ACCESS.teamleitung).personal, 'write');
+  assert.equal(parseAccess(null, DEFAULT_ACCESS.mitarbeiter).personal, 'off');
   assert.equal(can(null, 'finanzen', 'write'), true);
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'auftraege'), true);
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'auftraege', 'write'), false);
@@ -86,7 +86,11 @@ test('Rechte lesen und prüfen', () => {
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'finanzen'), false);
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'aufgaben', 'write'), false);
   assert.equal(isEmployer('mitgruender'), true);
-  assert.equal(isEmployer('teamleitung'), false);
+  assert.equal(isEmployer('mitarbeiter'), false);
+  // frühere feste Teamleitung = Mitarbeiter
+  assert.equal(parseRole('teamleitung'), 'mitarbeiter');
+  assert.equal(parseRole('mitgruender'), 'mitgruender');
+  assert.equal(parseRole('chef'), null);
   assert.equal(navArea('inventar'), 'lager');
   assert.equal(navArea('assistent'), 'luna');
   assert.equal(navArea('home'), null);
@@ -305,10 +309,11 @@ test('Chat: Links, Mail-Adressen und Nummern werden antippbar', () => {
 
 test('Arbeitsplan: jede Spalte, die die App liest, legen die Skripte an', () => {
   const einsaetze = readFileSync(new URL('../../supabase/migrations/20261129090000_einsaetze.sql', import.meta.url), 'utf8');
+  const teamleiter = readFileSync(new URL('../../supabase/migrations/20261202090000_teamleiter_einsatz.sql', import.meta.url), 'utf8');
   const table = SQL.slice(SQL.indexOf('create table if not exists public.work_shifts'), SQL.indexOf(');', SQL.indexOf('create table if not exists public.work_shifts')));
   for (const col of SHIFT_COLUMNS.split(',').map((c) => c.trim())) {
     const inTeams = new RegExp(`\\n\\s+${col}\\s`).test(table);
-    const added = einsaetze.includes(`add column if not exists ${col} `);
+    const added = [einsaetze, teamleiter].some((f) => f.includes(`add column if not exists ${col} `));
     assert.ok(inTeams || added, `Spalte ${col} fehlt`);
   }
   assert.match(einsaetze, /create or replace function public\.work_plan_publish\(p_week date, p_snapshot jsonb\)/);

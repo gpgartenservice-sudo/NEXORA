@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
+import { useAccess } from '@/features/team/team-provider';
 
 import type { Order } from './crm-provider';
 import { computeStatus, finalPrice, formatEuro, isMonthly } from './order-logic';
@@ -12,6 +13,8 @@ import { StatusPill } from './status-pill';
 /** Ein Auftrag als Zeile in einer Liste. */
 export function OrderRow({ order, customerName }: { order: Order; customerName?: string }) {
   const price = finalPrice(order);
+  // Preise nur mit Recht „Finanzen“ (Mitarbeiter sehen sie standardmäßig nicht)
+  const money = useAccess().can('finanzen');
   return (
     <Card onPress={() => router.push(`/auftraege/${order.id}`)} accessibilityLabel={order.title}>
       <View style={styles.row}>
@@ -28,10 +31,12 @@ export function OrderRow({ order, customerName }: { order: Order; customerName?:
             )}
           </View>
         </View>
-        <Text style={styles.price}>
-          {order.price === null ? '–' : formatEuro(price)}
-          {order.price !== null && isMonthly(order) ? <Text style={styles.sub}> / Monat</Text> : null}
-        </Text>
+        {money && (
+          <Text style={styles.price}>
+            {order.price === null ? '–' : formatEuro(price)}
+            {order.price !== null && isMonthly(order) ? <Text style={styles.sub}> / Monat</Text> : null}
+          </Text>
+        )}
         <ChevronRight size={18} color={Colors.textFaint} />
       </View>
     </Card>

@@ -725,7 +725,7 @@ export function teamSteps(p: Of<TeamKind>): GuideStep[] {
     case 'team_access':
       return [
         go('/profil/team'),
-        show(undefined, `Ich stelle die Rechte für ${p.data.role === 'teamleitung' ? 'die Teamleitung' : 'Mitarbeiter'} um.`),
+        show(undefined, 'Ich stelle die Rechte für Mitarbeiter um.'),
       ];
     case 'absence':
       return [

@@ -11,6 +11,7 @@ import { periodsFor, type GoalKind, type GoalPeriod } from '../goals/goals-logic
 import { AREAS, type Access, type Area, type EditableRole, type Level, type MemberRole } from '../team/roles';
 import {
   hoursDayOk,
+  hoursLabel,
   HOURS_EDIT_DAYS,
   KIND_LABEL,
   parseTime,
@@ -1399,7 +1400,8 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
       const m = matchMember(str(c.person, 120), team.members, team.me);
       if (!m || out.some((p) => p.kind === 'team_member' && p.data.memberId === m.id)) continue;
       const remove = c.remove === true;
-      const role = inList(c.role, ['mitgruender', 'teamleitung', 'mitarbeiter'] as const);
+      // „Teamleitung“ gibt es nicht mehr (Teamleiter wird pro Einsatz im Arbeitsplan bestimmt)
+      const role = inList(c.role, ['mitgruender', 'mitarbeiter'] as const);
       const days = num(c.vacation_days);
       const change: TeamMemberChange = {
         memberId: m.id,
@@ -1427,7 +1429,7 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
       const email = str(c.email, 200)?.toLowerCase() ?? null;
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) continue;
       if (out.some((p) => p.kind === 'team_invite' && p.data.email === email)) continue;
-      const role = inList(c.role, ['mitgruender', 'teamleitung', 'mitarbeiter'] as const) ?? 'mitarbeiter';
+      const role = inList(c.role, ['mitgruender', 'mitarbeiter'] as const) ?? 'mitarbeiter';
       const denied = !teamDarf(team).team_verwalten
         ? 'Einladen können bei euch Inhaber und Mitgründer.'
         : role === 'mitgruender' && team.role !== 'inhaber'
@@ -1437,8 +1439,9 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
     } else if (a.type === 'team_access' && a.team_access && known.team) {
       const team = known.team;
       const c = a.team_access;
-      const role = inList(c.role, ['teamleitung', 'mitarbeiter'] as const);
-      if (!role || out.some((p) => p.kind === 'team_access' && p.data.role === role)) continue;
+      // Rechte gibt es nur noch für Mitarbeiter
+      const role = 'mitarbeiter' as const;
+      if (out.some((p) => p.kind === 'team_access' && p.data.role === role)) continue;
       const change: Partial<Access> = {};
       for (const area of AREAS) {
         let level = inList(c[area.key], ['off', 'read', 'write'] as const) as Level | null;
@@ -1719,7 +1722,7 @@ export function proposalLabel(p: Proposal): string {
     case 'team_invite':
       return `${p.data.email} als ${ROLE_WORD[p.data.role]} einladen`;
     case 'team_access':
-      return `Rechte ${p.data.role === 'teamleitung' ? 'Teamleitung' : 'Mitarbeiter'}: ${(Object.entries(p.data.change) as [Area, Level][])
+      return `Rechte Mitarbeiter: ${(Object.entries(p.data.change) as [Area, Level][])
         .map(([area, level]) => `${AREAS.find((x) => x.key === area)?.label ?? area} ${LEVEL_WORD[level]}`)
         .join(', ')}`;
     case 'absence': {
@@ -1733,7 +1736,7 @@ export function proposalLabel(p: Proposal): string {
         ? `Krankmeldung von ${p.data.who} bestätigen`
         : `${p.data.what} von ${p.data.who} ${p.data.decision === 'approve' ? 'genehmigen' : 'ablehnen'}`;
     case 'hours':
-      return `${hoursText(p.data.minutes)} am ${p.data.day.split('-').reverse().join('.')}${p.data.name ? ` für ${p.data.name}` : ''} (${p.data.starts_at} – ${p.data.ends_at})`;
+      return `${hoursLabel(p.data.minutes)} am ${p.data.day.split('-').reverse().join('.')}${p.data.name ? ` für ${p.data.name}` : ''} (${p.data.starts_at} – ${p.data.ends_at})`;
     case 'goal':
       return `Ziel: ${goalLabel(p.data)}`;
     case 'appointment_change': {
@@ -1748,9 +1751,8 @@ export function proposalLabel(p: Proposal): string {
 
 export const periodLabel = (p: IncomePeriod) => PERIOD_LABEL[p];
 
-const ROLE_WORD: Record<InviteRole, string> = { mitgruender: 'Mitgründer', teamleitung: 'Teamleitung', mitarbeiter: 'Mitarbeiter' };
+const ROLE_WORD: Record<InviteRole, string> = { mitgruender: 'Mitgründer', mitarbeiter: 'Mitarbeiter' };
 const LEVEL_WORD: Record<Level, string> = { off: 'aus', read: 'ansehen', write: 'bearbeiten' };
-const hoursText = (m: number) => `${String(Math.round((m / 60) * 10) / 10).replace('.', ',')} Std.`;
 
 /** Bezeichnungen der Firmendaten (wie im Bereich Firma) */
 export const COMPANY_FIELD_LABEL: Record<keyof CompanyChange, string> = {

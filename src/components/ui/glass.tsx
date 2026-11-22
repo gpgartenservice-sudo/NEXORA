@@ -52,12 +52,21 @@ export function GlassBackdrop({ radius }: { radius: number }) {
   const revealed = useContext(RevealDone);
   const [settled, setSettled] = useState(false);
   useEffect(() => {
-    if (!NATIVE_GLASS) return;
+    if (!HAS_GLASS) return;
     const timer = setTimeout(() => setSettled(true), SETTLE_MS);
     return () => clearTimeout(timer);
   }, []);
   if (WEB_GLASS) {
-    return <View pointerEvents="none" style={[StyleSheet.absoluteFill, WEB_LAYER, { borderRadius: radius }]} />;
+    // Mac/Browser: Chromium malt die Unschärfe unter einem gerade einblendenden (halbdurchsichtigen)
+    // Eltern-Element dunkel und erneuert sie erst, wenn die Maus darüberfährt – nach dem Einblenden
+    // die Glasebene deshalb einmal frisch anlegen (neuer key = neues Element, wird neu gemalt)
+    return (
+      <View
+        key={revealed && settled ? 'fertig' : 'einblenden'}
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, WEB_LAYER, { borderRadius: radius }]}
+      />
+    );
   }
   if (!NATIVE_GLASS) return null;
   return (

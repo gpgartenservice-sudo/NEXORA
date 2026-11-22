@@ -12,6 +12,7 @@ import {
   hoursCsv,
   hoursDayOk,
   hoursEditable,
+  hoursLabel,
   hoursSuggestion,
   monthBounds,
   monthName,
@@ -85,6 +86,8 @@ test('Stunden: Arbeitszeit ohne Pause, auch über Mitternacht', () => {
   assert.equal(workMinutes('22:00', '06:00', 30), 450);
   assert.equal(workMinutes('08:00', '08:00', 0), 0, 'gleiche Uhrzeit geht nicht');
   assert.ok(workMinutes('08:00', '08:30', 45) <= 0, 'Pause länger als Arbeit');
+  assert.equal(hoursLabel(465), '7,75 Std.', 'nicht auf 7,8 runden');
+  assert.equal(hoursLabel(470), '7,83 Std.');
 });
 
 test('Stunden: Pause eingeben wie man mag', () => {

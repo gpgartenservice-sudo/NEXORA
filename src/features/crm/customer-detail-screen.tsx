@@ -15,6 +15,7 @@ import { GlassBackdrop, glassSurface } from '@/components/ui/glass';
 import { TourTarget, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useHover } from '@/hooks/use-hover';
 
+import { useAccess } from '@/features/team/team-provider';
 import { useCrm } from './crm-provider';
 import { CustomerForm } from './customer-form';
 import { formatEuro, outstandingRevenue, recognizedRevenue } from './order-logic';
@@ -26,6 +27,8 @@ export function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { customerById, ordersFor, updateCustomer, deleteCustomer, loading } = useCrm();
   const customer = customerById(id);
+  // Umsatz und Ausgaben nur mit Recht „Finanzen“
+  const money = useAccess().can('finanzen');
   // Beim ersten Kunden, den man öffnet: Einführung in die Aufträge
   useAreaTutorial('auftraege');
 
@@ -85,9 +88,9 @@ export function CustomerDetailScreen() {
       <Reveal delay={200}>
         <StatRow>
           <StatTile label="Aufträge" value={String(orders.length)} />
-          <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />
-          <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />
-          <StatTile label="Ausgaben" value={formatEuro(expenses)} tone="muted" />
+          {money && <StatTile label="Umsatz (realisiert)" value={formatEuro(revenue)} tone="accent" />}
+          {money && <StatTile label="Anstehende Einnahmen" value={formatEuro(outstanding)} />}
+          {money && <StatTile label="Ausgaben" value={formatEuro(expenses)} tone="muted" />}
         </StatRow>
       </Reveal>
 

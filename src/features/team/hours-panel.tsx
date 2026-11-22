@@ -55,7 +55,8 @@ type Draft = {
 };
 
 const PAUSES = [0, 15, 30, 45, 60];
-const daysText = (n: number) => `${n} ${n === 1 ? 'Tag' : 'Tagen'}`;
+/** „1 Tag“, „2 Tage“ – nach „an“: „an 2 Tagen“ */
+const daysText = (n: number, dative = false) => `${n} ${n === 1 ? 'Tag' : dative ? 'Tagen' : 'Tage'}`;
 
 /**
  * Team → Stunden.
@@ -110,7 +111,8 @@ export function HoursPanel() {
   const total = list.reduce((s, r) => s + r.minutes, 0);
   const days = new Set(list.map((r) => r.day)).size;
   const totals = hoursByMember(rows);
-  const suggestion = hoursSuggestion(rows, me);
+  // Leitung tippt jemanden an: das Formular trägt gleich für diese Person ein
+  const suggestion = hoursSuggestion(rows, shown);
 
   const saved = (text: string) => {
     setInfo(text);
@@ -136,10 +138,10 @@ export function HoursPanel() {
 
       <Card>
         <HoursForm
-          key={`neu-${formKey}-${loaded ? 1 : 0}`}
+          key={`neu-${formKey}-${loaded ? 1 : 0}-${shown}`}
           initial={{
             id: null,
-            member: me,
+            member: shown,
             day: today,
             starts: suggestion.starts_at,
             ends: suggestion.ends_at,
@@ -163,7 +165,7 @@ export function HoursPanel() {
           {loaded && (
             <Text style={styles.monthSum}>
               {shown === me ? 'Du' : nameOf(shown)}: {hoursLabel(total)}
-              {days ? ` an ${daysText(days)}` : ''}
+              {days ? ` an ${daysText(days, true)}` : ''}
             </Text>
           )}
         </View>
@@ -343,7 +345,9 @@ function HoursForm({
           </View>
           <View style={styles.flex}>
             <Text style={styles.formTitle}>Stunden eintragen</Text>
-            <Text style={styles.hint}>Wann hast du gearbeitet? Die Leitung sieht es sofort.</Text>
+            <Text style={styles.hint}>
+              {hr ? 'Für dich oder jemanden im Team.' : 'Wann hast du gearbeitet? Die Leitung sieht es sofort.'}
+            </Text>
           </View>
         </View>
       )}

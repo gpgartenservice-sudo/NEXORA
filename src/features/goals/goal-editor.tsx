@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { useAccess } from '@/features/team/team-provider';
 import { TourTarget } from '@/features/tutorial/tour-target';
 import { todayIso } from '@/features/documents/document-logic';
 
@@ -64,7 +65,12 @@ export function GoalEditScreen() {
 function GoalEditor({ goal, preset }: { goal?: Goal; preset?: { art?: string; zeitraum?: string; ziel?: string } }) {
   const { createGoal, updateGoal, deleteGoal, error: setupError } = useGoals();
   const data = useGoalData();
-  const [kind, setKind] = useState<GoalKind>(goal?.kind ?? (isKind(preset?.art) ? preset.art : 'revenue'));
+  // Umsatzziele nur mit Recht „Finanzen“
+  const money = useAccess().can('finanzen');
+  const kinds = money ? GOAL_KINDS : GOAL_KINDS.filter((k) => k.kind !== 'revenue');
+  const [kind, setKind] = useState<GoalKind>(
+    goal?.kind ?? (isKind(preset?.art) && kinds.some((k) => k.kind === preset.art) ? preset.art : kinds[0].kind),
+  );
   const initialPeriod = (k: GoalKind, wanted?: string): GoalPeriod =>
     periodsFor(k).includes(wanted as GoalPeriod) ? (wanted as GoalPeriod) : periodsFor(k)[0];
   const [period, setPeriod] = useState<GoalPeriod>(goal?.period ?? initialPeriod(kind, preset?.zeitraum));
@@ -144,7 +150,7 @@ function GoalEditor({ goal, preset }: { goal?: Goal; preset?: { art?: string; ze
           <Card>
             <Text style={styles.cardTitle}>Was willst du erreichen?</Text>
             <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Art des Ziels">
-              {GOAL_KINDS.map((k) => (
+              {kinds.map((k) => (
                 <OptionCard
                   key={k.kind}
                   compact

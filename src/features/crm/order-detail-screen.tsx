@@ -18,6 +18,7 @@ import { Colors, Spacing } from '@/constants/theme';
 
 import { useDocuments } from '@/features/documents/documents-provider';
 import { OrderDocumentsCard } from '@/features/documents/order-documents-card';
+import { useAccess } from '@/features/team/team-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 
 import { useCrm, type Order } from './crm-provider';
@@ -34,6 +35,7 @@ import {
   type OrderFacts,
 } from './order-logic';
 import { StatusPill } from './status-pill';
+import { OrderView } from './order-view';
 import { StatusStepper } from './status-stepper';
 
 type Draft = {
@@ -92,6 +94,7 @@ function toFacts(d: Draft): OrderFacts {
 export function OrderDetailScreen() {
   const { id, mahnen } = useLocalSearchParams<{ id: string; mahnen?: string }>();
   const { orders, loading, reload: reloadOrders } = useCrm();
+  const canWrite = useAccess().can('auftraege', 'write');
   const { documents, reload: reloadDocuments } = useDocuments();
   const order = orders.find((o) => o.id === id);
 
@@ -116,6 +119,8 @@ export function OrderDetailScreen() {
       </Screen>
     );
   }
+  // Ohne Recht „Aufträge bearbeiten“ nur ansehen (als Teamleiter abhaken)
+  if (!canWrite) return <OrderView order={order} />;
   // key: bei einem anderen Auftrag frisch mit dessen Daten starten
   // (neu starten, wenn das Angebot inzwischen online angenommen wurde)
   return <OrderEditor key={`${order.id}-${order.offer_accepted ? 'a' : 'o'}`} order={order} mahnen={mahnen} />;
@@ -133,6 +138,10 @@ function rebaseDraft(draft: Draft, before: Draft, fresh: Draft): Draft {
 
 function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
   const { customerById, updateOrder, deleteOrder } = useCrm();
+  const access = useAccess();
+  // Preise, Umsatz und Ausgaben nur mit Recht „Finanzen“; Angebote/Rechnungen nur mit „Dokumente“
+  const money = access.can('finanzen');
+  const docs = access.can('dokumente');
   const customer = customerById(order.customer_id);
   const [initial, setInitial] = useState(() => toDraft(order));
   const [draft, setDraft] = useState(initial);
@@ -282,6 +291,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
           </Card>
         </Reveal>
 
+        {money && (
         <Reveal delay={340} style={styles.column}>
           <Card style={styles.fill}>
             <Text style={styles.cardTitle}>Preis & Umsatz</Text>
@@ -333,9 +343,10 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
             </View>
           </Card>
         </Reveal>
+        )}
       </TourTarget>
 
-      {customer && (
+      {customer && docs && (
         <TourTarget id="auftrag.dokumente">
           <Reveal delay={400}>
             <OrderDocumentsCard
@@ -362,6 +373,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
             style={styles.multiline}
             maxLength={5000}
           />
+          {money && (
           <View style={styles.row}>
             <View style={styles.flex}>
               <TextField
@@ -374,6 +386,7 @@ function OrderEditor({ order, mahnen }: { order: Order; mahnen?: string }) {
               />
             </View>
           </View>
+          )}
           <TextField
             label="Interne Notizen"
             value={draft.internal_notes}

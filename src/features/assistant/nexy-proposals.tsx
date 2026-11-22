@@ -137,7 +137,7 @@ function head(p: Proposal): { icon: LucideIcon; kind: string; title: string } {
     case 'team_invite':
       return { icon: MailPlus, kind: 'Ins Team einladen', title: p.data.email };
     case 'team_access':
-      return { icon: KeyRound, kind: 'Rechte ändern', title: p.data.role === 'teamleitung' ? 'Teamleitung' : 'Mitarbeiter' };
+      return { icon: KeyRound, kind: 'Rechte ändern', title: 'Mitarbeiter' };
     case 'absence':
       return {
         icon: p.data.kind === 'krank' ? HeartPulse : CalendarPlus,

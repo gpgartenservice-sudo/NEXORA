@@ -13,7 +13,7 @@ import { useGoals } from '@/features/goals/goals-provider';
 import { GOALS, type Goal } from '@/features/onboarding/options';
 import { stepsFor } from '@/features/roadmap/content';
 import { useRoadmap } from '@/features/roadmap/roadmap-provider';
-import { useTeam } from '@/features/team/team-provider';
+import { useAccess, useTeam } from '@/features/team/team-provider';
 import { useProfile } from '@/providers/profile-provider';
 
 import { FOCUS, focusGoalOfDay, GOAL_FOCUS } from './content';
@@ -104,19 +104,21 @@ function useGoalMetric(goal: Goal | null): { value: string; label: string } | nu
   const { done } = useRoadmap();
   const { profile } = useProfile();
   const { team } = useTeam();
+  // Umsatz und Ausgaben nur mit Recht „Finanzen“
+  const money = useAccess().can('finanzen');
   if (!goal) return null;
   const month = monthNumbers(orders, expenses);
   switch (goal) {
     case 'first_customers':
       return { value: String(customers.length), label: customers.length === 1 ? 'Kunde bisher' : 'Kunden bisher' };
     case 'more_revenue':
-      return { value: formatEuro(month.income), label: 'Umsatz diesen Monat' };
+      return money ? { value: formatEuro(month.income), label: 'Umsatz diesen Monat' } : null;
     case 'organization': {
       const open = todos.filter((t) => !t.done).length;
       return { value: String(open), label: open === 1 ? 'offenes To-do' : 'offene To-dos' };
     }
     case 'finances':
-      return { value: formatEuro(month.expenses), label: 'Ausgaben diesen Monat eingetragen' };
+      return money ? { value: formatEuro(month.expenses), label: 'Ausgaben diesen Monat eingetragen' } : null;
     case 'motivation': {
       const steps = stepsFor(profile?.stage);
       return { value: `${steps.filter((s) => done.has(s.key)).length}/${steps.length}`, label: 'Schritte im Fahrplan geschafft' };

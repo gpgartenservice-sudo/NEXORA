@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { supabase } from '@/lib/supabase';
 import { roleErrorText } from '@/features/team/roles';
+import { useAccess } from '@/features/team/team-provider';
 
 import type { Goal, Todo } from './goals-logic';
 
@@ -143,9 +144,12 @@ export function GoalsProvider({ userId, children }: { userId: string; children: 
     return {};
   }, []);
 
+  // Umsatzziele nur mit Recht „Finanzen“ (sonst sähe man darüber den Umsatz)
+  const money = useAccess().can('finanzen');
+  const shownGoals = useMemo(() => (money ? goals : goals.filter((g) => g.kind !== 'revenue')), [goals, money]);
   const value = useMemo<State>(
-    () => ({ todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload }),
-    [todos, goals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload],
+    () => ({ todos, goals: shownGoals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload }),
+    [todos, shownGoals, loading, error, createTodo, updateTodo, deleteTodo, createGoal, updateGoal, deleteGoal, reload],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

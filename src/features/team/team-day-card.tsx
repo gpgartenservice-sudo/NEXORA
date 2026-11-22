@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ArrowRight, CalendarClock, MessagesSquare, UserCheck } from 'lucide-react-native';
+import { ArrowRight, CalendarClock, CheckCircle2, MessagesSquare, UserCheck } from 'lucide-react-native';
 import { useEffect, useState, type ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -27,7 +27,16 @@ import { useTeamHub } from './team-hub-provider';
 import { useAccess, useTeam } from './team-provider';
 
 /** Eigener Einsatz (aus dem Plan – Mitarbeiter: aus dem fertigen Plan) */
-type MyJob = { day: string; starts_at: string; ends_at: string; site: string | null; note: string | null; lead: boolean; crew: number };
+type MyJob = {
+  day: string;
+  starts_at: string;
+  ends_at: string;
+  site: string | null;
+  note: string | null;
+  lead: boolean;
+  crew: number;
+  order_id?: string | null;
+};
 
 type Icon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
@@ -97,7 +106,9 @@ export function TeamDayCard() {
 
   const todays = shifts.filter((s) => s.day === today);
   const next = shifts.find((s) => s.day > today);
-  const where = (j: MyJob) => [j.site, j.lead && j.crew > 1 ? 'du bist Teamleiter' : null].filter(Boolean).join(' · ');
+  const where = (j: MyJob) => [j.site, j.lead && (j.crew > 1 || j.order_id) ? 'du bist Teamleiter' : null].filter(Boolean).join(' · ');
+  // Teamleiter mit Auftrag heute: zum Abhaken in den Plan
+  const leadOrder = todays.some((j) => j.lead && j.order_id);
   const meAway = away.find((a) => a.member_id === me);
   const others = away.filter((a) => a.member_id !== me);
 
@@ -123,6 +134,14 @@ export function TeamDayCard() {
       <Text style={styles.title}>{headline}</Text>
       {!!sub && <Text style={styles.sub}>{sub}</Text>}
       <View style={styles.chips}>
+        {leadOrder && (
+          <Chip
+            icon={CheckCircle2}
+            label="Auftrag abhaken"
+            onPress={() => router.navigate({ pathname: '/team', params: { tab: 'plan' } })}
+            strong
+          />
+        )}
         {hub.unread > 0 && (
           <Chip icon={MessagesSquare} label={`${hub.unread} ${hub.unread === 1 ? 'neue Nachricht' : 'neue Nachrichten'}`} onPress={() => router.navigate('/team')} strong />
         )}

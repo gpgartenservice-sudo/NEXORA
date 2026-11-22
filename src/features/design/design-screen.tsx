@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { Check, Plus, X } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Check, Play, Plus, Square, X } from 'lucide-react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -28,8 +28,10 @@ import {
   LUNA_SETS,
   type LunaLook,
 } from '@/features/assistant/luna-look';
+import { LUNA_VOICES, VOICE_SAMPLE, type LunaVoice } from '@/features/assistant/luna-voice';
 import { LunaWearPreview } from '@/features/assistant/luna-wear';
 import { NexyAvatar } from '@/features/assistant/nexy-avatar';
+import { speak, speechSupported, type Speech } from '@/features/assistant/voice';
 import { usePlan, useProGate } from '@/features/plan/plan-provider';
 import { useHover } from '@/hooks/use-hover';
 import { useProfile } from '@/providers/profile-provider';
@@ -118,6 +120,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
   /** Luna gibt es für alle – auch wenn ein früherer Pro-Hintergrund noch gespeichert ist */
   const setAccent = (accent: string) => setDraft((d) => ({ ...d, accent }));
   const setLook = (patch: Partial<LunaLook>) => setDraft((d) => ({ ...d, luna: { ...d.luna, ...patch } }));
+  const setVoice = (voice: LunaVoice) => setDraft((d) => ({ ...d, voice }));
 
   /** Mac/Browser: speichern und die App neu laden, damit die Farbe überall gilt */
   const [applying, setApplying] = useState(false);
@@ -197,7 +200,7 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
     setSlot(0);
   };
 
-  const shown = pro ? draft : { ...DEFAULT_DESIGN, accent: draft.accent, luna: draft.luna };
+  const shown = pro ? draft : { ...DEFAULT_DESIGN, accent: draft.accent, luna: draft.luna, voice: draft.voice };
 
   return (
     <DesignProvider design={shown}>
@@ -218,6 +221,10 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
             applying={applying}
             onApply={() => void applyAccent()}
           />
+        </Reveal>
+
+        <Reveal delay={60}>
+          <VoiceCard voice={draft.voice} onVoice={setVoice} />
         </Reveal>
 
         <View style={styles.sectionHead}>
@@ -367,7 +374,13 @@ function DesignEditor({ initial }: { initial: DesignSettings }) {
               label="Auf Klassisch zurücksetzen"
               onPress={() => {
                 setSlot(0);
-                update({ ...DEFAULT_DESIGN, gradient: [...DEFAULT_DESIGN.gradient], accent: draft.accent, luna: draft.luna });
+                update({
+                  ...DEFAULT_DESIGN,
+                  gradient: [...DEFAULT_DESIGN.gradient],
+                  accent: draft.accent,
+                  luna: draft.luna,
+                  voice: draft.voice,
+                });
               }}
             />
           )}
@@ -521,6 +534,113 @@ function AccentCard({
         </View>
       )}
     </Card>
+  );
+}
+
+/** Lunas Stimme: drei Stimmen zum Auswählen und Reinhören (für alle Abos) */
+function VoiceCard({ voice, onVoice }: { voice: LunaVoice; onVoice: (voice: LunaVoice) => void }) {
+  const [playing, setPlaying] = useState<LunaVoice | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const speech = useRef<Speech | null>(null);
+  const canListen = speechSupported();
+  // Seite verlassen: Probe nicht weiterlaufen lassen
+  useEffect(() => () => speech.current?.cancel(), []);
+
+  /** Probe abspielen – nochmal tippen hält sie an */
+  const listen = (key: LunaVoice) => {
+    const again = playing === key;
+    speech.current?.cancel();
+    if (again) return;
+    setError(null);
+    setPlaying(key);
+    const s = speak(VOICE_SAMPLE, { voice: key, cache: true, onError: (e) => setError(e) });
+    speech.current = s;
+    void s.done.then(() => {
+      if (speech.current !== s) return;
+      speech.current = null;
+      setPlaying(null);
+    });
+  };
+  /** Stimme wählen und gleich hören, wie sie klingt */
+  const choose = (key: LunaVoice) => {
+    onVoice(key);
+    if (canListen && playing !== key) listen(key);
+  };
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Lunas Stimme</Text>
+      <Text style={styles.hint}>
+        Mit dieser Stimme liest Luna dir vor und spricht im Sprachmodus. Tipp auf ▶, um reinzuhören. Für alle Abos.
+      </Text>
+      <View style={styles.voices} accessibilityRole="radiogroup" accessibilityLabel="Lunas Stimme">
+        {LUNA_VOICES.map((v) => (
+          <VoiceRow
+            key={v.key}
+            title={v.title}
+            text={v.text}
+            active={voice === v.key}
+            playing={playing === v.key}
+            canListen={canListen}
+            onChoose={() => choose(v.key)}
+            onListen={() => listen(v.key)}
+          />
+        ))}
+      </View>
+      {error && <Notice tone="error">{error}</Notice>}
+    </Card>
+  );
+}
+
+function VoiceRow({
+  title,
+  text,
+  active,
+  playing,
+  canListen,
+  onChoose,
+  onListen,
+}: {
+  title: string;
+  text: string;
+  active: boolean;
+  playing: boolean;
+  canListen: boolean;
+  onChoose: () => void;
+  onListen: () => void;
+}) {
+  const { hovered, hoverProps } = useHover();
+  const play = useHover();
+  return (
+    <View style={[styles.voiceRow, active && styles.hatActive, hovered && !active && styles.tileHover]}>
+      <Pressable
+        onPress={onChoose}
+        {...hoverProps}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: active }}
+        accessibilityLabel={`${title}: ${text}`}
+        style={styles.voicePick}>
+        <View style={[styles.radio, active && styles.radioActive]}>{active && <View style={styles.radioDot} />}</View>
+        <View style={styles.flex}>
+          <Text style={styles.voiceTitle}>{title}</Text>
+          <Text style={styles.voiceText}>{text}</Text>
+        </View>
+      </Pressable>
+      {canListen && (
+        <Pressable
+          onPress={onListen}
+          {...play.hoverProps}
+          accessibilityRole="button"
+          accessibilityLabel={playing ? `Probe von ${title} anhalten` : `${title} anhören`}
+          style={[styles.play, (playing || play.hovered) && styles.playActive]}>
+          {playing ? (
+            <Square size={14} color={Colors.accent} fill={Colors.accent} />
+          ) : (
+            <Play size={16} color={Colors.text} fill={Colors.text} style={styles.playIcon} />
+          )}
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -946,6 +1066,43 @@ const styles = StyleSheet.create({
   },
   tileActive: { borderColor: Colors.accent },
   tileHover: { backgroundColor: Colors.surfaceRaised },
+
+  voices: { gap: Spacing.sm },
+  voiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingRight: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  voicePick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingLeft: 14 },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.textFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioActive: { borderColor: Colors.accent },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent },
+  voiceTitle: { color: Colors.text, fontSize: 14.5, fontWeight: '700' },
+  voiceText: { color: Colors.textMuted, fontSize: 12.5, lineHeight: 17 },
+  play: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceRaised,
+  },
+  playActive: { backgroundColor: accentAlpha(0.18) },
+  // das Dreieck wirkt optisch erst mittig, wenn es etwas nach rechts rückt
+  playIcon: { marginLeft: 2 },
   tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tileEmoji: { fontSize: 28, lineHeight: 34, color: Colors.textMuted },
   tileIcon: { height: 34, minWidth: 34, alignItems: 'flex-start', justifyContent: 'center' },

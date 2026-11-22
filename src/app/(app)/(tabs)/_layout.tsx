@@ -17,6 +17,7 @@ import { RoadmapProvider } from '@/features/roadmap/roadmap-provider';
 import { SocialConnectProvider } from '@/features/social/connect-provider';
 import { SocialProvider } from '@/features/social/social-provider';
 import { GuideProvider } from '@/features/assistant/nexy-guide';
+import { setSpeechVoice } from '@/features/assistant/luna-voice';
 import { NexyProvider } from '@/features/assistant/nexy-provider';
 import { AppointmentsProvider } from '@/features/appointments/appointments-provider';
 import { PlanProvider } from '@/features/plan/plan-provider';
@@ -73,8 +74,10 @@ function Workspace() {
     const chosen = readDesign(rawDesign);
     // solange das Profil lädt: die Farbe, mit der die App gestartet ist (kein Aufblitzen)
     const accent = rawDesign === undefined ? ACCENT : chosen.accent;
-    return pro ? { ...chosen, accent } : { ...DEFAULT_DESIGN, accent, luna: chosen.luna };
+    return pro ? { ...chosen, accent } : { ...DEFAULT_DESIGN, accent, luna: chosen.luna, voice: chosen.voice };
   }, [pro, rawDesign]);
+  // Lunas Stimme (Profil → Design) fürs Vorlesen überall
+  useEffect(() => setSpeechVoice(design.voice), [design.voice]);
   // fürs nächste Öffnen merken: das Intro zeigt dann schon diesen Hintergrund
   useEffect(() => saveDesign(design), [design]);
   // Akzentfarbe auf dem Gerät merken – gilt ab dem nächsten Start (z. B. am Handy gewählt → Mac)

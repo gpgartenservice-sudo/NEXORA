@@ -4,10 +4,14 @@
  * nexora_role_default, nexora_may, Trigger nexora_guard_write); die App blendet nur aus.
  */
 
-/** inhaber = wem die Firma gehört; Inhaber + Mitgründer = Arbeitgeber */
-export type MemberRole = 'inhaber' | 'mitgruender' | 'teamleitung' | 'mitarbeiter';
+/**
+ * inhaber = wem die Firma gehört; Inhaber + Mitgründer = Arbeitgeber; alle anderen sind Mitarbeiter.
+ * Teamleiter ist keine feste Rolle mehr, sondern wird im Arbeitsplan pro Einsatz bestimmt
+ * (Skript 20261202090000_teamleiter_einsatz.sql) – er darf den Auftrag des Einsatzes abhaken.
+ */
+export type MemberRole = 'inhaber' | 'mitgruender' | 'mitarbeiter';
 /** Rollen, deren Rechte der Admin einstellt */
-export type EditableRole = 'teamleitung' | 'mitarbeiter';
+export type EditableRole = 'mitarbeiter';
 export type Area =
   | 'kunden'
   | 'auftraege'
@@ -44,15 +48,13 @@ export const AREA_LABEL = Object.fromEntries(AREAS.map((a) => [a.key, a.label]))
 export const ROLE_LABEL: Record<MemberRole, string> = {
   inhaber: 'Inhaber',
   mitgruender: 'Mitgründer',
-  teamleitung: 'Teamleitung',
   mitarbeiter: 'Mitarbeiter',
 };
 
 export const ROLE_HINT: Record<MemberRole, string> = {
   inhaber: 'Gehört die Firma, sieht alles, verwaltet Team und Abo.',
   mitgruender: 'Arbeitgeber: sieht alles, verwaltet das Team, im Leitungs-Chat.',
-  teamleitung: 'Plant das Team, genehmigt Urlaub – Rechte stellst du ein.',
-  mitarbeiter: 'Bekommt To-dos von der Leitung, trägt Stunden ein, beantragt Urlaub – Rechte stellst du ein.',
+  mitarbeiter: 'Bekommt To-dos von der Leitung, trägt Stunden ein, beantragt Urlaub. Als Teamleiter eines Einsatzes hakt er dessen Auftrag ab – Rechte stellst du ein.',
 };
 
 const all = (level: Level): Access =>
@@ -60,20 +62,6 @@ const all = (level: Level): Access =>
 
 /** Vorlagen – gleiche Werte wie nexora_role_default() (zuletzt in 20261201090000_aufgaben_stunden.sql) */
 export const DEFAULT_ACCESS: Record<EditableRole, Access> = {
-  teamleitung: {
-    kunden: 'write',
-    auftraege: 'write',
-    termine: 'write',
-    aufgaben: 'write',
-    dokumente: 'write',
-    finanzen: 'off',
-    lager: 'write',
-    social: 'write',
-    firma: 'read',
-    luna: 'write',
-    fahrplan: 'off',
-    personal: 'write',
-  },
   // Kunden, Firma und Finanzen standardmäßig aus; To-dos bekommen Mitarbeiter von der Leitung
   mitarbeiter: {
     kunden: 'off',
@@ -108,7 +96,13 @@ export function parseAccess(raw: unknown, fallback: Access): Access {
 }
 
 export function isRole(v: unknown): v is MemberRole {
-  return v === 'inhaber' || v === 'mitgruender' || v === 'teamleitung' || v === 'mitarbeiter';
+  return v === 'inhaber' || v === 'mitgruender' || v === 'mitarbeiter';
+}
+
+/** Rolle aus der Datenbank; die frühere feste „Teamleitung“ ist heute Mitarbeiter */
+export function parseRole(v: unknown): MemberRole | null {
+  if (v === 'teamleitung') return 'mitarbeiter';
+  return isRole(v) ? v : null;
 }
 
 /** Inhaber und Mitgründer: sehen alles, verwalten das Team, schreiben im Leitungs-Chat */
@@ -157,6 +151,11 @@ const TEAM_RULES: Record<string, string> = {
   hours_invalid: 'Die Pause ist länger als die Arbeitszeit – bitte Beginn, Ende und Pause prüfen.',
   hours_day_invalid: 'Stunden kannst du für heute und die letzten 62 Tage eintragen.',
   hours_locked: 'Stunden, die älter als 62 Tage sind, kann nur noch die Leitung ändern.',
+  // ältere App-Version bietet noch „Teamleitung“ an
+  _role_check: 'Die Rolle „Teamleitung“ gibt es nicht mehr. Wer Teamleiter ist, legst du im Arbeitsplan pro Einsatz fest.',
+  order_not_lead: 'Diesen Auftrag kann nur der Teamleiter des Einsatzes oder die Leitung abhaken.',
+  order_not_found: 'Diesen Auftrag gibt es nicht mehr.',
+  order_cancelled: 'Dieser Auftrag ist storniert.',
 };
 
 export function roleErrorText(message: string | null | undefined): string | null {

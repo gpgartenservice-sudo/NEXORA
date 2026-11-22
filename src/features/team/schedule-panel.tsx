@@ -1,5 +1,5 @@
 import { randomUUID } from 'expo-crypto';
-import { CheckCircle2, ChevronLeft, ChevronRight, Crown, FileText, MapPin, Plus, Send, TriangleAlert } from 'lucide-react-native';
+import { Briefcase, CheckCircle2, ChevronLeft, ChevronRight, Crown, FileText, MapPin, Plus, Send, TriangleAlert } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +10,8 @@ import { Notice } from '@/components/ui/notice';
 import { Segmented } from '@/components/ui/segmented';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Spacing, accentAlpha } from '@/constants/theme';
+import { useCrm, type Order } from '@/features/crm/crm-provider';
+import { orderLeadDone } from '@/features/crm/order-lead';
 import { useDocuments } from '@/features/documents/documents-provider';
 import { PDF_SAVED, pdfSupported } from '@/features/documents/save-pdf';
 import { playSound } from '@/features/sound/ui-sound';
@@ -60,7 +62,7 @@ type Editing = { day: string; job?: Job };
 
 /**
  * Team → Arbeitsplan, Woche für Woche.
- * Wer Personal verwaltet (Inhaber, Mitgründer, ggf. Teamleitung), plant Einsätze – Ort, Zeit,
+ * Wer Personal verwaltet (Inhaber, Mitgründer, ggf. Mitarbeiter mit Recht „Personal“), plant Einsätze – Ort, Zeit,
  * mehrere Leute, einer davon Teamleiter – und stellt die Woche fertig. Daraus wird ein PDF.
  * Alle anderen sehen nur den fertigen Plan, nicht den Entwurf.
  */
@@ -205,7 +207,7 @@ function PlanSheet({ plan, me, onlyMine }: { plan: PlanSnapshot; me: string; onl
             </View>
             {!jobs.length && <Text style={styles.paperNone}>{d.holiday ? 'Feiertag – keine Einsätze' : 'Keine Einsätze'}</Text>}
             {jobs.map((j, i) => (
-              <PaperJob key={i} job={j} mine={j.members.includes(me)} nameOf={nameOf} />
+              <PaperJob key={i} job={j} me={me} nameOf={nameOf} />
             ))}
             {away.length > 0 && <Text style={styles.paperAway}>Abwesend: {away.map(nameOf).join(', ')}</Text>}
           </View>
@@ -215,7 +217,8 @@ function PlanSheet({ plan, me, onlyMine }: { plan: PlanSnapshot; me: string; onl
   );
 }
 
-function PaperJob({ job, mine, nameOf }: { job: PlanJob; mine: boolean; nameOf: (id: string) => string }) {
+function PaperJob({ job, me, nameOf }: { job: PlanJob; me: string; nameOf: (id: string) => string }) {
+  const mine = job.members.includes(me);
   const title = job.site ?? (job.members.length === 1 ? nameOf(job.members[0]) : 'Einsatz');
   const showCrew = !!job.site || job.members.length > 1;
   return (
@@ -224,9 +227,49 @@ function PaperJob({ job, mine, nameOf }: { job: PlanJob; mine: boolean; nameOf: 
       <View style={styles.flex}>
         <Text style={styles.paperSite}>{title}</Text>
         {!!job.address && <Text style={styles.paperMuted}>{job.address}</Text>}
+        {!!job.order_title && job.order_title !== job.site && <Text style={styles.paperMuted}>Auftrag: {job.order_title}</Text>}
         {showCrew && <Text style={styles.paperCrew}>{crewLabel(job, nameOf)}</Text>}
         {!!job.note && <Text style={styles.paperNote}>{job.note}</Text>}
+        {!!job.order_id && job.lead === me && <LeadOrderButton orderId={job.order_id} />}
       </View>
+    </View>
+  );
+}
+
+/** Teamleiter: Auftrag des Einsatzes abhaken oder wieder öffnen */
+function LeadOrderButton({ orderId }: { orderId: string }) {
+  const { orders, reload } = useCrm();
+  const order = orders.find((o) => o.id === orderId);
+  // ohne Recht „Aufträge ansehen“ kennt die App den Stand nur aus der eigenen Antwort
+  const [doneHere, setDoneHere] = useState<boolean | null>(null);
+  const done = order ? order.completed : !!doneHere;
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  if (order?.cancelled) return null;
+  const toggle = async () => {
+    setBusy(true);
+    setMessage(null);
+    const r = await orderLeadDone(orderId, !done);
+    setBusy(false);
+    if (r.error) return setMessage({ tone: 'error', text: r.error });
+    playSound('check');
+    setDoneHere(!!r.completed);
+    setMessage({ tone: 'success', text: r.completed ? 'Auftrag abgeschlossen – die Leitung sieht es sofort.' : 'Auftrag ist wieder offen.' });
+    void reload();
+  };
+  return (
+    <View style={styles.leadBox}>
+      <View style={styles.leadRow}>
+        <Crown size={13} color="#B7791F" strokeWidth={2.2} />
+        <Text style={styles.leadHint}>{done ? 'Auftrag erledigt' : 'Du bist Teamleiter – fertig?'}</Text>
+      </View>
+      <Button
+        label={done ? 'Wieder öffnen' : 'Auftrag erledigt ✓'}
+        variant={done ? 'secondary' : 'primary'}
+        onPress={() => void toggle()}
+        loading={busy}
+      />
+      {!!message && <Text style={message.tone === 'error' ? styles.leadError : styles.leadDone}>{message.text}</Text>}
     </View>
   );
 }
@@ -315,6 +358,8 @@ function PlanEditor({ monday }: { monday: string }) {
   const members = useMemo(() => team?.members ?? [], [team?.members]);
   const names = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
   const fullName = (id: string) => names.get(id) ?? '?';
+  const { orders } = useCrm();
+  const orderTitle = useCallback((id: string) => orders.find((o) => o.id === id)?.title ?? null, [orders]);
   const jobs = useMemo(() => groupJobs(shifts), [shifts]);
   const visibleJobs = who === 'ich' ? jobs.filter((j) => j.members.includes(me)) : jobs;
   const mine = shifts.filter((s) => s.member_id === me);
@@ -323,7 +368,10 @@ function PlanEditor({ monday }: { monday: string }) {
 
   // So würde der Plan jetzt aussehen – Abwesenheiten nur, wenn sie feststehen
   const confirmedAway = useMemo(() => absences.filter((a) => a.status === 'genehmigt' || a.status === 'gemeldet'), [absences]);
-  const draft = useMemo(() => planSnapshot(monday, shifts, confirmedAway, names), [monday, shifts, confirmedAway, names]);
+  const draft = useMemo(
+    () => planSnapshot(monday, shifts, confirmedAway, names, orderTitle),
+    [monday, shifts, confirmedAway, names, orderTitle],
+  );
   const upToDate = !!published && samePlan(published.plan, draft);
 
   const copyLastWeek = async () => {
@@ -598,6 +646,8 @@ function JobCard({
   onPress: () => void;
 }) {
   const { hovered, hoverProps } = useHover();
+  const { orders } = useCrm();
+  const order = job.order_id ? orders.find((o) => o.id === job.order_id) : null;
   const absent = job.members.filter((m) => absentOn(absences, m, job.day));
   const minutes = shiftMinutes(job);
   const title = job.site ?? (job.members.length === 1 ? nameOf(job.members[0]) : 'Einsatz');
@@ -617,6 +667,15 @@ function JobCard({
         <Text style={styles.jobHours}>{hoursLabel(minutes)}</Text>
       </View>
       {!!job.address && <Text style={styles.jobMuted}>{job.address}</Text>}
+      {!!job.order_id && (
+        <View style={styles.orderLine}>
+          <Briefcase size={13} color={Colors.textMuted} />
+          <Text style={styles.jobMuted} numberOfLines={1}>
+            Auftrag: {order?.title ?? 'gelöscht'}
+            {order?.completed ? ' · erledigt ✓' : ''}
+          </Text>
+        </View>
+      )}
       {(!!job.site || job.members.length > 1) && (
         <View style={styles.crew}>
           {job.members.map((m) => (
@@ -674,6 +733,22 @@ function JobForm({
   const [address, setAddress] = useState(job?.address ?? '');
   const [people, setPeople] = useState<string[]>(job?.members ?? []);
   const [lead, setLead] = useState<string | null>(job?.lead ?? null);
+  const [orderId, setOrderId] = useState<string | null>(job?.order_id ?? null);
+  const [orderQuery, setOrderQuery] = useState('');
+  const { orders, customerById } = useCrm();
+  const orderChoices = useMemo(
+    () => pickableOrders(orders, orderId, orderQuery, job?.day ?? day, (id) => customerById(id)?.name ?? null),
+    [orders, orderId, orderQuery, job?.day, day, customerById],
+  );
+  const openOrders = orders.filter((o) => !o.completed && !o.cancelled).length;
+  const pickOrder = (o: Order) => {
+    if (orderId === o.id) return setOrderId(null);
+    setOrderId(o.id);
+    const customer = customerById(o.customer_id);
+    // Ort und Adresse vom Kunden übernehmen, wenn noch leer
+    if (!site.trim()) setSite(customer?.name ?? o.title);
+    if (!address.trim() && customer?.address) setAddress(customer.address);
+  };
   const [days, setDays] = useState<string[]>([day]);
   const [start, setStart] = useState(job ? timeLabel(job.starts_at) : '07:00');
   const [end, setEnd] = useState(job ? timeLabel(job.ends_at) : '16:00');
@@ -705,8 +780,9 @@ function JobForm({
       site: site.trim() || null,
       address: address.trim() || null,
       note: note.trim() || null,
-      lead: people.length > 1 || site.trim() ? lead : null,
+      lead: people.length > 1 || site.trim() || orderId ? lead : null,
       members: people,
+      order_id: orderId,
     });
     // erst die neuen Zeilen speichern, dann die alten löschen – klappt etwas nicht, bleibt der alte Stand
     const { error: err } = await supabase.from('work_shifts').insert(rows.map((r) => ({ ...r, company_id: ws })));
@@ -770,6 +846,28 @@ function JobForm({
       )}
       <TextField label="Adresse (optional)" value={address} onChangeText={setAddress} placeholder="Straße, Ort" maxLength={200} />
 
+      {(orders.length > 0 || !!orderId) && (
+        <>
+          <Text style={styles.formLabel}>Auftrag (optional) · der Teamleiter kann ihn abhaken</Text>
+          {openOrders > 8 && (
+            <TextField label="Auftrag suchen" value={orderQuery} onChangeText={setOrderQuery} placeholder="Leistung oder Kunde" />
+          )}
+          <View style={styles.chips}>
+            {orderChoices.map((o) => {
+              const customer = customerById(o.customer_id)?.name;
+              return (
+                <Chip
+                  key={o.id}
+                  label={`${orderId === o.id ? '✓ ' : ''}${o.title}${customer ? ` · ${customer}` : ''}`}
+                  active={orderId === o.id}
+                  onPress={() => pickOrder(o)}
+                />
+              );
+            })}
+          </View>
+        </>
+      )}
+
       <Text style={styles.formLabel}>Wer ist dabei? · {people.length ? `${people.length} ausgewählt` : 'mehrere möglich'}</Text>
       <View style={styles.chips}>
         {members.map((m) => (
@@ -777,9 +875,9 @@ function JobForm({
         ))}
       </View>
 
-      {people.length > 0 && (people.length > 1 || !!site.trim()) && (
+      {people.length > 0 && (people.length > 1 || !!site.trim() || !!orderId) && (
         <>
-          <Text style={styles.formLabel}>Teamleiter vor Ort</Text>
+          <Text style={styles.formLabel}>Teamleiter vor Ort{orderId ? ' · darf den Auftrag abhaken' : ''}</Text>
           <View style={styles.chips}>
             {people.map((id) => (
               <Chip key={id} label={`${lead === id ? '★ ' : ''}${nameOf(id)}`} active={lead === id} onPress={() => setLead(lead === id ? null : id)} />
@@ -844,6 +942,26 @@ function JobForm({
       )}
     </View>
   );
+}
+
+/** Aufträge zum Auswählen: offene (und der gewählte), passende zum Tag zuerst, höchstens 8 */
+function pickableOrders(
+  orders: Order[],
+  selected: string | null,
+  query: string,
+  day: string,
+  customerName: (id: string) => string | null,
+): Order[] {
+  const q = query.trim().toLowerCase();
+  const list = orders.filter(
+    (o) =>
+      o.id === selected ||
+      (!o.completed &&
+        !o.cancelled &&
+        (!q || o.title.toLowerCase().includes(q) || (customerName(o.customer_id) ?? '').toLowerCase().includes(q))),
+  );
+  const rank = (o: Order) => (o.id === selected ? 0 : o.execution_at?.slice(0, 10) === day ? 1 : 2);
+  return list.sort((a, b) => rank(a) - rank(b) || b.updated_at.localeCompare(a.updated_at)).slice(0, 8);
 }
 
 const PAPER_INK = '#141417';
@@ -994,4 +1112,10 @@ const styles = StyleSheet.create({
   paperCrew: { color: PAPER_INK, fontSize: 13 },
   paperNote: { color: PAPER_MUTED, fontSize: 12.5, fontStyle: 'italic' },
   paperAway: { color: PAPER_MUTED, fontSize: 12.5, marginLeft: 10 },
+  leadBox: { gap: 6, marginTop: 6, alignSelf: 'stretch' },
+  leadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  leadHint: { color: PAPER_INK, fontSize: 13, fontWeight: '600' },
+  leadDone: { color: PAPER_MUTED, fontSize: 12.5 },
+  leadError: { color: '#B42318', fontSize: 12.5, fontWeight: '600' },
+  orderLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

@@ -64,7 +64,7 @@ type Message = { tone: 'success' | 'error'; text: string } | null;
 
 /**
  * Profil → Team: Mitglieder mit Rollen, Rechte je Rolle, Einladen und Beitreten.
- * Business: bis zu 5 Personen, Teams: bis zu 30 (Inhaber, Mitgründer, Teamleitung, Mitarbeiter).
+ * Business: bis zu 5 Personen, Teams: bis zu 30 (Inhaber, Mitgründer, Mitarbeiter; Teamleiter pro Einsatz im Arbeitsplan).
  */
 export function TeamScreen() {
   const { user } = useAuth();
@@ -354,7 +354,6 @@ function MemberRow({
 
   const roleOptions: { value: InviteRole; label: string }[] = [
     ...(myRole === 'inhaber' ? [{ value: 'mitgruender' as const, label: 'Mitgründer' }] : []),
-    { value: 'teamleitung', label: 'Teamleitung' },
     { value: 'mitarbeiter', label: 'Mitarbeiter' },
   ];
   const sub = [ROLE_LABEL[m.role], m.title, m.owner ? null : joinedText(m.joined_at)].filter(Boolean).join(' · ');
@@ -438,7 +437,8 @@ function RolesCard({
   onSaved: () => void;
   onError: (text: string) => void;
 }) {
-  const [role, setRole] = useState<EditableRole>('mitarbeiter');
+  // Teamleiter ist keine Rolle mehr (wird im Arbeitsplan pro Einsatz bestimmt)
+  const role: EditableRole = 'mitarbeiter';
   const [draft, setDraft] = useState(roles);
   // Neue Daten vom Server übernehmen, solange gerade nichts gespeichert wird
   const saving = useRef(0);
@@ -467,17 +467,9 @@ function RolesCard({
         <Text style={styles.cardTitle}>Rollen & Rechte</Text>
       </View>
       <Text style={styles.body}>
-        Inhaber und Mitgründer sehen immer alles. Für Teamleitung und Mitarbeiter stellst du hier ein, was sie sehen und
-        bearbeiten dürfen.
+        Inhaber und Mitgründer sehen immer alles. Für Mitarbeiter stellst du hier ein, was sie sehen und bearbeiten dürfen.
+        Wer Teamleiter ist, legst du im Arbeitsplan pro Einsatz fest – er darf dann den Auftrag des Einsatzes abhaken.
       </Text>
-      <Segmented
-        value={role}
-        onChange={setRole}
-        options={[
-          { value: 'teamleitung', label: 'Teamleitung' },
-          { value: 'mitarbeiter', label: 'Mitarbeiter' },
-        ]}
-      />
       <View style={styles.areas}>
         {AREAS.map((a) =>
           a.toggle ? (
@@ -557,7 +549,6 @@ function InviteCard({
   const [role, setRole] = useState<InviteRole>('mitarbeiter');
   const options: { value: InviteRole; label: string }[] = [
     ...(myRole === 'inhaber' ? [{ value: 'mitgruender' as const, label: 'Mitgründer' }] : []),
-    { value: 'teamleitung', label: 'Teamleitung' },
     { value: 'mitarbeiter', label: 'Mitarbeiter' },
   ];
   return (

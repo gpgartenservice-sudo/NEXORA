@@ -20,7 +20,7 @@ const members = [
   { id: 'tom', name: 'Tom Grau', role: 'inhaber', title: null, vacation_days: null },
   { id: 'pascal', name: 'Pascal Pape', role: 'mitgruender', title: null, vacation_days: null },
   { id: 'anna', name: 'Anna Berg', role: 'mitarbeiter', title: 'Azubi', vacation_days: 25 },
-  { id: 'ben', name: 'Ben Krüger', role: 'teamleitung', title: null, vacation_days: 28 },
+  { id: 'ben', name: 'Ben Krüger', role: 'mitarbeiter', title: null, vacation_days: 28 },
 ];
 const boss = { me: 'tom', role: 'inhaber', hr: true, canTodo: true, members, roles: DEFAULT_ACCESS };
 const employee = { me: 'anna', role: 'mitarbeiter', hr: false, canTodo: false, members };
@@ -141,11 +141,13 @@ test('Nachricht ins Team: alle, direkt, Leitung nur für Arbeitgeber', () => {
 });
 
 test('Mitglieder: Rolle, Bezeichnung, Urlaubstage, entfernen – mit Rechten', () => {
-  const [p] = build(act('team_member', { person: 'Anna', role: 'teamleitung', vacation_days: 27, title: 'none' }), boss);
+  const [p] = build(act('team_member', { person: 'Anna', role: 'mitgruender', vacation_days: 27, title: 'none' }), boss);
   assert.deepEqual(
     { role: p.data.role, title: p.data.title, days: p.data.vacationDays },
-    { role: 'teamleitung', title: '', days: 27 },
+    { role: 'mitgruender', title: '', days: 27 },
   );
+  // feste Teamleitung gibt es nicht mehr (Teamleiter = pro Einsatz im Arbeitsplan)
+  assert.deepEqual(build(act('team_member', { person: 'Anna', role: 'teamleitung' }), boss), []);
   assert.equal(proposalProblem(p, [p]), null);
   // nichts ändert sich → kein Vorschlag
   assert.deepEqual(build(act('team_member', { person: 'Anna', role: 'mitarbeiter', vacation_days: 25 }), boss), []);
@@ -170,6 +172,7 @@ test('Einladen und Rechte umstellen', () => {
   assert.deepEqual(acc.data.change, { kunden: 'read', luna: 'write' });
   assert.equal(proposalLabel(acc), 'Rechte Mitarbeiter: Kunden ansehen, Luna bearbeiten');
   const [no] = build(act('team_access', { role: 'teamleitung', finanzen: 'read' }), employee);
+  assert.equal(no.data.role, 'mitarbeiter', 'Rechte gibt es nur noch für Mitarbeiter');
   assert.match(proposalProblem(no, [no]), /Inhaber und Mitgründer/);
 });
 

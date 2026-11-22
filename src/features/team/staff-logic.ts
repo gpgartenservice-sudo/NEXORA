@@ -19,10 +19,12 @@ export type Shift = {
   assignment_id?: string | null;
   /** Teamleiter dieses Einsatzes */
   is_lead?: boolean;
+  /** Auftrag zum Einsatz – dessen Teamleiter darf ihn abhaken (Skript 20261202090000_teamleiter_einsatz.sql) */
+  order_id?: string | null;
 };
 
 /** Spalten für work_shifts */
-export const SHIFT_COLUMNS = 'id, member_id, day, starts_at, ends_at, note, site, address, assignment_id, is_lead';
+export const SHIFT_COLUMNS = 'id, member_id, day, starts_at, ends_at, note, site, address, assignment_id, is_lead, order_id';
 
 export type AbsenceKind = 'urlaub' | 'krank' | 'frei';
 export type AbsenceStatus = 'offen' | 'genehmigt' | 'abgelehnt' | 'gemeldet';
@@ -169,9 +171,9 @@ export const overnight = (s: Pick<Shift, 'starts_at' | 'ends_at'>) => minutes(s.
 export const shiftLabel = (s: Pick<Shift, 'starts_at' | 'ends_at'>) =>
   `${timeLabel(s.starts_at)} – ${timeLabel(s.ends_at)}${overnight(s) ? ' (+1)' : ''}`;
 
-/** „8 Std.“ / „7,5 Std.“ */
+/** „8 Std.“ / „7,5 Std.“ / „7,75 Std.“ (genau wie in der Lohn-Liste, nicht auf 7,8 gerundet) */
 export function hoursLabel(totalMinutes: number): string {
-  const h = Math.round((totalMinutes / 60) * 10) / 10;
+  const h = Math.round((totalMinutes / 60) * 100) / 100;
   return `${String(h).replace('.', ',')} Std.`;
 }
 
@@ -352,6 +354,7 @@ export function copyWeek(
       address: s.address ?? null,
       assignment_id: s.assignment_id ? groupId(s.assignment_id) : null,
       is_lead: !!s.is_lead,
+      ...(s.order_id ? { order_id: s.order_id } : {}),
     }))
     .filter((s) => !have.has(key(s)));
 }
@@ -374,6 +377,8 @@ export type Job = {
   lead: string | null;
   /** alle im Einsatz, Teamleiter zuerst */
   members: string[];
+  /** Auftrag zum Einsatz */
+  order_id: string | null;
   shifts: Shift[];
 };
 
@@ -395,6 +400,7 @@ export function groupJobs(shifts: Shift[]): Job[] {
         note: s.note,
         lead: null,
         members: [],
+        order_id: s.order_id ?? null,
         shifts: [],
       };
       jobs.set(key, job);
@@ -441,6 +447,7 @@ export function jobRows(job: {
   note: string | null;
   lead: string | null;
   members: string[];
+  order_id?: string | null;
 }): Omit<Shift, 'id'>[] {
   return job.days.flatMap((day) =>
     job.members.map((member_id) => ({
@@ -453,6 +460,8 @@ export function jobRows(job: {
       address: job.address,
       assignment_id: job.assignment_id,
       is_lead: member_id === job.lead,
+      // nur mitschicken, wenn gesetzt (ältere Datenbank kennt die Spalte noch nicht)
+      ...(job.order_id ? { order_id: job.order_id } : {}),
     })),
   );
 }
@@ -469,6 +478,9 @@ export type PlanJob = {
   note: string | null;
   lead: string | null;
   members: string[];
+  /** nur bei Einsätzen mit Auftrag (so bleiben ältere Pläne unverändert) */
+  order_id?: string;
+  order_title?: string;
 };
 export type PlanDay = { day: string; holiday: string | null; jobs: PlanJob[]; away: string[] };
 export type PlanSnapshot = {
@@ -489,6 +501,8 @@ export function planSnapshot(
   shifts: Shift[],
   absences: Pick<TeamAbsence, 'member_id' | 'starts_on' | 'ends_on'>[],
   names: Map<string, string> | Record<string, string>,
+  /** Titel eines Auftrags (für Einsätze mit Auftrag) */
+  orderTitle: (id: string) => string | null = () => null,
 ): PlanSnapshot {
   const nameOf = (id: string) => (names instanceof Map ? names.get(id) : names[id]) ?? 'Ehemaliges Mitglied';
   const jobs = groupJobs(shifts.filter((s) => s.day >= monday && s.day <= addDays(monday, 6)));
@@ -504,6 +518,7 @@ export function planSnapshot(
         note: j.note,
         lead: j.lead,
         members: j.members,
+        ...(j.order_id ? { order_id: j.order_id, order_title: orderTitle(j.order_id) ?? 'Auftrag' } : {}),
       }));
     const away = [...new Set(absences.filter((a) => a.starts_on <= day && a.ends_on >= day).map((a) => a.member_id))];
     for (const id of [...dayJobs.flatMap((j) => j.members), ...away]) people[id] = nameOf(id);
@@ -539,6 +554,7 @@ export function parsePlanSnapshot(raw: unknown): PlanSnapshot | null {
         note: str(j.note),
         lead: str(j.lead),
         members: Array.isArray(j.members) ? j.members.filter((m): m is string => typeof m === 'string') : [],
+        ...(str(j.order_id) ? { order_id: str(j.order_id)!, order_title: str(j.order_title) ?? 'Auftrag' } : {}),
       });
     }
     days.push({
