@@ -601,9 +601,16 @@ export const onlineTopic = (company: string) => `team:${company}`;
 
 export type ChatReader = { user_id: string; read_at: string };
 
+const msOf = (iso: string) => {
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 0 : t;
+};
+
 /** Wer hat die Nachricht schon gelesen (gelesen bis ≥ gesendet) */
-export const readersOf = (m: Pick<ChatMessage, 'created_at'>, readers: ChatReader[]) =>
-  readers.filter((r) => r.read_at >= m.created_at).map((r) => r.user_id);
+export function readersOf(m: Pick<ChatMessage, 'created_at'>, readers: ChatReader[]): string[] {
+  const sent = msOf(m.created_at);
+  return readers.filter((r) => msOf(r.read_at) >= sent).map((r) => r.user_id);
+}
 
 /** Häkchen unter eigenen Nachrichten: gesendet, von manchen gelesen, von allen gelesen */
 export function readState(m: Pick<ChatMessage, 'created_at'>, readers: ChatReader[], others: string[]): 'sent' | 'some' | 'all' {
@@ -633,8 +640,12 @@ export function typingLine(names: string[]): string {
 /** Feste Farbe je Person (Namen im Gruppenchat) */
 export const PERSON_COLORS = ['#4FB3FF', '#FF9F45', '#A78BFA', '#FF7AB6', '#2DD4BF', '#FBBF24', '#FF5A5F', '#9AE66E'];
 export function personColor(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  // FNV-1a mit Durchmischung: auch ähnliche IDs bekommen verschiedene Farben
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
   return PERSON_COLORS[h % PERSON_COLORS.length];
 }
 

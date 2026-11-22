@@ -24,7 +24,7 @@ type Tab = 'chats' | 'plan' | 'urlaub';
 const isTab = (v: unknown): v is Tab => v === 'chats' || v === 'plan' || v === 'urlaub';
 
 /**
- * Team (Menü): Chats, Arbeitsplan und Urlaub – für alle im Team.
+ * Team (Menü): Chats, Arbeitsplan sowie Krank & Urlaub – für alle im Team.
  * Mitglieder einladen und Rechte einstellen: Profil → Team.
  */
 export function TeamHubScreen() {
@@ -75,7 +75,7 @@ export function TeamHubScreen() {
           options={[
             { value: 'chats', label: `Chats${count(hub.unread)}` },
             { value: 'plan', label: 'Arbeitsplan' },
-            { value: 'urlaub', label: `Urlaub${count(hub.openRequests)}` },
+            { value: 'urlaub', label: `Krank & Urlaub${count(hub.openRequests)}` },
           ]}
         />
       </Reveal>

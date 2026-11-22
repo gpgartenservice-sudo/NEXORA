@@ -4,11 +4,12 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
+import { rgbaOf } from '@/constants/accent';
 import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { useHover } from '@/hooks/use-hover';
 
 import { ROLE_LABEL } from './roles';
-import { chatTime, directKey, type ChatKey, type ChatSummary } from './staff-logic';
+import { chatTime, directKey, directPartner, type ChatKey, type ChatSummary } from './staff-logic';
 import { CHAT_LABEL, useTeamHub } from './team-hub-provider';
 import { useAccess, useTeam } from './team-provider';
 
@@ -18,17 +19,37 @@ export function initials(name: string) {
   return ((parts[0]?.[0] ?? '?') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-export function PersonDot({ name, size = 40 }: { name: string; size?: number }) {
+/** Grün = hat die App gerade offen */
+export const ONLINE_GREEN = '#3DDC84';
+
+/** Anfangsbuchstaben einer Person; `color` färbt den Kreis (Gruppen-Chat), `online` = grüner Punkt */
+export function PersonDot({ name, size = 40, color, online = false }: { name: string; size?: number; color?: string; online?: boolean }) {
   return (
-    <View style={[styles.dot, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.dotText, { fontSize: size * 0.36 }]}>{initials(name)}</Text>
+    <View
+      style={[
+        styles.dot,
+        { width: size, height: size, borderRadius: size / 2 },
+        !!color && { backgroundColor: rgbaOf(color, 0.16), borderColor: rgbaOf(color, 0.45) },
+      ]}>
+      <Text style={[styles.dotText, { fontSize: size * 0.36 }, !!color && { color }]}>{initials(name)}</Text>
+      {online && <OnlineDot size={size} />}
     </View>
   );
 }
 
+function OnlineDot({ size }: { size: number }) {
+  const d = Math.max(9, Math.round(size * 0.27));
+  return (
+    <View
+      accessibilityLabel="online"
+      style={[styles.online, { width: d, height: d, borderRadius: d / 2, right: -1, bottom: -1 }]}
+    />
+  );
+}
+
 /** Bild eines Chats: Gruppe (Alle), Schild (Leitung) oder Anfangsbuchstaben der Person */
-export function ChatAvatar({ chatKey, name, size = 40 }: { chatKey: ChatKey; name: string; size?: number }) {
-  if (chatKey !== 'alle' && chatKey !== 'leitung') return <PersonDot name={name} size={size} />;
+export function ChatAvatar({ chatKey, name, size = 40, online = false }: { chatKey: ChatKey; name: string; size?: number; online?: boolean }) {
+  if (chatKey !== 'alle' && chatKey !== 'leitung') return <PersonDot name={name} size={size} online={online} />;
   const Icon = chatKey === 'alle' ? Users : ShieldCheck;
   return (
     <View style={[styles.dot, chatKey === 'alle' ? styles.groupDot : styles.leadDot, { width: size, height: size, borderRadius: size / 2 }]}>
@@ -139,7 +160,7 @@ function ChatRow({
         hovered && styles.rowHover,
         active && styles.rowActive,
       ]}>
-      <ChatAvatar chatKey={row.key} name={row.title} size={slim ? 36 : 40} />
+      <ChatAvatar chatKey={row.key} name={row.title} size={slim ? 36 : 40} online={!row.group && hub.online.has(directPartner(row.key) ?? '')} />
       <View style={styles.texts}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
@@ -176,6 +197,7 @@ const styles = StyleSheet.create({
   groupDot: { backgroundColor: Colors.accentSoft, borderColor: accentAlpha(0.35) },
   leadDot: { backgroundColor: 'rgba(167,139,250,0.14)', borderColor: 'rgba(167,139,250,0.4)' },
   dotText: { color: Colors.text, fontWeight: '700' },
+  online: { position: 'absolute', backgroundColor: ONLINE_GREEN, borderWidth: 2, borderColor: Colors.background },
   texts: { flex: 1, gap: 3, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   title: { flex: 1, color: Colors.text, fontSize: 15.5, fontWeight: '600' },

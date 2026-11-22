@@ -104,6 +104,11 @@ test('Chat: Live-Kanäle, Gelesen, schreibt gerade', () => {
   assert.equal(typingLine(['a', 'b', 'c']), '3 Leute schreiben …');
   assert.equal(personColor('abc'), personColor('abc'));
   assert.ok(PERSON_COLORS.includes(personColor('xyz')));
+  // jede ID bekommt eine Farbe aus der Liste, und ähnliche IDs nicht alle dieselbe
+  const ids = Array.from({ length: 400 }, (_, i) => `${String(i).padStart(8, '0')}-0000-4000-8000-${String(i * 7).padStart(12, '0')}`);
+  assert.ok(ids.every((id) => PERSON_COLORS.includes(personColor(id))));
+  const similar = ['1', '2', '3', '4', '5', '6'].map((d) => `${d.repeat(8)}-${d.repeat(4)}-4${d.repeat(3)}-8${d.repeat(3)}-${d.repeat(12)}`);
+  assert.ok(new Set(similar.map(personColor)).size >= 3);
   assert.equal(quoteText('Hallo\n\n  du'), 'Hallo du');
   assert.equal(quoteText('x'.repeat(100), 10), `${'x'.repeat(9)}…`);
 });

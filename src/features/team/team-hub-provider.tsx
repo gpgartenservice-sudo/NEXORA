@@ -15,8 +15,11 @@ import {
   isChatKey,
   isoWeek,
   KIND_LABEL,
+  onlineTopic,
   rangeLabel,
+  unseenSickNotes,
   weekStart,
+  type Absence,
   type AbsenceKind,
   type ChatKey,
   type ChatMessage,
@@ -37,7 +40,7 @@ type Hub = {
   me: string;
   chats: ChatSummary[];
   unread: number;
-  /** Offene Urlaubsanträge (nur wer Personal verwaltet) */
+  /** Offene Anträge + neue Krankmeldungen (nur wer Personal verwaltet) */
   openRequests: number;
   /** Ändert sich, sobald jemand einen Antrag stellt oder entschieden wird → Listen neu laden */
   absenceVersion: number;
@@ -53,6 +56,8 @@ type Hub = {
   onMessage: (fn: (m: ChatMessage) => void) => () => void;
   nameOf: (id: string) => string;
   chatName: (key: ChatKey) => string;
+  /** Wer aus der Firma gerade die App offen hat (ohne mich) */
+  online: ReadonlySet<string>;
 };
 
 const Ctx = createContext<Hub | null>(null);
@@ -83,6 +88,10 @@ type AbsenceRow = {
   ends_on: string;
   status: string;
   decided_by: string | null;
+  created_at: string;
+  doctor?: boolean;
+  seen_by?: string | null;
+  seen_at?: string | null;
 };
 
 export function TeamHubProvider({ children }: { children: ReactNode }) {
@@ -190,6 +199,38 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     };
   }, [active, ws, me, refresh]);
 
+  // Live: wer gerade online ist (privater Kanal der Firma, Skript 20261130090000_krank_chat.sql).
+  // Fehlt das Skript, klappt der Kanal nicht – dann zeigt die App einfach niemanden als online.
+  const [online, setOnline] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    if (!active) return;
+    const channel = supabase.channel(onlineTopic(ws), { config: { private: true, presence: { key: me } } });
+    let joined = false;
+    const here = () => void channel.track({ since: new Date().toISOString() });
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const ids = Object.keys(channel.presenceState())
+          .filter((id) => id !== me)
+          .sort();
+        setOnline((prev) => (prev.size === ids.length && ids.every((id) => prev.has(id)) ? prev : new Set(ids)));
+      })
+      .subscribe((status) => {
+        joined = status === 'SUBSCRIBED';
+        if (joined && AppState.currentState !== 'background') here();
+      });
+    // App im Hintergrund: nicht mehr online
+    const sub = AppState.addEventListener('change', (s) => {
+      if (!joined) return;
+      if (s === 'active') here();
+      else if (s === 'background') void channel.untrack();
+    });
+    return () => {
+      sub.remove();
+      setOnline(new Set());
+      void supabase.removeChannel(channel);
+    };
+  }, [active, ws, me]);
+
   // --- Urlaub & Krankmeldungen --------------------------------------------
   const seenAbsences = useRef<Map<string, string> | null>(null);
 
@@ -199,7 +240,8 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     // wer Personal verwaltet: neue Anträge und Krankmeldungen; alle: Antworten auf eigene Anträge
     const query = supabase
       .from('absences')
-      .select('id, member_id, kind, starts_on, ends_on, status, decided_by')
+      // alle Spalten: ohne das Skript für Krankmeldungen fehlen seen_at/doctor einfach
+      .select('*')
       .eq('company_id', ws)
       .gte('created_at', since);
     const { data, error } = await (hr ? query : query.eq('member_id', me));
@@ -208,7 +250,14 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
       return;
     }
     const rows = (data ?? []) as AbsenceRow[];
-    setOpenRequests(hr ? rows.filter((r) => r.status === 'offen' && r.member_id !== me).length : 0);
+    // Leitung: offene Anträge + Krankmeldungen, die noch niemand gesehen hat
+    const today = dayIso(new Date());
+    setOpenRequests(
+      hr
+        ? rows.filter((r) => r.status === 'offen' && r.member_id !== me).length +
+            unseenSickNotes(rows as unknown as Absence[], me, today).length
+        : 0,
+    );
 
     const first = !seenAbsences.current;
     const seen = seenAbsences.current ?? new Map<string, string>();
@@ -216,22 +265,30 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     const notes: { title: string; body: string }[] = [];
     let changed = false;
     for (const r of rows) {
+      // Stand: Status, gesehen und Ende (Krankmeldung verlängert)
+      const state = `${r.status}|${r.seen_at ? 1 : 0}|${r.ends_on}`;
       const before = seen.get(r.id);
-      if (before === r.status) continue;
-      seen.set(r.id, r.status);
+      if (before === state) continue;
+      seen.set(r.id, state);
       changed = true;
       if (first) continue;
+      const [beforeStatus, beforeSeen, beforeEnd] = before?.split('|') ?? [];
       const when = rangeLabel(r.starts_on, r.ends_on);
       const mine = r.member_id === me;
-      if (mine && r.decided_by && r.decided_by !== me && (r.status === 'genehmigt' || r.status === 'abgelehnt'))
+      const name = latest.current.nameOf(r.member_id);
+      if (mine && r.decided_by && r.decided_by !== me && beforeStatus !== r.status && (r.status === 'genehmigt' || r.status === 'abgelehnt'))
         notes.push({
           title: r.status === 'genehmigt' ? `${KIND_LABEL[r.kind]} genehmigt ✓` : `${KIND_LABEL[r.kind]} abgelehnt`,
-          body: `${when} – Details unter Team → Urlaub.`,
+          body: `${when} – Details unter Team → Krank & Urlaub.`,
         });
+      else if (mine && r.kind === 'krank' && r.seen_at && r.seen_by !== me && beforeSeen === '0')
+        notes.push({ title: 'Krankmeldung gesehen ✓', body: 'Die Leitung weiß Bescheid. Gute Besserung!' });
       else if (!mine && hr && !before && r.status === 'offen')
-        notes.push({ title: `Neuer Antrag: ${latest.current.nameOf(r.member_id)}`, body: `${KIND_LABEL[r.kind]} ${when}` });
-      else if (!mine && hr && !before && r.status === 'gemeldet')
-        notes.push({ title: `Krankmeldung: ${latest.current.nameOf(r.member_id)}`, body: when });
+        notes.push({ title: `Neuer Antrag: ${name}`, body: `${KIND_LABEL[r.kind]} ${when}` });
+      else if (!mine && hr && !before && r.status === 'gemeldet' && !r.seen_at)
+        notes.push({ title: `Krankmeldung: ${name}`, body: `${when}${r.doctor ? ' · war beim Arzt' : ''}` });
+      else if (!mine && hr && before && r.kind === 'krank' && beforeEnd !== r.ends_on && !r.seen_at)
+        notes.push({ title: `Krankmeldung geändert: ${name}`, body: `jetzt ${when}` });
     }
     if (changed && !first) setAbsenceVersion((v) => v + 1);
     if (!notes.length) return;
@@ -335,8 +392,26 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
       onMessage,
       nameOf,
       chatName,
+      online,
     }),
-    [active, me, chats, unread, openRequests, absenceVersion, planVersion, refresh, refreshAbsences, refreshPlans, setOpenChat, markRead, onMessage, nameOf, chatName],
+    [
+      active,
+      me,
+      chats,
+      unread,
+      openRequests,
+      absenceVersion,
+      planVersion,
+      refresh,
+      refreshAbsences,
+      refreshPlans,
+      setOpenChat,
+      markRead,
+      onMessage,
+      nameOf,
+      chatName,
+      online,
+    ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -357,6 +432,8 @@ export function staffErrorText(error: { code?: string; message?: string }, fallb
   if (role) return role;
   if (/row-level security|violates row-level/i.test(msg))
     return `${fallback} Ein Team mit Chat, Arbeitsplan und Urlaub gibt es mit Lunaxora Business und Teams.`;
+  if (/seen_at|seen_by|doctor|absence_seen|absence_sick_update|reply_to|team_chat_readers/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
+    return 'Die Datenbank ist für Krankmeldungen und den neuen Chat noch nicht eingerichtet (Skript 20261130090000_krank_chat.sql fehlt).';
   if (/work_plans|work_plan_publish|site|assignment_id|is_lead/.test(msg) && ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(String(error.code)))
     return 'Die Datenbank ist für Einsätze und den fertigen Plan noch nicht eingerichtet (Skript 20261129090000_einsaetze.sql fehlt).';
   if (['PGRST202', 'PGRST205', '42P01', '42883'].includes(String(error.code)))

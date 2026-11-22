@@ -127,7 +127,7 @@ export const PHASES: RoadmapPhase[] = [
         tips: [
           'Prüfe, ob die passende Domain und die Social-Media-Namen noch frei sind.',
           'Schau beim Deutschen Patent- und Markenamt (DPMA), ob der Name schon als Marke geschützt ist.',
-          'Einzelunternehmer müssen ihren Vor- und Nachnamen im Geschäftsverkehr nennen (z. B. auf Rechnungen).',
+          'Einzelunternehmer ohne Eintrag im Handelsregister nennen im Geschäftsverkehr ihren Vor- und Nachnamen, zum Beispiel auf Rechnungen.',
         ],
       },
     ],
@@ -143,7 +143,7 @@ export const PHASES: RoadmapPhase[] = [
         title: 'Gewerbe anmelden – oder freiberuflich starten',
         why: 'Wer ein Gewerbe betreibt, muss es beim Gewerbeamt anmelden. Bestimmte freie Berufe melden sich stattdessen nur beim Finanzamt.',
         tips: [
-          'Die Anmeldung geht in vielen Städten online, die Gebühr liegt meist bei etwa 15–65 €.',
+          'Die Anmeldung geht in vielen Städten online. Die Gebühr legt jede Gemeinde selbst fest, meist sind es etwa 15 bis 65 €.',
           'Halte deinen Ausweis bereit. Für manche Tätigkeiten brauchst du zusätzlich Erlaubnisse oder Nachweise.',
           'Unsicher, ob du gewerblich oder freiberuflich bist? Frag beim Finanzamt oder einer Steuerberatung nach.',
         ],
@@ -151,7 +151,7 @@ export const PHASES: RoadmapPhase[] = [
       {
         key: 'tax_registration',
         title: 'Beim Finanzamt anmelden',
-        why: 'Ohne Steuernummer darfst du keine ordentlichen Rechnungen schreiben. Den Antrag stellst du über den „Fragebogen zur steuerlichen Erfassung“.',
+        why: 'Auf deine Rechnungen gehört eine Steuernummer. Die beantragst du beim Finanzamt über den „Fragebogen zur steuerlichen Erfassung“.',
         tips: [
           'Den Fragebogen füllst du online über ELSTER aus.',
           'Beantrage deinen ELSTER-Zugang früh – die Freischaltung per Post dauert einige Tage.',
@@ -167,6 +167,7 @@ export const PHASES: RoadmapPhase[] = [
           'Vorteil: einfachere Rechnungen und keine Umsatzsteuer-Voranmeldungen.',
           'Nachteil: Du bekommst die Umsatzsteuer auf eigene Einkäufe (Vorsteuer) nicht zurück.',
           'Planst du teure Anschaffungen oder hast vor allem Firmenkunden, rechne es vorher mit einer Steuerberatung durch.',
+          'Im Gründungsjahr gilt eine Grenze von 25.000 €, und es zählt der tatsächliche Umsatz. Ab dem Umsatz, mit dem du die Grenze überschreitest, musst du Umsatzsteuer ausweisen.',
         ],
         goals: ['finances'],
       },
@@ -256,7 +257,7 @@ export const PHASES: RoadmapPhase[] = [
         title: 'Rechnungen richtig schreiben',
         why: 'Rechnungen brauchen Pflichtangaben. Fehlt etwas, kann es Ärger mit dem Finanzamt oder deinen Kunden geben.',
         tips: [
-          'Pflicht sind u. a.: Name und Anschrift beider Seiten, Steuernummer, Datum, fortlaufende Rechnungsnummer, Leistung und Betrag.',
+          'Pflicht sind unter anderem: Name und Anschrift beider Seiten, Steuernummer oder USt-IdNr., Rechnungsdatum, fortlaufende Rechnungsnummer, Art und Zeitpunkt der Leistung, Nettobetrag, Steuersatz und Umsatzsteuer.',
           'Als Kleinunternehmer gehört ein Hinweis auf die Steuerbefreiung nach § 19 UStG auf die Rechnung.',
           'Bewahre Rechnungen und Belege geordnet auf – am besten von Anfang an digital.',
         ],
@@ -267,9 +268,10 @@ export const PHASES: RoadmapPhase[] = [
         title: 'Rücklagen für Steuern bilden',
         why: 'Ein Teil jeder Einnahme gehört dem Finanzamt. Wer das vergisst, bekommt nach der ersten Steuererklärung einen Schreck.',
         tips: [
-          'Viele legen 25–35 % jeder Einnahme zurück – je nach Gewinn und Steuersituation.',
+          'Als Faustregel legst du 25 bis 30 % vom Gewinn zurück, bei höheren Gewinnen eher mehr. Die genaue Zahl rechnet deine Steuerberatung aus.',
           'Überweis den Betrag direkt auf ein separates Unterkonto.',
           'Nach der ersten Steuererklärung können Vorauszahlungen für das nächste Jahr kommen – plane sie ein.',
+          'Bist du kein Kleinunternehmer, gehört die Umsatzsteuer auf deinen Rechnungen dem Finanzamt. Leg sie komplett zur Seite.',
         ],
         goals: ['finances'],
       },
