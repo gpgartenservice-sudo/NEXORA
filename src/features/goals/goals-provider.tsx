@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import type { Goal, Todo } from './goals-logic';
 
@@ -33,7 +34,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'To-dos und Ziele können noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261111090000_todos_goals.sql, siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig – bitte prüfe Titel und Zahlen.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 const toGoal = (row: Record<string, unknown>): Goal => ({

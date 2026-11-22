@@ -7,10 +7,12 @@ import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
 import { Card } from '@/components/ui/card';
 import { Colors, Spacing } from '@/constants/theme';
 import { NAV_ITEMS } from '@/features/navigation/nav-items';
+import { useNavVisible } from '@/features/team/area-gate';
 
 /** Handy: alle Bereiche, die nicht direkt in der Tab-Leiste stehen. */
 export default function MoreScreen() {
-  const items = NAV_ITEMS.filter((i) => !i.mobileTab && !i.hidden);
+  const visible = useNavVisible();
+  const items = NAV_ITEMS.filter((i) => !i.mobileTab && !i.hidden && visible(i.name));
   return (
     <Screen maxWidth={640}>
       <AnimatedTitle text="Mehr" style={styles.title} align="left" />

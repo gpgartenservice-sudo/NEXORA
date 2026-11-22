@@ -27,6 +27,7 @@ import {
   PRICES,
   type ProFeature,
   type QuotaKind,
+  TEAMS_SEATS,
   TRIAL_DAYS,
 } from './plan-logic';
 import { usePlan } from './plan-provider';
@@ -73,7 +74,7 @@ function useRefreshOnReturn(refresh: () => Promise<void>) {
   }, [refresh]);
 }
 
-/** Abo: aktueller Stand, Verbrauch, Vergleich Gratis/Pro/Business, Abo holen. */
+/** Abo: aktueller Stand, Verbrauch, Vergleich Gratis/Pro/Business/Teams, Abo holen. */
 export function PlanScreen() {
   const { funktion } = useLocalSearchParams<{ funktion?: string }>();
   const feature = funktion && funktion in FEATURE_LABEL ? (funktion as ProFeature) : null;
@@ -83,7 +84,7 @@ export function PlanScreen() {
   const [busy, setBusy] = useState<PaidTier | 'portal' | null>(null);
   const [failed, setFailed] = useState<{ key: PaidTier | 'portal'; text: string } | null>(null);
   useRefreshOnReturn(refresh);
-  const paid = info?.plan === 'pro' || info?.plan === 'business';
+  const paid = info?.plan === 'pro' || info?.plan === 'business' || info?.plan === 'teams';
 
   const run = async (key: PaidTier | 'portal') => {
     setBusy(key);
@@ -100,7 +101,7 @@ export function PlanScreen() {
     <Screen maxWidth={760}>
       <PageHeader
         title="Dein Abo"
-        subtitle="Gratis, Pro und Business im Vergleich."
+        subtitle="Gratis, Pro, Business und Teams im Vergleich."
         back={{ label: 'Profil', onPress: back }}
       />
       {feature && (
@@ -174,6 +175,9 @@ export function PlanScreen() {
             <View style={col}>
               <GradientText style={[styles.colHead, narrow && styles.colHeadNarrow]}>Business</GradientText>
             </View>
+            <View style={col}>
+              <GradientText style={[styles.colHead, narrow && styles.colHeadNarrow]}>Teams</GradientText>
+            </View>
           </View>
           {COMPARISON.map((row) => (
             <View key={row.label} style={styles.row}>
@@ -181,6 +185,7 @@ export function PlanScreen() {
               <Cell value={row.free} narrow={narrow} />
               <Cell value={row.pro} pro narrow={narrow} />
               <Cell value={row.business} pro narrow={narrow} />
+              <Cell value={row.teams} pro narrow={narrow} />
             </View>
           ))}
           <Text style={styles.hint}>
@@ -222,7 +227,7 @@ export function PlanScreen() {
       {TIERS.map((tier, i) => {
         const price = PRICES[tier.key];
         const current = info?.plan === tier.key;
-        const business = tier.key === 'business';
+        const business = tier.key === 'business' || tier.key === 'teams';
         const card = (
             <Card style={tier.key === 'pro' ? styles.offer : business ? styles.offerBusiness : undefined}>
               <View style={styles.offerHead}>
@@ -283,7 +288,12 @@ const TIERS: { key: PaidTier; name: string; text: string }[] = [
   {
     key: 'business',
     name: 'Business',
-    text: `Alles aus Pro für bis zu ${BUSINESS_SEATS} Personen – ideal für eine GbR. ${LIMITS.business.nexy} Nachrichten und ${LIMITS.business.receipt} Belege fürs Team.`,
+    text: `Alles aus Pro für bis zu ${BUSINESS_SEATS} Personen – ideal für eine GbR. Mit Team-Chats, Rollen und Arbeitsplan. ${LIMITS.business.nexy} Nachrichten und ${LIMITS.business.receipt} Belege fürs Team.`,
+  },
+  {
+    key: 'teams',
+    name: 'Teams',
+    text: `Für Firmen mit Mitarbeitern: bis zu ${TEAMS_SEATS} Personen mit Rollen und Rechten, Chats für Leitung und Team, Arbeitsplan, Urlaubsanträgen und Krankmeldungen. ${LIMITS.teams.nexy} Nachrichten und ${LIMITS.teams.receipt} Belege fürs Team.`,
   },
 ];
 
@@ -335,8 +345,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
-  col: { width: 62, alignItems: 'center', textAlign: 'center' },
-  colNarrow: { width: 54 },
+  col: { width: 64, alignItems: 'center', textAlign: 'center' },
+  colNarrow: { width: 47 },
   colLabel: { flex: 1, width: undefined, alignItems: 'flex-start', textAlign: 'left' },
   colHead: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
   colHeadNarrow: { fontSize: 11, letterSpacing: -0.2 },

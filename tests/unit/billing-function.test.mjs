@@ -100,6 +100,9 @@ test('Stripe-Abo -> Zeile in subscriptions', () => {
   });
   const business = sub({ items: { data: [{ current_period_end: at('2027-11-20T10:00:00Z'), price: { lookup_key: 'business_year' } }] } });
   assert.equal(subscriptionRow(business).tier, 'business');
+  const teams = sub({ items: { data: [{ current_period_end: at('2027-11-20T10:00:00Z'), price: { lookup_key: 'teams_month' } }] } });
+  assert.equal(subscriptionRow(teams).tier, 'teams');
+  assert.equal(lookupKey('teams', 'year'), 'teams_year');
   assert.equal(subscriptionRow(business).current_period_end, '2027-11-20T10:00:00.000Z');
   // ältere API-Version: Laufzeitende am Abo statt am Posten
   const old = sub({ current_period_end: at('2026-12-01T00:00:00Z'), items: { data: [{ price: { lookup_key: 'pro_year' } }] } });

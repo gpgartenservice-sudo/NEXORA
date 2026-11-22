@@ -9,11 +9,11 @@ import { GlassBackdrop, glassSurface, glassHover } from '@/components/ui/glass';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Notice } from '@/components/ui/notice';
 import { Colors, Spacing } from '@/constants/theme';
-import { BUSINESS_SEATS, formatPrice, LIMITS, PRICES } from '@/features/plan/plan-logic';
+import { BUSINESS_SEATS, formatPrice, LIMITS, PRICES, TEAMS_SEATS } from '@/features/plan/plan-logic';
 import { redeemVoucher } from '@/features/plan/voucher';
 import { useHover } from '@/hooks/use-hover';
 
-export type ChosenPlan = 'free' | 'pro' | 'business';
+export type ChosenPlan = 'free' | 'pro' | 'business' | 'teams';
 
 const PLANS: { key: ChosenPlan; name: string; price: number; tag?: string; points: string[] }[] = [
   {
@@ -42,12 +42,24 @@ const PLANS: { key: ChosenPlan; name: string; price: number; tag?: string; point
     key: 'business',
     name: 'Business',
     price: PRICES.business.month,
-    tag: 'Für GbR & Teams',
+    tag: 'Für die GbR',
     points: [
       'Alles aus Pro',
       `Bis zu ${BUSINESS_SEATS} Personen in einem Business`,
+      'Team-Chats, Rollen & Arbeitsplan',
       `${LIMITS.business.nexy} Luna-Nachrichten fürs Team`,
-      'Ideal für eine GbR',
+    ],
+  },
+  {
+    key: 'teams',
+    name: 'Teams',
+    price: PRICES.teams.month,
+    tag: 'Mit Mitarbeitern',
+    points: [
+      'Alles aus Business',
+      `Bis zu ${TEAMS_SEATS} Personen: Mitgründer & Mitarbeiter`,
+      'Urlaub beantragen, krank melden, Arbeitsplan',
+      `${LIMITS.teams.nexy} Luna-Nachrichten fürs Team`,
     ],
   },
 ];
@@ -136,7 +148,7 @@ function PlanCard({
   onPress: () => void;
 }) {
   const { hovered, hoverProps } = useHover();
-  const business = plan.key === 'business';
+  const business = plan.key === 'business' || plan.key === 'teams';
   const body = (
     <Pressable
       onPress={onPress}

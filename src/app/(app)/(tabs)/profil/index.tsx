@@ -1,33 +1,46 @@
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import {
+  Bell,
+  Building2,
+  CreditCard,
+  GraduationCap,
+  Layers,
+  Palette,
+  Smartphone,
+  UserRound,
+  Users,
+  Volume2,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
-import { AnimatedTitle, Reveal } from '@/components/motion/reveal';
+import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { TextLink } from '@/components/ui/text-link';
-import { ToggleRow } from '@/components/ui/toggle-row';
+import { ProBadge } from '@/components/ui/pro-badge';
+import { SettingsGroup, SettingsRow } from '@/components/ui/settings-list';
+import { ToggleSwitch } from '@/components/ui/toggle-row';
 import { Colors, Spacing } from '@/constants/theme';
+import { AccountSwitcher } from '@/features/accounts/account-switcher';
+import { useCompanies } from '@/features/companies/company-provider';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
-import { goalLabel, industryLabel, legalFormLabel, stageLabel } from '@/features/onboarding/options';
-import { ProBadge } from '@/components/ui/pro-badge';
-import { AccountSwitcher } from '@/features/accounts/account-switcher';
-import { CompaniesCard } from '@/features/companies/companies-card';
-import { DevicesCard } from '@/features/team/devices-card';
-import { useTeam } from '@/features/team/team-provider';
-import { planLabel, quotaText } from '@/features/plan/plan-logic';
+import { industryLabel, stageLabel } from '@/features/onboarding/options';
+import { hasTeamPlan, planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
-import { TUTORIALS } from '@/features/tutorial/tutorial-content';
 import { useSoundSetting } from '@/features/sound/ui-sound';
+import { ROLE_LABEL } from '@/features/team/roles';
+import { useAccess, useTeam } from '@/features/team/team-provider';
+import { TUTORIALS } from '@/features/tutorial/tutorial-content';
 import { useTutorial } from '@/features/tutorial/tutorial-provider';
 import { signOutHere } from '@/lib/device';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 
-/** Konto, Onboarding-Antworten und Abmelden. */
+/**
+ * Profil: kompakt als Liste – je Thema eine Zeile mit kurzem Stand, Details auf eigenen Seiten
+ * (Angaben, Abo, Geräte, Firma, Firmen, Team, Design, Benachrichtigungen, Einführungen).
+ */
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -38,12 +51,12 @@ export default function ProfileScreen() {
   const tutorial = useTutorial();
   const plan = usePlan();
   const [now] = useState(() => new Date());
-  const quota = plan.info ? quotaText(plan.info, 'nexy') : null;
-  const [resetDone, setResetDone] = useState(false);
   const { team } = useTeam();
+  const access = useAccess();
+  const { companies, currentId, missing: noCompanies } = useCompanies();
+  const [sounds, setSounds] = useSoundSetting();
   const seen = tutorial.done.length;
   const total = Object.keys(TUTORIALS).length;
-  const [sounds, setSounds] = useSoundSetting();
 
   const signOut = async () => {
     setSigningOut(true);
@@ -52,198 +65,128 @@ export default function ProfileScreen() {
     router.replace(result === 'switched' ? '/home' : '/');
   };
 
-  const rows: [string, string | undefined][] = [
-    ['Name', profile?.display_name ?? undefined],
-    ['E-Mail', user?.email],
-    ['Phase', stageLabel(profile?.stage)],
-    ['Business', profile?.business_name ?? undefined],
-    ['Branche', industryLabel(profile?.industry, profile?.industry_other)],
-    ['Rechtsform', legalFormLabel(profile?.legal_form)],
-    ['Schwerpunkte', profile?.goals?.length ? profile.goals.map(goalLabel).join(' · ') : undefined],
-  ];
+  const kind = plan.info?.plan;
+  const purple = kind === 'business' || kind === 'teams';
+  const planText =
+    plan.missing || !plan.info ? 'Gratis, Pro, Business und Teams im Vergleich' : `Lunaxora ${planLabel(plan.info, now)}`;
+  const planSub =
+    plan.missing || !plan.info ? null : plan.admin ? 'Admin-Zugang – kostenlos' : quotaText(plan.info, 'nexy');
+
+  const answers = [stageLabel(profile?.stage), industryLabel(profile?.industry, profile?.industry_other)].filter(Boolean).join(' · ');
+  const list = companies?.list ?? [];
+  const current = list.find((c) => c.id === currentId);
+  const teamText =
+    team?.role === 'member'
+      ? `Du bist ${ROLE_LABEL[access.role]} bei ${team.owner_name ?? 'einem Business'}`
+      : team && team.members.length > 1
+        ? `${team.members.length} von ${team.seats} Plätzen · Rollen und Rechte`
+        : hasTeamPlan(kind)
+          ? `Bis zu ${team?.seats ?? 5} Personen einladen – oder einem Team beitreten`
+          : 'Mitarbeiter einladen – mit Business oder Teams';
 
   return (
     <Screen maxWidth={640}>
-      <View style={styles.header}>
-        <Reveal>
+      <Reveal>
+        <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
           </View>
-        </Reveal>
-        <AnimatedTitle text={name} style={styles.title} delay={100} />
-        {!!user?.email && (
-          <Reveal delay={250}>
-            <Text style={styles.subtitle}>{user.email}</Text>
-          </Reveal>
-        )}
-        {plan.info && !plan.missing && (
-          <Reveal delay={300}>
-            <View style={[styles.planPill, plan.info.plan === 'business' && styles.planPillBusiness]} testID="profile-plan-pill">
-              <Text style={[styles.planPillText, plan.info.plan === 'business' && styles.planPillTextBusiness]}>
-                {planLabel(plan.info, now)}
-                {plan.admin ? ' · Admin' : ''}
+          <View style={styles.headTexts}>
+            <Text style={styles.title} numberOfLines={1}>
+              {name}
+            </Text>
+            {!!user?.email && (
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {user.email}
               </Text>
-            </View>
-          </Reveal>
-        )}
-      </View>
-
-      <Reveal delay={350}>
-        <Card>
-          <Text style={styles.cardTitle}>Deine Angaben</Text>
-          {rows.map(([label, value]) => (
-            <View key={label} style={styles.row}>
-              <Text style={styles.rowLabel}>{label}</Text>
-              <Text style={styles.rowValue}>{value ?? '–'}</Text>
-            </View>
-          ))}
-          <View style={styles.editRow}>
-            <TextLink label="Antworten ändern" emphasis onPress={() => router.push('/onboarding')} />
-          </View>
-        </Card>
-      </Reveal>
-
-      <Reveal delay={420}>
-        <Card onPress={() => router.navigate('/firma')} accessibilityLabel="Firma bearbeiten">
-          <View style={styles.firmRow}>
-            <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Firma</Text>
-              <Text style={styles.firmText}>
-                {missing.length === 0
-                  ? `${sellerName(seller)} · ${seller.small_business ? 'Kleinunternehmer' : `${seller.vat_rate} % USt`}`
-                  : `Für Angebote und Rechnungen fehlt noch: ${missing.join(', ')}`}
-              </Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textFaint} />
-          </View>
-        </Card>
-      </Reveal>
-
-      <Reveal delay={428}>
-        <CompaniesCard />
-      </Reveal>
-
-      <Reveal delay={435}>
-        <Card onPress={() => router.push('/profil/abo')} accessibilityLabel="Abo ansehen">
-          <View style={styles.firmRow}>
-            <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Dein Abo</Text>
-              {plan.missing || !plan.info ? (
-                <Text style={styles.firmText} testID="profile-plan">
-                  Lunaxora Gratis und Pro im Vergleich
+            )}
+            {plan.info && !plan.missing && (
+              <View style={[styles.planPill, purple && styles.planPillBusiness]} testID="profile-plan-pill">
+                <Text style={[styles.planPillText, purple && styles.planPillTextBusiness]}>
+                  {planLabel(plan.info, now)}
+                  {plan.admin ? ' · Admin' : ''}
+                  {team?.role === 'member' ? ` · ${ROLE_LABEL[access.role]}` : ''}
                 </Text>
-              ) : (
-                <>
-                  <Text style={styles.planName} testID="profile-plan">
-                    Lunaxora {planLabel(plan.info, now)}
-                  </Text>
-                  <Text style={styles.firmText}>
-                    {plan.admin ? 'Admin-Zugang – kostenlos, es wird nichts abgebucht' : quota}
-                  </Text>
-                </>
-              )}
-            </View>
-            <ChevronRight size={18} color={Colors.textFaint} />
-          </View>
-        </Card>
-      </Reveal>
-
-      <Reveal delay={437}>
-        <DevicesCard />
-      </Reveal>
-
-      <Reveal delay={440}>
-        <Card onPress={() => router.push('/profil/team')} accessibilityLabel="Team öffnen">
-          <View style={styles.firmRow}>
-            <View style={styles.flex}>
-              <View style={styles.titleRow}>
-                <Text style={styles.cardTitle}>Team</Text>
-                <ProBadge kind="business" />
               </View>
-              <Text style={styles.firmText}>
-                {team?.role === 'member'
-                  ? `Du bist im Team von ${team.owner_name ?? 'deinem Business'}`
-                  : team && team.members.length > 1
-                    ? `${team.members.length} Personen in deinem Business`
-                    : 'Bis zu 5 Personen – oder einem Team beitreten'}
-              </Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textFaint} />
+            )}
           </View>
-        </Card>
+        </View>
       </Reveal>
 
-      <Reveal delay={445}>
-        <Card onPress={() => router.push('/profil/design')} accessibilityLabel="Design ändern">
-          <View style={styles.firmRow}>
-            <View style={styles.flex}>
-              <View style={styles.titleRow}>
-                <Text style={styles.cardTitle}>Design</Text>
-                <ProBadge />
-              </View>
-              <Text style={styles.firmText}>Farbverlauf, Geldregen, Blitze, Mondnacht</Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textFaint} />
-          </View>
-        </Card>
-      </Reveal>
-
-      <Reveal delay={448}>
-        <Card onPress={() => router.push('/profil/benachrichtigungen')} accessibilityLabel="Benachrichtigungen einstellen">
-          <View style={styles.firmRow}>
-            <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Benachrichtigungen</Text>
-              <Text style={styles.firmText}>Termine, Rechnungen, To-dos und Ziele</Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textFaint} />
-          </View>
-        </Card>
-      </Reveal>
-
-      <Reveal delay={430}>
-        <Card>
-          <ToggleRow label="Töne" hint="Häkchen, Erfolge und wenn Luna fertig ist" value={sounds} onChange={setSounds} />
-        </Card>
-      </Reveal>
-
-      <Reveal delay={450}>
-        <Card>
-          <Text style={styles.cardTitle}>Einführungen</Text>
-          <Text style={styles.firmText}>
-            Luna erklärt jeden Bereich beim ersten Besuch – nochmal über das ? oben. Gesehen: {seen} von {total}.
-          </Text>
-          <ToggleRow
-            label="Beim ersten Besuch automatisch zeigen"
-            value={!tutorial.off}
-            onChange={(v) => {
-              setResetDone(false);
-              tutorial.setOff(!v);
-            }}
+      <Reveal delay={120}>
+        <SettingsGroup title="Konto">
+          <SettingsRow icon={UserRound} label="Deine Angaben" value={answers || 'Name, Phase, Branche, Schwerpunkte'} onPress={() => router.push('/profil/angaben')} />
+          <SettingsRow
+            icon={CreditCard}
+            label="Abo"
+            value={planSub ? `${planText} · ${planSub}` : planText}
+            onPress={() => router.push('/profil/abo')}
+            testID="profile-plan"
           />
-          <View style={styles.tutorialActions}>
-            <Button
-              label="Rundgang starten"
-              variant="secondary"
-              onPress={() => {
-                tutorial.start('home', { tour: true });
-                router.navigate('/home');
-              }}
-            />
-            <TextLink
-              label="Alle wieder als neu markieren"
-              onPress={() => {
-                tutorial.reset();
-                setResetDone(true);
-              }}
-            />
-          </View>
-          {resetDone && (
-            <Text style={styles.firmText}>Erledigt – Luna zeigt jeden Bereich wieder.</Text>
-          )}
-        </Card>
+          <SettingsRow icon={Smartphone} label="Geräte" value="Wo dein Konto angemeldet ist" onPress={() => router.push('/profil/geraete')} />
+        </SettingsGroup>
       </Reveal>
 
-      <Reveal delay={480}>
+      <Reveal delay={180}>
+        <SettingsGroup title="Firma & Team">
+          {access.can('firma') && (
+            <SettingsRow
+              icon={Building2}
+              label="Firma"
+              value={
+                missing.length === 0
+                  ? `${sellerName(seller)} · ${seller.small_business ? 'Kleinunternehmer' : `${seller.vat_rate} % USt`}`
+                  : `Für Rechnungen fehlt: ${missing.join(', ')}`
+              }
+              warn={missing.length > 0}
+              onPress={() => router.navigate('/firma')}
+            />
+          )}
+          {!noCompanies && !!companies && (
+            <SettingsRow
+              icon={Layers}
+              label="Firmen"
+              badge={list.length > 1 ? undefined : <ProBadge />}
+              value={list.length > 1 ? `${current?.name ?? 'Firma'} offen · ${list.length} Firmen` : 'Weitere Firma im selben Konto führen'}
+              onPress={() => router.push('/profil/firmen')}
+            />
+          )}
+          <SettingsRow
+            icon={Users}
+            label="Team"
+            badge={hasTeamPlan(kind) || team?.role === 'member' ? undefined : <ProBadge kind="business" />}
+            value={teamText}
+            onPress={() => router.push('/profil/team')}
+          />
+        </SettingsGroup>
+      </Reveal>
+
+      <Reveal delay={240}>
+        <SettingsGroup title="App">
+          <SettingsRow icon={Palette} label="Design" badge={<ProBadge />} value="Farbverlauf, Geldregen, Blitze, Mondnacht" onPress={() => router.push('/profil/design')} />
+          <SettingsRow
+            icon={Bell}
+            label="Benachrichtigungen"
+            value="Termine, Rechnungen, Team-Chats, To-dos"
+            onPress={() => router.push('/profil/benachrichtigungen')}
+          />
+          <SettingsRow
+            icon={Volume2}
+            label="Töne"
+            value="Häkchen, Erfolge und wenn Luna fertig ist"
+            onPress={() => setSounds(!sounds)}
+            trailing={<ToggleSwitch value={sounds} />}
+          />
+          <SettingsRow
+            icon={GraduationCap}
+            label="Einführungen"
+            value={`Gesehen: ${seen} von ${total}${tutorial.off ? ' · automatisch aus' : ''}`}
+            onPress={() => router.push('/profil/einfuehrungen')}
+          />
+        </SettingsGroup>
+      </Reveal>
+
+      <Reveal delay={300}>
         <View style={styles.signOut}>
           <AccountSwitcher />
           <Button label="Abmelden" variant="secondary" onPress={signOut} loading={signingOut} />
@@ -255,41 +198,30 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   signOut: { gap: Spacing.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  header: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xl },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.sm, marginBottom: Spacing.xs },
   avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: Colors.text,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.sm,
-    boxShadow: '0 0 40px rgba(255,255,255,0.18)',
+    boxShadow: '0 0 32px rgba(255,255,255,0.16)',
   },
-  avatarText: { color: Colors.background, fontSize: 32, fontWeight: '800' },
-  title: { color: Colors.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.4 },
-  subtitle: { color: Colors.textMuted, fontSize: 15 },
-  cardTitle: { color: Colors.text, fontSize: 16, fontWeight: '600' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.lg },
-  rowLabel: { color: Colors.textFaint, fontSize: 14 },
-  rowValue: { color: Colors.text, fontSize: 14, flexShrink: 1, textAlign: 'right' },
-  editRow: { alignItems: 'flex-end', marginTop: Spacing.xs },
-  firmRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
-  flex: { flex: 1, gap: 4 },
-  firmText: { color: Colors.textMuted, fontSize: 14, lineHeight: 20 },
-  planName: { color: Colors.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
+  avatarText: { color: Colors.background, fontSize: 26, fontWeight: '800' },
+  headTexts: { flex: 1, gap: 3, alignItems: 'flex-start', minWidth: 0 },
+  title: { color: Colors.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.4 },
+  subtitle: { color: Colors.textMuted, fontSize: 14 },
   planPill: {
-    marginTop: Spacing.xs,
+    marginTop: 2,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(47,227,154,0.45)',
     backgroundColor: Colors.accentSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
   planPillBusiness: { borderColor: 'rgba(139,92,246,0.6)', backgroundColor: 'rgba(139,92,246,0.16)' },
-  planPillText: { color: Colors.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
+  planPillText: { color: Colors.accent, fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2 },
   planPillTextBusiness: { color: '#C4B5FD' },
-  tutorialActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.lg },
 });

@@ -31,7 +31,7 @@ export function AddCompanyScreen() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const paid = info?.plan === 'pro' || info?.plan === 'business';
+  const paid = info?.plan === 'pro' || info?.plan === 'business' || info?.plan === 'teams';
   const left = companies ? companies.extraAllowed - companies.extraUsed : 0;
 
   const submit = async () => {

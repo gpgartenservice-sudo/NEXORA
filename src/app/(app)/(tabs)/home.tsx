@@ -16,6 +16,8 @@ import { useSidebarWidth } from '@/features/navigation/sidebar-state';
 import { nextSteps, stepsFor } from '@/features/roadmap/content';
 import { useRoadmap } from '@/features/roadmap/roadmap-provider';
 import { StepCheck } from '@/features/roadmap/step-check';
+import { TeamDayCard } from '@/features/team/team-day-card';
+import { useAccess } from '@/features/team/team-provider';
 import { TourTarget, TutorialButton, useAreaTutorial } from '@/features/tutorial/tour-target';
 import { useProfile } from '@/providers/profile-provider';
 
@@ -34,6 +36,8 @@ export default function DashboardScreen() {
   const totalSteps = stepsFor(profile?.stage).length;
   const doneSteps = stepsFor(profile?.stage).filter((s) => done.has(s.key)).length;
   useAreaTutorial('home');
+  // Im Team: nur Karten zu Bereichen, die die Rolle sehen darf
+  const access = useAccess();
 
   return (
     <Screen>
@@ -58,24 +62,35 @@ export default function DashboardScreen() {
         )}
       </View>
 
-      {/* Gewinn, Einnahmen, Ausgaben – ganz oben, ab den ersten Zahlen (zählen beim Öffnen hoch) */}
-      <TourTarget id="home.money">
-        <Reveal delay={240}>
-          <MoneyCard />
-        </Reveal>
-      </TourTarget>
-
-      {/* Termine heute & morgen (nur wenn es welche gibt) */}
-      <Reveal delay={280}>
-        <UpcomingAppointments />
+      {/* Im Team: Schicht heute, wer fehlt, neue Nachrichten, offene Anträge */}
+      <Reveal delay={220}>
+        <TeamDayCard />
       </Reveal>
 
-      {/* To-dos für heute und Ziele */}
-      <TourTarget id="home.today">
-        <Reveal delay={300}>
-          <TodayCard />
+      {/* Gewinn, Einnahmen, Ausgaben – ganz oben, ab den ersten Zahlen (zählen beim Öffnen hoch) */}
+      {access.can('finanzen') && (
+        <TourTarget id="home.money">
+          <Reveal delay={240}>
+            <MoneyCard />
+          </Reveal>
+        </TourTarget>
+      )}
+
+      {/* Termine heute & morgen (nur wenn es welche gibt) */}
+      {access.can('termine') && (
+        <Reveal delay={280}>
+          <UpcomingAppointments />
         </Reveal>
-      </TourTarget>
+      )}
+
+      {/* To-dos für heute und Ziele */}
+      {access.can('aufgaben') && (
+        <TourTarget id="home.today">
+          <Reveal delay={300}>
+            <TodayCard />
+          </Reveal>
+        </TourTarget>
+      )}
 
       <TourTarget id="home.focus" style={[styles.grid, twoColumns && styles.gridRow]}>
         {/* Fokus nach deinen Schwerpunkten */}
@@ -93,42 +108,44 @@ export default function DashboardScreen() {
       </TourTarget>
 
       {/* Nächste Schritte */}
-      <TourTarget id="home.steps">
-        <Reveal delay={520}>
-          <Card>
-            <View style={styles.stepsHead}>
-              <Text style={styles.eyebrow}>DEINE NÄCHSTEN SCHRITTE</Text>
-              <Text style={styles.stepsCount}>
-                {doneSteps} von {totalSteps} erledigt
-              </Text>
-            </View>
-            {upcoming.length === 0 ? (
-              <Text style={styles.body}>Dein Fahrplan ist komplett erledigt. Stark! 🎉</Text>
-            ) : (
-              upcoming.map((step) => (
-                <View key={step.key} style={styles.step}>
-                  <StepCheck
-                    checked={done.has(step.key)}
-                    onToggle={() => toggle(step.key)}
-                    label={step.title}
-                    size={24}
-                  />
-                  <Pressable
-                    style={styles.stepPress}
-                    onPress={() => router.navigate('/fahrplan')}
-                    accessibilityRole="link">
-                    <Text style={styles.stepText}>{step.title}</Text>
-                  </Pressable>
-                </View>
-              ))
-            )}
-            <Pressable onPress={() => router.navigate('/fahrplan')} accessibilityRole="link" style={styles.allLink}>
-              <Text style={styles.allLinkText}>Ganzen Fahrplan ansehen</Text>
-              <ArrowRight size={14} color={Colors.textMuted} />
-            </Pressable>
-          </Card>
-        </Reveal>
-      </TourTarget>
+      {access.can('fahrplan') && (
+        <TourTarget id="home.steps">
+          <Reveal delay={520}>
+            <Card>
+              <View style={styles.stepsHead}>
+                <Text style={styles.eyebrow}>DEINE NÄCHSTEN SCHRITTE</Text>
+                <Text style={styles.stepsCount}>
+                  {doneSteps} von {totalSteps} erledigt
+                </Text>
+              </View>
+              {upcoming.length === 0 ? (
+                <Text style={styles.body}>Dein Fahrplan ist komplett erledigt. Stark! 🎉</Text>
+              ) : (
+                upcoming.map((step) => (
+                  <View key={step.key} style={styles.step}>
+                    <StepCheck
+                      checked={done.has(step.key)}
+                      onToggle={() => toggle(step.key)}
+                      label={step.title}
+                      size={24}
+                    />
+                    <Pressable
+                      style={styles.stepPress}
+                      onPress={() => router.navigate('/fahrplan')}
+                      accessibilityRole="link">
+                      <Text style={styles.stepText}>{step.title}</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+              <Pressable onPress={() => router.navigate('/fahrplan')} accessibilityRole="link" style={styles.allLink}>
+                <Text style={styles.allLinkText}>Ganzen Fahrplan ansehen</Text>
+                <ArrowRight size={14} color={Colors.textMuted} />
+              </Pressable>
+            </Card>
+          </Reveal>
+        </TourTarget>
+      )}
     </Screen>
   );
 }

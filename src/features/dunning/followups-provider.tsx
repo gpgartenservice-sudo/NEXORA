@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { showPlanWall } from '@/features/plan/plan-wall';
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import type { Followup, FollowupKind } from './dunning-logic';
 
@@ -75,7 +76,7 @@ export function FollowupsProvider({ userId, children }: { userId: string; childr
         showPlanWall({ feature: 'dunning' });
         return { error: proRequiredText('dunning') };
       }
-      return { error: `Das konnte nicht vermerkt werden.\n\nTechnische Details: ${err.message}` };
+      return { error: roleErrorText(err.message) ?? `Das konnte nicht vermerkt werden.\n\nTechnische Details: ${err.message}` };
     }
     const row = toFollowup(data as Record<string, unknown>);
     setFollowups((list) => [...list, row]);
@@ -84,7 +85,7 @@ export function FollowupsProvider({ userId, children }: { userId: string; childr
 
   const remove = useCallback<State['remove']>(async (id) => {
     const { error: err } = await supabase.from('invoice_followups').delete().eq('id', id);
-    if (err) return { error: `Das konnte nicht zurückgenommen werden.\n\nTechnische Details: ${err.message}` };
+    if (err) return { error: roleErrorText(err.message) ?? `Das konnte nicht zurückgenommen werden.\n\nTechnische Details: ${err.message}` };
     setFollowups((list) => list.filter((f) => f.id !== id));
     return {};
   }, []);

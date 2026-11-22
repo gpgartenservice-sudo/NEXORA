@@ -1,8 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import type { PlanKind } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
 import type { ProfileUpdate } from '@/providers/profile-provider';
+
+import {
+  can as canWith,
+  DEFAULT_ACCESS,
+  isEmployer,
+  isRole,
+  parseAccess,
+  roleErrorText,
+  type Access,
+  type Area,
+  type EditableRole,
+  type MemberRole,
+} from './roles';
 
 /**
  * Business-Team (Skript 20261120090000_feinschliff.sql): bis zu 5 Personen teilen sich
@@ -11,13 +25,30 @@ import type { ProfileUpdate } from '@/providers/profile-provider';
  * (Firma-Einstellungen, Belege im Speicher).
  */
 
-export type TeamMember = { id: string; name: string; email: string | null; owner: boolean; joined_at: string | null };
-export type TeamInvite = { code: string; email: string | null; created_at: string };
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string | null;
+  owner: boolean;
+  joined_at: string | null;
+  /** seit 20261128090000_teams.sql; ältere Datenbank: Inhaber bzw. Mitgründer */
+  role: MemberRole;
+  title: string | null;
+  vacation_days: number | null;
+};
+export type TeamInvite = { code: string; email: string | null; created_at: string; role: MemberRole };
 export type TeamInfo = {
   role: 'solo' | 'owner' | 'member';
+  /** Rolle in der offenen Firma */
+  my_role: MemberRole;
   owner_id: string;
   owner_name: string | null;
+  plan: PlanKind | null;
   seats: number;
+  seats_used: number;
+  /** null = alles erlaubt */
+  access: Access | null;
+  roles: Record<EditableRole, Access>;
   members: TeamMember[];
   invites: TeamInvite[];
 };
@@ -34,18 +65,47 @@ type State = {
 const Ctx = createContext<State | null>(null);
 const MISSING = ['PGRST202', 'PGRST205', '42883', '42P01'];
 
-function parseTeam(raw: unknown): TeamInfo | null {
+const PLANS: PlanKind[] = ['free', 'trial', 'pro', 'business', 'teams'];
+
+export function parseTeam(raw: unknown): TeamInfo | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.owner_id !== 'string') return null;
   const role = r.role === 'owner' || r.role === 'member' ? r.role : 'solo';
+  // ältere Datenbank ohne Rollen: Mitglieder sahen alles (= Mitgründer)
+  const myRole: MemberRole = isRole(r.my_role) ? r.my_role : role === 'member' ? 'mitgruender' : 'inhaber';
+  const rolesRaw = (r.roles ?? {}) as Record<string, unknown>;
+  const members = (Array.isArray(r.members) ? r.members : []).map((m: Record<string, unknown>) => ({
+    id: String(m.id),
+    name: typeof m.name === 'string' && m.name ? m.name : '?',
+    email: typeof m.email === 'string' ? m.email : null,
+    owner: !!m.owner,
+    joined_at: typeof m.joined_at === 'string' ? m.joined_at : null,
+    role: isRole(m.role) ? m.role : m.owner ? 'inhaber' : 'mitgruender',
+    title: typeof m.title === 'string' && m.title ? m.title : null,
+    vacation_days: typeof m.vacation_days === 'number' ? m.vacation_days : m.vacation_days != null ? Number(m.vacation_days) : null,
+  })) as TeamMember[];
+  const invites = (Array.isArray(r.invites) ? r.invites : []).map((i: Record<string, unknown>) => ({
+    code: String(i.code),
+    email: typeof i.email === 'string' ? i.email : null,
+    created_at: String(i.created_at ?? ''),
+    role: isRole(i.role) ? i.role : 'mitarbeiter',
+  })) as TeamInvite[];
   return {
     role,
+    my_role: myRole,
     owner_id: r.owner_id,
     owner_name: typeof r.owner_name === 'string' ? r.owner_name : null,
+    plan: PLANS.includes(r.plan as PlanKind) ? (r.plan as PlanKind) : null,
     seats: typeof r.seats === 'number' ? r.seats : 5,
-    members: Array.isArray(r.members) ? (r.members as TeamMember[]) : [],
-    invites: Array.isArray(r.invites) ? (r.invites as TeamInvite[]) : [],
+    seats_used: typeof r.seats_used === 'number' ? r.seats_used : (members.length || 1) + invites.length,
+    access: isEmployer(myRole) || !r.access ? null : parseAccess(r.access, DEFAULT_ACCESS[myRole as EditableRole] ?? DEFAULT_ACCESS.mitarbeiter),
+    roles: {
+      teamleitung: parseAccess(rolesRaw.teamleitung, DEFAULT_ACCESS.teamleitung),
+      mitarbeiter: parseAccess(rolesRaw.mitarbeiter, DEFAULT_ACCESS.mitarbeiter),
+    },
+    members,
+    invites,
   };
 }
 
@@ -121,22 +181,77 @@ export function useWorkspaceId(): string {
   return useTeam().workspaceId;
 }
 
+export type AccessState = {
+  /** Rolle in der offenen Firma (allein: inhaber) */
+  role: MemberRole;
+  /** Inhaber oder Mitgründer */
+  employer: boolean;
+  /** Arbeitsplan eintragen, Urlaub genehmigen */
+  hr: boolean;
+  /** Ist man mit anderen in einem Team? */
+  inTeam: boolean;
+  can: (area: Area, level?: 'read' | 'write') => boolean;
+};
+
+/** Rechte des angemeldeten Nutzers in der offenen Firma */
+export function useAccess(): AccessState {
+  const { team } = useTeam();
+  return useMemo(() => {
+    const access = team?.access ?? null;
+    const role = team?.my_role ?? 'inhaber';
+    return {
+      role,
+      employer: isEmployer(role),
+      hr: canWith(access, 'personal', 'write'),
+      inTeam: !!team && (team.role !== 'solo' || team.members.length > 1),
+      can: (area: Area, level: 'read' | 'write' = 'read') => canWith(access, area, level),
+    };
+  }, [team]);
+}
+
 const TEAM_ERRORS: Record<string, string> = {
-  business_required: 'Ein Team gibt es mit Lunaxora Business.',
-  team_full: 'Euer Team ist voll – Business gilt für bis zu 5 Personen (inklusive offener Einladungen).',
-  team_member_cannot_invite: 'Nur der Inhaber des Business kann Leute einladen.',
+  business_required: 'Ein Team gibt es mit Lunaxora Business und Teams.',
+  team_full: 'Euer Team ist voll (inklusive offener Einladungen). Business gilt für bis zu 5 Personen, Teams für bis zu 30.',
+  team_member_cannot_invite: 'Nur Inhaber und Mitgründer können Leute einladen.',
+  not_team_admin: 'Das können nur Inhaber und Mitgründer.',
+  owner_only: 'Mitgründer ernennen oder ändern kann nur der Inhaber.',
+  invalid_role: 'Diese Rolle gibt es nicht.',
+  invalid_vacation_days: 'Bitte zwischen 0 und 60 Urlaubstagen eintragen.',
+  member_not_found: 'Diese Person ist nicht mehr im Team.',
   invite_invalid: 'Diesen Code kennen wir nicht oder er wurde schon benutzt.',
   invite_own: 'Das ist dein eigener Einladungscode.',
   owner_has_team: 'Du hast selbst schon ein Team. Entferne zuerst deine Mitglieder, um einem anderen Team beizutreten.',};
 
 export function teamErrorText(message: string): string {
+  const role = roleErrorText(message);
+  if (role) return role;
   const key = Object.keys(TEAM_ERRORS).find((k) => message.includes(k));
   return key ? TEAM_ERRORS[key] : `Das hat nicht geklappt. Bitte versuch es noch einmal.\n\nTechnische Details: ${message}`;
 }
 
-export async function teamInvite(email: string): Promise<{ code?: string; error?: string }> {
-  const { data, error } = await supabase.rpc('team_invite', { p_email: email });
+export async function teamInvite(email: string, role: Exclude<MemberRole, 'inhaber'> = 'mitarbeiter'): Promise<{ code?: string; error?: string }> {
+  const { data, error } = await supabase.rpc('team_invite', { p_email: email, p_role: role });
   return error ? { error: teamErrorText(error.message) } : { code: String(data) };
+}
+
+/** Rolle, Bezeichnung (leer = löschen) oder Urlaubstage einer Person ändern */
+export async function teamSetMember(
+  memberId: string,
+  change: { role?: Exclude<MemberRole, 'inhaber'>; title?: string; vacationDays?: number },
+): Promise<{ error?: string }> {
+  const { error } = await supabase.rpc('team_set_member', {
+    p_member: memberId,
+    p_role: change.role ?? null,
+    p_title: change.title ?? null,
+    p_vacation_days: change.vacationDays ?? null,
+  });
+  return error ? { error: teamErrorText(error.message) } : {};
+}
+
+/** Rechte einer Rolle (Teamleitung / Mitarbeiter) speichern */
+export async function teamSetAccess(role: EditableRole, access: Partial<Access>): Promise<{ access?: Access; error?: string }> {
+  const { data, error } = await supabase.rpc('team_set_access', { p_role: role, p_access: access });
+  return error ? { error: teamErrorText(error.message) } : { access: parseAccess(data, DEFAULT_ACCESS[role]) };
 }
 
 export async function teamJoin(code: string): Promise<{ ownerName?: string; companyId?: string; error?: string }> {

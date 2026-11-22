@@ -75,6 +75,8 @@ export async function askAssistant(
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'refused') return { error: 'Dabei kann Luna nicht helfen. Formulier es bitte anders.' };
     if (http.code === 'text_too_long') return { error: 'Bitte schreib höchstens 2.000 Zeichen auf einmal.' };
+    if (http.code === 'role_forbidden')
+      return { error: 'In deiner Rolle im Team ist Luna ausgeschaltet. Das kann die Leitung unter Profil → Team ändern.' };
     if (http.code === 'quota_exceeded') {
       const text = quotaExceededText('nexy', http.plan, http.limit);
       showPlanWall({ quota: 'nexy', text });
@@ -183,6 +185,7 @@ export async function speechAudio(text: string, signal?: AbortSignal): Promise<S
       return { error: 'Der ElevenLabs-Schlüssel ist ungültig oder darf kein Text to Speech.', notSetUp: true };
     if (http.code === 'elevenlabs_voice_not_found')
       return { error: 'Die Stimme aus ELEVENLABS_VOICE_ID gibt es bei ElevenLabs nicht (mehr).', notSetUp: true };
+    if (http.code === 'role_forbidden') return { error: 'In deiner Rolle im Team ist Luna ausgeschaltet.' };
     if (http.code === 'quota_exceeded') {
       const text = quotaExceededText('voice', http.plan, http.limit);
       showPlanWall({ quota: 'voice', text });

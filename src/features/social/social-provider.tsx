@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import type { Platform, PostFormat } from './social-logic';
 
@@ -58,7 +59,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'Social Media kann noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig. Bitte prüfe deine Eingaben.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 const newestFirst = <T extends { updated_at: string }>(a: T, b: T) => b.updated_at.localeCompare(a.updated_at);

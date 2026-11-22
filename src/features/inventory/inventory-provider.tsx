@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import type { InventoryItem } from './inventory-logic';
 
@@ -46,7 +47,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'Für Produkte, Einheiten und Mindestbestand fehlt noch das Datenbank-Skript 20261123090000_lagerbestand.sql (siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig oder zu lang. Bitte prüfe deine Eingaben.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 /** Lagerbestand des Business (im Team: der des Inhabers – regelt die Datenbank). */

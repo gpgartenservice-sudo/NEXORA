@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { sendInviteMail } from '@/features/documents/mail-api';
 import { offerToken } from '@/features/documents/offer-link';
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import { inviteExpiry, type CustomerInvite } from './invite-logic';
 import type { Billing } from './order-logic';
@@ -99,7 +100,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
   // Kunde hat noch Aufträge (Fremdschlüssel)
   if (error.code === '23503') return 'Dieser Kunde hat noch Aufträge. Lösche zuerst die Aufträge.';
   if (error.code === '23514') return 'Eine Angabe ist ungültig. Bitte prüfe deine Eingaben.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 const INVITE_COLUMNS = 'id, email, created_at, sent_at, expires_at';
@@ -130,7 +131,7 @@ function inviteMessage(error: { code?: string; message?: string }, fallback: str
     return 'Für den Datenschutz-Link fehlt noch das Datenbank-Skript 20261119090000_customer_invites.sql (siehe supabase/README.md).';
   if (error.code === '23505') return 'Für diese E-Mail-Adresse läuft schon ein Link – du kannst ihn in der Kundenliste erneut senden.';
   if (error.code === '23514') return 'Bitte prüfe die E-Mail-Adresse.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 /**

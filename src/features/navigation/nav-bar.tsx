@@ -1,3 +1,4 @@
+import { router, usePathname } from 'expo-router';
 import type { TabTriggerSlotProps } from 'expo-router/ui';
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react-native';
 import {
@@ -36,6 +37,8 @@ import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Glass, WEB_GLASS } from '@/components/ui/glass';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useCompanyName } from '@/features/companies/company-provider';
+import { useNavVisible } from '@/features/team/area-gate';
+import { useTeamHubOptional } from '@/features/team/team-hub-provider';
 import { usePlan } from '@/features/plan/plan-provider';
 import { playSound } from '@/features/sound/ui-sound';
 import { useHover } from '@/hooks/use-hover';
@@ -129,6 +132,9 @@ function SidebarToggle({ collapsed }: { collapsed: boolean }) {
  * von links mit allen Bereichen – wie die Seitenleiste auf dem Mac.
  */
 function MenuDrawer({ main, footer, ...rest }: ViewProps & { main: ReactElement[]; footer: ReactElement[] }) {
+  // Team: Punkt am ☰-Knopf bei ungelesenen Nachrichten oder offenen Anträgen
+  const hub = useTeamHubOptional();
+  const news = hub ? hub.unread + hub.openRequests : 0;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const showButton = useMenuButtonShown();
@@ -179,6 +185,7 @@ function MenuDrawer({ main, footer, ...rest }: ViewProps & { main: ReactElement[
             accessibilityRole="button"
             accessibilityLabel="Menü öffnen">
             <Menu size={21} color={Colors.text} strokeWidth={2} />
+            {news > 0 && <View style={styles.menuDot} accessibilityLabel={`${news} neu im Team`} />}
           </Pressable>
         </Glass>
       )}
@@ -229,12 +236,18 @@ export function NavButton({ item, isFocused = false, onPress, ...pressable }: Na
   const drawer = useContext(DrawerContext);
   // eingeklappte Seitenleiste am Mac: nur Symbole (im Handy-Menü immer mit Namen)
   const compact = useSidebarCollapsed() && !drawer;
+  // Im Team: Bereiche, die die Rolle ausschaltet, nicht zeigen
+  const visible = useNavVisible();
+  const pathname = usePathname();
   // "Mehr" brauchte nur die alte Tab-Leiste – das Menü zeigt alle Bereiche direkt
-  if (item.mobileOnly || item.hidden) return null;
+  if (item.mobileOnly || item.hidden || !visible(item.name)) return null;
 
   const press: TriggerSlotProps['onPress'] = (e) => {
     playSound('tick');
-    onPress?.(e);
+    // Bereich ist schon offen, aber auf einer Unterseite (z. B. Profil → Team, Team → Chat):
+    // zurück zur Übersicht des Bereichs (wie bei iOS)
+    if (isFocused && pathname !== item.href) router.dismissTo(item.href);
+    else onPress?.(e);
     drawer?.close();
   };
   if (item.name === 'profil') return <UserChip isFocused={isFocused} compact={compact} {...pressable} onPress={press} />;
@@ -262,6 +275,9 @@ function useNavAnimation(isFocused: boolean) {
 function SidebarItem({ item, isFocused, compact, ...pressable }: ItemProps & { item: NavItem }) {
   const { active, hover, press, handlers } = useNavAnimation(isFocused);
   const Icon = item.icon;
+  // Team: ungelesene Nachrichten + offene Urlaubsanträge
+  const hub = useTeamHubOptional();
+  const badge = item.name === 'team' && hub ? hub.unread + hub.openRequests : 0;
 
   const rowStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(Math.max(active.get(), hover.get() * 0.55), [0, 1], ['rgba(255,255,255,0)', 'rgba(255,255,255,0.075)']),
@@ -293,13 +309,21 @@ function SidebarItem({ item, isFocused, compact, ...pressable }: ItemProps & { i
             <Text style={styles.soonText}>bald</Text>
           </View>
         )}
+        {badge > 0 &&
+          (compact ? (
+            <View style={styles.badgeDot} accessibilityLabel={`${badge} neu`} />
+          ) : (
+            <View style={styles.badge} accessibilityLabel={`${badge} neu`}>
+              <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+            </View>
+          ))}
       </Animated.View>
     </Pressable>
   );
 }
 
 /** Kurzname des Abos für die Seitenleiste */
-const PLAN_SHORT = { free: 'Gratis', trial: 'Pro-Test', pro: 'Pro', business: 'Business' } as const;
+const PLAN_SHORT = { free: 'Gratis', trial: 'Pro-Test', pro: 'Pro', business: 'Business', teams: 'Teams' } as const;
 
 function UserChip({ isFocused, compact, ...pressable }: ItemProps) {
   const { profile } = useProfile();
@@ -327,7 +351,7 @@ function UserChip({ isFocused, compact, ...pressable }: ItemProps) {
               {name}
             </Text>
             {plan && (
-              <Text style={[styles.planTag, plan === 'business' && styles.planTagBusiness]} testID="sidebar-plan">
+              <Text style={[styles.planTag, (plan === 'business' || plan === 'teams') && styles.planTagBusiness]} testID="sidebar-plan">
                 {PLAN_SHORT[plan]}
               </Text>
             )}
@@ -403,6 +427,18 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   soonText: { color: Colors.textFaint, fontSize: 10.5, fontWeight: '600', letterSpacing: 0.3 },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: Colors.onAccent, fontSize: 11.5, fontWeight: '800' },
+  menuDot: { position: 'absolute', top: 9, right: 9, width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.accent },
+  badgeDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
   userChip: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.sm, borderRadius: Radius.md },
   userChipCompact: { justifyContent: 'center', padding: 5 },
   avatar: {

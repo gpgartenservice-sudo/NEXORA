@@ -1,4 +1,4 @@
-// Unit-Tests: Abo (Gratis/Pro/Business). Start: npm run test:unit
+// Unit-Tests: Abo (Gratis/Pro/Business/Teams). Start: npm run test:unit
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import {
   COMPARISON,
   formatPrice,
+  hasTeamPlan,
   isPro,
   LIMITS,
   parsePlan,
@@ -13,6 +14,7 @@ import {
   PRICES,
   quotaExceededText,
   quotaText,
+  seatsFor,
   trialDaysLeft,
 } from '../../src/features/plan/plan-logic.ts';
 
@@ -39,6 +41,7 @@ test('Antwort der Datenbank prüfen', () => {
   assert.equal(parsePlan({ plan: 'pro' }).usage.nexy.limit, 100);
   assert.equal(parsePlan({ plan: 'business' }).usage.receipt.limit, 250);
   assert.equal(parsePlan({ plan: 'trial' }).usage.voice.limit, 70);
+  assert.equal(parsePlan({ plan: 'teams' }).usage.nexy.limit, 2000);
   // alte Datenbank ohne Vorlesen-Zähler -> Standardgrenze
   assert.deepEqual(parsePlan(raw({ usage: { nexy: { used: 1, limit: 15 } } })).usage.voice, { used: 0, limit: 30 });
   assert.equal(parsePlan(raw({ trial_ends_at: 'quatsch' })).trial_ends_at, null);
@@ -55,6 +58,8 @@ test('Testphase und Business zählen wie Pro, Tage aufgerundet', () => {
   assert.equal(planLabel(parsePlan(raw({ plan: 'trial', trial_ends_at: '2026-11-03T20:00:00Z' })), NOW), 'Pro-Test · noch 1 Tag');
   assert.equal(planLabel(parsePlan(raw({ plan: 'pro' })), NOW), 'Pro');
   assert.equal(planLabel(parsePlan(raw({ plan: 'business' })), NOW), 'Business');
+  assert.equal(planLabel(parsePlan(raw({ plan: 'teams' })), NOW), 'Teams');
+  assert.equal(isPro('teams'), true);
   assert.equal(planLabel(parsePlan(raw()), NOW), 'Gratis');
   assert.equal(trialDaysLeft(parsePlan(raw()), NOW), null);
 });
@@ -72,41 +77,48 @@ test('Kontingent aufgebraucht: Text passt zum Abo', () => {
   assert.match(quotaExceededText('nexy', 'free', 15), /^Deine 15 Gratis-Nachrichten an Luna .* Mit Lunaxora Pro geht es gleich weiter/);
   assert.match(quotaExceededText('receipt', 'trial', 20), /^Deine 20 Test-Belege .* selbst ein/);
   assert.match(quotaExceededText('nexy', 'pro', 100), /^Deine 100 Nachrichten .* Mit Lunaxora Business habt ihr fünfmal so viel/);
-  assert.match(quotaExceededText('voice', 'business', 600), /600-mal Vorlesen.*als Text\. Ab dem 1\. des nächsten Monats geht es weiter\./);
+  assert.match(quotaExceededText('voice', 'business', 600), /600-mal Vorlesen.*als Text\. Mit Lunaxora Teams habt ihr viermal so viel – für bis zu 30 Personen/);
+  assert.match(quotaExceededText('nexy', 'teams', 2000), /^Deine 2000 Nachrichten .* Ab dem 1\. des nächsten Monats geht es weiter\./);
   // ohne Angaben vom Server: Gratis-Grenze
   assert.match(quotaExceededText('nexy', undefined, undefined), /^Deine 15 Gratis-Nachrichten/);
 });
 
-test('Vergleich: Pro und Business können alles, Gratis hat die Grundfunktionen', () => {
-  assert.ok(COMPARISON.every((r) => r.pro !== false && r.business !== false));
+test('Vergleich: Business und Teams können alles, Pro alles außer Team, Gratis die Grundfunktionen', () => {
+  assert.ok(COMPARISON.every((r) => r.business !== false && r.teams !== false));
+  const proMissing = COMPARISON.filter((r) => r.pro === false).map((r) => r.label);
+  assert.equal(proMissing.length, 2, proMissing.join(', '));
+  assert.ok(proMissing.every((l) => /Team|Arbeits/.test(l)));
   assert.ok(COMPARISON.filter((r) => r.free === true).length >= 5);
   const luna = COMPARISON.find((r) => r.label.startsWith('Luna-Nachrichten'));
-  assert.deepEqual([luna.free, luna.pro, luna.business], ['15', '100', '500']);
+  assert.deepEqual([luna.free, luna.pro, luna.business, luna.teams], ['15', '100', '500', '2000']);
   const seats = COMPARISON.find((r) => r.label === 'Personen im Konto');
-  assert.deepEqual([seats.free, seats.pro, seats.business], ['1', '1', '5']);
+  assert.deepEqual([seats.free, seats.pro, seats.business, seats.teams], ['1', '1', '5', '30']);
+  assert.deepEqual(['free', 'pro', 'trial', 'business', 'teams'].map(seatsFor), [1, 1, 5, 5, 30]);
+  assert.deepEqual(['free', 'pro', 'trial', 'business', 'teams'].map(hasTeamPlan), [false, false, true, true, true]);
 });
 
-test('Preise: Jahr = zwei Monate geschenkt, Business teurer als Pro', () => {
-  for (const t of ['pro', 'business']) {
+test('Preise: Jahr = zwei Monate geschenkt, Teams > Business > Pro', () => {
+  for (const t of ['pro', 'business', 'teams']) {
     const saved = PRICES[t].month * 12 - PRICES[t].year;
     assert.ok(saved >= PRICES[t].month * 1.9 && saved <= PRICES[t].month * 2.1, `${t}: ${saved}`);
   }
   assert.ok(PRICES.business.month > PRICES.pro.month);
-  assert.deepEqual([PRICES.pro.month, PRICES.business.month], [23.99, 150]);
+  assert.ok(PRICES.teams.month > PRICES.business.month);
+  assert.deepEqual([PRICES.pro.month, PRICES.business.month, PRICES.teams.month, PRICES.teams.year], [23.99, 150, 349, 3490]);
   // Pro jährlich: 10 Monatsbeiträge (239,90 €), angezeigt als 19,99 € im Monat
   assert.equal(Math.round(PRICES.pro.year * 100), 10 * Math.round(PRICES.pro.month * 100));
   assert.equal(formatPrice(PRICES.pro.year / 12).replace(/\s/g, ' '), '19,99 €');
 });
 
 test('Grenzen in der App = Grenzen in der Datenbank (nexora_limit, neuestes Skript)', () => {
-  const sql = readFileSync(new URL('../../supabase/migrations/20261120090000_feinschliff.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../../supabase/migrations/20261128090000_teams.sql', import.meta.url), 'utf8');
   const body = sql.slice(sql.indexOf('function public.nexora_limit'), sql.indexOf('$$;', sql.indexOf('function public.nexora_limit')));
   const row = (plan) => {
     const line = body.split('\n').find((l) => (plan === 'free' ? /^\s*else\s+case/.test(l) : l.includes(`when '${plan}'`)));
     const [, nexy, receipt, voice] = line.match(/'nexy' then (\d+)\s+when 'receipt' then (\d+)\s+else (\d+)/);
     return { nexy: +nexy, receipt: +receipt, voice: +voice };
   };
-  for (const plan of ['free', 'trial', 'pro', 'business']) assert.deepEqual(row(plan), LIMITS[plan], plan);
+  for (const plan of ['free', 'trial', 'pro', 'business', 'teams']) assert.deepEqual(row(plan), LIMITS[plan], plan);
 });
 
 test('Server sagt „nur mit Pro“ (Datenbank PT402 bzw. Text)', async () => {

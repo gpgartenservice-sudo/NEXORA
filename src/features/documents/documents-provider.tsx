@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Customer, Order } from '@/features/crm/crm-provider';
 import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import {
   addDays,
@@ -88,7 +89,7 @@ function logoErrorText(error: { code?: string; message?: string }, fallback: str
   if (error.code && LOGO_MISSING.includes(error.code)) {
     return 'Das Logo kann noch nicht gespeichert werden: Das Datenbank-Skript fürs Firmenlogo fehlt (20261105090000_business_logo.sql, siehe supabase/README.md).';
   }
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 async function fetchLogo(id: string): Promise<LogoImage | null> {
@@ -101,7 +102,7 @@ function errorText(error: { code?: string; message?: string }, fallback: string)
   if (error.code && MISSING.includes(error.code)) {
     return 'Angebote und Rechnungen sind noch nicht eingerichtet: Das Datenbank-Skript dafür fehlt (siehe supabase/README.md).';
   }
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 /** Die Positionen eines Dokuments – aus dem Auftrag übernommen. */

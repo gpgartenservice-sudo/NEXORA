@@ -16,7 +16,7 @@ import { MoneyBurst } from '@/components/motion/money-burst';
 import { Button } from '@/components/ui/button';
 import { GradientText } from '@/components/ui/gradient';
 import { Colors, Spacing } from '@/constants/theme';
-import { BUSINESS_SEATS, formatPrice, PRICES } from '@/features/plan/plan-logic';
+import { BUSINESS_SEATS, formatPrice, PRICES, TEAMS_SEATS } from '@/features/plan/plan-logic';
 
 import type { ChosenPlan } from './plan-step';
 
@@ -61,7 +61,7 @@ export function PurchaseDone({
     transform: [{ scale: 1 + ring.get() * 1.4 }],
   }));
 
-  const name = plan === 'business' ? 'Business' : 'Pro';
+  const name = plan === 'teams' ? 'Teams' : plan === 'business' ? 'Business' : 'Pro';
   const gift = !!voucherMonths;
 
   return (
@@ -77,7 +77,7 @@ export function PurchaseDone({
       <Reveal delay={700}>
         <View style={styles.planRow}>
           <Text style={styles.welcome}>Willkommen bei </Text>
-          {plan === 'business' ? (
+          {plan === 'business' || plan === 'teams' ? (
             <GradientText style={styles.welcome}>{`Lunaxora ${name}`}</GradientText>
           ) : (
             <Text style={[styles.welcome, styles.pro]}>Lunaxora {name}</Text>
@@ -88,7 +88,9 @@ export function PurchaseDone({
         <Text style={styles.text}>
           {gift
             ? `Du nutzt alle Pro-Funktionen jetzt ${voucherMonths} Monate kostenlos. Danach entscheidest du selbst, ob es weitergeht.`
-            : plan === 'business'
+            : plan === 'teams'
+              ? `${formatPrice(PRICES.teams.month)} im Monat – für bis zu ${TEAMS_SEATS} Personen. Mitarbeiter lädst du unter Profil → Team ein.`
+              : plan === 'business'
               ? `${formatPrice(PRICES.business.month)} im Monat – für bis zu ${BUSINESS_SEATS} Personen. Dein Team lädst du unter Profil → Team ein.`
               : `${formatPrice(PRICES.pro.month)} im Monat – alle Pro-Funktionen sind freigeschaltet.`}
         </Text>

@@ -7,6 +7,7 @@ import {
   House,
   ListChecks,
   Megaphone,
+  MessagesSquare,
   Route,
   UserRound,
   Users,
@@ -25,6 +26,7 @@ export type NavItem = {
     | '/kunden'
     | '/auftraege'
     | '/termine'
+    | '/team'
     | '/aufgaben'
     | '/firma'
     | '/finanzen'
@@ -103,6 +105,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Termine',
     icon: CalendarDays,
     description: 'Erstgespräche, Ausführungen und eigene Termine – mit Tagesroute und Verbindung zu deinem Kalender.',
+  },
+  {
+    name: 'team',
+    href: '/team',
+    label: 'Team',
+    icon: MessagesSquare,
+    description: 'Chats, Arbeitsplan und Urlaub – für alle im Team.',
   },
   {
     name: 'aufgaben',

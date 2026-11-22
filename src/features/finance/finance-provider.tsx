@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import type { ExpenseCategory, ExpenseRepeat } from './finance-logic';
 
@@ -60,7 +61,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     return 'Die enthaltene Umsatzsteuer kann noch nicht gespeichert werden: Das Datenbank-Skript dafür fehlt (20261114090000_tax.sql, siehe supabase/README.md).';
   }
   if (error.code === '23514') return 'Eine Angabe ist ungültig. Bitte prüfe deine Eingaben.';
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 const byDate = (a: Expense, b: Expense) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at);

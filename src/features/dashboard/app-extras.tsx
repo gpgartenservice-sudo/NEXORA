@@ -9,6 +9,7 @@ import { useFinance } from '@/features/finance/finance-provider';
 import { NotificationScheduler } from '@/features/notifications/notification-scheduler';
 import { OfferReplyWatcher, PushRegistrar } from '@/features/notifications/offer-reply-watcher';
 import { preloadSounds } from '@/features/sound/ui-sound';
+import { useAccess } from '@/features/team/team-provider';
 
 import { LunaGreeting } from './luna-greeting';
 import { allTimeIncome, monthNumbers, queueCelebration, takeStartCelebration } from './money';
@@ -20,14 +21,17 @@ import { MoneyCelebrationHost } from './money-celebration';
  */
 export function AppExtras() {
   useEffect(() => preloadSounds(), []);
+  // Im Team: Geld-Feiern nur mit Finanzen, Luna-Begrüßung nur mit Luna
+  const access = useAccess();
+  const money = access.can('finanzen');
   return (
     <>
-      <IncomeWatcher />
+      {money && <IncomeWatcher />}
       <NotificationScheduler />
       <OfferReplyWatcher />
       <PushRegistrar />
-      <LunaGreeting />
-      <MoneyCelebrationHost />
+      {access.can('luna') && <LunaGreeting />}
+      {money && <MoneyCelebrationHost />}
       <MoneyBurstHost />
     </>
   );

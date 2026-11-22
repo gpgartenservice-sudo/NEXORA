@@ -25,8 +25,9 @@ export function seenText(iso: string | null, now: number): string {
  * Profil → Geräte: auf welchem iPhone und welchem Mac das Konto gerade angemeldet ist
  * (nur mit Abo – Gratis hat keine Gerätegrenze).
  */
-export function DevicesCard() {
+export function DevicesCard({ showFree = false }: { showFree?: boolean } = {}) {
   const [devices, setDevices] = useState<AccountDevice[] | null>(null);
+  const [checked, setChecked] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   useFocusEffect(
@@ -35,6 +36,7 @@ export function DevicesCard() {
       void checkThisDevice().then((s) => {
         if (!alive) return;
         setNow(Date.now());
+        setChecked(true);
         setDevices(s.limited ? s.devices : null);
       });
       return () => {
@@ -43,7 +45,16 @@ export function DevicesCard() {
     }, []),
   );
 
-  if (!devices) return null;
+  if (!devices) {
+    // Profil → Geräte: ohne Abo gibt es keine Grenze
+    if (!showFree || !checked) return null;
+    return (
+      <Card>
+        <Text style={styles.title}>Keine Gerätegrenze</Text>
+        <Text style={styles.text}>Mit Lunaxora Gratis kannst du dich auf beliebig vielen Geräten anmelden. Mit einem Abo gilt: ein iPhone und ein Mac gleichzeitig.</Text>
+      </Card>
+    );
+  }
 
   return (
     <Card>

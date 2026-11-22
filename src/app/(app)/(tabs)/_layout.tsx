@@ -22,6 +22,7 @@ import { AppointmentsProvider } from '@/features/appointments/appointments-provi
 import { PlanProvider } from '@/features/plan/plan-provider';
 import { useCompanies } from '@/features/companies/company-provider';
 import { TutorialProvider } from '@/features/tutorial/tutorial-provider';
+import { TeamHubProvider } from '@/features/team/team-hub-provider';
 import { TeamProvider, useWorkspaceId } from '@/features/team/team-provider';
 import { DeviceGate } from '@/features/team/device-gate';
 import { AppExtras } from '@/features/dashboard/app-extras';
@@ -90,13 +91,21 @@ function Workspace() {
                         <NexyProvider key={user?.id ?? ''}>
                           <TutorialProvider>
                             <GuideProvider>
+                              <TeamHubProvider>
                               <View style={styles.root}>
                               {sharedBackdrop && <AppBackdrop />}
                               <Tabs style={[styles.slot, wide ? styles.row : styles.columnReverse]}>
                                 <TabList asChild>
                                   <NavBar wide={wide}>
                                     {NAV_ITEMS.map((item) => (
-                                      <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
+                                      // Profil öffnet immer die Übersicht – auch wenn vorher z. B. „Team verwalten“
+                                      // aus dem Team-Bereich dort offen war (sonst kam man nicht mehr zurück)
+                                      <TabTrigger
+                                        key={item.name}
+                                        name={item.name}
+                                        href={item.href}
+                                        resetOnFocus={item.name === 'profil'}
+                                        asChild>
                                         <NavButton item={item} />
                                       </TabTrigger>
                                     ))}
@@ -111,6 +120,7 @@ function Workspace() {
                               </View>
                               <AppExtras />
                               <PlanWall />
+                              </TeamHubProvider>
                             </GuideProvider>
                           </TutorialProvider>
                         </NexyProvider>

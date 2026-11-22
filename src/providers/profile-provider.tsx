@@ -19,7 +19,7 @@ export type Profile = {
   /** Rechtsform (Einzelunternehmen, GbR, …) */
   legal_form?: LegalForm | null;
   /** Abo, das bei der Registrierung gewählt wurde (bis Stripe läuft nur gemerkt) */
-  chosen_plan?: 'free' | 'pro' | 'business' | null;
+  chosen_plan?: 'free' | 'pro' | 'business' | 'teams' | null;
   /** Design-Einstellungen (Pro/Business): Farbe/Verlauf + Symbole, siehe design-logic.ts */
   design?: Record<string, unknown> | null;
 };

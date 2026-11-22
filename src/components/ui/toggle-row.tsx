@@ -16,17 +16,6 @@ type Props = {
 
 /** Schalter mit Beschriftung – der Knopf gleitet federnd zur Seite. */
 export function ToggleRow({ label, hint, value, onChange, danger }: Props) {
-  const p = useSharedValue(value ? 1 : 0);
-  useEffect(() => {
-    p.set(withSpring(value ? 1 : 0, { damping: 16, stiffness: 260 }));
-  }, [value, p]);
-
-  const on = danger ? Colors.danger : Colors.accent;
-  const track = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(Math.min(1, Math.max(0, p.get())), [0, 1], [Colors.border, on]),
-  }));
-  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * 18 }] }));
-
   return (
     <Pressable
       onPress={() => {
@@ -42,10 +31,27 @@ export function ToggleRow({ label, hint, value, onChange, danger }: Props) {
         <Text style={styles.label}>{label}</Text>
         {!!hint && <Text style={styles.hint}>{hint}</Text>}
       </View>
-      <Animated.View style={[styles.track, track]}>
-        <Animated.View style={[styles.knob, knob]} />
-      </Animated.View>
+      <ToggleSwitch value={value} danger={danger} />
     </Pressable>
+  );
+}
+
+/** Nur der Schalter (ohne Beschriftung), z. B. rechts in einer Einstellungs-Zeile */
+export function ToggleSwitch({ value, danger }: { value: boolean; danger?: boolean }) {
+  const p = useSharedValue(value ? 1 : 0);
+  useEffect(() => {
+    p.set(withSpring(value ? 1 : 0, { damping: 16, stiffness: 260 }));
+  }, [value, p]);
+
+  const on = danger ? Colors.danger : Colors.accent;
+  const track = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(Math.min(1, Math.max(0, p.get())), [0, 1], [Colors.border, on]),
+  }));
+  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: p.get() * 18 }] }));
+  return (
+    <Animated.View style={[styles.track, track]}>
+      <Animated.View style={[styles.knob, knob]} />
+    </Animated.View>
   );
 }
 

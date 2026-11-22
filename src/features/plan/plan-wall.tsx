@@ -16,6 +16,7 @@ import {
   PRICES,
   type ProFeature,
   type QuotaKind,
+  TEAMS_SEATS,
 } from './plan-logic';
 
 /**
@@ -74,8 +75,8 @@ export function wallText(wall: Wall): { title: string; text: string; business: b
   const label = f ? `„${FEATURE_LABEL[f]}“` : 'Diese Funktion';
   if (business) {
     return {
-      title: 'Das gibt es mit Lunaxora Business',
-      text: `${label} ist in deinem Abo gesperrt. Mit Business arbeitet ihr mit bis zu ${BUSINESS_SEATS} Personen in einem Konto (${formatPrice(PRICES.business.month)} im Monat).`,
+      title: 'Das gibt es mit Business und Teams',
+      text: `${label} ist in deinem Abo gesperrt. Mit Business arbeitet ihr mit bis zu ${BUSINESS_SEATS} Personen in einem Konto (${formatPrice(PRICES.business.month)} im Monat), mit Teams mit bis zu ${TEAMS_SEATS} (${formatPrice(PRICES.teams.month)}).`,
       business,
     };
   }

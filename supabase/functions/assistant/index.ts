@@ -486,7 +486,11 @@ async function consumeQuota(req: Request, deps: Deps, kind: QuotaKind): Promise<
     if (res && res.status !== 404) console.error('consume_quota', res.status, (await res.text().catch(() => '')).slice(0, 200));
     return null;
   }
-  const r = (await res.json().catch(() => null)) as { allowed?: boolean; limit?: number; used?: number; plan?: string } | null;
+  const r = (await res.json().catch(() => null)) as
+    | { allowed?: boolean; forbidden?: boolean; limit?: number; used?: number; plan?: string }
+    | null;
+  // Rolle im Team ohne Luna (Skript 20261128090000_teams.sql)
+  if (r?.allowed === false && r.forbidden) return json(403, { error: 'role_forbidden', area: 'luna' });
   if (r?.allowed === false) return json(402, { error: 'quota_exceeded', kind, limit: r.limit, used: r.used, plan: r.plan });
   return null;
 }

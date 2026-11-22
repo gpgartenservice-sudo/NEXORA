@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { isProRequired, proRequiredText } from '@/features/plan/plan-logic';
 import { showPlanWall } from '@/features/plan/plan-wall';
 import { supabase } from '@/lib/supabase';
+import { roleErrorText } from '@/features/team/roles';
 
 import { feedToken, type Appointment } from './appointment-logic';
 
@@ -47,7 +48,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
     showPlanWall({ feature: 'calendar_feed' });
     return proRequiredText('calendar_feed');
   }
-  return `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
+  return roleErrorText(error.message) ?? `${fallback}\n\nTechnische Details: ${error.message ?? 'unbekannt'}`;
 }
 
 const byStart = (a: Appointment, b: Appointment) => a.starts_at.localeCompare(b.starts_at);

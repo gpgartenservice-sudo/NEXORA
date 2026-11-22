@@ -116,7 +116,7 @@ export function NexyScreen() {
   const { info } = usePlan();
   // Jedes Abo hat eine Grenze: ab 5 übrigen Nachrichten anzeigen, wie viele noch gehen
   const left = info ? info.usage.nexy.limit - info.usage.nexy.used : null;
-  const paid = info?.plan === 'pro' || info?.plan === 'business';
+  const paid = info?.plan === 'pro' || info?.plan === 'business' || info?.plan === 'teams';
   const quotaHint = left !== null && left <= 5 && info ? quotaText(info, 'nexy') : null;
   const voice = useVoiceMode();
   const { stop: stopVoice, stopReading, read } = voice;

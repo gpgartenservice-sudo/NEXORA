@@ -4,7 +4,7 @@
  * Antworten auf Angebote (online angenommen oder abgelehnt).
  */
 
-export type NotifyKind = 'appointments' | 'invoices' | 'offers' | 'todos' | 'goals' | 'motivation';
+export type NotifyKind = 'appointments' | 'invoices' | 'offers' | 'team' | 'todos' | 'goals' | 'motivation';
 
 export type NotifyPrefs = Record<NotifyKind, boolean>;
 
@@ -12,6 +12,7 @@ export const DEFAULT_PREFS: NotifyPrefs = {
   appointments: true,
   invoices: true,
   offers: true,
+  team: true,
   todos: true,
   goals: true,
   motivation: true,
@@ -21,6 +22,7 @@ export const NOTIFY_OPTIONS: { key: NotifyKind; title: string; text: string }[] 
   { key: 'appointments', title: 'Termine', text: 'Eine Stunde vorher (ganztägige morgens um 8).' },
   { key: 'invoices', title: 'Fällige Rechnungen', text: 'Am Tag, an dem eine Rechnung fällig wird – und am Tag danach, wenn sie noch offen ist.' },
   { key: 'offers', title: 'Angebote', text: 'Sobald ein Kunde ein Angebot online annimmt oder ablehnt.' },
+  { key: 'team', title: 'Team', text: 'Neue Nachrichten in den Team-Chats, Urlaubsanträge, Krankmeldungen und Antworten darauf.' },
   { key: 'todos', title: 'To-dos für heute', text: 'Morgens um halb neun, wenn etwas ansteht.' },
   { key: 'goals', title: 'Ziele', text: 'Sonntagabends: wie weit du diese Woche gekommen bist.' },
   { key: 'motivation', title: 'Motivation', text: 'Ab und zu ein Impuls von Luna, der dich weiterbringt.' },

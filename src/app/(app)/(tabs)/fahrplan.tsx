@@ -1,5 +1,10 @@
 import { RoadmapScreen } from '@/features/roadmap/roadmap-screen';
+import { AreaGate } from '@/features/team/area-gate';
 
 export default function FahrplanScreen() {
-  return <RoadmapScreen />;
+  return (
+    <AreaGate area="fahrplan">
+      <RoadmapScreen />
+    </AreaGate>
+  );
 }

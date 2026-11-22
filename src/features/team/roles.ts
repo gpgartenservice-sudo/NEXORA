@@ -1,0 +1,158 @@
+/**
+ * Rollen und Rechte im Team (Business und Teams) – reine Logik mit Unit-Tests.
+ * Die verbindlichen Regeln prüft die Datenbank (Skript 20261128090000_teams.sql:
+ * nexora_role_default, nexora_may, Trigger nexora_guard_write); die App blendet nur aus.
+ */
+
+/** inhaber = wem die Firma gehört; Inhaber + Mitgründer = Arbeitgeber */
+export type MemberRole = 'inhaber' | 'mitgruender' | 'teamleitung' | 'mitarbeiter';
+/** Rollen, deren Rechte der Admin einstellt */
+export type EditableRole = 'teamleitung' | 'mitarbeiter';
+export type Area =
+  | 'kunden'
+  | 'auftraege'
+  | 'termine'
+  | 'aufgaben'
+  | 'dokumente'
+  | 'finanzen'
+  | 'lager'
+  | 'social'
+  | 'firma'
+  | 'luna'
+  | 'fahrplan'
+  | 'personal';
+export type Level = 'off' | 'read' | 'write';
+export type Access = Record<Area, Level>;
+
+export const AREAS: { key: Area; label: string; hint: string; toggle?: boolean }[] = [
+  { key: 'kunden', label: 'Kunden', hint: 'Kontakte, Adressen, Notizen' },
+  { key: 'auftraege', label: 'Aufträge', hint: 'Aufträge und ihr Stand' },
+  { key: 'termine', label: 'Termine', hint: 'Kalender und Wetter' },
+  { key: 'aufgaben', label: 'To-dos & Ziele', hint: 'Aufgaben abhaken' },
+  { key: 'dokumente', label: 'Angebote & Rechnungen', hint: 'PDFs, Mahnungen, Versand' },
+  { key: 'finanzen', label: 'Finanzen & Steuern', hint: 'Einnahmen, Ausgaben, Belege' },
+  { key: 'lager', label: 'Lagerbestand', hint: 'Geräte und Material' },
+  { key: 'social', label: 'Social Media', hint: 'Beiträge und Zahlen' },
+  { key: 'firma', label: 'Firma', hint: 'Firmendaten und Logo' },
+  { key: 'luna', label: 'Luna', hint: 'Die Assistentin benutzen', toggle: true },
+  { key: 'fahrplan', label: 'Fahrplan', hint: 'Gründer-Checklisten', toggle: true },
+  { key: 'personal', label: 'Personal', hint: 'Arbeitsplan eintragen, Urlaub genehmigen', toggle: true },
+];
+
+export const AREA_LABEL = Object.fromEntries(AREAS.map((a) => [a.key, a.label])) as Record<Area, string>;
+
+export const ROLE_LABEL: Record<MemberRole, string> = {
+  inhaber: 'Inhaber',
+  mitgruender: 'Mitgründer',
+  teamleitung: 'Teamleitung',
+  mitarbeiter: 'Mitarbeiter',
+};
+
+export const ROLE_HINT: Record<MemberRole, string> = {
+  inhaber: 'Gehört die Firma, sieht alles, verwaltet Team und Abo.',
+  mitgruender: 'Arbeitgeber: sieht alles, verwaltet das Team, im Leitungs-Chat.',
+  teamleitung: 'Plant das Team, genehmigt Urlaub – Rechte stellst du ein.',
+  mitarbeiter: 'Sieht seinen Arbeitsplan, beantragt Urlaub – Rechte stellst du ein.',
+};
+
+const all = (level: Level): Access =>
+  Object.fromEntries(AREAS.map((a) => [a.key, level])) as Access;
+
+/** Vorlagen – gleiche Werte wie nexora_role_default() in 20261128090000_teams.sql */
+export const DEFAULT_ACCESS: Record<EditableRole, Access> = {
+  teamleitung: {
+    kunden: 'write',
+    auftraege: 'write',
+    termine: 'write',
+    aufgaben: 'write',
+    dokumente: 'write',
+    finanzen: 'off',
+    lager: 'write',
+    social: 'write',
+    firma: 'read',
+    luna: 'write',
+    fahrplan: 'off',
+    personal: 'write',
+  },
+  mitarbeiter: {
+    kunden: 'read',
+    auftraege: 'read',
+    termine: 'read',
+    aufgaben: 'write',
+    dokumente: 'off',
+    finanzen: 'off',
+    lager: 'write',
+    social: 'off',
+    firma: 'read',
+    luna: 'off',
+    fahrplan: 'off',
+    personal: 'off',
+  },
+};
+
+export const FULL_ACCESS: Access = all('write');
+
+const LEVELS: Level[] = ['off', 'read', 'write'];
+const isLevel = (v: unknown): v is Level => typeof v === 'string' && (LEVELS as string[]).includes(v);
+
+/** Antwort der Datenbank lesen; fehlende/unbekannte Werte = Vorlage */
+export function parseAccess(raw: unknown, fallback: Access): Access {
+  const out = { ...fallback };
+  if (!raw || typeof raw !== 'object') return out;
+  for (const a of AREAS) {
+    const v = (raw as Record<string, unknown>)[a.key];
+    if (isLevel(v)) out[a.key] = a.toggle && v === 'read' ? 'write' : v;
+  }
+  return out;
+}
+
+export function isRole(v: unknown): v is MemberRole {
+  return v === 'inhaber' || v === 'mitgruender' || v === 'teamleitung' || v === 'mitarbeiter';
+}
+
+/** Inhaber und Mitgründer: sehen alles, verwalten das Team, schreiben im Leitungs-Chat */
+export const isEmployer = (role: MemberRole | null | undefined) => role === 'inhaber' || role === 'mitgruender';
+
+/** null = keine Einschränkung (allein, Inhaber, Mitgründer) */
+export function can(access: Access | null | undefined, area: Area, level: 'read' | 'write' = 'read'): boolean {
+  if (!access) return true;
+  const v = access[area] ?? 'off';
+  return level === 'write' ? v === 'write' : v !== 'off';
+}
+
+/** Welcher Bereich gehört zu einem Menüpunkt (Name der Route)? */
+const NAV_AREA: Record<string, Area> = {
+  kunden: 'kunden',
+  auftraege: 'auftraege',
+  termine: 'termine',
+  aufgaben: 'aufgaben',
+  firma: 'firma',
+  finanzen: 'finanzen',
+  inventar: 'lager',
+  social: 'social',
+  assistent: 'luna',
+  fahrplan: 'fahrplan',
+};
+export const navArea = (name: string): Area | null => NAV_AREA[name] ?? null;
+
+/** Kurzer Satz, was eine Rolle darf („Sieht: Kunden, Termine · Bearbeitet: To-dos“) */
+export function accessSummary(access: Access): string {
+  const write = AREAS.filter((a) => access[a.key] === 'write').map((a) => a.label);
+  const read = AREAS.filter((a) => access[a.key] === 'read').map((a) => a.label);
+  const parts = [];
+  if (write.length) parts.push(`Bearbeitet: ${write.join(', ')}`);
+  if (read.length) parts.push(`Sieht: ${read.join(', ')}`);
+  return parts.join(' · ') || 'Nur Arbeitsplan, Urlaub und Chat';
+}
+
+/**
+ * Fehler der Datenbank „role_forbidden:kunden“ (Trigger nexora_guard_write) → verständlicher Text,
+ * sonst null.
+ */
+export function roleErrorText(message: string | null | undefined): string | null {
+  const m = /role_forbidden(?::([a-z]+))?/.exec(message ?? '');
+  if (!m) return null;
+  const area = m[1] as Area | undefined;
+  const what = area && area in AREA_LABEL ? `„${AREA_LABEL[area]}“ zu bearbeiten` : 'das zu ändern';
+  return `In deiner Rolle im Team hast du nicht das Recht, ${what}. Das kann die Leitung unter Profil → Team freischalten.`;
+}

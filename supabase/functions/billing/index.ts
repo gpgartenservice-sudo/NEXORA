@@ -1,7 +1,7 @@
 /**
  * Server-Funktion "billing": Abo bezahlen mit Stripe.
  *
- *   POST { mode: "checkout", tier: "pro" | "business", interval: "month" | "year" }
+ *   POST { mode: "checkout", tier: "pro" | "business" | "teams", interval: "month" | "year" }
  *        -> { url } zur Stripe-Bezahlseite (hat der Nutzer schon ein laufendes Abo:
  *           { url, portal: true } zum Kundenportal – dort Stufe wechseln, nicht doppelt zahlen)
  *   POST { mode: "portal" } -> { url } zum Stripe-Kundenportal (Abo kündigen, wechseln,
@@ -17,7 +17,7 @@
  *   STRIPE_SECRET_KEY      (Pflicht) Secret Key aus Stripe (sk_test_… zum Testen, sk_live_… echt)
  *   STRIPE_WEBHOOK_SECRET  (Pflicht) Signing Secret des Webhook-Endpunkts (whsec_…)
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY stellt Supabase selbst bereit.
- * Preise in Stripe mit Lookup-Keys: pro_month, pro_year, business_month, business_year.
+ * Preise in Stripe mit Lookup-Keys: pro_month, pro_year, business_month, business_year, teams_month, teams_year.
  *
  * Kein Stripe-Paket nötig: die wenigen Aufrufe gehen direkt an die Stripe-API.
  */
@@ -28,7 +28,7 @@ type Deps = {
   now?: () => number;
 };
 
-export type Tier = 'pro' | 'business';
+export type Tier = 'pro' | 'business' | 'teams';
 export type Interval = 'month' | 'year';
 type User = { id: string; email: string | null };
 type SubscriptionRow = {
@@ -146,7 +146,8 @@ const customerId = (c: StripeSubscription['customer']) => (typeof c === 'string'
  */
 export function subscriptionRow(sub: StripeSubscription): Omit<SubscriptionRow, 'user_id'> | null {
   const item = sub.items?.data?.[0];
-  const tier: Tier = (item?.price?.lookup_key ?? '').startsWith('business') ? 'business' : 'pro';
+  const key = item?.price?.lookup_key ?? '';
+  const tier: Tier = key.startsWith('teams') ? 'teams' : key.startsWith('business') ? 'business' : 'pro';
   const periodEnd = iso(item?.current_period_end ?? sub.current_period_end);
   const base = {
     tier,
@@ -274,7 +275,8 @@ async function portalUrl(deps: Deps, customer: string): Promise<string> {
 }
 
 async function checkout(user: User, body: Record<string, unknown>, deps: Deps): Promise<Response> {
-  const tier = body.tier === 'business' ? 'business' : body.tier === 'pro' ? 'pro' : null;
+  const tier: Tier | null =
+    body.tier === 'teams' ? 'teams' : body.tier === 'business' ? 'business' : body.tier === 'pro' ? 'pro' : null;
   const interval = body.interval === 'year' ? 'year' : body.interval === 'month' ? 'month' : null;
   if (!tier || !interval) return json(400, { error: 'invalid_plan' });
 
