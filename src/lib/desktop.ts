@@ -30,6 +30,8 @@ export type DesktopBridge = {
   openAuthWindow?: (options: { url: string; callbackUrl: string }) => Promise<{ url?: string; cancelled?: boolean }>;
   /** Kalender-Datei (.ics) mit dem Kalender des Mac öffnen (Termin übernehmen) */
   openCalendarFile?: (payload: { text: string; fileName: string }) => Promise<{ filePath: string }>;
+  /** Fenster (auch ausgeblendet) nach vorn holen – z. B. nach Klick auf eine Mitteilung */
+  showWindow?: () => Promise<void>;
 };
 
 declare global {

@@ -86,6 +86,13 @@ export type DocumentData = {
   service_period: { from: string; to: string } | null;
   /** Monatliche Abrechnung */
   monthly: boolean;
+  /**
+   * Rechnung mit Umsatzsteuer an Privatkunden für Arbeiten an Haus oder Grundstück:
+   * Pflichthinweis auf die Aufbewahrungspflicht (§ 14 Abs. 4 Nr. 9 UStG). Fehlt bei älteren Rechnungen.
+   */
+  property_work?: boolean;
+  /** Rechnung an Privatkunden: Hinweis auf Verzug nach 30 Tagen (§ 286 Abs. 3 BGB). Fehlt bei älteren Rechnungen. */
+  late_notice?: boolean;
 };
 
 export const EMPTY_SELLER: Seller = {
@@ -139,6 +146,56 @@ export function computeTotals(items: LineItem[], discountPercent: number, smallB
     vat_amount: vat,
     gross: round2(net + vat),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Hinweise unter den Summen
+// ---------------------------------------------------------------------------
+
+/** Kleinunternehmer auf Rechnungen (§ 34a UStDV seit 2025, Formulierung wie im Beispiel der IHK München) */
+export const SMALL_BUSINESS_NOTE = 'Dieser Umsatz ist gemäß § 19 UStG von der Umsatzsteuer befreit (Kleinunternehmerregelung).';
+/** Kleinunternehmer auf Angeboten (noch kein Umsatz) */
+export const SMALL_BUSINESS_OFFER_NOTE = 'Gemäß § 19 UStG von der Umsatzsteuer befreit (Kleinunternehmerregelung).';
+/** Privatkunden bei Arbeiten an Haus oder Grundstück (§ 14 Abs. 4 Nr. 9, § 14b Abs. 1 Satz 5 UStG) */
+export const PROPERTY_NOTE =
+  'Bitte bewahren Sie diese Rechnung zwei Jahre auf. Dazu sind Sie als Privatperson gesetzlich verpflichtet (§ 14b Abs. 1 Satz 5 UStG).';
+/** Ohne diesen Hinweis gilt die 30-Tage-Regel für Privatkunden nicht (§ 286 Abs. 3 BGB) */
+export const LATE_NOTE =
+  'Zahlen Sie nicht innerhalb von 30 Tagen nach Fälligkeit und Zugang dieser Rechnung, kommen Sie auch ohne Mahnung in Verzug (§ 286 Abs. 3 BGB).';
+
+/** Privatkunde = ohne Firmenname. Für ihn gelten die Hinweise zu Aufbewahrung und Verzug. */
+export function isPrivateBuyer(b: { company?: string | null }): boolean {
+  return !b.company?.trim();
+}
+
+/** Aufbewahrungs-Hinweis möglich? Nur Rechnungen mit Umsatzsteuer an Privatkunden. */
+export function propertyNoteApplies(seller: { small_business: boolean }, buyer: { company?: string | null }): boolean {
+  return !seller.small_business && isPrivateBuyer(buyer);
+}
+
+/** Vorschlag für den Schalter „Arbeit an Haus oder Grundstück“: wie bei der letzten passenden Rechnung. */
+export function lastPropertyChoice(docs: { kind: DocumentKind; data: DocumentData }[]): boolean {
+  const last = docs.find((d) => d.kind === 'invoice' && d.data.property_work !== undefined && propertyNoteApplies(d.data, d.data.buyer));
+  return !!last?.data.property_work;
+}
+
+/** Alle Hinweise unter den Summen, in der Reihenfolge auf dem PDF. */
+export function documentNotes(doc: { kind: DocumentKind; number: string; due_on: string | null; data: DocumentData }): string[] {
+  const { data } = doc;
+  const isInvoice = doc.kind === 'invoice';
+  const notes: string[] = [];
+  if (data.monthly) notes.push(isInvoice ? 'Die Leistung wird monatlich abgerechnet.' : 'Die Preise verstehen sich pro Monat.');
+  if (data.small_business) notes.push(isInvoice ? SMALL_BUSINESS_NOTE : SMALL_BUSINESS_OFFER_NOTE);
+  if (isInvoice) {
+    notes.push(
+      `Bitte überweisen Sie den Rechnungsbetrag${doc.due_on ? ` bis zum ${formatDay(doc.due_on)}` : ''} unter Angabe der Rechnungsnummer ${doc.number} auf das unten genannte Konto.`,
+    );
+    if (data.late_notice) notes.push(LATE_NOTE);
+    if (data.property_work) notes.push(PROPERTY_NOTE);
+  } else if (doc.due_on) {
+    notes.push(`Dieses Angebot ist gültig bis zum ${formatDay(doc.due_on)}. Ich freue mich auf Ihre Zusage!`);
+  }
+  return notes;
 }
 
 /** Name, unter dem der Absender auftritt (Firma oder Inhaber). */
@@ -339,6 +396,7 @@ export function sampleInvoice(seller: Seller, today: string = todayIso()) {
     service_date: today,
     service_period: null,
     monthly: false,
+    late_notice: true,
   };
   return { kind: 'invoice' as const, number: 'RE-MUSTER', issued_on: today, due_on: addDays(today, seller.payment_days || 0), data };
 }

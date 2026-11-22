@@ -5,10 +5,18 @@ import { test } from 'node:test';
 import {
   addDays,
   computeTotals,
+  documentNotes,
   EMPTY_SELLER,
   formatDay,
+  lastPropertyChoice,
+  LATE_NOTE,
   missingBuyerFields,
   missingSellerFields,
+  PROPERTY_NOTE,
+  propertyNoteApplies,
+  sampleInvoice,
+  SMALL_BUSINESS_NOTE,
+  SMALL_BUSINESS_OFFER_NOTE,
 } from '../../src/features/documents/document-logic.ts';
 
 const item = (unit_price, quantity = 1) => ({ description: 'X', details: null, quantity, unit: 'pauschal', unit_price });
@@ -88,4 +96,76 @@ test('Firmenname passt zur Rechtsform', () => {
   assert.equal(legalNameHint({ legal_form: 'ug', company_name: 'Lena Design UG (haftungsbeschränkt)' }), null);
   assert.match(legalNameHint({ legal_form: 'gmbh', company_name: 'Lena Design' }), /GmbH/);
   assert.equal(legalNameHint({ legal_form: 'sole', company_name: 'Lena Design' }), null);
+});
+
+// --- Hinweise unter den Summen ------------------------------------------------
+
+const invoice = (data, kind = 'invoice') => ({
+  kind,
+  number: 'RE-2026-0001',
+  due_on: '2026-12-04',
+  data: {
+    kind,
+    seller: EMPTY_SELLER,
+    buyer: { name: 'Erika Beispiel', company: null, address: 'Lindenstraße 5, 12345 Musterstadt', email: null },
+    items: [item(270)],
+    totals: computeTotals([item(270)], 0, false, 19),
+    small_business: false,
+    service_date: '2026-11-18',
+    service_period: null,
+    monthly: false,
+    ...data,
+  },
+});
+
+test('Kleinunternehmer: neuer Hinweis auf Rechnungen und Angeboten (§ 34a UStDV)', () => {
+  assert.ok(documentNotes(invoice({ small_business: true })).includes(SMALL_BUSINESS_NOTE));
+  assert.match(SMALL_BUSINESS_NOTE, /von der Umsatzsteuer befreit/);
+  const offer = documentNotes(invoice({ small_business: true }, 'offer'));
+  assert.ok(offer.includes(SMALL_BUSINESS_OFFER_NOTE));
+  assert.ok(!offer.some((n) => /keine Umsatzsteuer berechnet/.test(n)));
+});
+
+test('Verzug und Aufbewahrung nur, wenn die Rechnung es gespeichert hat', () => {
+  const both = documentNotes(invoice({ late_notice: true, property_work: true }));
+  assert.ok(both.includes(LATE_NOTE));
+  assert.ok(both.includes(PROPERTY_NOTE));
+  // Reihenfolge: Zahlungsbitte, dann Verzug, dann Aufbewahrung
+  assert.ok(both.findIndex((n) => n.startsWith('Bitte überweisen')) < both.indexOf(LATE_NOTE));
+  assert.ok(both.indexOf(LATE_NOTE) < both.indexOf(PROPERTY_NOTE));
+  // ältere Rechnungen ohne die Felder bleiben unverändert
+  const old = documentNotes(invoice({}));
+  assert.ok(!old.includes(LATE_NOTE) && !old.includes(PROPERTY_NOTE));
+  // Angebote bekommen keinen der beiden Hinweise
+  const offer = documentNotes(invoice({ late_notice: true, property_work: true }, 'offer'));
+  assert.ok(!offer.includes(LATE_NOTE) && !offer.includes(PROPERTY_NOTE));
+});
+
+test('Aufbewahrungs-Hinweis nur bei Umsatzsteuer und Privatkunden', () => {
+  assert.equal(propertyNoteApplies({ small_business: false }, { company: null }), true);
+  assert.equal(propertyNoteApplies({ small_business: false }, { company: '  ' }), true);
+  assert.equal(propertyNoteApplies({ small_business: false }, { company: 'Muster GmbH' }), false);
+  assert.equal(propertyNoteApplies({ small_business: true }, { company: null }), false);
+});
+
+test('Vorschlag für den Schalter: wie bei der letzten passenden Rechnung', () => {
+  const doc = (data, kind = 'invoice') => ({ kind, data: invoice(data, kind).data });
+  assert.equal(lastPropertyChoice([]), false);
+  assert.equal(lastPropertyChoice([doc({ property_work: true })]), true);
+  // neueste zuerst: die letzte passende Rechnung zählt
+  assert.equal(lastPropertyChoice([doc({ property_work: false }), doc({ property_work: true })]), false);
+  // Firmenkunden, Kleinunternehmer-Rechnungen und alte Rechnungen ohne Feld werden übersprungen
+  assert.equal(
+    lastPropertyChoice([
+      doc({ property_work: false, buyer: { name: 'A', company: 'Firma', address: 'x', email: null } }),
+      doc({ property_work: false, small_business: true }),
+      doc({}),
+      doc({ property_work: true }),
+    ]),
+    true,
+  );
+});
+
+test('Muster-Rechnung im Bereich Firma zeigt den Verzugshinweis', () => {
+  assert.ok(documentNotes(sampleInvoice(EMPTY_SELLER, '2026-11-22')).includes(LATE_NOTE));
 });

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -69,7 +70,7 @@ import {
   type ChatMessage,
   type ChatReader,
 } from './staff-logic';
-import { staffErrorText, useTeamHub } from './team-hub-provider';
+import { appInFront, staffErrorText, useTeamHub } from './team-hub-provider';
 import { useAccess, useTeam } from './team-provider';
 
 const MAX = 4000;
@@ -361,19 +362,38 @@ function Chat({ chatKey, split = false }: { chatKey: ChatKey; split?: boolean })
           next.delete(m.sender_id);
           return next;
         });
-        readNow();
+        // Nur gelesen, wenn man hinschaut – sonst kommt eine Mitteilung, gelesen wird beim Zurückkommen
+        if (appInFront()) readNow();
         void loadReaders();
         if (!atBottom.current) setBelow((n) => n + 1);
       }),
     [onMessage, readNow, loadReaders, chatKey, me],
   );
+  const focused = useRef(false);
   useFocusEffect(
     useCallback(() => {
+      focused.current = true;
       setOpenChat(chatKey);
       readNow();
-      return () => setOpenChat(null);
+      return () => {
+        focused.current = false;
+        setOpenChat(null);
+      };
     }, [setOpenChat, readNow, chatKey]),
   );
+  // Zurück in der App (Mac-Fenster wieder vorn, Handy wieder offen): jetzt gelesen
+  useEffect(() => {
+    const back = () => {
+      if (focused.current && appInFront()) readNow();
+    };
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && back());
+    const web = Platform.OS === 'web' && typeof window !== 'undefined';
+    if (web) window.addEventListener('focus', back);
+    return () => {
+      sub.remove();
+      if (web) window.removeEventListener('focus', back);
+    };
+  }, [readNow]);
 
   // Mac: direkt lostippen können
   useEffect(() => {

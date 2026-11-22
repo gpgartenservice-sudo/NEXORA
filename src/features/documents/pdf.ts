@@ -1,6 +1,15 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
-import { formatDay, formatMoney, legalFooterLines, sellerName, type DocumentData, type DocumentKind, type Seller } from './document-logic';
+import {
+  documentNotes,
+  formatDay,
+  formatMoney,
+  legalFooterLines,
+  sellerName,
+  type DocumentData,
+  type DocumentKind,
+  type Seller,
+} from './document-logic';
 import { base64ToBytes, fitInto, type LogoImage } from './logo-logic';
 import { BRANDING_TEXT, pdfBranding } from './pdf-branding';
 
@@ -198,17 +207,7 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
   y -= 34;
 
   // --- Hinweise
-  const notes: string[] = [];
-  if (data.monthly) notes.push(isInvoice ? 'Die Leistung wird monatlich abgerechnet.' : 'Die Preise verstehen sich pro Monat.');
-  if (data.small_business) notes.push('Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).');
-  if (isInvoice) {
-    notes.push(
-      `Bitte überweisen Sie den Rechnungsbetrag${doc.due_on ? ` bis zum ${formatDay(doc.due_on)}` : ''} unter Angabe der Rechnungsnummer ${doc.number} auf das unten genannte Konto.`,
-    );
-  } else if (doc.due_on) {
-    notes.push(`Dieses Angebot ist gültig bis zum ${formatDay(doc.due_on)}. Ich freue mich auf Ihre Zusage!`);
-  }
-  for (const n of notes) {
+  for (const n of documentNotes(doc)) {
     const lines = wrap(n, regular, 9.5, contentWidth);
     newPageIfNeeded(lines.length * 13 + 6);
     lines.forEach((l) => {

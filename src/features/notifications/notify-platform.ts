@@ -28,9 +28,28 @@ export async function requestPermission(): Promise<Permission> {
 let timers: ReturnType<typeof setTimeout>[] = [];
 const DAY = 24 * 60 * 60_000;
 
-function show(title: string, body: string) {
+/** Zusatzangaben einer Mitteilung (z. B. welcher Chat) – kommen beim Antippen zurück */
+export type NotifyData = Record<string, unknown>;
+const openers = new Set<(data: NotifyData) => void>();
+
+/** Klick auf eine Mitteilung: Fenster nach vorn holen und die passende Stelle öffnen */
+export function onNotificationOpen(open: (data: NotifyData) => void): () => void {
+  openers.add(open);
+  return () => {
+    openers.delete(open);
+  };
+}
+
+function show(title: string, body: string, data?: NotifyData) {
   try {
-    new Notification(title, { body, icon: '/favicon.ico', silent: false });
+    const n = new Notification(title, { body, icon: '/favicon.ico', silent: false });
+    n.onclick = () => {
+      // Mac-App: auch ein ausgeblendetes Fenster wieder zeigen
+      void window.nexoraDesktop?.showWindow?.();
+      window.focus();
+      n.close();
+      if (data) openers.forEach((fn) => fn(data));
+    };
   } catch {
     // z. B. Browser ohne Erlaubnis
   }
@@ -48,10 +67,10 @@ export async function schedule(list: PlannedNotification[]): Promise<void> {
   }
 }
 
-/** Sofort eine Mitteilung (z. B. Angebot angenommen) */
-export async function notifyNow(title: string, body: string): Promise<boolean> {
+/** Sofort eine Mitteilung (z. B. Angebot angenommen, neue Team-Nachricht) */
+export async function notifyNow(title: string, body: string, data?: NotifyData): Promise<boolean> {
   if ((await permission()) !== 'granted') return false;
-  show(title, body);
+  show(title, body, data);
   return true;
 }
 

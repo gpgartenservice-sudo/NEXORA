@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
+import { ToggleRow } from '@/components/ui/toggle-row';
 import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import type { Customer, Order } from '@/features/crm/crm-provider';
 import { DunningPanel, ReviewPanel } from '@/features/dunning/dunning-panel';
@@ -17,8 +18,10 @@ import { useFollowups } from '@/features/dunning/followups-provider';
 import {
   formatDay,
   formatMoney,
+  lastPropertyChoice,
   missingBuyerFields,
   missingSellerFields,
+  propertyNoteApplies,
   todayIso,
   type DocumentKind,
 } from './document-logic';
@@ -48,7 +51,7 @@ function monthRange(today = todayIso()) {
 
 /** Angebote und Rechnungen zu einem Auftrag: erstellen, als PDF speichern, verschicken, bezahlt markieren. */
 export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOfferSent, openDunningFor }: Props) {
-  const { seller, error, issue, setPaid, documentsFor, logoFor } = useDocuments();
+  const { seller, error, issue, setPaid, documents, documentsFor, logoFor } = useDocuments();
   const docs = documentsFor(order.id);
   const monthly = order.billing === 'monthly';
   const [composing, setComposing] = useState<DocumentKind | null>(null);
@@ -56,6 +59,10 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
     order.execution_at ? order.execution_at.slice(0, 10) : todayIso(),
   );
   const [period, setPeriod] = useState(monthRange());
+  // Aufbewahrungs-Hinweis: Vorschlag wie bei der letzten Rechnung, bis man selbst schaltet
+  const [property, setProperty] = useState<boolean | null>(null);
+  const propertyAsk = propertyNoteApplies(seller, customer);
+  const propertyOn = propertyAsk && (property ?? lastPropertyChoice(documents));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   /** Bei welchem Dokument ist was aufgeklappt (Senden, Mahnen, Bewertung)? */
@@ -82,7 +89,11 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
     setBusy(true);
     setMessage(null);
     const service =
-      kind === 'invoice' ? (monthly ? { date: null, period } : { date: serviceDate, period: null }) : undefined;
+      kind === 'invoice'
+        ? monthly
+          ? { date: null, period, property: propertyOn }
+          : { date: serviceDate, period: null, property: propertyOn }
+        : undefined;
     const { data, error: err } = await issue(kind, order, customer, service);
     if (err || !data) {
       setBusy(false);
@@ -177,6 +188,14 @@ export function OrderDocumentsCard({ order, customer, dirty, offerSent, onMarkOf
                 hint="Pflichtangabe auf Rechnungen."
               />
             ))}
+          {composing === 'invoice' && propertyAsk && (
+            <ToggleRow
+              label="Arbeit an Haus oder Grundstück"
+              hint="Zum Beispiel Garten, Handwerk oder Reinigung bei Privatkunden. Dann steht auf der Rechnung der Pflichthinweis, dass dein Kunde sie zwei Jahre aufbewahren muss."
+              value={propertyOn}
+              onChange={setProperty}
+            />
+          )}
           <Text style={styles.summary}>
             {order.title} · {formatMoney(order.price ?? 0)}
             {monthly ? ' pro Monat' : ''}

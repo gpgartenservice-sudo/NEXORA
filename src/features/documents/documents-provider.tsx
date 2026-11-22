@@ -10,6 +10,9 @@ import {
   addDays,
   computeTotals,
   EMPTY_SELLER,
+  isPrivateBuyer,
+  lastPropertyChoice,
+  propertyNoteApplies,
   todayIso,
   type DocumentData,
   type DocumentKind,
@@ -39,7 +42,12 @@ export type StoredDocument = {
   decline_note?: string | null;
 };
 
-export type ServiceInfo = { date: string | null; period: { from: string; to: string } | null };
+export type ServiceInfo = {
+  date: string | null;
+  period: { from: string; to: string } | null;
+  /** Arbeit an Haus oder Grundstück (nur Rechnungen mit USt an Privatkunden); fehlt = wie bei der letzten Rechnung */
+  property?: boolean;
+};
 
 export type StoredLogo = LogoImage & { id: string };
 
@@ -120,16 +128,20 @@ export function itemsFromOrder(order: Order): LineItem[] {
 
 export function buildDocumentData(kind: DocumentKind, seller: Seller, order: Order, customer: Customer, service?: ServiceInfo): DocumentData {
   const items = itemsFromOrder(order);
+  const buyer = { name: customer.name, company: customer.company, address: customer.address, email: customer.email };
+  const invoice = kind === 'invoice';
   return {
     kind,
     seller,
-    buyer: { name: customer.name, company: customer.company, address: customer.address, email: customer.email },
+    buyer,
     items,
     totals: computeTotals(items, order.discount_percent, seller.small_business, seller.vat_rate),
     small_business: seller.small_business,
     service_date: kind === 'invoice' ? (service?.date ?? null) : null,
     service_period: kind === 'invoice' ? (service?.period ?? null) : null,
     monthly: order.billing === 'monthly',
+    property_work: invoice && propertyNoteApplies(seller, buyer) && !!service?.property,
+    late_notice: invoice && isPrivateBuyer(buyer),
   };
 }
 
@@ -157,6 +169,11 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
   useEffect(() => {
     sellerNow.current = seller;
   }, [seller]);
+  // für den Vorschlag „Arbeit an Haus oder Grundstück“, wenn Luna die Rechnung schreibt
+  const documentsNow = useRef(documents);
+  useEffect(() => {
+    documentsNow.current = documents;
+  }, [documents]);
 
   useEffect(() => {
     let active = true;
@@ -220,7 +237,9 @@ export function DocumentsProvider({ userId, children }: { userId: string; childr
   const issue = useCallback<State['issue']>(
     async (kind, order, customer, service) => {
       const seller = sellerNow.current;
-      const data = buildDocumentData(kind, seller, order, customer, service);
+      const withProperty =
+        service && service.property === undefined ? { ...service, property: lastPropertyChoice(documentsNow.current) } : service;
+      const data = buildDocumentData(kind, seller, order, customer, withProperty);
       const today = todayIso();
       const due = kind === 'invoice' ? addDays(today, seller.payment_days) : addDays(today, seller.offer_validity_days);
       const { data: row, error: err } = await supabase.rpc('issue_document', {

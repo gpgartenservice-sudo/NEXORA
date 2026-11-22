@@ -333,6 +333,29 @@ ipcMain.handle('nexora:open-auth-window', async (event, options) => {
   });
 });
 
+// Das Hauptfenster. Mac: Schließen blendet es nur aus – Lunaxora läuft weiter und meldet z. B.
+// neue Team-Nachrichten. Ganz beendet wird mit Cmd+Q (oder „Beenden“ im Dock).
+let mainWindow = null;
+let quitting = false;
+app.on('before-quit', () => {
+  quitting = true;
+});
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  if (process.platform === 'darwin') app.focus({ steal: true });
+}
+
+ipcMain.handle('nexora:show-window', () => {
+  showMainWindow();
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -351,10 +374,26 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Auch ausgeblendet live bleiben (Chat-Verbindung, Mitteilungen)
+      backgroundThrottling: false,
     },
   });
+  mainWindow = win;
 
   win.once('ready-to-show', () => win.show());
+
+  win.on('close', (e) => {
+    if (process.platform !== 'darwin' || quitting) return;
+    e.preventDefault();
+    // Aus dem Vollbild erst heraus, sonst bliebe ein leerer schwarzer Bildschirm
+    if (win.isFullScreen()) {
+      win.once('leave-full-screen', () => win.hide());
+      win.setFullScreen(false);
+    } else win.hide();
+  });
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null;
+  });
 
   // Ohne Titelleiste: Fenster über den oberen Rand verschiebbar machen
   win.webContents.on('did-finish-load', () => {
@@ -390,10 +429,8 @@ app.whenReady().then(() => {
   );
   createWindow();
 
-  // Mac: Klick aufs Dock-Symbol öffnet wieder ein Fenster
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  // Mac: Klick aufs Dock-Symbol zeigt das (ausgeblendete) Fenster wieder
+  app.on('activate', () => showMainWindow());
 });
 
 app.on('window-all-closed', () => {

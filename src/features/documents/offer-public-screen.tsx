@@ -5,7 +5,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Te
 
 import { supabase } from '@/lib/supabase';
 
-import { formatDay, formatMoney, sellerName, todayIso, type DocumentData } from './document-logic';
+import { formatDay, formatMoney, sellerName, SMALL_BUSINESS_OFFER_NOTE, todayIso, type DocumentData } from './document-logic';
 import type { LogoImage } from './logo-logic';
 import { offerAnswer, validOfferToken } from './offer-link';
 import { downloadPdf, pdfSupported, preparePdf } from './save-pdf';
@@ -190,7 +190,7 @@ export function OfferPublicScreen() {
           {!d.small_business && <Line label={`zzgl. ${t.vat_rate} % USt`} value={formatMoney(t.vat_amount)} />}
           <Line label={d.monthly ? 'Gesamt pro Monat' : 'Gesamt'} value={formatMoney(t.gross)} strong />
           {d.small_business && (
-            <Text style={styles.small}>Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmer).</Text>
+            <Text style={styles.small}>{SMALL_BUSINESS_OFFER_NOTE}</Text>
           )}
         </View>
 

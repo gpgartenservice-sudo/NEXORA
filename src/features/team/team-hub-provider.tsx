@@ -1,7 +1,8 @@
+import { router } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { notifyNow } from '@/features/notifications/notify-platform';
+import { notifyNow, onNotificationOpen } from '@/features/notifications/notify-platform';
 import { loadNotifyPrefs } from '@/features/notifications/notify-prefs';
 import { playSound } from '@/features/sound/ui-sound';
 import { supabase } from '@/lib/supabase';
@@ -61,6 +62,18 @@ type Hub = {
 };
 
 const Ctx = createContext<Hub | null>(null);
+
+/**
+ * Sieht man die App gerade? (Mac: Fenster vorn und nicht ausgeblendet, Handy: App im Vordergrund)
+ * Nur dann gilt ein offener Chat als gelesen – sonst kommt eine Mitteilung.
+ */
+export function appInFront(): boolean {
+  if (Platform.OS === 'web') {
+    if (typeof document === 'undefined') return true;
+    return document.visibilityState === 'visible' && document.hasFocus();
+  }
+  return AppState.currentState === 'active';
+}
 
 const CHATS_EVERY = 30_000;
 const ABSENCES_EVERY = 60_000;
@@ -147,11 +160,18 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     for (const c of list) if ((seen.get(c.chat) ?? '') < c.at) seen.set(c.chat, c.at);
     if (first || !fresh.length) return;
     const prefs = await loadNotifyPrefs();
+    if (!prefs.team) return;
     for (const c of fresh) {
-      if (c.chat === openChat.current) continue;
+      // Chat offen und man schaut gerade hin: keine Mitteilung
+      if (c.chat === openChat.current && appInFront()) continue;
       const who = latest.current.nameOf(c.sender_id);
-      const where = c.chat.startsWith('direkt:') ? '' : ` · ${latest.current.chatName(c.chat)}`;
-      if (prefs.team) void notifyNow(`${who}${where}`, c.body);
+      const more = c.unread > 1 ? ` · ${c.unread} neue Nachrichten` : '';
+      // Gruppe: oben der Chat, darunter „Anna Berg: …“ – direkt: oben die Person
+      const direct = c.chat.startsWith('direkt:');
+      void notifyNow(direct ? `${who}${more}` : `${latest.current.chatName(c.chat)}${more}`, direct ? c.body : `${who}: ${c.body}`, {
+        kind: 'team',
+        chat: c.chat,
+      });
     }
   }, [active, me]);
 
@@ -187,7 +207,7 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
         (payload) => {
           const m = payload.new as ChatMessage;
           for (const fn of listeners.current) fn(m);
-          if (m.sender_id !== me && openChat.current) playSound('tick');
+          if (m.sender_id !== me && openChat.current && appInFront()) playSound('tick');
           clearTimeout(timer);
           timer = setTimeout(() => void refresh(), 300);
         },
@@ -293,7 +313,7 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     if (changed && !first) setAbsenceVersion((v) => v + 1);
     if (!notes.length) return;
     const prefs = await loadNotifyPrefs();
-    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body);
+    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body, { kind: 'team', tab: 'urlaub' });
   }, [active, ws, hr, me]);
 
   // --- Fertige Wochenpläne (Skript 20261129090000_einsaetze.sql) -----------------
@@ -337,8 +357,20 @@ export function TeamHubProvider({ children }: { children: ReactNode }) {
     if (changed && !first) setPlanVersion((v) => v + 1);
     if (!notes.length) return;
     const prefs = await loadNotifyPrefs();
-    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body);
+    if (prefs.team) for (const n of notes) void notifyNow(n.title, n.body, { kind: 'team', tab: 'plan' });
   }, [active, ws, me]);
+
+  // Mitteilung angetippt/angeklickt: den Chat bzw. den Bereich im Team öffnen
+  useEffect(
+    () =>
+      onNotificationOpen((data) => {
+        if (data.kind !== 'team') return;
+        if (isChatKey(data.chat)) router.push({ pathname: '/team/chat/[key]', params: { key: data.chat } });
+        else if (data.tab === 'urlaub' || data.tab === 'plan') router.push({ pathname: '/team', params: { tab: data.tab } });
+        else router.push('/team');
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!active) return;

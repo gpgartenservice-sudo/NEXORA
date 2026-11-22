@@ -10,10 +10,11 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   N = require('expo-notifications') as Mod;
   N.setNotificationHandler({
-    handleNotification: async () => ({
+    // Neue Team-Nachrichten mit Ton (wie ein Messenger), alles andere leise
+    handleNotification: async (n) => ({
       shouldShowBanner: true,
       shouldShowList: true,
-      shouldPlaySound: false,
+      shouldPlaySound: (n.request.content.data as { kind?: unknown } | null)?.kind === 'team',
       shouldSetBadge: false,
     }),
   });
@@ -56,11 +57,27 @@ export async function schedule(list: PlannedNotification[]): Promise<void> {
   }
 }
 
-/** Sofort eine Mitteilung (Test, Angebot angenommen …) */
-export async function notifyNow(title: string, body: string): Promise<boolean> {
+/** Zusatzangaben einer Mitteilung (z. B. welcher Chat) – kommen beim Antippen zurück */
+export type NotifyData = Record<string, unknown>;
+
+/** Sofort eine Mitteilung (Test, Angebot angenommen, neue Team-Nachricht …) */
+export async function notifyNow(title: string, body: string, data?: NotifyData): Promise<boolean> {
   if (!N || (await permission()) !== 'granted') return false;
-  await N.scheduleNotificationAsync({ content: { title, body }, trigger: null });
+  await N.scheduleNotificationAsync({
+    content: { title, body, ...(data ? { data } : {}), ...(data?.kind === 'team' ? { sound: 'default' } : {}) },
+    trigger: null,
+  });
   return true;
+}
+
+/** Antippen einer Mitteilung (auch einer, die die App selbst geschickt hat) */
+export function onNotificationOpen(open: (data: NotifyData) => void): () => void {
+  if (!N) return () => {};
+  const sub = N.addNotificationResponseReceivedListener((response) => {
+    const data = response.notification.request.content.data;
+    if (data && typeof data === 'object') open(data as NotifyData);
+  });
+  return () => sub.remove();
 }
 
 export const sendTest = notifyNow;
