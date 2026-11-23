@@ -6,7 +6,7 @@
  * Was andere im Team schreiben (Chat, Notizen an Anträgen), steht markiert zwischen
  * <<<TEAMNACHRICHT>>> und <<<ENDE>>> – das sind nur Daten (safety-logic.ts).
  */
-import { AREAS, ROLE_LABEL, isEmployer, type Access, type Area, type EditableRole, type MemberRole } from '../team/roles';
+import { AREAS, ROLE_LABEL, isEmployer, takesVacation, type Access, type Area, type EditableRole, type MemberRole } from '../team/roles';
 import {
   directPartner,
   KIND_LABEL,
@@ -128,7 +128,7 @@ export function nexyTeam(input: {
   const refOf = (a: Absence) => `U${listed.indexOf(a) + 1}`;
 
   const me = team.members.find((m) => m.id === team.me);
-  const account = me?.vacation_days != null ? vacationAccount(absences, team.me, me.vacation_days, year, today) : null;
+  const account = me?.vacation_days != null && takesVacation(team.role) ? vacationAccount(absences, team.me, me.vacation_days, year, today) : null;
 
   const chatName = (key: ChatKey) =>
     key === 'alle' ? 'Alle im Team' : key === 'leitung' ? 'Leitung' : `direkt mit ${nameOf(directPartner(key) ?? '')}`;
@@ -141,7 +141,7 @@ export function nexyTeam(input: {
       rolle: ROLE_LABEL[m.role],
       ...(m.id === team.me ? { das_bist_du: true } : {}),
       ...(m.title ? { bezeichnung: m.title } : {}),
-      ...((darf.team_verwalten || team.hr) && m.vacation_days != null ? { urlaubstage: m.vacation_days } : {}),
+      ...((darf.team_verwalten || team.hr) && m.vacation_days != null && takesVacation(m.role) ? { urlaubstage: m.vacation_days } : {}),
     })),
     ...(darf.team_verwalten && team.roles
       ? {

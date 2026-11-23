@@ -3,7 +3,8 @@
  *
  *   POST { mode: "checkout", tier: "pro" | "business" | "teams", interval: "month" | "year" }
  *        -> { url } zur Stripe-Bezahlseite (hat der Nutzer schon ein laufendes Abo:
- *           { url, portal: true } zum Kundenportal – dort Stufe wechseln, nicht doppelt zahlen)
+ *           { url, portal: true } zum Kundenportal – dort Stufe wechseln, nicht doppelt zahlen;
+ *           läuft das Abo über App Store / Google Play: 409 store_plan)
  *   POST { mode: "portal" } -> { url } zum Stripe-Kundenportal (Abo kündigen, wechseln,
  *        Zahlungsart, Rechnungen)
  *   POST /billing/webhook   <- Stripe meldet Änderungen; die Funktion trägt sie in
@@ -177,6 +178,15 @@ export function subscriptionRow(sub: StripeSubscription): Omit<SubscriptionRow, 
   }
 }
 
+/** Läuft für diesen Eintrag ein Abo über App Store oder Google Play? (Funktion "store" – dann hier nichts verkaufen) */
+export function hasRunningStoreSubscription(row: SubscriptionRow | null | undefined, now: number): boolean {
+  if (!row || (row.source !== 'apple' && row.source !== 'google')) return false;
+  const end = row.current_period_end ? Date.parse(row.current_period_end) : null;
+  if (row.status === 'active') return end === null || end > now;
+  if (row.status === 'canceled') return end !== null && end > now;
+  return false;
+}
+
 /** Läuft für diesen Eintrag ein bezahltes Stripe-Abo? (dann nicht noch einmal verkaufen) */
 export function hasRunningStripeSubscription(row: SubscriptionRow | null | undefined, now: number): boolean {
   if (!row?.stripe_subscription_id || row.source !== 'stripe') return false;
@@ -291,6 +301,8 @@ async function checkout(user: User, body: Record<string, unknown>, deps: Deps): 
   const row = await loadRow(deps, `user_id=eq.${encodeURIComponent(user.id)}`);
   // Von Hand vergebenes Abo (Admin): nichts verkaufen, es soll nie etwas abgebucht werden
   if (row?.source === 'admin') return json(409, { error: 'admin_plan' });
+  // Abo läuft über App Store / Google Play: dort ändern oder kündigen, nicht zusätzlich per Stripe zahlen
+  if (hasRunningStoreSubscription(row, deps.now?.() ?? Date.now())) return json(409, { error: 'store_plan', store: row!.source });
   // Läuft schon ein Abo: Wechsel (z. B. Pro -> Business) im Kundenportal statt doppelt zu zahlen
   if (row?.stripe_customer_id && hasRunningStripeSubscription(row, deps.now?.() ?? Date.now())) {
     return json(200, { url: await portalUrl(deps, row.stripe_customer_id), portal: true });
@@ -363,6 +375,9 @@ async function applySubscription(deps: Deps, sub: StripeSubscription, userHint?:
   }
   // Späte Meldung zu einem alten Abo darf ein neueres, laufendes nicht überschreiben
   if (row?.stripe_subscription_id && row.stripe_subscription_id !== sub.id && change.status !== 'active') return;
+  // … auch kein Abo über App Store / Google Play (Funktion "store" hat die Stripe-Abo-ID dann geleert)
+  if (row && row.stripe_subscription_id !== sub.id && change.status !== 'active' && hasRunningStoreSubscription(row, deps.now?.() ?? Date.now()))
+    return;
   await saveRow(deps, userId, !!row, change);
 }
 

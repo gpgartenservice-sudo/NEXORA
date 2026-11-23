@@ -573,6 +573,14 @@ export function myPlanJobs(plan: PlanSnapshot, me: string): (PlanJob & { day: st
 }
 
 /** „Max (Teamleiter), Lisa, Tom“ */
+/** Zeitpunkt des Fertigstellens: „23.11.2026, 18:05 Uhr“ */
+export function stampLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()}, ${two(d.getHours())}:${two(d.getMinutes())} Uhr`;
+}
+
 export function crewLabel(job: Pick<PlanJob, 'lead' | 'members'>, nameOf: (id: string) => string): string {
   return job.members.map((m) => (m === job.lead ? `${nameOf(m)} (Teamleiter)` : nameOf(m))).join(', ');
 }

@@ -61,7 +61,8 @@
         {
           "microphonePermission": "Lunaxora nutzt das Mikrofon nur, wenn du mit Luna sprichst."
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,

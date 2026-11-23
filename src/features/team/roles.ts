@@ -108,6 +108,9 @@ export function parseRole(v: unknown): MemberRole | null {
 /** Inhaber und Mitgründer: sehen alles, verwalten das Team, schreiben im Leitungs-Chat */
 export const isEmployer = (role: MemberRole | null | undefined) => role === 'inhaber' || role === 'mitgruender';
 
+/** Urlaub und freie Tage (mit Urlaubskonto) gibt es nur für Mitarbeiter – nicht für Inhaber und Mitgründer */
+export const takesVacation = (role: MemberRole | null | undefined) => role === 'mitarbeiter';
+
 /** null = keine Einschränkung (allein, Inhaber, Mitgründer) */
 export function can(access: Access | null | undefined, area: Area, level: 'read' | 'write' = 'read'): boolean {
   if (!access) return true;

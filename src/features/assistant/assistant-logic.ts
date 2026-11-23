@@ -9,7 +9,7 @@
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
 import { periodsFor, type GoalKind, type GoalPeriod } from '../goals/goals-logic';
-import { AREAS, type Access, type Area, type EditableRole, type Level, type MemberRole } from '../team/roles';
+import { AREAS, takesVacation, type Access, type Area, type EditableRole, type Level, type MemberRole } from '../team/roles';
 import {
   hoursDayOk,
   hoursLabel,
@@ -1473,7 +1473,13 @@ export function buildProposals(raw: RawResult, known: Known, today: string): Pro
       const memberId = m?.id ?? team.me;
       const forOther = memberId !== team.me;
       if (out.some((p) => p.kind === 'absence' && p.data.memberId === memberId && p.data.starts_on === from)) continue;
-      const denied = forOther && !team.hr ? 'Für andere trägt das bei euch die Leitung ein.' : null;
+      const role = m?.role ?? team.members.find((p) => p.id === memberId)?.role ?? team.role;
+      const denied =
+        forOther && !team.hr
+          ? 'Für andere trägt das bei euch die Leitung ein.'
+          : kind !== 'krank' && !takesVacation(role)
+            ? 'Urlaub und freie Tage gibt es nur für Mitarbeiter.'
+            : null;
       out.push({
         id: id(),
         kind: 'absence',

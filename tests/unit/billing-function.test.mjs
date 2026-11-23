@@ -409,3 +409,33 @@ test('Webhook: Stripe nicht erreichbar -> 502, Stripe versucht es später noch e
   assert.ok(res.status >= 500);
   assert.equal(calls.some((c) => c.url.includes('/rest/v1/')), false);
 });
+
+test('Checkout bei laufendem Abo über App Store / Google Play -> 409, nichts bei Stripe', async () => {
+  const storeRow = { user_id: USER, status: 'active', source: 'apple', tier: 'pro', current_period_end: '2026-12-20T10:00:00Z', stripe_customer_id: 'cus_1', store_original_id: '2000000001' };
+  const { calls, deps } = fakeNet([signedIn, [is('GET', '/rest/v1/subscriptions'), [200, [storeRow]]]]);
+  const res = await handleRequest(post({ mode: 'checkout', tier: 'business', interval: 'month' }), deps);
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: 'store_plan', store: 'apple' });
+  assert.equal(calls.some((c) => c.url.includes('api.stripe.com')), false);
+  // abgelaufenes Store-Abo: Stripe-Kauf geht wieder
+  const old = fakeNet([
+    signedIn,
+    [is('GET', '/rest/v1/subscriptions'), [200, [{ ...storeRow, status: 'expired', current_period_end: '2026-11-01T00:00:00Z' }]]],
+    [is('GET', 'api.stripe.com/v1/prices'), [200, { data: [{ id: 'price_1' }] }]],
+    [is('POST', 'checkout/sessions'), [200, { url: 'https://checkout.stripe.com/c/x' }]],
+  ]);
+  assert.equal((await handleRequest(post({ mode: 'checkout', tier: 'pro', interval: 'month' }), old.deps)).status, 200);
+});
+
+test('Webhook: späte Meldung zu altem Stripe-Abo überschreibt Store-Abo nicht', async () => {
+  const { calls, deps } = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_alt'), [200, sub({ id: 'sub_alt', status: 'canceled' })]],
+    [
+      is('GET', '/rest/v1/subscriptions'),
+      [200, [{ user_id: USER, status: 'active', source: 'google', stripe_customer_id: 'cus_1', stripe_subscription_id: null, current_period_end: '2026-12-20T10:00:00Z' }]],
+    ],
+  ]);
+  const res = await handleRequest(hook({ type: 'customer.subscription.deleted', data: { object: sub({ id: 'sub_alt', status: 'canceled' }) } }), deps);
+  assert.equal(res.status, 200);
+  assert.equal(calls.some((c) => c.method === 'PATCH'), false);
+});

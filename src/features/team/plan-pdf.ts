@@ -4,7 +4,7 @@ import { sellerName, type Seller } from '@/features/documents/document-logic';
 import type { LogoImage } from '@/features/documents/logo-logic';
 import { ACCENT, A4, drawLetterhead, INK, LINE, M, MUTED, safe, wrap } from '@/features/documents/pdf';
 
-import { crewLabel, dayLabel, isoWeek, rangeLabel, shiftLabel, type PlanSnapshot } from './staff-logic';
+import { crewLabel, dayLabel, isoWeek, rangeLabel, shiftLabel, stampLabel, type PlanSnapshot } from './staff-logic';
 
 /**
  * Fertiger Wochenplan als PDF: Briefkopf der Firma, dann Tag für Tag die Einsätze mit Zeit,
@@ -19,12 +19,7 @@ export type WorkPlanPdf = {
   publishedAt: string;
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
-export function stampLabel(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())} Uhr`;
-}
+export { stampLabel };
 
 export function workPlanFileName(plan: PlanSnapshot): string {
   return `Arbeitsplan_KW${isoWeek(plan.week)}_${plan.week.slice(0, 4)}.pdf`;

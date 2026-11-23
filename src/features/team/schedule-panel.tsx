@@ -20,8 +20,8 @@ import { saveFile } from '@/lib/files';
 import { supabase } from '@/lib/supabase';
 
 import { PersonDot } from './chat-list';
+import { PlanImageViewer } from './plan-image';
 import { Chip } from './chip';
-import { stampLabel } from './plan-pdf';
 import {
   absentOn,
   addDays,
@@ -44,6 +44,7 @@ import {
   SHIFT_PRESETS,
   shiftLabel,
   shiftMinutes,
+  stampLabel,
   timeLabel,
   weekDays,
   weekStart,
@@ -63,7 +64,8 @@ type Editing = { day: string; job?: Job };
 /**
  * Team → Arbeitsplan, Woche für Woche.
  * Wer Personal verwaltet (Inhaber, Mitgründer, ggf. Mitarbeiter mit Recht „Personal“), plant Einsätze – Ort, Zeit,
- * mehrere Leute, einer davon Teamleiter – und stellt die Woche fertig. Daraus wird ein PDF.
+ * mehrere Leute, einer davon Teamleiter – und stellt die Woche fertig. Der fertige Plan erscheint als Bild
+ * in der App (als PNG sicherbar, PDF gibt es auch).
  * Alle anderen sehen nur den fertigen Plan, nicht den Entwurf.
  */
 export function SchedulePanel() {
@@ -138,6 +140,7 @@ function PlanReader({ monday }: { monday: string }) {
   const hub = useTeamHub();
   const { published, loaded, error } = usePublished(monday);
   const [who, setWho] = useState<'alle' | 'ich'>('alle');
+  const [viewing, setViewing] = useState(false);
 
   if (!loaded) return null;
   if (error) return <Notice tone="error">{error}</Notice>;
@@ -178,8 +181,9 @@ function PlanReader({ monday }: { monday: string }) {
             ]}
           />
         </View>
-        <PdfButton published={published} />
+        <Button label="Plan ansehen" variant="secondary" onPress={() => setViewing(true)} />
       </View>
+      <PlanView published={published} open={viewing} onClose={() => setViewing(false)} />
       <Text style={styles.summary}>
         {mine.length ? `Du: ${mine.length} ${mine.length === 1 ? 'Einsatz' : 'Einsätze'} · ${hoursLabel(minutes)}` : 'Du hast diese Woche keinen Einsatz.'}
       </Text>
@@ -274,6 +278,18 @@ function LeadOrderButton({ orderId }: { orderId: string }) {
   );
 }
 
+/** Der fertige Plan als Bild in einem Fenster – dort als PNG sichern oder als PDF */
+function PlanView({ published, open, onClose }: { published: Published; open: boolean; onClose: () => void }) {
+  return (
+    <PlanImageViewer
+      source={published}
+      visible={open}
+      onClose={onClose}
+      extra={<PdfButton published={published} label="Als PDF" />}
+    />
+  );
+}
+
 function PdfButton({ published, label = 'PDF' }: { published: Published; label?: string }) {
   const { seller, logo } = useDocuments();
   const [busy, setBusy] = useState(false);
@@ -323,6 +339,7 @@ function PlanEditor({ monday }: { monday: string }) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [copying, setCopying] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const { published, reload: reloadPublished, error: publishedError } = usePublished(monday);
 
   const load = useCallback(async () => {
@@ -412,6 +429,8 @@ function PlanEditor({ monday }: { monday: string }) {
     );
     await reloadPublished();
     void hub.refreshPlans();
+    // gleich zeigen, wie der fertige Plan aussieht
+    setViewing(true);
   };
 
   const withdraw = async () => {
@@ -433,7 +452,9 @@ function PlanEditor({ monday }: { monday: string }) {
         busy={publishing}
         onPublish={() => void publish()}
         onWithdraw={() => void withdraw()}
+        onView={() => setViewing(true)}
       />
+      {!!published && <PlanView published={published} open={viewing} onClose={() => setViewing(false)} />}
       {!!publishedError && <Notice tone="error">{publishedError}</Notice>}
 
       <View style={styles.toolbar}>
@@ -534,6 +555,7 @@ function PublishBar({
   busy,
   onPublish,
   onWithdraw,
+  onView,
 }: {
   published: Published | null;
   upToDate: boolean;
@@ -541,6 +563,7 @@ function PublishBar({
   busy: boolean;
   onPublish: () => void;
   onWithdraw: () => void;
+  onView: () => void;
 }) {
   const state = !published ? 'entwurf' : upToDate ? 'fertig' : 'geaendert';
   const title =
@@ -551,7 +574,7 @@ function PublishBar({
         : 'Seit dem Fertigstellen geändert';
   const text =
     state === 'entwurf'
-      ? 'Mitarbeiter sehen diese Woche erst, wenn du sie fertigstellst. Dann wird daraus ein PDF und alle bekommen eine Mitteilung.'
+      ? 'Mitarbeiter sehen diese Woche erst, wenn du sie fertigstellst. Dann siehst du ihn als Bild, und alle bekommen eine Mitteilung.'
       : state === 'fertig'
         ? `Stand ${stampLabel(published!.publishedAt)}${published!.version > 1 ? ` · Version ${published!.version}` : ''}`
         : `Mitarbeiter sehen noch den Stand vom ${stampLabel(published!.publishedAt)}. Veröffentliche die Änderungen, damit alle den neuen Plan haben.`;
@@ -579,7 +602,9 @@ function PublishBar({
             disabled={!hasJobs && state === 'entwurf'}
           />
         )}
-        {!!published && <PdfButton published={published} label={state === 'fertig' ? 'PDF ansehen' : 'PDF (alter Stand)'} />}
+        {!!published && (
+          <Button label={state === 'fertig' ? 'Plan ansehen' : 'Alten Stand ansehen'} variant="secondary" onPress={onView} />
+        )}
         {!!published && <TextLink label="Zurück zum Entwurf" onPress={onWithdraw} />}
       </View>
     </View>

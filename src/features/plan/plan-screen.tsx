@@ -14,7 +14,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { formatDay } from '@/features/documents/document-logic';
-import { cancelPageUrl } from '@/features/legal/legal-logic';
+import { cancelPageUrl, LEGAL_URLS } from '@/features/legal/legal-logic';
 import { useAuth } from '@/providers/auth-provider';
 
 import { type BillingInterval, openBillingPortal, startCheckout } from './billing-api';
@@ -33,14 +33,26 @@ import {
   TRIAL_DAYS,
 } from './plan-logic';
 import { usePlan } from './plan-provider';
+import { storeBlockText, storeName, storeSku, type StoreResult } from './store-logic';
+import {
+  buyInStore,
+  loadStorePrices,
+  onStoreNotice,
+  openStoreSubscriptions,
+  restoreStorePurchases,
+  STORE_PLATFORM,
+} from './store-purchase';
 
 const back = () => (router.canGoBack() ? router.back() : router.navigate('/profil'));
 
 /**
- * Bezahlt wird über Stripe im Browser (Web-App, Mac-App). In den Handy-Apps müssen digitale
- * Abos über App Store / Google Play laufen – das kommt mit deren Veröffentlichung.
+ * Bezahlt wird über Stripe im Browser (Web-App, Mac-App). In den Handy-Apps laufen digitale
+ * Abos über App Store / Google Play (In-App-Kauf, store-purchase.native.ts; geprüft von der
+ * Server-Funktion "store"). Nie zwei bezahlte Abos nebeneinander: storeBlockText bzw. 409.
  */
 const CAN_PAY = Platform.OS === 'web';
+const STORE = STORE_PLATFORM;
+type BusyKey = PaidTier | 'portal' | 'restore';
 
 /**
  * Zurück aus dem Browser (Bezahlseite/Kundenportal): Abo neu laden – und nach ein paar
@@ -80,18 +92,58 @@ function useRefreshOnReturn(refresh: () => Promise<void>) {
 export function PlanScreen() {
   const { funktion } = useLocalSearchParams<{ funktion?: string }>();
   const feature = funktion && funktion in FEATURE_LABEL ? (funktion as ProFeature) : null;
-  const { info, missing, admin, refresh } = usePlan();
+  const { info, missing, admin, source, refresh } = usePlan();
   const { user } = useAuth();
   const [now] = useState(() => new Date());
   const [interval, setBillingInterval] = useState<BillingInterval>('year');
-  const [busy, setBusy] = useState<PaidTier | 'portal' | null>(null);
-  const [failed, setFailed] = useState<{ key: PaidTier | 'portal'; text: string } | null>(null);
+  const [busy, setBusy] = useState<BusyKey | null>(null);
+  const [failed, setFailed] = useState<{ key: BusyKey; text: string } | null>(null);
+  /** Handy-Apps: Preise aus dem Store (null = noch nicht geladen) und Hinweise zu Käufen */
+  const [storePrices, setStorePrices] = useState<Record<string, string> | null>(null);
+  const [storeNote, setStoreNote] = useState<StoreResult | null>(null);
   useRefreshOnReturn(refresh);
   const paid = info?.plan === 'pro' || info?.plan === 'business' || info?.plan === 'teams';
+  const viaStore = source === 'apple' || source === 'google';
+  const ownStore = !!STORE && source === (STORE === 'ios' ? 'apple' : 'google');
+  const storeBlock =
+    STORE && info
+      ? storeBlockText({ source, plan: info.plan, status: info.status, current_period_end: info.current_period_end }, STORE)
+      : null;
 
-  const run = async (key: PaidTier | 'portal') => {
+  useEffect(() => {
+    if (!STORE) return;
+    let active = true;
+    void loadStorePrices().then((p) => active && setStorePrices(p));
+    const off = onStoreNotice((r) => active && setStoreNote(r));
+    return () => {
+      active = false;
+      off();
+    };
+  }, []);
+
+  const run = async (key: BusyKey) => {
     setBusy(key);
     setFailed(null);
+    setStoreNote(null);
+    if (STORE) {
+      if (key === 'portal') {
+        await openStoreSubscriptions();
+        setBusy(null);
+        return;
+      }
+      const r = key === 'restore' ? await restoreStorePurchases() : await buyInStore(key, interval, user?.id ?? '');
+      setBusy(null);
+      if (r.ok) {
+        await refresh();
+        setStoreNote({ ok: true, info: key === 'restore' ? 'Fertig – dein Abo ist wieder freigeschaltet.' : 'Danke! Dein Abo ist freigeschaltet. 💚' });
+      } else if (r.error) setFailed({ key, text: r.error });
+      else if (r.info) setStoreNote(r);
+      return;
+    }
+    if (key === 'restore') {
+      setBusy(null);
+      return;
+    }
     const { error } = key === 'portal' ? await openBillingPortal() : await startCheckout(key, interval);
     setBusy(null);
     if (error) setFailed({ key, text: error });
@@ -156,13 +208,18 @@ export function PlanScreen() {
               used={info.usage.voice.used}
               limit={info.usage.voice.limit}
             />
-            {paid && CAN_PAY && !admin && (
+            {paid && !admin && ((CAN_PAY && !viaStore) || ownStore) && (
               <Button
                 label="Abo verwalten oder kündigen"
                 variant="secondary"
                 loading={busy === 'portal'}
                 onPress={() => void run('portal')}
               />
+            )}
+            {paid && CAN_PAY && viaStore && (
+              <Notice>
+                Dein Abo läuft über {storeName(source === 'apple' ? 'apple' : 'google')}. Ändern oder kündigen kannst du es dort – auf dem Handy, mit dem du es abgeschlossen hast.
+              </Notice>
             )}
             {failed?.key === 'portal' && <Notice tone="error">{failed.text}</Notice>}
           </Card>
@@ -207,7 +264,14 @@ export function PlanScreen() {
               { value: 'year', label: 'Jährlich · −17 %' },
             ]}
           />
-          <Text style={styles.hint}>Endpreise · keine Umsatzsteuer (§ 19 UStG)</Text>
+          <Text style={styles.hint}>
+            {STORE ? `Preise von ${storeName(STORE)}, inkl. MwSt.` : 'Endpreise · keine Umsatzsteuer (§ 19 UStG)'}
+          </Text>
+          {storeBlock && (
+            <View testID="plan-store-block">
+              <Notice>{storeBlock}</Notice>
+            </View>
+          )}
         </View>
       </Reveal>
 
@@ -230,6 +294,9 @@ export function PlanScreen() {
       {TIERS.map((tier, i) => {
         const price = PRICES[tier.key];
         const current = info?.plan === tier.key;
+        // Handy-Apps: Preis und Kauf nur, wenn der Store das Produkt kennt
+        const storePrice = STORE ? storePrices?.[storeSku(tier.key, interval)] : undefined;
+        const storeYear = STORE ? storePrices?.[storeSku(tier.key, 'year')] : undefined;
         const business = tier.key === 'business' || tier.key === 'teams';
         const card = (
             <Card style={tier.key === 'pro' ? styles.offer : business ? styles.offerBusiness : undefined}>
@@ -245,16 +312,28 @@ export function PlanScreen() {
                 {current && <Text style={styles.current}>Dein Abo</Text>}
               </View>
               <Text style={styles.price} testID={`price-${tier.key}`}>
-                {formatPrice(interval === 'year' ? price.year : price.month)}{' '}
+                {storePrice ?? formatPrice(interval === 'year' ? price.year : price.month)}{' '}
                 <Text style={styles.per}>{interval === 'year' ? 'im Jahr' : 'im Monat'}</Text>
               </Text>
               <Text style={styles.body}>
-                {interval === 'year'
-                  ? `= ${formatPrice(price.year / 12)} im Monat, 2 Monate geschenkt.`
-                  : `Jährlich ${formatPrice(price.year)} – 2 Monate geschenkt.`}{' '}
+                {storePrice
+                  ? interval === 'year'
+                    ? 'Günstiger als zwölf Monate einzeln.'
+                    : `Jährlich ${storeYear ?? formatPrice(price.year)}.`
+                  : interval === 'year'
+                    ? `= ${formatPrice(price.year / 12)} im Monat, 2 Monate geschenkt.`
+                    : `Jährlich ${formatPrice(price.year)} – 2 Monate geschenkt.`}{' '}
                 {tier.text} {interval === 'year' ? 'Zum Jahresende kündbar.' : 'Monatlich kündbar.'}
               </Text>
-              {!current && CAN_PAY && !admin && (
+              {!current && STORE && !storeBlock && !!storePrice && (
+                <Button
+                  label={paid ? `Zu ${tier.name} wechseln` : `${tier.name} holen`}
+                  loading={busy === tier.key}
+                  disabled={!!busy}
+                  onPress={() => void run(tier.key)}
+                />
+              )}
+              {!current && CAN_PAY && !admin && !(paid && viaStore) && (
                 <Button
                   label={paid ? `Zu ${tier.name} wechseln` : `${tier.name} holen`}
                   loading={busy === tier.key}
@@ -271,6 +350,35 @@ export function PlanScreen() {
           </Reveal>
         );
       })}
+      {STORE && (
+        <Reveal delay={250 + TIERS.length * 60}>
+          <View style={styles.cancel} testID="plan-store">
+            {storeNote?.info && <Notice tone={storeNote.ok ? 'success' : 'info'}>{storeNote.info}</Notice>}
+            {storeNote?.error && <Notice tone="error">{storeNote.error}</Notice>}
+            <Button
+              label="Käufe wiederherstellen"
+              variant="secondary"
+              loading={busy === 'restore'}
+              disabled={!!busy}
+              onPress={() => void run('restore')}
+            />
+            {failed?.key === 'restore' && <Notice tone="error">{failed.text}</Notice>}
+            <Text style={styles.hint}>
+              {STORE === 'ios'
+                ? 'Bezahlt wird mit deinem Apple-Account. Das Abo verlängert sich automatisch um den gewählten Zeitraum (Monat bzw. Jahr), wenn du es nicht spätestens 24 Stunden vor Ablauf kündigst. Kündigen oder wechseln kannst du jederzeit in den Einstellungen deines Apple-Accounts („Abo verwalten“).'
+                : 'Bezahlt wird mit deinem Google-Konto. Das Abo verlängert sich automatisch um den gewählten Zeitraum (Monat bzw. Jahr), bis du es kündigst. Kündigen oder wechseln kannst du jederzeit in Google Play unter „Abos“ („Abo verwalten“).'}
+            </Text>
+            <View style={styles.links}>
+              <Text style={styles.link} accessibilityRole="link" onPress={() => void Linking.openURL(LEGAL_URLS.agb)}>
+                Nutzungsbedingungen (AGB)
+              </Text>
+              <Text style={styles.link} accessibilityRole="link" onPress={() => void Linking.openURL(LEGAL_URLS.datenschutz)}>
+                Datenschutz
+              </Text>
+            </View>
+          </View>
+        </Reveal>
+      )}
       {/* Kündigungsbutton nach § 312k BGB: immer sichtbar, führt zu lunaxora.de/kuendigen/ */}
       <Reveal delay={260 + TIERS.length * 60}>
         <View style={styles.cancel} testID="plan-cancel">
@@ -281,11 +389,12 @@ export function PlanScreen() {
             onPress={() => void Linking.openURL(cancelPageUrl(user?.email, null, 'widerrufen'))}
           />
           <Text style={styles.hint}>
-            Kündigen geht jederzeit online, ohne Anmeldung, mit Bestätigung per E-Mail. Dein Abo läuft bis zum Ende des bezahlten Zeitraums, danach geht es mit Gratis weiter. Als Verbraucher kannst du ein neues Abo innerhalb von 14 Tagen auch widerrufen.
+            Kündigen geht jederzeit online, ohne Anmeldung, mit Bestätigung per E-Mail. Dein Abo läuft bis zum Ende des bezahlten Zeitraums, danach geht es mit Gratis weiter. Als Verbraucher kannst du ein neues Abo innerhalb von 14 Tagen auch widerrufen. Abos aus dem App Store oder von Google Play kündigst du dort; eine Erstattung beantragst du bei Apple bzw. Google.
           </Text>
         </View>
       </Reveal>
-      {!CAN_PAY && !paid && (
+      {/* Handy-App, aber die Abos sind im Store noch nicht angelegt (oder er ist nicht erreichbar) */}
+      {STORE && !paid && !storeBlock && storePrices !== null && !Object.keys(storePrices).length && (
         <View testID="plan-soon">
           <Notice>
             Bezahlen in der App kommt bald – bis dahin Testphase und Gratis.
@@ -380,6 +489,8 @@ const styles = StyleSheet.create({
   offerTitle: { color: Colors.text, fontSize: 18, fontWeight: '700', flex: 1 },
   current: { color: Colors.accent, fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3 },
   billing: { gap: Spacing.sm },
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  link: { color: Colors.accent, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   price: { color: Colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.5 },
   per: { color: Colors.textMuted, fontSize: 15, fontWeight: '500' },
 });

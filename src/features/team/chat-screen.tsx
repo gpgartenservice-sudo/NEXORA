@@ -818,7 +818,7 @@ function Bubble({
   onDelete,
   onRetry,
 }: BubbleProps) {
-  const { hovered, hoverProps } = useHover();
+  const [hovered, setHovered] = useState(false);
   const web = Platform.OS === 'web';
   const failed = m.state === 'failed';
   const parts = useMemo(() => linkParts(m.body), [m.body]);
@@ -833,84 +833,95 @@ function Bubble({
     </View>
   );
 
+  // Mac: „Maus drüber“ gilt für die ganze Zeile (auch daneben und über Blase und Knöpfen).
+  // Nicht über Pressable-Hover: dort nimmt jeder innere Knopf der Zeile das „drüber“ weg → Knöpfe flackerten
+  const pointer = web
+    ? {
+        onPointerEnter: (e: { nativeEvent: { pointerType?: string } }) => {
+          if (e.nativeEvent.pointerType !== 'touch') setHovered(true);
+        },
+        onPointerLeave: () => setHovered(false),
+      }
+    : {};
+
   return (
-    // Pressable nur wegen „Maus drüber“ (ein View kennt das im Browser nicht)
-    <Pressable
-      {...(web ? hoverProps : {})}
-      focusable={false}
-      accessible={false}
+    // Abstand als Innenabstand: zwischen zwei Nachrichten keine Lücke, in der die Knöpfe kurz verschwinden
+    <View
+      {...pointer}
       onLayout={(e) => onLayoutY(e.nativeEvent.layout.y)}
-      style={[styles.line, mine ? styles.lineMine : styles.lineOther, { marginTop: first ? 10 : 2 }]}>
-      {sender !== null && <View style={styles.avatarCol}>{last && <PersonDot name={sender} size={28} color={senderColor} />}</View>}
-      {mine && web && actions}
-      <View style={[styles.bubbleCol, mine ? styles.colMine : styles.colOther]}>
-        {sender !== null && first && <Text style={[styles.sender, { color: senderColor }]}>{sender}</Text>}
-        <Pressable
-          onLongPress={onSelect}
-          onPress={failed ? onRetry : selected ? onSelect : undefined}
-          delayLongPress={300}
-          accessibilityHint={web ? undefined : 'Gedrückt halten für Antworten, Kopieren und Löschen'}
-          style={[
-            styles.bubble,
-            mine ? styles.bubbleMine : styles.bubbleOther,
-            mine ? { borderTopRightRadius: first ? 18 : 6 } : { borderTopLeftRadius: first ? 18 : 6 },
-            m.state === 'sending' && styles.bubbleSending,
-            failed && styles.bubbleFailed,
-            flash && styles.bubbleFlash,
-          ]}>
-          {quote && (
-            <Pressable
-              onPress={quote.id ? () => onQuote(quote.id as string) : undefined}
-              disabled={!quote.id}
-              accessibilityRole={quote.id ? 'button' : undefined}
-              accessibilityLabel={`Antwort auf ${quote.name || 'eine ältere Nachricht'}: ${quote.text}`}
-              style={[styles.quote, { borderLeftColor: quote.color }]}>
-              {!!quote.name && (
-                <Text style={[styles.quoteName, { color: quote.color }]} numberOfLines={1}>
-                  {quote.name}
+      style={[styles.row, mine ? styles.rowMine : styles.rowOther, { paddingTop: first ? 10 : 2 }]}>
+      <View style={styles.line}>
+        {sender !== null && <View style={styles.avatarCol}>{last && <PersonDot name={sender} size={28} color={senderColor} />}</View>}
+        {mine && web && actions}
+        <View style={[styles.bubbleCol, mine ? styles.colMine : styles.colOther]}>
+          {sender !== null && first && <Text style={[styles.sender, { color: senderColor }]}>{sender}</Text>}
+          <Pressable
+            onLongPress={onSelect}
+            onPress={failed ? onRetry : selected ? onSelect : undefined}
+            delayLongPress={300}
+            accessibilityHint={web ? undefined : 'Gedrückt halten für Antworten, Kopieren und Löschen'}
+            style={[
+              styles.bubble,
+              mine ? styles.bubbleMine : styles.bubbleOther,
+              mine ? { borderTopRightRadius: first ? 18 : 6 } : { borderTopLeftRadius: first ? 18 : 6 },
+              m.state === 'sending' && styles.bubbleSending,
+              failed && styles.bubbleFailed,
+              flash && styles.bubbleFlash,
+            ]}>
+            {quote && (
+              <Pressable
+                onPress={quote.id ? () => onQuote(quote.id as string) : undefined}
+                disabled={!quote.id}
+                accessibilityRole={quote.id ? 'button' : undefined}
+                accessibilityLabel={`Antwort auf ${quote.name || 'eine ältere Nachricht'}: ${quote.text}`}
+                style={[styles.quote, { borderLeftColor: quote.color }]}>
+                {!!quote.name && (
+                  <Text style={[styles.quoteName, { color: quote.color }]} numberOfLines={1}>
+                    {quote.name}
+                  </Text>
+                )}
+                <Text style={[styles.quoteText, !quote.id && styles.quoteGone]} numberOfLines={2}>
+                  {quote.text}
                 </Text>
+              </Pressable>
+            )}
+            <Text style={styles.body} selectable={web}>
+              {parts.map((p, i) =>
+                p.url ? (
+                  <Text key={i} style={styles.link} onPress={() => void Linking.openURL(p.url as string)} accessibilityRole="link">
+                    {p.text}
+                  </Text>
+                ) : (
+                  <Fragment key={i}>{p.text}</Fragment>
+                ),
               )}
-              <Text style={[styles.quoteText, !quote.id && styles.quoteGone]} numberOfLines={2}>
-                {quote.text}
-              </Text>
-            </Pressable>
-          )}
-          <Text style={styles.body} selectable={web}>
-            {parts.map((p, i) =>
-              p.url ? (
-                <Text key={i} style={styles.link} onPress={() => void Linking.openURL(p.url as string)} accessibilityRole="link">
-                  {p.text}
-                </Text>
+            </Text>
+            <View style={styles.meta}>
+              {m.state === 'sending' && <Clock3 size={11} color={Colors.textFaint} />}
+              {failed ? (
+                <>
+                  <AlertCircle size={12} color={Colors.danger} />
+                  <Text style={styles.failedText}>Nicht gesendet – antippen zum Wiederholen</Text>
+                </>
               ) : (
-                <Fragment key={i}>{p.text}</Fragment>
-              ),
-            )}
-          </Text>
-          <View style={styles.meta}>
-            {m.state === 'sending' && <Clock3 size={11} color={Colors.textFaint} />}
-            {failed ? (
-              <>
-                <AlertCircle size={12} color={Colors.danger} />
-                <Text style={styles.failedText}>Nicht gesendet – antippen zum Wiederholen</Text>
-              </>
-            ) : (
-              <Text style={styles.time}>{clock(m.created_at)}</Text>
-            )}
-            {ticks === 'sent' && <Check size={13} color={Colors.textFaint} strokeWidth={2.4} accessibilityLabel="Gesendet" />}
-            {(ticks === 'some' || ticks === 'all') && (
-              <CheckCheck
-                size={13}
-                color={ticks === 'all' ? Colors.accent : Colors.textFaint}
-                strokeWidth={2.4}
-                accessibilityLabel={ticks === 'all' ? 'Gelesen' : 'Von manchen gelesen'}
-              />
-            )}
-          </View>
-        </Pressable>
-        {!web && selected && actions}
+                <Text style={styles.time}>{clock(m.created_at)}</Text>
+              )}
+              {ticks === 'sent' && <Check size={13} color={Colors.textFaint} strokeWidth={2.4} accessibilityLabel="Gesendet" />}
+              {(ticks === 'some' || ticks === 'all') && (
+                <CheckCheck
+                  size={13}
+                  color={ticks === 'all' ? Colors.accent : Colors.textFaint}
+                  strokeWidth={2.4}
+                  accessibilityLabel={ticks === 'all' ? 'Gelesen' : 'Von manchen gelesen'}
+                />
+              )}
+            </View>
+          </Pressable>
+          {!web && selected && actions}
+        </View>
+        {!mine && web && actions}
       </View>
-      {!mine && web && actions}
-    </Pressable>
+    </View>
   );
 }
 
@@ -976,9 +987,10 @@ const styles = StyleSheet.create({
   unreadRule: { flex: 1, height: 1, backgroundColor: accentAlpha(0.35) },
   unreadText: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
 
+  row: { flexDirection: 'row', alignSelf: 'stretch' },
+  rowMine: { justifyContent: 'flex-end' },
+  rowOther: { justifyContent: 'flex-start' },
   line: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: '86%' },
-  lineMine: { alignSelf: 'flex-end' },
-  lineOther: { alignSelf: 'flex-start' },
   avatarCol: { width: 28 },
   bubbleCol: { flexShrink: 1, gap: 3 },
   colMine: { alignItems: 'flex-end' },

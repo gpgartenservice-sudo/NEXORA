@@ -10,6 +10,7 @@ import {
   DEFAULT_ACCESS,
   FULL_ACCESS,
   isEmployer,
+  takesVacation,
   parseRole,
   navArea,
   parseAccess,
@@ -87,6 +88,10 @@ test('Rechte lesen und prüfen', () => {
   assert.equal(can(DEFAULT_ACCESS.mitarbeiter, 'aufgaben', 'write'), false);
   assert.equal(isEmployer('mitgruender'), true);
   assert.equal(isEmployer('mitarbeiter'), false);
+  assert.equal(takesVacation('mitarbeiter'), true);
+  assert.equal(takesVacation('inhaber'), false);
+  assert.equal(takesVacation('mitgruender'), false);
+  assert.equal(takesVacation(null), false);
   // frühere feste Teamleitung = Mitarbeiter
   assert.equal(parseRole('teamleitung'), 'mitarbeiter');
   assert.equal(parseRole('mitgruender'), 'mitgruender');

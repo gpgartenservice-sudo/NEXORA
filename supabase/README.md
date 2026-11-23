@@ -578,6 +578,88 @@ select count(*) from pg_policies where policyname like 'business_files_%';      
 
 Passwörter gehören nicht in die Dokumente – die App warnt, wenn in Name oder Notiz „Passwort“ oder „PIN“ steht.
 
+## 20. Bezahlen in den Handy-Apps (App Store, Google Play)
+
+In der **iPhone- und Android-App** kauft man das Abo als **Kauf in der App** (expo-iap: StoreKit 2 bzw. Google Play Billing) – Apple und Google verlangen das für digitale Abos. Im Browser und in der Mac-App bleibt es bei Stripe (Abschnitt 14). Ablauf: **Profil → Abo → Pro holen** → der Store zeigt Preis und Zeitraum → nach dem Kauf schickt die App die Kauf-Kennung an die Server-Funktion `store` → die fragt **direkt bei Apple bzw. Google** nach, ob der Kauf echt ist und zu diesem Lunaxora-Konto gehört, und trägt das Abo in `subscriptions` ein (`source = 'apple'` bzw. `'google'`) → erst dann schließt die App den Kauf ab. Verlängerungen, Kündigungen und Erstattungen melden Apple und Google selbst an `store`; die Funktion holt dann jedes Mal den aktuellen Stand bei Apple bzw. Google.
+
+- **Nie zwei Abos:** Läuft ein Stripe-Abo, ein Gutschein, ein Admin-Zugang oder ein Abo im anderen Store, zeigt die App keinen Kaufknopf, sondern einen Hinweis. Der Server prüft es noch einmal (409); Stripe lehnt einen Kauf ab, solange ein Store-Abo läuft (`store_plan`). Ein doppelter Kauf bei Google Play wird nicht bestätigt – Google erstattet ihn nach 3 Tagen von selbst.
+- **Käufe wiederherstellen:** Knopf auf der Abo-Seite (Pflicht bei Apple) – fragt den Store nach allen Käufen und lässt sie neu prüfen.
+- **Konto im Kauf:** Jeder Kauf trägt die Lunaxora-Konto-ID (Apple `appAccountToken`, Google `obfuscatedAccountId`). Ein Kauf schaltet nie ein anderes Konto frei.
+- **Preise:** Die App zeigt die Preise aus dem Store. Sie enthalten die Umsatzsteuer, die Apple bzw. Google abführen – ausgezahlt wird der Betrag nach Steuer und Provision. Kaufknöpfe erscheinen erst, wenn der Store das Produkt kennt; vorher steht „Bezahlen in der App kommt bald“.
+
+> Erst alles mit **Testkäufen** einrichten (Apple: Sandbox/TestFlight, Google: Lizenztester) – dort fließt kein echtes Geld. Die Funktion merkt sich Testkäufe (`store_environment` = `sandbox` bzw. `test`).
+
+**1. Datenbank und Server-Funktionen**
+
+1. Skript [`migrations/20261208090000_store_abos.sql`](migrations/20261208090000_store_abos.sql) im SQL Editor ausführen (Voraussetzung: alle Skripte bis `20261207090000_dokumente.sql`). Es legt die Spalten `store_original_id`, `store_product_id`, `store_environment` an und sperrt Gutscheine, solange ein Store-Abo läuft.
+2. **Edge Functions → Deploy a new function → Via Editor**, Name genau `store`, Inhalt von [`functions/store/index.ts`](functions/store/index.ts) → **Deploy**. **Verify JWT ausschalten** (Apple und Google melden sich nicht an; Käufe aus der App prüft die Funktion selbst).
+3. Funktion `billing` neu einspielen (lehnt Stripe-Käufe bei laufendem Store-Abo ab).
+
+**2. Produkte – in beiden Stores dieselben IDs wie die Stripe-Lookup-Keys**
+
+| Produkt-ID | Tarif | Zeitraum |
+|---|---|---|
+| `pro_month` / `pro_year` | Pro | 1 Monat / 1 Jahr |
+| `business_month` / `business_year` | Business | 1 Monat / 1 Jahr |
+| `teams_month` / `teams_year` | Teams | 1 Monat / 1 Jahr |
+
+„Weitere Firma“ (9,99 €) gibt es noch nicht als Kauf in der App (auch noch nicht in Stripe).
+
+**3. Apple (App Store Connect)**
+
+1. Vorher: **Paid Apps Agreement** unterschreiben und Bank- und Steuerdaten eintragen (**Business**), außerdem am **App Store Small Business Program** teilnehmen (15 % statt 30 % Provision).
+2. **App → Monetization → Subscriptions → Subscription Group** „Lunaxora“ anlegen, darin die sechs Abos aus der Tabelle (Product ID genau so, Dauer, Preis für Deutschland, deutscher Anzeigename und Beschreibung, Screenshot für die Prüfung). **Family Sharing** ausgeschaltet lassen.
+3. **Stufen in der Gruppe** (oben = höchste): Teams (Monat und Jahr), dann Business, dann Pro. Ein Wechsel nach oben gilt sofort, nach unten zum nächsten Verlängerungstermin – das regelt Apple.
+4. **Users and Access → Integrations → In-App Purchase** → Schlüssel erzeugen → die `.p8`-Datei herunterladen (geht nur einmal!). Notieren: **Key ID** und **Issuer ID** (steht oben auf der Seite).
+5. **App → App Information → App Store Server Notifications:** bei **Production** und **Sandbox** Version 2 und diese Adresse eintragen:
+
+   ```
+   https://DEIN-PROJEKT.supabase.co/functions/v1/store/apple
+   ```
+
+6. In der App-Beschreibung bzw. im Feld **License Agreement** auf die AGB verlinken (`https://lunaxora.de/App/agb.html`), Datenschutz-Link wie bisher. Die Abo-Seite der App zeigt AGB, Datenschutz und den Hinweis zur automatischen Verlängerung schon an.
+
+**4. Google (Play Console und Google Cloud)**
+
+1. Vorher: **Zahlungsprofil** (Händlerkonto) in der Play Console einrichten. Google verlangt meist erst einen hochgeladenen App-Build (mit expo-iap), bevor sich Abos anlegen lassen – z. B. im Track „Interner Test“.
+2. **Monetarisieren → Produkte → Abos:** je Produkt-ID aus der Tabelle ein Abo mit **einem Basis-Abo** (automatisch verlängernd, 1 Monat bzw. 1 Jahr, Preis), dann **aktivieren**.
+3. **Google Cloud Console** (Projekt anlegen oder vorhandenes nehmen): **Google Play Android Developer API** aktivieren → **IAM → Dienstkonten → Dienstkonto erstellen** → **Schlüssel → JSON** herunterladen.
+4. **Play Console → Nutzer und Berechtigungen → Neue Nutzer einladen:** die E-Mail des Dienstkontos, für die App die Rechte **„Finanzdaten, Bestellungen und Antworten auf Kündigungsumfragen ansehen“** und **„Bestellungen und Abos verwalten“**.
+5. **Echtzeit-Benachrichtigungen:** In Google Cloud **Pub/Sub → Thema** anlegen (z. B. `lunaxora-play`), dem Konto `google-play-developer-notifications@system.gserviceaccount.com` beim Thema die Rolle **Pub/Sub-Publisher** geben. Dazu ein **Abo vom Typ Push** mit dieser Adresse (hinten dein `GOOGLE_RTDN_SECRET` aus Schritt 5):
+
+   ```
+   https://DEIN-PROJEKT.supabase.co/functions/v1/store/google?key=DEIN_GOOGLE_RTDN_SECRET
+   ```
+
+   Dann in der Play Console **Monetarisierung einrichten → Echtzeit-Entwicklerbenachrichtigungen:** Thema `projects/DEIN-CLOUD-PROJEKT/topics/lunaxora-play` eintragen → **Testbenachrichtigung senden** (in den Logs der Funktion `store` steht dann nichts Rotes).
+6. **Einstellungen → Lizenztests:** die Google-Konten der Tester eintragen (Testkäufe ohne echtes Geld).
+
+**5. Schlüssel als Geheimnisse in Supabase** (**Edge Functions → Secrets**)
+
+| Name | Wert |
+|---|---|
+| `APPLE_IAP_KEY_ID` | Key ID aus Apple-Schritt 4 |
+| `APPLE_IAP_ISSUER_ID` | Issuer ID aus Apple-Schritt 4 |
+| `APPLE_IAP_PRIVATE_KEY` | der ganze Inhalt der `.p8`-Datei, mit den Zeilen `-----BEGIN PRIVATE KEY-----` und `-----END PRIVATE KEY-----` |
+| `APPLE_BUNDLE_ID` | optional, Standard `de.lunaxora.app` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | der ganze Inhalt der JSON-Datei des Dienstkontos |
+| `GOOGLE_PACKAGE_NAME` | optional, Standard `de.lunaxora.app` |
+| `GOOGLE_RTDN_SECRET` | ein langes Zufallswort (z. B. aus `openssl rand -hex 24`), dasselbe wie hinten in der Push-Adresse |
+
+> `.p8`-Datei und Dienstkonto-JSON **niemals** in die App, ins Repository oder in einen Chat – nur als Supabase-Geheimnis. Die Dateien danach sicher aufbewahren oder löschen.
+
+**6. App neu bauen**
+
+`expo-iap` steckt in `package.json` und als Plugin in `app.json`. Kauf in der App braucht einen **neuen nativen Build** (iPhone/Android) – in Expo Go geht es nicht. Testen nur auf einem echten Gerät.
+
+**Testen:**
+- **iPhone:** In App Store Connect unter **Users and Access → Sandbox** einen Testnutzer anlegen, auf dem iPhone unter **Einstellungen → Developer → Sandbox Apple Account** anmelden (oder einen TestFlight-Build nehmen) → in Lunaxora **Profil → Abo → Pro holen** → kaufen. Oben steht „Pro“, in `subscriptions` steht `source = 'apple'`, `store_environment = 'sandbox'`. In der Sandbox verlängern sich Abos im Minutentakt – so sieht man auch Verlängerung und Ablauf.
+- **Android:** mit einem Lizenztester-Konto die App aus dem internen Test installieren → kaufen → `source = 'google'`, `store_environment = 'test'`.
+- **Doppelt-Sperre:** mit laufendem Store-Abo im Browser **Pro holen** → Hinweis „läuft über den App Store bzw. Google Play“.
+- Klappt etwas nicht: Logs der Funktion `store` (z. B. `apple_auth` = Schlüssel falsch, `google_auth` = Dienstkonto fehlen Rechte).
+
+**Noch offen:** Store-Zahlungen landen noch nicht in `kosten.zahlungen` (Einnahmen je Kunde, Abschnitt 16) – die Beträge stehen in den Berichten von App Store Connect und Play Console.
+
 ## Sicherheit
 
 - In der App steht nur der **Publishable Key** (`.env`). Der ist öffentlich und darf in die App.

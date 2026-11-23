@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 
 import { PersonDot } from './chat-list';
 import { Chip } from './chip';
+import { takesVacation } from './roles';
 import {
   ABSENCE_COLUMNS,
   addDays,
@@ -49,8 +50,9 @@ const SICK_LINE = 'rgba(255,107,107,0.4)';
 
 /**
  * Team → Krank & Urlaub.
- * Alle: krank melden (verlängern, „wieder gesund“), Urlaub/frei beantragen, eigenes Urlaubskonto
- * (übrig, genommen, geplant, beantragt, Krankheitstage).
+ * Alle: krank melden (verlängern, „wieder gesund“). Mitarbeiter: Urlaub/frei beantragen, eigenes Urlaubskonto
+ * (übrig, genommen, geplant, beantragt, Krankheitstage). Inhaber und Mitgründer haben keinen Urlaub –
+ * sie tragen ihn nur fürs Team ein.
  * Wer „Personal“ hat: Anfragen genehmigen, neue Krankmeldungen bestätigen („Gesehen“),
  * wer in den nächsten zwei Wochen fehlt und die Urlaubskonten aller.
  */
@@ -95,9 +97,13 @@ export function AbsencePanel() {
 
   const members = useMemo(() => team?.members ?? [], [team?.members]);
   const meMember = members.find((m) => m.id === me);
+  // Urlaub/frei nur für Mitarbeiter
+  const selfVacation = takesVacation(access.role);
+  const staff = members.filter((m) => takesVacation(m.role));
   const mine = list.filter((a) => a.member_id === me);
   const mySick = sickToday(list, me, today);
-  const account = meMember?.vacation_days != null ? vacationAccount(list, me, meMember.vacation_days, year, today) : null;
+  const account =
+    selfVacation && meMember?.vacation_days != null ? vacationAccount(list, me, meMember.vacation_days, year, today) : null;
   const open = hr ? list.filter((a) => a.status === 'offen' && a.member_id !== me).reverse() : [];
   const newSick = hr ? unseenSickNotes(list, me, today) : [];
   const away = hr ? awaySoon(list, today) : [];
@@ -124,6 +130,7 @@ export function AbsencePanel() {
             hr={hr}
             members={members}
             me={me}
+            selfVacation={selfVacation}
             account={account}
             onClose={() => setForm(null)}
             onSaved={(text) => {
@@ -142,19 +149,25 @@ export function AbsencePanel() {
             <SickButton onPress={() => start('krank')} />
           )}
 
-          {/* Urlaubskonto + beantragen */}
+          {/* Urlaubskonto + beantragen (Leitung: fürs Team eintragen) */}
           <Card>
             {account ? (
               <AccountCard account={account} year={year} />
             ) : (
               <Text style={styles.hint}>
-                {hr ? 'Urlaub und freie Tage fürs Team eintragen – für dich selbst gibt es kein Urlaubskonto.' : 'Deine Urlaubstage hat die Leitung noch nicht eingetragen.'}
+                {selfVacation
+                  ? 'Deine Urlaubstage hat die Leitung noch nicht eingetragen.'
+                  : staff.length
+                    ? 'Urlaub und freie Tage gibt es nur für Mitarbeiter – hier trägst du sie fürs Team ein.'
+                    : 'Urlaub und freie Tage gibt es nur für Mitarbeiter. Sobald jemand als Mitarbeiter im Team ist, trägst du sie hier ein.'}
               </Text>
             )}
-            <View style={styles.actions}>
-              <ActionButton icon="urlaub" label={hr ? 'Urlaub eintragen' : 'Urlaub beantragen'} onPress={() => start('urlaub')} />
-              <ActionButton icon="frei" label={hr ? 'Frei eintragen' : 'Frei beantragen'} onPress={() => start('frei')} />
-            </View>
+            {(selfVacation || (hr && staff.length > 0)) && (
+              <View style={styles.actions}>
+                <ActionButton icon="urlaub" label={hr ? 'Urlaub eintragen' : 'Urlaub beantragen'} onPress={() => start('urlaub')} />
+                <ActionButton icon="frei" label={hr ? 'Frei eintragen' : 'Frei beantragen'} onPress={() => start('frei')} />
+              </View>
+            )}
           </Card>
         </>
       )}
@@ -201,11 +214,11 @@ export function AbsencePanel() {
       </Card>
 
       {/* Leitung: Urlaubskonten aller */}
-      {hr && members.some((m) => m.vacation_days != null && m.id !== me) && (
+      {hr && staff.some((m) => m.vacation_days != null && m.id !== me) && (
         <>
           <Text style={styles.section}>URLAUBSKONTEN {year}</Text>
           <Card>
-            {members
+            {staff
               .filter((m) => m.vacation_days != null && m.id !== me)
               .map((m, i) => (
                 <AccountRow key={m.id} member={m} list={list} year={year} today={today} first={i === 0} />
@@ -390,6 +403,7 @@ function AbsenceForm({
   hr,
   members,
   me,
+  selfVacation,
   account,
   onClose,
   onSaved,
@@ -399,6 +413,8 @@ function AbsenceForm({
   hr: boolean;
   members: TeamMember[];
   me: string;
+  /** darf man selbst Urlaub/frei nehmen (nur Mitarbeiter)? */
+  selfVacation: boolean;
   account: VacationAccount | null;
   onClose: () => void;
   onSaved: (text: string) => void;
@@ -409,17 +425,27 @@ function AbsenceForm({
   const [to, setTo] = useState<string | null>(today);
   const [note, setNote] = useState('');
   const [doctor, setDoctor] = useState(false);
-  const [member, setMember] = useState(me);
+  const [picked, setPicked] = useState(me);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sick = kind === 'krank';
+  // krank: alle; Urlaub/frei: nur Mitarbeiter (wer nicht Leitung ist, nur für sich)
+  const choices = hr
+    ? sick
+      ? members
+      : members.filter((m) => takesVacation(m.role) || (m.id === me && selfVacation))
+    : sick || selfVacation
+      ? members.filter((m) => m.id === me)
+      : [];
+  const member = choices.some((m) => m.id === picked) ? picked : sick ? me : (choices[0]?.id ?? null);
   const valid = !!from && !!to && to >= from;
   const days = valid ? workingDays(from, to) : 0;
   const forOther = member !== me;
-  const sick = kind === 'krank';
   // Resturlaub nach diesem Antrag (nur für einen selbst – für andere steht er bei der Anfrage)
   const leftAfter = kind === 'urlaub' && !forOther && account && valid ? account.left - account.pending - workingDays(from, to, Number(from.slice(0, 4))) : null;
 
   const save = async () => {
+    if (!member) return setError('Urlaub und freie Tage gibt es nur für Mitarbeiter.');
     if (!from || !to) return setError('Bitte Von und Bis eintragen.');
     if (to < from) return setError('„Bis“ liegt vor „Von“.');
     setBusy(true);
@@ -457,16 +483,17 @@ function AbsenceForm({
           { value: 'frei', label: 'Frei' },
         ]}
       />
-      {hr && members.length > 1 && (
+      {hr && (choices.length > 1 || (choices.length === 1 && choices[0].id !== me)) && (
         <>
           <Text style={styles.formLabel}>Für wen?</Text>
           <View style={styles.chips}>
-            {members.map((m) => (
-              <Chip key={m.id} label={m.id === me ? 'Mich' : m.name} active={member === m.id} onPress={() => setMember(m.id)} />
+            {choices.map((m) => (
+              <Chip key={m.id} label={m.id === me ? 'Mich' : m.name} active={member === m.id} onPress={() => setPicked(m.id)} />
             ))}
           </View>
         </>
       )}
+      {!member && <Notice tone="info">Urlaub und freie Tage gibt es nur für Mitarbeiter – im Team ist noch kein Mitarbeiter.</Notice>}
       <View style={styles.dates}>
         <View style={styles.flex}>
           <DateField
@@ -517,6 +544,7 @@ function AbsenceForm({
           label={sick ? 'Krank melden' : hr ? 'Eintragen' : 'Beantragen'}
           onPress={() => void save()}
           loading={busy}
+          disabled={!member}
           style={styles.flex}
         />
         <Button label="Abbrechen" variant="secondary" onPress={onClose} style={styles.flex} />
@@ -603,7 +631,8 @@ function RequestRow({
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState('');
   const days = workingDays(a.starts_on, a.ends_on);
-  const acc = member?.vacation_days != null ? vacationAccount(list, a.member_id, member.vacation_days, year, today) : null;
+  const acc =
+    member?.vacation_days != null && takesVacation(member.role) ? vacationAccount(list, a.member_id, member.vacation_days, year, today) : null;
   // Wer ist im selben Zeitraum schon weg?
   const overlap = list.filter(
     (o) => o.id !== a.id && o.member_id !== a.member_id && (o.status === 'genehmigt' || o.status === 'gemeldet') && o.starts_on <= a.ends_on && o.ends_on >= a.starts_on,

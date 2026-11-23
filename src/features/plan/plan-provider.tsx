@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 
 import { isPro, parsePlan, type PlanInfo, type ProFeature } from './plan-logic';
 import { showPlanWall } from './plan-wall';
+import { useStoreSync } from './store-purchase';
 
 type State = {
   info: PlanInfo | null;
@@ -15,6 +16,8 @@ type State = {
   pro: boolean;
   /** Von Hand vergebenes Abo (Herkunft „admin“): kostenlos, nichts zu kaufen oder zu verwalten */
   admin: boolean;
+  /** Herkunft des Abos: trial, stripe, apple, google, voucher, admin … (null = unbekannt) */
+  source: string | null;
   refresh: () => Promise<void>;
 };
 
@@ -58,7 +61,7 @@ export function PlanProvider({ userId, children }: { userId: string; children: R
   const pro = missing || !info || isPro(info.plan);
 
   // Herkunft des Abos (eigene Zeile; im Team gilt das Abo des Inhabers – dann nicht sichtbar)
-  const [admin, setAdmin] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     if (userId && info)
@@ -66,18 +69,25 @@ export function PlanProvider({ userId, children }: { userId: string; children: R
         .from('subscriptions')
         .select('source')
         .maybeSingle()
-        .then(({ data }) => active && setAdmin((data as { source?: string } | null)?.source === 'admin'));
+        .then(({ data }) => active && setSource((data as { source?: string } | null)?.source ?? null));
     return () => {
       active = false;
     };
   }, [userId, info]);
+  const admin = source === 'admin';
+
+  // Handy-Apps: Käufe aus App Store / Google Play annehmen und prüfen lassen
+  useStoreSync(userId, load);
 
   // Gratis: „Erstellt mit Lunaxora“ unten auf den PDFs
   useEffect(() => {
     setPdfBranding(!pro);
   }, [pro]);
 
-  const value = useMemo<State>(() => ({ info, missing, pro, admin, refresh: load }), [info, missing, pro, admin, load]);
+  const value = useMemo<State>(
+    () => ({ info, missing, pro, admin, source, refresh: load }),
+    [info, missing, pro, admin, source, load],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

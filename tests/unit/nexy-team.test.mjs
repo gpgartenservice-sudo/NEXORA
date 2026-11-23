@@ -198,6 +198,25 @@ test('Krank melden, Urlaub, Anträge entscheiden', () => {
   assert.deepEqual(build(act('absence_decide', { ref: 'U2', decision: 'approve' }), team), []);
 });
 
+test('Urlaub und frei nur für Mitarbeiter – krank melden dürfen alle', () => {
+  const [self] = build(act('absence', { kind: 'urlaub', starts_on: '2026-12-01', ends_on: '2026-12-02' }), boss);
+  assert.match(proposalProblem(self, [self]), /nur für Mitarbeiter/);
+  const [cofounder] = build(act('absence', { kind: 'frei', starts_on: '2026-12-01', person: 'Pascal' }), boss);
+  assert.match(proposalProblem(cofounder, [cofounder]), /nur für Mitarbeiter/);
+  const [anna] = build(act('absence', { kind: 'urlaub', starts_on: '2026-12-01', ends_on: '2026-12-02', person: 'Anna' }), boss);
+  assert.equal(proposalProblem(anna, [anna]), null);
+  const [own] = build(act('absence', { kind: 'urlaub', starts_on: '2026-12-01' }), employee);
+  assert.equal(proposalProblem(own, [own]), null);
+  const [sick] = build(act('absence', { kind: 'krank' }), boss);
+  assert.equal(proposalProblem(sick, [sick]), null);
+  // Inhaber mit (alten) Urlaubstagen: kein Urlaubskonto für Luna
+  const withDays = members.map((m) => (m.id === 'tom' || m.id === 'pascal' ? { ...m, vacation_days: 30 } : m));
+  const { context } = nexyTeam({ team: { ...boss, members: withDays }, absences, today: TODAY });
+  assert.equal(context.urlaubskonto, undefined);
+  assert.equal(context.mitglieder.find((m) => m.name === 'Pascal Pape').urlaubstage, undefined);
+  assert.equal(context.mitglieder.find((m) => m.name === 'Anna Berg').urlaubstage, 25);
+});
+
 test('Stunden eintragen: eigene, für andere nur mit Personal, nicht zu alt', () => {
   const [h] = build(act('hours', { day: '2026-11-23', starts_at: '7', ends_at: '15:30', break_minutes: 30 }), employee);
   assert.deepEqual(

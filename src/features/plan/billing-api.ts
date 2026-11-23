@@ -61,6 +61,13 @@ async function request(body: Record<string, unknown>): Promise<Reply & { url?: s
         error:
           'Dein Abo wurde nicht über Stripe abgeschlossen (z. B. von Hand freigeschaltet). Für Änderungen schreib uns einfach.',
       };
+    if (res.status === 409 && code === 'store_plan')
+      return {
+        error:
+          'Dein Abo läuft über den App Store bzw. Google Play. Ändern oder kündigen kannst du es dort – auf dem Handy, mit dem du es abgeschlossen hast. Ein zweites Abo brauchst du nicht.',
+      };
+    if (res.status === 409 && code === 'admin_plan')
+      return { error: 'Dein Konto hat einen Admin-Zugang – dafür wird nichts abgebucht.' };
     if (res.status === 404) return { error: SETUP };
     if (code === 'stripe_not_configured' || code === 'invalid_stripe_key') return { error: SETUP };
     if (code === 'price_missing')

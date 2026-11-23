@@ -327,14 +327,16 @@ function MemberRow({
     setDays(m.vacation_days != null ? String(m.vacation_days).replace('.', ',') : '24');
   }
 
+  // Urlaubstage nur für Mitarbeiter (Mitgründer haben keinen Urlaub)
+  const vacation = roleDraft === 'mitarbeiter';
   const save = async () => {
     const n = Number(days.replace(',', '.'));
-    if (!Number.isFinite(n) || n < 0 || n > 60) {
+    if (vacation && (!Number.isFinite(n) || n < 0 || n > 60)) {
       onError('Bitte zwischen 0 und 60 Urlaubstagen eintragen.');
       return;
     }
     setBusy('save');
-    const r = await teamSetMember(m.id, { role: roleDraft, title: title.trim(), vacationDays: n });
+    const r = await teamSetMember(m.id, { role: roleDraft, title: title.trim(), ...(vacation ? { vacationDays: n } : {}) });
     setBusy(null);
     if (r.error) onError(r.error);
     else {
@@ -392,9 +394,11 @@ function MemberRow({
             <View style={styles.flex}>
               <TextField label="Bezeichnung (optional)" value={title} onChangeText={setTitle} placeholder="z. B. Gärtner" maxLength={60} />
             </View>
-            <View style={styles.daysField}>
-              <TextField label="Urlaub/Jahr" value={days} onChangeText={setDays} keyboardType="decimal-pad" placeholder="24" />
-            </View>
+            {vacation && (
+              <View style={styles.daysField}>
+                <TextField label="Urlaub/Jahr" value={days} onChangeText={setDays} keyboardType="decimal-pad" placeholder="24" />
+              </View>
+            )}
           </View>
           <View style={styles.buttons}>
             <Button label="Speichern" loading={busy === 'save'} disabled={!!busy} onPress={() => void save()} />
