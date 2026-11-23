@@ -607,7 +607,7 @@ In der **iPhone- und Android-App** kauft man das Abo als **Kauf in der App** (ex
 
 **3. Apple (App Store Connect)**
 
-1. Vorher: **Paid Apps Agreement** unterschreiben und Bank- und Steuerdaten eintragen (**Business**), außerdem am **App Store Small Business Program** teilnehmen (15 % statt 30 % Provision).
+1. Vorher: **Paid Apps Agreement** unterschreiben und Bank- und Steuerdaten eintragen (**Business**), außerdem am **App Store Small Business Program** teilnehmen (beim Kauf in der App 15 % statt 26 % Provision nach den EU-Bedingungen).
 2. **App → Monetization → Subscriptions → Subscription Group** „Lunaxora“ anlegen, darin die sechs Abos aus der Tabelle (Product ID genau so, Dauer, Preis für Deutschland, deutscher Anzeigename und Beschreibung, Screenshot für die Prüfung). **Family Sharing** ausgeschaltet lassen.
 3. **Stufen in der Gruppe** (oben = höchste): Teams (Monat und Jahr), dann Business, dann Pro. Ein Wechsel nach oben gilt sofort, nach unten zum nächsten Verlängerungstermin – das regelt Apple.
 4. **Users and Access → Integrations → In-App Purchase** → Schlüssel erzeugen → die `.p8`-Datei herunterladen (geht nur einmal!). Notieren: **Key ID** und **Issuer ID** (steht oben auf der Seite).
