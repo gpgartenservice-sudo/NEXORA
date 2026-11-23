@@ -51,9 +51,9 @@ export function OfferReplyWatcher() {
         const since = new Date(stored).toISOString();
         const { data, error } = await supabase
           .from('documents')
-          .select('id, number, total, customer_id, accepted_at, accepted_name, declined_at, decline_note')
+          .select('id, number, total, customer_id, accepted_at, accepted_name, declined_at, decline_note, withdrawn_at')
           .eq('kind', 'offer')
-          .or(`accepted_at.gt."${since}",declined_at.gt."${since}"`);
+          .or(`accepted_at.gt."${since}",declined_at.gt."${since}",withdrawn_at.gt."${since}"`);
         if (error || !alive || !data?.length) return;
         const offers: OfferReply[] = data.map((d) => ({
           ...d,

@@ -42,23 +42,32 @@ export function yearTotals(orders: OrderMoney[], expenses: ExpenseFacts[], year:
   return { income, expenses: spent, profit: round2(income - spent) };
 }
 
-export type LimitStatus = 'ok' | 'near' | 'over_next_year' | 'over_now' | 'prev_over';
+export type LimitStatus = 'ok' | 'near' | 'over_next_year' | 'over_first_year' | 'over_now' | 'prev_over';
 
 /**
  * Kleinunternehmer-Grenze: Wo steht der Umsatz dieses Jahr, was bedeutet das?
  * (Umsatz = Einnahmen ohne Umsatzsteuer; bei Kleinunternehmern = Einnahmen)
+ *
+ * Im Gründungsjahr ist 25.000 € schon eine harte Grenze: Die Umsatzsteuer gilt
+ * ab dem Umsatz, mit dem sie überschritten wird (IHK München, BMF 2025). Die App
+ * kennt das Gründungsdatum nicht – ohne Umsatz im Vorjahr kann das laufende Jahr
+ * das Gründungsjahr sein, dann nennen die Hinweise beide Fälle.
  */
 export function smallBusinessCheck(revenueThisYear: number, revenuePrevYear: number, year: number) {
   const ratio = Math.min(1, revenueThisYear / SMALL_BUSINESS_LIMIT);
+  const maybeFirstYear = revenuePrevYear <= 0;
   let status: LimitStatus = 'ok';
   if (revenueThisYear > SMALL_BUSINESS_HARD_LIMIT) status = 'over_now';
   else if (revenuePrevYear > SMALL_BUSINESS_LIMIT) status = 'prev_over';
-  else if (revenueThisYear > SMALL_BUSINESS_LIMIT) status = 'over_next_year';
+  else if (revenueThisYear > SMALL_BUSINESS_LIMIT) status = maybeFirstYear ? 'over_first_year' : 'over_next_year';
   else if (revenueThisYear >= SMALL_BUSINESS_LIMIT * NEAR) status = 'near';
   const left = Math.max(0, round2(SMALL_BUSINESS_LIMIT - revenueThisYear));
   const messages: Record<LimitStatus, string> = {
     ok: `Noch ${formatEuro(left)} bis zur Grenze von ${formatEuro(SMALL_BUSINESS_LIMIT)} – alles im grünen Bereich.`,
-    near: `Du näherst dich der Grenze: noch ${formatEuro(left)}. Liegt dein Umsatz ${year} über ${formatEuro(SMALL_BUSINESS_LIMIT)}, bist du ab ${year + 1} kein Kleinunternehmer mehr und musst Umsatzsteuer berechnen.`,
+    near: maybeFirstYear
+      ? `Du näherst dich der Grenze: noch ${formatEuro(left)}. Hast du ${year} gegründet, musst du schon ab dem Umsatz, mit dem du ${formatEuro(SMALL_BUSINESS_LIMIT)} überschreitest, Umsatzsteuer berechnen. Sonst bist du erst ab ${year + 1} kein Kleinunternehmer mehr.`
+      : `Du näherst dich der Grenze: noch ${formatEuro(left)}. Liegt dein Umsatz ${year} über ${formatEuro(SMALL_BUSINESS_LIMIT)}, bist du ab ${year + 1} kein Kleinunternehmer mehr und musst Umsatzsteuer berechnen.`,
+    over_first_year: `Dein Umsatz ${year} liegt über ${formatEuro(SMALL_BUSINESS_LIMIT)}. Hast du ${year} gegründet, musst du schon ab dem Umsatz, mit dem du die Grenze überschritten hast, Umsatzsteuer berechnen. Sonst ab dem 1. Januar ${year + 1}. Bitte sofort mit deiner Steuerberatung sprechen.`,
     over_next_year: `Dein Umsatz ${year} liegt über ${formatEuro(SMALL_BUSINESS_LIMIT)}: Ab dem 1. Januar ${year + 1} musst du Umsatzsteuer auf deine Rechnungen schreiben. Sprich am besten jetzt mit deiner Steuerberatung.`,
     over_now: `Dein Umsatz ${year} liegt über ${formatEuro(SMALL_BUSINESS_HARD_LIMIT)}: Die Kleinunternehmerregelung endet sofort – ab der Rechnung, mit der du die Grenze überschritten hast, gilt Umsatzsteuer. Bitte sofort mit deiner Steuerberatung sprechen.`,
     prev_over: `Dein Umsatz ${year - 1} lag über ${formatEuro(SMALL_BUSINESS_LIMIT)} – damit gilt die Kleinunternehmerregelung ${year} eigentlich nicht mehr. Bitte mit deiner Steuerberatung klären.`,

@@ -42,3 +42,13 @@ test('nur neue Antworten, älteste zuerst', () => {
   assert.equal(notes[1].body, 'Dein Kunde hat das Angebot abgelehnt.');
   assert.equal(replyTime({ ...base }), 0);
 });
+
+test('widerrufenes Angebot: eigene Mitteilung, auch wenn die Annahme schon gemeldet war', () => {
+  const o = { ...base, accepted_at: '2026-11-19T10:00:00Z', withdrawn_at: '2026-11-20T10:07:00Z' };
+  const [n] = offerReplyNotes([o], since);
+  assert.equal(n.id, 'offer-withdrawn-a1');
+  assert.equal(n.title, 'Angebot AN-2026-0007 widerrufen');
+  assert.equal(n.body, 'Gärtnerei Grün hat den Vertrag online widerrufen. Der Auftrag ist storniert.');
+  assert.equal(replyTime(o), Date.parse('2026-11-20T10:07:00Z'));
+  assert.deepEqual(offerReplyNotes([{ ...o, withdrawn_at: null }], since), []);
+});

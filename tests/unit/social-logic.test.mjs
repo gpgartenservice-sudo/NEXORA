@@ -43,12 +43,19 @@ test('Hashtags: # ergänzen, Doppelte und Satzzeichen entfernen, Umlaute behalte
 });
 
 test('Zeichen- und Hashtag-Grenzen: strengste Plattform gilt', () => {
-  const tags = Array.from({ length: 31 }, (_, i) => `#tag${i}`).join(' ');
+  const tags = Array.from({ length: 6 }, (_, i) => `#tag${i}`).join(' ');
   const c = checkLimits(['tiktok', 'instagram'], 'Kurz', tags);
   assert.equal(c.maxChars, 2200);
   assert.equal(c.charsPlatform, 'Instagram');
-  assert.equal(c.maxHashtags, 30);
+  assert.equal(c.maxHashtags, 5);
+  assert.equal(c.tagsPlatform, 'Instagram');
   assert.equal(c.tooManyTags, true);
+  assert.equal(checkLimits(['instagram'], 'Kurz', '#a #b #c #d #e').tooManyTags, false);
+  const t = checkLimits(['instagram', 'threads'], 'Kurz', '#a #b');
+  assert.equal(t.maxHashtags, 1);
+  assert.equal(t.tagsPlatform, 'Threads');
+  assert.equal(t.tooManyTags, true);
+  assert.equal(checkLimits(['tiktok'], 'Kurz', tags).tagsPlatform, null);
   const x = checkLimits(['x'], 'a'.repeat(281), '');
   assert.equal(x.tooLong, true);
   assert.equal(checkLimits(['facebook'], 'egal', '').maxChars, null);

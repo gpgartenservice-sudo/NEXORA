@@ -6,17 +6,24 @@ import {
   addDays,
   computeTotals,
   documentNotes,
+  earlyStartHint,
   EMPTY_SELLER,
   formatDay,
   lastPropertyChoice,
   LATE_NOTE,
   missingBuyerFields,
   missingSellerFields,
+  ONLINE_WITHDRAWAL_NOTE,
   PROPERTY_NOTE,
   propertyNoteApplies,
   sampleInvoice,
+  sellerContactLine,
   SMALL_BUSINESS_NOTE,
   SMALL_BUSINESS_OFFER_NOTE,
+  withdrawalContract,
+  withdrawalForm,
+  withdrawalNotice,
+  withdrawalStatement,
 } from '../../src/features/documents/document-logic.ts';
 
 const item = (unit_price, quantity = 1) => ({ description: 'X', details: null, quantity, unit: 'pauschal', unit_price });
@@ -168,4 +175,43 @@ test('Vorschlag für den Schalter: wie bei der letzten passenden Rechnung', () =
 
 test('Muster-Rechnung im Bereich Firma zeigt den Verzugshinweis', () => {
   assert.ok(documentNotes(sampleInvoice(EMPTY_SELLER, '2026-11-22')).includes(LATE_NOTE));
+});
+
+test('Widerrufsbelehrung und Formular nach Muster, mit den Daten des Selbstständigen', () => {
+  const seller = {
+    ...EMPTY_SELLER,
+    company_name: 'Max Muster Gartenservice',
+    street: 'Musterweg 1',
+    zip: '12345',
+    city: 'Musterstadt',
+    phone: '0123 456',
+    email: 'max@example.com',
+  };
+  assert.equal(
+    sellerContactLine(seller),
+    'Max Muster Gartenservice, Musterweg 1, 12345 Musterstadt, Tel. 0123 456, E-Mail max@example.com',
+  );
+  const notice = withdrawalNotice(seller);
+  assert.deepEqual(notice.map((s) => s.heading), ['Widerrufsrecht', 'Folgen des Widerrufs']);
+  const text = notice.flatMap((s) => s.paragraphs).join(' ');
+  assert.match(text, /binnen vierzehn Tagen ohne Angabe von Gründen/);
+  assert.match(text, /ab dem Tag des Vertragsabschlusses\./);
+  assert.match(text, /uns \(Max Muster Gartenservice, Musterweg 1, 12345 Musterstadt, Tel\. 0123 456, E-Mail max@example\.com\)/);
+  assert.match(text, /während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen/);
+  // Gestaltungshinweis 3: direkt nach dem Satz zum Muster-Formular
+  assert.ok(notice[0].paragraphs[2].endsWith(`das jedoch nicht vorgeschrieben ist. ${ONLINE_WITHDRAWAL_NOTE}`));
+  assert.match(ONLINE_WITHDRAWAL_NOTE, /Schaltfläche „Vertrag widerrufen“/);
+  assert.match(ONLINE_WITHDRAWAL_NOTE, /sowie dem Datum und der Uhrzeit ihres Eingangs\.$/);
+  assert.equal(withdrawalContract('AN-2026-0003', '2026-11-22'), 'Angebot AN-2026-0003 vom 22.11.2026');
+  assert.equal(
+    withdrawalStatement('Angebot AN-2026-0003 vom 22.11.2026'),
+    'Hiermit widerrufe ich den von mir abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung: Angebot AN-2026-0003 vom 22.11.2026',
+  );
+  const form = withdrawalForm(seller);
+  assert.equal(form[1], '– An Max Muster Gartenservice, Musterweg 1, 12345 Musterstadt, E-Mail max@example.com:');
+  assert.equal(form.at(-1), '(*) Unzutreffendes streichen.');
+  assert.match(earlyStartHint(seller), /ausdrücklich per E-Mail an max@example\.com/);
+  // fehlende Angaben fallen weg statt leerer Kommas
+  assert.equal(sellerContactLine({ ...EMPTY_SELLER, owner_name: 'Erika Muster', city: 'Musterstadt' }), 'Erika Muster, Musterstadt');
+  assert.match(earlyStartHint({ ...EMPTY_SELLER, owner_name: 'Erika Muster' }), /schriftlich mit/);
 });

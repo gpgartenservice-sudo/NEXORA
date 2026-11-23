@@ -40,6 +40,10 @@ export type StoredDocument = {
   accepted_name?: string | null;
   declined_at?: string | null;
   decline_note?: string | null;
+  /** Online widerrufen (Privatkunde, § 356a BGB) – der Auftrag ist dann storniert */
+  withdrawn_at?: string | null;
+  withdrawal?: { name?: string; contract?: string; email?: string } | null;
+  withdrawal_mailed_at?: string | null;
 };
 
 export type ServiceInfo = {

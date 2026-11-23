@@ -107,9 +107,12 @@ export function OrderDetailScreen() {
   // Online angenommen, der Auftrag weiß es aber noch nicht -> Aufträge neu laden
   const acceptedOnline = documents.some((d) => d.order_id === id && d.kind === 'offer' && !!d.accepted_at);
   const knowsAccepted = !!order?.offer_accepted;
+  // online widerrufen -> die Datenbank hat den Auftrag storniert
+  const withdrawnOnline = documents.some((d) => d.order_id === id && d.kind === 'offer' && !!d.withdrawn_at);
+  const knowsCancelled = !!order?.cancelled;
   useEffect(() => {
-    if (acceptedOnline && order && !knowsAccepted) void reloadOrders();
-  }, [acceptedOnline, knowsAccepted, order, reloadOrders]);
+    if (order && ((acceptedOnline && !knowsAccepted) || (withdrawnOnline && !knowsCancelled))) void reloadOrders();
+  }, [acceptedOnline, knowsAccepted, withdrawnOnline, knowsCancelled, order, reloadOrders]);
 
   if (!order) {
     return (
@@ -123,7 +126,13 @@ export function OrderDetailScreen() {
   if (!canWrite) return <OrderView order={order} />;
   // key: bei einem anderen Auftrag frisch mit dessen Daten starten
   // (neu starten, wenn das Angebot inzwischen online angenommen wurde)
-  return <OrderEditor key={`${order.id}-${order.offer_accepted ? 'a' : 'o'}`} order={order} mahnen={mahnen} />;
+  return (
+    <OrderEditor
+      key={`${order.id}-${order.offer_accepted ? 'a' : 'o'}-${order.cancelled ? 'c' : ''}`}
+      order={order}
+      mahnen={mahnen}
+    />
+  );
 }
 
 /** Eigene Änderungen behalten, alles andere auf den neuen Stand bringen */

@@ -165,14 +165,15 @@ export type OfferReply = {
   accepted_name?: string | null;
   declined_at?: string | null;
   decline_note?: string | null;
+  withdrawn_at?: string | null;
 };
 
 export type ReplyNote = { id: string; title: string; body: string };
 
-/** Zeitpunkt der Antwort (angenommen oder abgelehnt) in ms – 0 ohne Antwort */
+/** Zeitpunkt der letzten Antwort (angenommen, abgelehnt oder widerrufen) in ms – 0 ohne Antwort */
 export function replyTime(o: OfferReply): number {
-  const t = Date.parse(o.accepted_at ?? o.declined_at ?? '');
-  return Number.isFinite(t) ? t : 0;
+  const t = [o.withdrawn_at, o.accepted_at, o.declined_at].map((v) => Date.parse(v ?? '')).filter(Number.isFinite);
+  return t.length ? Math.max(...t) : 0;
 }
 
 /** Mitteilungen für Antworten, die nach `since` (ms) kamen – älteste zuerst */
@@ -181,6 +182,13 @@ export function offerReplyNotes(offers: OfferReply[], since: number): ReplyNote[
     .filter((o) => replyTime(o) > since)
     .sort((a, b) => replyTime(a) - replyTime(b))
     .map((o) => {
+      if (o.withdrawn_at) {
+        return {
+          id: `offer-withdrawn-${o.id}`,
+          title: `Angebot ${o.number} widerrufen`,
+          body: `${o.customerName ?? 'Dein Kunde'} hat den Vertrag online widerrufen. Der Auftrag ist storniert.`,
+        };
+      }
       if (o.accepted_at) {
         const who = o.accepted_name?.trim() || o.customerName || 'Dein Kunde';
         return {

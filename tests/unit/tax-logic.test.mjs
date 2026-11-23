@@ -52,6 +52,20 @@ test('Kleinunternehmer-Grenze', () => {
   assert.match(smallBusinessCheck(5000, 30000, 2026).message, /2025 lag über/);
 });
 
+test('Kleinunternehmer-Grenze: ohne Umsatz im Vorjahr kann es das Gründungsjahr sein', () => {
+  const first = smallBusinessCheck(26000, 0, 2026);
+  assert.equal(first.status, 'over_first_year');
+  assert.match(n(first.message), /Hast du 2026 gegründet, musst du schon ab dem Umsatz/);
+  assert.match(first.message, /1\. Januar 2027/);
+  const near = smallBusinessCheck(21000, 0, 2026);
+  assert.equal(near.status, 'near');
+  assert.match(n(near.message), /Hast du 2026 gegründet/);
+  assert.equal(smallBusinessCheck(12000, 0, 2026).status, 'ok');
+  assert.equal(smallBusinessCheck(101000, 0, 2026).status, 'over_now');
+  // mit Umsatz im Vorjahr bleibt es beim 1. Januar
+  assert.doesNotMatch(n(smallBusinessCheck(26000, 10000, 2026).message), /gegründet/);
+});
+
 test('Steuer-Topf: Prozent vom Gewinn, USt nur bei Regelbesteuerung', () => {
   assert.deepEqual(taxReserve({ profit: 10000, percent: 25, smallBusiness: true, vatPayable: 500 }), {
     incomeTax: 2500,

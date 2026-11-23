@@ -290,6 +290,13 @@ function DocumentRow({
               {doc.accepted_name ? ` von ${doc.accepted_name}` : ''}
             </Text>
           )}
+          {!isInvoice && doc.withdrawn_at && (
+            <Text style={styles.docDeclined} testID="offer-withdrawn">
+              Online widerrufen am {formatDay(doc.withdrawn_at.slice(0, 10))}
+              {doc.withdrawal?.name ? ` von ${doc.withdrawal.name}` : ''} – Auftrag storniert. Schon gezahltes Geld innerhalb
+              von 14 Tagen zurückzahlen.
+            </Text>
+          )}
           {!isInvoice && doc.declined_at && (
             <Text style={styles.docDeclined} testID="offer-declined">
               Abgelehnt am {formatDay(doc.declined_at.slice(0, 10))}

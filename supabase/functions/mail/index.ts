@@ -34,6 +34,12 @@
  * selbst aus der Einladung. Deshalb geht das in jedem Abo (auch Gratis), ohne
  * dass jemand darüber beliebige E-Mails verschicken kann.
  *   INVITE_URL      (optional) Adresse der Kundenseite, Standard https://lunaxora.de/Kunde
+ *
+ * Online-Widerruf (kind "withdrawal", Skript 20261203090000_widerruf_online.sql):
+ * Kommt von der Angebotsseite OHNE Anmeldung. Die Funktion holt Empfänger und
+ * Text nur über den geheimen Angebots-Link aus der Datenbank (offer_withdrawal_mail,
+ * höchstens 3 Versuche) und schickt dem Kunden die Eingangsbestätigung nach
+ * § 356a Abs. 4 BGB, mit Kopie an den Selbstständigen. Geht in jedem Abo.
  */
 
 const RESEND_URL = 'https://api.resend.com/emails';
@@ -90,6 +96,8 @@ type Body = {
   document_id?: unknown;
   kind?: unknown;
   invite_id?: unknown;
+  /** Online-Widerruf: geheimer Angebots-Link */
+  token?: unknown;
 };
 
 const json = (status: number, body: unknown) =>
@@ -361,9 +369,271 @@ export async function smtpSend(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Verschicken (gemeinsam für alle Arten)
+// ---------------------------------------------------------------------------
+
+type MailConfig = {
+  smtpHost: string | null;
+  smtpUser: string;
+  smtpPass: string;
+  smtpPort: number;
+  key: string | undefined;
+  from: string;
+};
+
+/** Weg A: eigenes Postfach (SMTP), Weg B: Resend – oder was in den Secrets fehlt */
+function mailConfig(deps: Deps): MailConfig | { status: number; error: string } {
+  const smtpHost = deps.env('SMTP_HOST')?.trim() || null;
+  const smtpUser = deps.env('SMTP_USER')?.trim() ?? '';
+  const smtpPass = deps.env('SMTP_PASS') ?? '';
+  const smtpPort = Number(deps.env('SMTP_PORT')?.trim() || 465);
+  const key = deps.env('RESEND_API_KEY');
+  if (smtpHost) {
+    if (!smtpUser || !smtpPass) return { status: 500, error: 'missing_smtp_login' };
+    if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) return { status: 500, error: 'smtp_port' };
+    // Supabase lässt keine Verbindungen über Port 25 und 587 zu
+    if (smtpPort === 25 || smtpPort === 587) return { status: 500, error: 'smtp_port' };
+  } else if (!key) return { status: 500, error: 'missing_resend_key' };
+  const from = (deps.env('MAIL_FROM')?.trim() || (smtpHost && EMAIL.test(smtpUser) ? smtpUser : '')).trim();
+  if (!from || !EMAIL.test(from)) return { status: 500, error: 'missing_mail_from' };
+  return { smtpHost, smtpUser, smtpPass, smtpPort, key, from };
+}
+
+type Outgoing = {
+  fromName: string;
+  to: string[];
+  replyTo: string | null;
+  subject: string;
+  text: string;
+  attachments: { filename: string; content: string }[];
+};
+
+/** E-Mail verschicken -> ID beim Anbieter oder fertige Fehler-Antwort */
+async function deliver(
+  cfg: MailConfig,
+  msg: Outgoing,
+  deps: Deps,
+  now: Date,
+): Promise<{ id: string | null } | { response: Response }> {
+  // Weg A: eigenes Postfach
+  if (cfg.smtpHost) {
+    if (!deps.connectTls) return { response: json(500, { error: 'smtp_unsupported' }) };
+    const messageId = `<${crypto.randomUUID()}@${cfg.from.split('@')[1]}>`;
+    const data = buildMime({
+      fromName: msg.fromName,
+      from: cfg.from,
+      to: msg.to,
+      replyTo: msg.replyTo,
+      subject: msg.subject,
+      text: msg.text,
+      attachments: msg.attachments,
+      date: now,
+      messageId,
+    });
+    let conn: SmtpConn;
+    try {
+      conn = await deps.connectTls({ hostname: cfg.smtpHost, port: cfg.smtpPort });
+    } catch (e) {
+      console.error('SMTP connect', e);
+      return {
+        response: json(502, { error: 'smtp_connect_failed', detail: String((e as Error)?.message ?? e).slice(0, 200) }),
+      };
+    }
+    try {
+      await smtpSend(conn, {
+        user: cfg.smtpUser,
+        pass: cfg.smtpPass,
+        from: cfg.from,
+        to: msg.to,
+        data,
+        helo: cfg.from.split('@')[1],
+        timeoutMs: deps.smtpTimeoutMs,
+      });
+    } catch (e) {
+      const code = e instanceof SmtpError ? e.code : 'smtp_connect_failed';
+      const detail = (e instanceof SmtpError ? e.detail : String((e as Error)?.message ?? e)).slice(0, 300);
+      console.error('SMTP', code, detail);
+      return { response: json(code === 'smtp_auth_failed' ? 500 : 502, { error: code, detail }) };
+    }
+    return { id: messageId };
+  }
+
+  // Weg B: Resend
+  let res: Response;
+  try {
+    res = await deps.fetch(RESEND_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: `${msg.fromName} <${cfg.from}>`,
+        to: msg.to,
+        subject: msg.subject,
+        text: msg.text,
+        ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
+        ...(msg.attachments.length ? { attachments: msg.attachments } : {}),
+      }),
+    });
+  } catch (error) {
+    console.error('Resend', error);
+    return { response: json(502, { error: 'send_error', detail: 'E-Mail-Dienst nicht erreichbar' }) };
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    console.error('Resend', res.status, detail);
+    if (res.status === 401) return { response: json(500, { error: 'invalid_resend_key' }) };
+    if (res.status === 403) return { response: json(500, { error: 'domain_not_verified', detail }) };
+    if (res.status === 429) return { response: json(429, { error: 'rate_limited' }) };
+    return { response: json(502, { error: 'send_error', status: res.status, detail }) };
+  }
+  return { id: ((await res.json().catch(() => ({}))) as { id?: string }).id ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// Online-Widerruf (Skript 20261203090000_widerruf_online.sql, § 356a BGB):
+// Der Kunde hat auf der Angebotsseite „Widerruf bestätigen“ getippt. Ohne
+// Lunaxora-Anmeldung – Empfänger und Text kommen aber nur aus der Datenbank
+// (über den geheimen Angebots-Link), höchstens 3 Versuche je Widerruf.
+// ---------------------------------------------------------------------------
+
+const OFFER_TOKEN = /^[A-Za-z0-9_-]{32,64}$/;
+
+type SellerInfo = {
+  company_name?: string | null;
+  owner_name?: string | null;
+  street?: string | null;
+  zip?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+export type WithdrawalInfo = {
+  number: string;
+  issued_on?: string | null;
+  accepted_at?: string | null;
+  withdrawn_at: string;
+  withdrawal: { name?: string; contract?: string; email?: string };
+  seller?: SellerInfo | null;
+};
+
+/** Wortlaut der Erklärung – gleich wie auf der Angebotsseite (web-angebot/index.html) */
+export function withdrawalStatement(contract: string): string {
+  return `Hiermit widerrufe ich den von mir abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung: ${contract}`;
+}
+
+/** "2026-11-23T13:05:00Z" -> "23.11.2026 um 14:05 Uhr" (deutsche Zeit) */
+function dayTimeDe(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+  return `${day} um ${time} Uhr`;
+}
+
+/**
+ * Eingangsbestätigung (§ 356a Abs. 4 BGB): Inhalt der Widerrufserklärung
+ * (Name, Vertrag, E-Mail) sowie Datum und Uhrzeit des Eingangs.
+ */
+export function withdrawalMail(w: WithdrawalInfo) {
+  const s = w.seller ?? {};
+  const seller = String(s.company_name || s.owner_name || '').trim() || 'Ihr Auftragnehmer';
+  const name = String(w.withdrawal?.name ?? '').trim();
+  const contract = String(w.withdrawal?.contract ?? '').trim();
+  const email = String(w.withdrawal?.email ?? '').trim();
+  const contact = [
+    s.street,
+    [s.zip, s.city].filter(Boolean).join(' '),
+    s.phone ? `Tel. ${s.phone}` : null,
+    s.email ? `E-Mail ${s.email}` : null,
+  ]
+    .map((v) => (v ? String(v).trim() : ''))
+    .filter(Boolean)
+    .join(', ');
+  return {
+    fromName: seller,
+    subject: `Eingangsbestätigung: Ihr Widerruf (Angebot ${w.number})`,
+    text: [
+      `Guten Tag ${name},`,
+      '',
+      `Ihr Widerruf ist bei ${seller} eingegangen.`,
+      '',
+      `Eingang: ${dayTimeDe(w.withdrawn_at)}`,
+      '',
+      'Ihre Widerrufserklärung:',
+      `„${withdrawalStatement(contract)}“`,
+      '',
+      `Name: ${name}`,
+      `Vertrag: ${contract}`,
+      `E-Mail für diese Bestätigung: ${email}`,
+      ...(w.accepted_at ? [`Angebot ${w.number} online angenommen am ${dayDe(w.accepted_at)}`] : []),
+      '',
+      `Eine Kopie dieser E-Mail geht an ${seller}.`,
+      '',
+      'Viele Grüße',
+      seller,
+      ...(contact ? [contact] : []),
+    ].join('\n'),
+  };
+}
+
+async function handleWithdrawal(req: Request, body: Body, deps: Deps): Promise<Response> {
+  const url = deps.env('SUPABASE_URL');
+  const apikey = req.headers.get('apikey')?.trim() || deps.env('SUPABASE_ANON_KEY');
+  if (!url || !apikey) return json(500, { error: 'missing_config' });
+  const token = typeof body.token === 'string' ? body.token.trim() : '';
+  if (!OFFER_TOKEN.test(token)) return json(400, { error: 'invalid_token' });
+  const cfg = mailConfig(deps);
+  if ('error' in cfg) return json(cfg.status, { error: cfg.error });
+
+  // Daten holen (zählt einen Versuch) – mit den Rechten eines Besuchers ohne Anmeldung
+  const db = { apikey, 'Content-Type': 'application/json' };
+  const claim = await deps
+    .fetch(`${url}/rest/v1/rpc/offer_withdrawal_mail`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
+    .catch(() => null);
+  if (!claim?.ok) {
+    const detail = claim ? (await claim.text().catch(() => '')).slice(0, 300) : 'unreachable';
+    if (claim && (claim.status === 404 || /PGRST202|42883/.test(detail))) return json(500, { error: 'missing_withdrawal_function' });
+    console.error('offer_withdrawal_mail', claim?.status, detail);
+    return json(502, { error: 'withdrawal_error', detail });
+  }
+  const info = (await claim.json().catch(() => null)) as (WithdrawalInfo & { error?: string }) | null;
+  if (!info) return json(502, { error: 'withdrawal_error' });
+  if (info.error) return json(info.error === 'not_found' ? 404 : 409, { error: info.error });
+
+  const to = String(info.withdrawal?.email ?? '').trim();
+  if (!EMAIL.test(to) || to.length > 320) return json(400, { error: 'invalid_to' });
+  const sellerMail = String(info.seller?.email ?? '').trim();
+  const copy = EMAIL.test(sellerMail) && sellerMail.toLowerCase() !== to.toLowerCase() ? [sellerMail] : [];
+  const m = withdrawalMail(info);
+  const sent = await deliver(
+    cfg,
+    { fromName: cleanName(m.fromName), to: [to, ...copy], replyTo: copy[0] ?? null, subject: m.subject, text: m.text, attachments: [] },
+    deps,
+    deps.now?.() ?? new Date(),
+  );
+  if ('response' in sent) return sent.response;
+
+  // vermerken (Fehler hier ändern nichts mehr am Versand)
+  const marked = await deps
+    .fetch(`${url}/rest/v1/rpc/offer_withdrawal_mailed`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
+    .catch((e) => e);
+  if (!(marked instanceof Response) || !marked.ok) console.error('offer_withdrawal_mailed', marked);
+  return json(200, { ok: true, id: sent.id, to: [to, ...copy] });
+}
+
 export async function handleRequest(req: Request, deps: Deps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
+
+  let parsed: Body | null;
+  try {
+    parsed = await req.json();
+  } catch {
+    parsed = null;
+  }
+  // Eingangsbestätigung für den Online-Widerruf: kommt vom Kunden, ohne Lunaxora-Anmeldung
+  if (parsed && typeof parsed === 'object' && parsed.kind === 'withdrawal') return handleWithdrawal(req, parsed, deps);
 
   // Angemeldet? (Prüfung beim Supabase-Auth-Server)
   const auth = req.headers.get('Authorization');
@@ -374,13 +644,8 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (!userRes.ok) return json(401, { error: 'not_signed_in' });
   const user = (await userRes.json().catch(() => ({}))) as { id?: string; email?: string };
 
-  let body: Body;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: 'invalid_body' });
-  }
-  if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
+  if (!parsed || typeof parsed !== 'object') return json(400, { error: 'invalid_body' });
+  const body: Body = parsed;
   const isInvite = body.kind === 'invite';
   const db = { Authorization: auth, apikey, 'Content-Type': 'application/json', ...companyHeader(req) };
 
@@ -427,19 +692,8 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const msg = checked;
 
   // Weg A: eigenes Postfach (SMTP), Weg B: Resend
-  const smtpHost = deps.env('SMTP_HOST')?.trim();
-  const smtpUser = deps.env('SMTP_USER')?.trim() ?? '';
-  const smtpPass = deps.env('SMTP_PASS') ?? '';
-  const smtpPort = Number(deps.env('SMTP_PORT')?.trim() || 465);
-  const key = deps.env('RESEND_API_KEY');
-  if (smtpHost) {
-    if (!smtpUser || !smtpPass) return json(500, { error: 'missing_smtp_login' });
-    if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) return json(500, { error: 'smtp_port' });
-    // Supabase lässt keine Verbindungen über Port 25 und 587 zu
-    if (smtpPort === 25 || smtpPort === 587) return json(500, { error: 'smtp_port' });
-  } else if (!key) return json(500, { error: 'missing_resend_key' });
-  const from = (deps.env('MAIL_FROM')?.trim() || (smtpHost && EMAIL.test(smtpUser) ? smtpUser : '')).trim();
-  if (!from || !EMAIL.test(from)) return json(500, { error: 'missing_mail_from' });
+  const cfg = mailConfig(deps);
+  if ('error' in cfg) return json(cfg.status, { error: cfg.error });
 
   // Nur mit Pro (Skript 20261116090000_plans.sql; fehlt es, gilt keine Einschränkung).
   // Der Datenschutz-Link für neue Kunden geht in jedem Abo.
@@ -478,78 +732,22 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (sent.filter((s) => new Date(s.created_at).getTime() >= hourAgo).length >= PER_HOUR)
     return json(429, { error: 'too_many_this_hour' });
 
-  // Verschicken – Weg A: eigenes Postfach
-  let providerId: string | null = null;
-  if (smtpHost) {
-    if (!deps.connectTls) return json(500, { error: 'smtp_unsupported' });
-    const messageId = `<${crypto.randomUUID()}@${from.split('@')[1]}>`;
-    const data = buildMime({
+  // Verschicken
+  const delivered = await deliver(
+    cfg,
+    {
       fromName: msg.fromName,
-      from,
       to: msg.to,
       replyTo: msg.replyTo ?? user.email ?? null,
       subject: msg.subject,
       text: msg.text,
       attachments: msg.attachments,
-      date: now,
-      messageId,
-    });
-    let conn: SmtpConn;
-    try {
-      conn = await deps.connectTls({ hostname: smtpHost, port: smtpPort });
-    } catch (e) {
-      console.error('SMTP connect', e);
-      return json(502, { error: 'smtp_connect_failed', detail: String((e as Error)?.message ?? e).slice(0, 200) });
-    }
-    try {
-      await smtpSend(conn, {
-        user: smtpUser,
-        pass: smtpPass,
-        from,
-        to: msg.to,
-        data,
-        helo: from.split('@')[1],
-        timeoutMs: deps.smtpTimeoutMs,
-      });
-    } catch (e) {
-      const code = e instanceof SmtpError ? e.code : 'smtp_connect_failed';
-      const detail = (e instanceof SmtpError ? e.detail : String((e as Error)?.message ?? e)).slice(0, 300);
-      console.error('SMTP', code, detail);
-      return json(code === 'smtp_auth_failed' ? 500 : 502, { error: code, detail });
-    }
-    providerId = messageId;
-  }
-
-  // Weg B: Resend
-  if (!smtpHost) {
-    let res: Response;
-    try {
-      res = await deps.fetch(RESEND_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: `${msg.fromName} <${from}>`,
-          to: msg.to,
-          subject: msg.subject,
-          text: msg.text,
-          ...(msg.replyTo || user.email ? { reply_to: msg.replyTo ?? user.email } : {}),
-          ...(msg.attachments.length ? { attachments: msg.attachments } : {}),
-        }),
-      });
-    } catch (error) {
-      console.error('Resend', error);
-      return json(502, { error: 'send_error', detail: 'E-Mail-Dienst nicht erreichbar' });
-    }
-    if (!res.ok) {
-      const detail = (await res.text().catch(() => '')).slice(0, 300);
-      console.error('Resend', res.status, detail);
-      if (res.status === 401) return json(500, { error: 'invalid_resend_key' });
-      if (res.status === 403) return json(500, { error: 'domain_not_verified', detail });
-      if (res.status === 429) return json(429, { error: 'rate_limited' });
-      return json(502, { error: 'send_error', status: res.status, detail });
-    }
-    providerId = ((await res.json().catch(() => ({}))) as { id?: string }).id ?? null;
-  }
+    },
+    deps,
+    now,
+  );
+  if ('response' in delivered) return delivered.response;
+  const providerId = delivered.id;
 
   // Im Protokoll vermerken (Fehler hier verhindern den Versand nicht mehr)
   const logged = await deps

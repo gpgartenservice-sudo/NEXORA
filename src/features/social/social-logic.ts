@@ -137,13 +137,15 @@ export function postText(caption: string | null | undefined, hashtags: string | 
 /**
  * Richtwerte für Caption-Länge und Hashtags (Stand 2026, können sich
  * ändern). Gilt der strengste Wert der gewählten Plattformen.
+ * Instagram: seit Dezember 2025 höchstens 5 Hashtags pro Post/Reel (vorher 30),
+ * Threads: ein Themen-Tag pro Beitrag.
  */
 export const LIMITS: Partial<Record<Platform, { chars: number; hashtags?: number }>> = {
-  instagram: { chars: 2200, hashtags: 30 },
+  instagram: { chars: 2200, hashtags: 5 },
   tiktok: { chars: 4000 },
   linkedin: { chars: 3000 },
   x: { chars: 280 },
-  threads: { chars: 500 },
+  threads: { chars: 500, hashtags: 1 },
   youtube: { chars: 5000 },
   pinterest: { chars: 500 },
 };
@@ -154,6 +156,8 @@ export type LimitCheck = {
   charsPlatform: string | null;
   hashtags: number;
   maxHashtags: number | null;
+  /** Plattform mit der strengsten Hashtag-Grenze (für den Hinweis) */
+  tagsPlatform: string | null;
   tooLong: boolean;
   tooManyTags: boolean;
 };
@@ -168,6 +172,7 @@ export function checkLimits(
   let maxChars: number | null = null;
   let charsPlatform: string | null = null;
   let maxHashtags: number | null = null;
+  let tagsPlatform: string | null = null;
   for (const p of platforms) {
     const l = LIMITS[p];
     if (!l) continue;
@@ -175,7 +180,10 @@ export function checkLimits(
       maxChars = l.chars;
       charsPlatform = platformLabel(p);
     }
-    if (l.hashtags !== undefined && (maxHashtags === null || l.hashtags < maxHashtags)) maxHashtags = l.hashtags;
+    if (l.hashtags !== undefined && (maxHashtags === null || l.hashtags < maxHashtags)) {
+      maxHashtags = l.hashtags;
+      tagsPlatform = platformLabel(p);
+    }
   }
   const chars = [...text].length;
   return {
@@ -184,6 +192,7 @@ export function checkLimits(
     charsPlatform,
     hashtags: tags,
     maxHashtags,
+    tagsPlatform,
     tooLong: maxChars !== null && chars > maxChars,
     tooManyTags: maxHashtags !== null && tags > maxHashtags,
   };

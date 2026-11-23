@@ -5,7 +5,9 @@
   Der Kunde öffnet den Link aus der E-Mail (https://lunaxora.de/Angebot/?angebot=…),
   sieht das Angebot und nimmt es an oder lehnt es ab. Die Daten kommen über die
   Datenbank-Funktionen offer_view / offer_accept / offer_decline
-  (supabase/migrations/20261113090000_offer_links_mail.sql).
+  (supabase/migrations/20261113090000_offer_links_mail.sql). Privatkunden können
+  danach online widerrufen (offer_withdraw, 20261203090000_widerruf_online.sql);
+  die Eingangsbestätigung verschickt die Funktion "mail" (kind "withdrawal").
 
   %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-hochladen.sh aus der
   .env ein (öffentliche Daten, kein Geheimnis). Fertige Datei: dist-angebot/.
@@ -73,6 +75,11 @@
     .box { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
     .box.ok { border-color: rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.12); }
     .box-title { font-size: 16px; font-weight: 700; }
+    details.legal summary { cursor: pointer; text-decoration: underline; font-size: 14px; padding: 4px 0; }
+    .legal-body { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .legal-body h2 { font-size: 15px; margin: 4px 0 0; }
+    .legal-body h3 { font-size: 14px; font-weight: 600; margin: 2px 0 0; }
+    .legal-body p { margin: 0; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; }
     button {
       flex: 1 1 auto;
@@ -87,11 +94,15 @@
       min-height: 48px;
     }
     button.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+    button.dark { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+    .withdraw-form { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .statement { border-left: 3px solid var(--line); padding-left: 10px; }
+    @media print { body { background: #fff; padding: 0; } .actions, .made, .footer a { display: none; } .card { border: 0; } }
     button:disabled { opacity: 0.5; cursor: default; }
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
     form { display: flex; flex-direction: column; gap: 10px; }
     label.field { color: var(--muted); font-size: 13px; font-weight: 600; }
-    input[type="text"], textarea {
+    input[type="text"], input[type="email"], textarea {
       width: 100%;
       font: inherit;
       color: var(--ink);
@@ -129,6 +140,12 @@
         already_accepted: 'Dieses Angebot wurde bereits angenommen.',
         already_declined: 'Dieses Angebot wurde bereits abgelehnt.',
         not_found: 'Dieses Angebot gibt es nicht mehr.',
+        already_withdrawn: 'Sie haben diesen Vertrag bereits widerrufen.',
+        not_accepted: 'Dieses Angebot wurde noch nicht angenommen.',
+        not_private: 'Der Online-Widerruf ist nur für Privatkunden.',
+        too_late: 'Die Widerrufsfrist ist abgelaufen. Bitte melden Sie sich direkt.',
+        invalid_contract: 'Bitte geben Sie an, welchen Vertrag Sie widerrufen.',
+        invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse für die Eingangsbestätigung ein.',
         failed: 'Das hat gerade nicht geklappt. Bitte versuchen Sie es noch einmal.'
       };
 
@@ -136,7 +153,11 @@
       var token = new URLSearchParams(window.location.search).get('angebot') || '';
       var validToken = /^[A-Za-z0-9_-]{32,64}$/.test(token);
 
-      var state = { offer: null, mode: 'none', name: '', confirm: false, note: '', busy: false, problem: null };
+      var state = {
+        offer: null, mode: 'none', name: '', confirm: false, note: '', busy: false, problem: null, legalOpen: false,
+        // Online-Widerruf: Angaben im Formular und Stand der Eingangsbestätigung (null | sending | sent | failed)
+        wName: '', wContract: '', wEmail: '', receipt: null
+      };
 
       // ---------- Hilfen ----------
 
@@ -182,6 +203,21 @@
         return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
       }
 
+      /** Zeitpunkt -> "23.11.2026 um 14:05 Uhr" (deutsche Zeit) */
+      function dayTime(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' }) +
+          ' um ' + d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+      }
+
+      // Gleicher Wortlaut wie withdrawalStatement (document-logic.ts und Funktion "mail")
+      function statement(contract) {
+        return 'Hiermit widerrufe ich den von mir abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung: ' + contract;
+      }
+
+      var EMAIL = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]{2,}$/;
+
       function answerOf(o) {
         if (o.accepted_at) return { state: 'accepted', at: o.accepted_at, name: o.accepted_name };
         if (o.declined_at) return { state: 'declined', at: o.declined_at };
@@ -221,6 +257,144 @@
       function line(label, value, strong) {
         var cls = strong ? 'strong' : null;
         return el('div', { class: 'line' }, el('span', { class: cls }, label), el('span', { class: cls }, value));
+      }
+
+      // ---------- Widerrufsrecht für Privatkunden ----------
+      // Gleicher Wortlaut wie withdrawalNotice / withdrawalForm / earlyStartHint in
+      // src/features/documents/document-logic.ts (Muster Anlage 1 und 2 zu Art. 246a EGBGB).
+
+      function contactLine(s, withPhone) {
+        return [
+          String(s.company_name || s.owner_name || '').trim(),
+          s.street,
+          [s.zip, s.city].filter(Boolean).join(' '),
+          withPhone && s.phone ? 'Tel. ' + s.phone : null,
+          s.email ? 'E-Mail ' + s.email : null
+        ].map(function (v) { return v ? String(v).trim() : ''; }).filter(Boolean).join(', ');
+      }
+
+      var ONLINE_NOTE = 'Sie können Ihr Widerrufsrecht auch online unter dem Link zu diesem Angebot (Schaltfläche „Vertrag widerrufen“) ausüben. Wenn Sie diese Online-Funktion nutzen, übermitteln wir Ihnen auf einem dauerhaften Datenträger (z. B. durch eine E-Mail) unverzüglich eine Eingangsbestätigung mit Informationen zum Inhalt der Widerrufserklärung sowie dem Datum und der Uhrzeit ihres Eingangs.';
+
+      function withdrawalBox(s, o) {
+        var who = String(s.company_name || s.owner_name || '').trim() || 'Ihr Auftragnehmer';
+        var notice = [
+          ['Widerrufsrecht', [
+            'Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.',
+            'Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.',
+            'Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (' + contactLine(s, true) + ') mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist. ' + ONLINE_NOTE,
+            'Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.'
+          ]],
+          ['Folgen des Widerrufs', [
+            'Wenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass Sie eine andere Art der Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt haben), unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.',
+            'Haben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.'
+          ]]
+        ];
+        var form = [
+          '(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)',
+          '– An ' + contactLine(s, false) + ':',
+          '– Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*)/die Erbringung der folgenden Dienstleistung (*)',
+          '– Bestellt am (*)/erhalten am (*)',
+          '– Name des/der Verbraucher(s)',
+          '– Anschrift des/der Verbraucher(s)',
+          '– Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier)',
+          '– Datum',
+          '(*) Unzutreffendes streichen.'
+        ];
+        var early = s.email
+          ? 'Soll ' + who + ' schon vor Ablauf der Widerrufsfrist anfangen? Dann schreiben Sie das bitte ausdrücklich per E-Mail an ' + s.email + '.'
+          : 'Soll ' + who + ' schon vor Ablauf der Widerrufsfrist anfangen? Dann teilen Sie das bitte ausdrücklich schriftlich mit, zum Beispiel per E-Mail.';
+
+        var body = el('div', { class: 'legal-body' }, el('h2', null, 'Widerrufsbelehrung'));
+        notice.forEach(function (sec) {
+          body.appendChild(el('h3', null, sec[0]));
+          sec[1].forEach(function (p) { body.appendChild(el('p', { class: 'small' }, p)); });
+        });
+        body.appendChild(el('p', { class: 'small' }, early));
+        body.appendChild(el('h2', null, 'Muster-Widerrufsformular'));
+        form.forEach(function (p) { body.appendChild(el('p', { class: 'small' }, p)); });
+
+        return el('div', { class: 'box', id: 'widerruf' },
+          el('span', { class: 'box-title' }, 'Widerrufsrecht'),
+          el('p', null, 'Als Privatkunde können Sie diesen Vertrag nach der Annahme 14 Tage lang ohne Angabe von Gründen widerrufen – auch online hier auf dieser Seite.'),
+          el('details', { class: 'legal', open: state.legalOpen, ontoggle: function (e) { state.legalOpen = e.target.open; } },
+            el('summary', null, 'Widerrufsbelehrung und Muster-Widerrufsformular'),
+            body
+          ),
+          // Widerrufsfunktion (§ 356a BGB): während der Frist immer sichtbar
+          o.withdrawal_open
+            ? (state.mode === 'withdraw'
+                ? withdrawForm(o)
+                : el('div', { class: 'actions', style: 'margin-top:10px' },
+                    el('button', { type: 'button', class: 'dark', id: 'vertrag-widerrufen', onclick: startWithdraw }, 'Vertrag widerrufen')))
+            : null
+        );
+      }
+
+      function startWithdraw() {
+        var o = state.offer;
+        var b = (o.data || {}).buyer || {};
+        if (!state.wName) state.wName = String(o.accepted_name || b.name || '');
+        if (!state.wContract) state.wContract = 'Angebot ' + (o.number || '') + ' vom ' + day(o.issued_on);
+        if (!state.wEmail) state.wEmail = String(b.email || '');
+        setMode('withdraw');
+      }
+
+      function withdrawForm(o) {
+        var preview = el('p', { class: 'small statement' }, '„' + statement(state.wContract.trim()) + '“');
+        var field = function (id, label, type, key, extra) {
+          return [
+            el('label', { class: 'field', for: id }, label),
+            el('input', Object.assign({
+              type: type, id: id, name: id, value: state[key], maxlength: key === 'wContract' ? 200 : 100,
+              oninput: function (e) {
+                state[key] = e.target.value;
+                if (key === 'wContract') preview.textContent = '„' + statement(state.wContract.trim()) + '“';
+              }
+            }, extra || {}))
+          ];
+        };
+        var form = el('form', { class: 'withdraw-form', novalidate: true, onsubmit: function (e) { e.preventDefault(); withdraw(); } },
+          el('span', { class: 'box-title' }, 'Vertrag widerrufen'),
+          el('p', { class: 'small' }, 'Bitte prüfen Sie Ihre Angaben und tippen Sie dann auf „Widerruf bestätigen“. Die Eingangsbestätigung bekommen Sie sofort per E-Mail.')
+        );
+        [].concat(
+          field('w-name', 'Ihr Name', 'text', 'wName', { autocomplete: 'name' }),
+          field('w-contract', 'Welcher Vertrag?', 'text', 'wContract'),
+          field('w-email', 'E-Mail für die Eingangsbestätigung', 'email', 'wEmail', { autocomplete: 'email', inputmode: 'email', maxlength: 254 })
+        ).forEach(function (n) { form.appendChild(n); });
+        form.appendChild(el('p', { class: 'small' }, 'Ihre Erklärung:'));
+        form.appendChild(preview);
+        if (state.problem) form.appendChild(el('p', { class: 'problem', role: 'alert' }, state.problem));
+        form.appendChild(el('div', { class: 'actions' },
+          el('button', { type: 'submit', class: 'dark', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Widerruf bestätigen'),
+          el('button', { type: 'button', disabled: state.busy, onclick: function () { setMode('none'); } }, 'Zurück')
+        ));
+        return form;
+      }
+
+      function withdrawnBox(o) {
+        var w = o.withdrawal || {};
+        var mailed = !!o.withdrawal_mailed_at || state.receipt === 'sent';
+        var box = el('div', { class: 'box', id: 'result' },
+          el('span', { class: 'box-title' }, '✓ Widerruf eingegangen'),
+          el('p', null, 'am ' + dayTime(o.withdrawn_at) + '.'),
+          el('p', { class: 'small' }, 'Ihre Erklärung:'),
+          el('p', { class: 'small statement' }, '„' + statement(String(w.contract || '')) + '“'),
+          el('p', { class: 'small' }, 'Name: ' + (w.name || '') + ' · E-Mail: ' + (w.email || ''))
+        );
+        if (mailed) {
+          box.appendChild(el('p', null, 'Die Eingangsbestätigung haben wir an ' + (w.email || 'Ihre E-Mail-Adresse') + ' geschickt.'));
+        } else if (state.receipt === 'sending') {
+          box.appendChild(el('p', null, 'Die Eingangsbestätigung wird gerade per E-Mail verschickt …'));
+        } else {
+          box.appendChild(el('p', { class: 'problem', role: 'alert' },
+            'Die Eingangsbestätigung per E-Mail hat noch nicht geklappt. Ihr Widerruf ist trotzdem eingegangen. Bitte speichern oder drucken Sie diese Seite als Nachweis.'));
+          box.appendChild(el('div', { class: 'actions' },
+            el('button', { type: 'button', onclick: sendReceipt }, 'Bestätigung erneut senden'),
+            el('button', { type: 'button', onclick: function () { window.print(); } }, 'Seite drucken')
+          ));
+        }
+        return box;
       }
 
       function render() {
@@ -278,11 +452,17 @@
           totals.appendChild(line('zzgl. ' + num(t.vat_rate) + ' % USt', money(t.vat_amount)));
         }
         totals.appendChild(line(d.monthly ? 'Gesamt pro Monat' : 'Gesamt', money(t.gross), true));
-        if (d.small_business) totals.appendChild(el('p', { class: 'small' }, 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmer).'));
+        if (d.small_business) totals.appendChild(el('p', { class: 'small' }, 'Gemäß § 19 UStG von der Umsatzsteuer befreit (Kleinunternehmerregelung).'));
         parts.push(totals);
 
+        // Privatkunde nimmt online an = Fernabsatzvertrag: Widerrufsbelehrung vor der Annahme
+        var privateBuyer = !String(b.company || '').trim();
+        if (privateBuyer && !o.withdrawn_at && (answer.state === 'open' || answer.state === 'accepted')) parts.push(withdrawalBox(s, o));
+
         // Antwort
-        if (answer.state === 'accepted') {
+        if (o.withdrawn_at) {
+          parts.push(withdrawnBox(o));
+        } else if (answer.state === 'accepted') {
           parts.push(el('div', { class: 'box ok', id: 'result' },
             el('span', { class: 'box-title' }, '✓ Angenommen'),
             el('p', null, 'am ' + day(answer.at) + (answer.name ? ' von ' + answer.name : '') + '. Vielen Dank! ' +
@@ -309,7 +489,7 @@
           ));
         }
 
-        if (state.problem) parts.push(el('p', { class: 'problem', role: 'alert' }, state.problem));
+        if (state.problem && state.mode !== 'withdraw') parts.push(el('p', { class: 'problem', role: 'alert' }, state.problem));
 
         // Kontakt
         var footer = el('div', { class: 'footer' });
@@ -334,6 +514,9 @@
             el('input', { type: 'checkbox', checked: state.confirm, onchange: function (e) { state.confirm = e.target.checked; } }),
             el('span', null, 'Ich nehme das Angebot ' + (o.number || '') + ' über ' + money(t.gross) + (d.monthly ? ' pro Monat' : '') + ' verbindlich an.')
           ),
+          !String((d.buyer || {}).company || '').trim()
+            ? el('p', { class: 'small' }, 'Ihr Widerrufsrecht bleibt bestehen. Die Widerrufsbelehrung finden Sie oben im Kasten „Widerrufsrecht“.')
+            : null,
           el('div', { class: 'actions' },
             el('button', { type: 'submit', class: 'primary', disabled: state.busy }, state.busy ? 'Wird gesendet …' : 'Verbindlich annehmen'),
             el('button', { type: 'button', disabled: state.busy, onclick: function () { setMode('none'); } }, 'Zurück')
@@ -395,6 +578,53 @@
 
       function decline() {
         send('offer_decline', { p_token: token, p_note: state.note.trim() });
+      }
+
+      // ---------- Online-Widerruf ----------
+
+      async function withdraw() {
+        var name = state.wName.trim();
+        var contract = state.wContract.trim();
+        var email = state.wEmail.trim();
+        if (name.length < 2) { state.problem = 'Bitte geben Sie Ihren Namen ein.'; return render(); }
+        if (!contract) { state.problem = ERRORS.invalid_contract; return render(); }
+        if (!EMAIL.test(email)) { state.problem = ERRORS.invalid_email; return render(); }
+        state.busy = true;
+        state.problem = null;
+        render();
+        var r = await rpc('offer_withdraw', { p_token: token, p_name: name, p_contract: contract, p_email: email });
+        state.busy = false;
+        var err = r.error ? 'failed' : (r.data && r.data.error);
+        if (err && err !== 'already_withdrawn') {
+          state.problem = ERRORS[err] || ERRORS.failed;
+          return render();
+        }
+        state.mode = 'none';
+        state.receipt = 'sending';
+        await load();
+        render();
+        var box = document.getElementById('result');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await sendReceipt();
+      }
+
+      // Eingangsbestätigung per E-Mail (Funktion "mail", ohne Anmeldung)
+      async function sendReceipt() {
+        state.receipt = 'sending';
+        render();
+        try {
+          var res = await fetch(SUPABASE_URL + '/functions/v1/mail', {
+            method: 'POST',
+            headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: 'withdrawal', token: token })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          state.receipt = res.ok || data.error === 'already_sent' ? 'sent' : 'failed';
+        } catch (e) {
+          state.receipt = 'failed';
+        }
+        if (state.receipt === 'sent') await load();
+        render();
       }
 
       // ---------- Start ----------

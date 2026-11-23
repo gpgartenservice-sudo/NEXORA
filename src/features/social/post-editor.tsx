@@ -286,7 +286,7 @@ function PostEditor({ post, planned = null }: { post?: SocialPost; planned?: str
             <Notice>
               {limits.tooLong
                 ? `Zu lang für ${limits.charsPlatform} – kürze die Caption oder nimm weniger Hashtags.`
-                : 'Zu viele Hashtags für Instagram (höchstens 30).'}
+                : `Zu viele Hashtags für ${limits.tagsPlatform} (höchstens ${limits.maxHashtags}).`}
             </Notice>
           )}
           <View style={styles.copyRow}>

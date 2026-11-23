@@ -1,18 +1,33 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
-import { formatDay, formatMoney, sellerName, SMALL_BUSINESS_OFFER_NOTE, todayIso, type DocumentData } from './document-logic';
+import {
+  earlyStartHint,
+  formatDay,
+  formatMoney,
+  isPrivateBuyer,
+  sellerName,
+  SMALL_BUSINESS_OFFER_NOTE,
+  todayIso,
+  withdrawalContract,
+  withdrawalForm,
+  withdrawalNotice,
+  withdrawalStatement,
+  type DocumentData,
+} from './document-logic';
 import type { LogoImage } from './logo-logic';
 import { offerAnswer, validOfferToken } from './offer-link';
 import { downloadPdf, pdfSupported, preparePdf } from './save-pdf';
 
 /**
  * Öffentliche Angebotsseite (ohne Anmeldung): Kunde sieht das Angebot über
- * den geheimen Link, lädt das PDF und nimmt an oder lehnt ab.
+ * den geheimen Link, lädt das PDF und nimmt an oder lehnt ab. Privatkunden können
+ * danach online widerrufen (§ 356a BGB, Skript 20261203090000_widerruf_online.sql).
+ * Gleicher Ablauf und Wortlaut wie web-angebot/index.html (die Seite auf lunaxora.de).
  * Bewusst hell und neutral – es ist das Angebot des Selbstständigen, nicht Lunaxora.
  */
 
@@ -26,6 +41,11 @@ type OfferView = {
   accepted_name: string | null;
   declined_at: string | null;
   decline_note: string | null;
+  /** Online-Widerruf (fehlt bei altem Datenbank-Stand) */
+  withdrawn_at?: string | null;
+  withdrawal?: { name?: string; contract?: string; email?: string } | null;
+  withdrawal_mailed_at?: string | null;
+  withdrawal_open?: boolean;
   logo: LogoImage | null;
 };
 
@@ -38,12 +58,17 @@ export function OfferPublicScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [offer, setOffer] = useState<OfferView | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'failed'>('loading');
-  const [mode, setMode] = useState<'none' | 'accept' | 'decline'>('none');
+  const [mode, setMode] = useState<'none' | 'accept' | 'decline' | 'withdraw'>('none');
   const [name, setName] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
+  const [wName, setWName] = useState('');
+  const [wContract, setWContract] = useState('');
+  const [wEmail, setWEmail] = useState('');
+  const [receipt, setReceipt] = useState<'sending' | 'sent' | 'failed' | null>(null);
 
   useEffect(() => {
     if (typeof document !== 'undefined') document.title = 'Angebot';
@@ -91,6 +116,8 @@ export function OfferPublicScreen() {
   const company = sellerName(s);
   const answer = offerAnswer(offer, today);
   const t = d.totals;
+  // Privatkunde nimmt online an = Fernabsatzvertrag: Widerrufsbelehrung vor der Annahme (§ 312d BGB, Art. 246a EGBGB)
+  const withdrawal = isPrivateBuyer(d.buyer) && !offer.withdrawn_at && (answer.state === 'open' || answer.state === 'accepted');
 
   const reload = async () => {
     const { data } = await supabase.rpc('offer_view', { p_token: token });
@@ -119,6 +146,45 @@ export function OfferPublicScreen() {
     if (err) return setProblem(ERRORS[err] ?? ERRORS.failed);
     setMode('none');
     await reload();
+  };
+
+  // Eingangsbestätigung per E-Mail (Funktion "mail", ohne Anmeldung)
+  const sendReceipt = async () => {
+    setReceipt('sending');
+    const { error } = await supabase.functions.invoke('mail', { body: { kind: 'withdrawal', token } });
+    let sent = !error;
+    if (error) {
+      const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      sent = (body as { error?: string } | null)?.error === 'already_sent';
+    }
+    setReceipt(sent ? 'sent' : 'failed');
+    if (sent) await reload();
+  };
+
+  const startWithdraw = () => {
+    if (!wName) setWName(offer.accepted_name || d.buyer.name || '');
+    if (!wContract) setWContract(withdrawalContract(offer.number, offer.issued_on));
+    if (!wEmail) setWEmail(d.buyer.email ?? '');
+    setProblem(null);
+    setMode('withdraw');
+  };
+
+  const withdraw = async () => {
+    const n = wName.trim();
+    const c = wContract.trim();
+    const e = wEmail.trim();
+    if (n.length < 2) return setProblem('Bitte geben Sie Ihren Namen ein.');
+    if (!c) return setProblem(ERRORS.invalid_contract);
+    if (!EMAIL.test(e)) return setProblem(ERRORS.invalid_email);
+    setBusy(true);
+    setProblem(null);
+    const { data, error } = await supabase.rpc('offer_withdraw', { p_token: token, p_name: n, p_contract: c, p_email: e });
+    setBusy(false);
+    const err = error ? 'failed' : (data as { error?: string } | null)?.error;
+    if (err && err !== 'already_withdrawn') return setProblem(ERRORS[err] ?? ERRORS.failed);
+    setMode('none');
+    await reload();
+    await sendReceipt();
   };
 
   const pdf = async () => {
@@ -194,8 +260,125 @@ export function OfferPublicScreen() {
           )}
         </View>
 
+        {withdrawal && (
+          <View style={styles.box} testID="offer-public-withdrawal">
+            <Text style={styles.boxTitle}>Widerrufsrecht</Text>
+            <Text style={styles.text}>
+              Als Privatkunde können Sie diesen Vertrag nach der Annahme 14 Tage lang ohne Angabe von Gründen widerrufen –
+              auch online hier auf dieser Seite.
+            </Text>
+            <Link
+              label={showWithdrawal ? 'Widerrufsbelehrung ausblenden' : 'Widerrufsbelehrung und Muster-Widerrufsformular anzeigen'}
+              onPress={() => setShowWithdrawal((v) => !v)}
+            />
+            {showWithdrawal && (
+              <View style={styles.legal}>
+                <Text style={styles.legalTitle}>Widerrufsbelehrung</Text>
+                {withdrawalNotice(s).map((sec) => (
+                  <View key={sec.heading} style={styles.legalSection}>
+                    <Text style={styles.legalHeading}>{sec.heading}</Text>
+                    {sec.paragraphs.map((p, i) => (
+                      <Text key={i} style={styles.small}>
+                        {p}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+                <Text style={styles.small}>{earlyStartHint(s)}</Text>
+                <Text style={styles.legalTitle}>Muster-Widerrufsformular</Text>
+                <View style={styles.legalSection}>
+                  {withdrawalForm(s).map((line, i) => (
+                    <Text key={i} style={styles.small}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            )}
+            {/* Widerrufsfunktion (§ 356a BGB): während der Frist immer sichtbar */}
+            {!!offer.withdrawal_open && mode !== 'withdraw' && (
+              <View style={[styles.actions, styles.withdrawTop]}>
+                <Btn label="Vertrag widerrufen" dark onPress={startWithdraw} testID="offer-public-withdraw" />
+              </View>
+            )}
+            {!!offer.withdrawal_open && mode === 'withdraw' && (
+              <View style={[styles.form, styles.withdrawForm]}>
+                <Text style={styles.boxTitle}>Vertrag widerrufen</Text>
+                <Text style={styles.small}>
+                  Bitte prüfen Sie Ihre Angaben und tippen Sie dann auf „Widerruf bestätigen“. Die Eingangsbestätigung
+                  bekommen Sie sofort per E-Mail.
+                </Text>
+                <Text style={styles.label}>Ihr Name</Text>
+                <TextInput value={wName} onChangeText={setWName} style={styles.input} accessibilityLabel="Ihr Name" maxLength={100} />
+                <Text style={styles.label}>Welcher Vertrag?</Text>
+                <TextInput
+                  value={wContract}
+                  onChangeText={setWContract}
+                  style={styles.input}
+                  accessibilityLabel="Welcher Vertrag?"
+                  maxLength={200}
+                />
+                <Text style={styles.label}>E-Mail für die Eingangsbestätigung</Text>
+                <TextInput
+                  value={wEmail}
+                  onChangeText={setWEmail}
+                  style={styles.input}
+                  accessibilityLabel="E-Mail für die Eingangsbestätigung"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  maxLength={254}
+                />
+                <Text style={styles.small}>Ihre Erklärung:</Text>
+                <Text style={[styles.small, styles.statement]}>„{withdrawalStatement(wContract.trim())}“</Text>
+                {problem && <Text style={styles.problem}>{problem}</Text>}
+                <View style={styles.actions}>
+                  <Btn
+                    label={busy ? 'Wird gesendet …' : 'Widerruf bestätigen'}
+                    dark
+                    onPress={() => void withdraw()}
+                    disabled={busy}
+                  />
+                  <Btn label="Zurück" onPress={() => setMode('none')} disabled={busy} />
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Antwort */}
-        {answer.state === 'accepted' && (
+        {!!offer.withdrawn_at && (
+          <View style={styles.box} testID="offer-public-withdrawn">
+            <Text style={styles.boxTitle}>✓ Widerruf eingegangen</Text>
+            <Text style={styles.text}>am {dayTime(offer.withdrawn_at)}.</Text>
+            <Text style={styles.small}>Ihre Erklärung:</Text>
+            <Text style={[styles.small, styles.statement]}>„{withdrawalStatement(offer.withdrawal?.contract ?? '')}“</Text>
+            <Text style={styles.small}>
+              Name: {offer.withdrawal?.name ?? ''} · E-Mail: {offer.withdrawal?.email ?? ''}
+            </Text>
+            {offer.withdrawal_mailed_at || receipt === 'sent' ? (
+              <Text style={styles.text}>
+                Die Eingangsbestätigung haben wir an {offer.withdrawal?.email || 'Ihre E-Mail-Adresse'} geschickt.
+              </Text>
+            ) : receipt === 'sending' ? (
+              <Text style={styles.text}>Die Eingangsbestätigung wird gerade per E-Mail verschickt …</Text>
+            ) : (
+              <>
+                <Text style={styles.problem}>
+                  Die Eingangsbestätigung per E-Mail hat noch nicht geklappt. Ihr Widerruf ist trotzdem eingegangen. Bitte
+                  speichern oder drucken Sie diese Seite als Nachweis.
+                </Text>
+                <View style={styles.actions}>
+                  <Btn label="Bestätigung erneut senden" onPress={() => void sendReceipt()} />
+                  {Platform.OS === 'web' && typeof window !== 'undefined' && (
+                    <Btn label="Seite drucken" onPress={() => window.print()} />
+                  )}
+                </View>
+              </>
+            )}
+          </View>
+        )}
+        {answer.state === 'accepted' && !offer.withdrawn_at && (
           <View style={[styles.box, styles.boxOk]} testID="offer-public-accepted">
             <Text style={styles.boxTitle}>✓ Angenommen</Text>
             <Text style={styles.text}>
@@ -252,6 +435,11 @@ export function OfferPublicScreen() {
                 {d.monthly ? ' pro Monat' : ''} verbindlich an.
               </Text>
             </Pressable>
+            {withdrawal && (
+              <Text style={styles.small}>
+                Ihr Widerrufsrecht bleibt bestehen. Die Widerrufsbelehrung finden Sie oben im Kasten „Widerrufsrecht“.
+              </Text>
+            )}
             <View style={styles.actions}>
               <Btn
                 label={busy ? 'Wird gesendet …' : 'Verbindlich annehmen'}
@@ -292,7 +480,7 @@ export function OfferPublicScreen() {
           </View>
         )}
 
-        {problem && <Text style={styles.problem}>{problem}</Text>}
+        {problem && mode !== 'withdraw' && <Text style={styles.problem}>{problem}</Text>}
 
         <View style={styles.footerLinks}>
           {pdfSupported && <Link label="Angebot als PDF herunterladen" onPress={() => void pdf()} />}
@@ -317,7 +505,24 @@ const ERRORS: Record<string, string> = {
   already_declined: 'Dieses Angebot wurde bereits abgelehnt.',
   not_found: 'Dieses Angebot gibt es nicht mehr.',
   failed: 'Das hat gerade nicht geklappt. Bitte versuchen Sie es noch einmal.',
+  already_withdrawn: 'Sie haben diesen Vertrag bereits widerrufen.',
+  not_accepted: 'Dieses Angebot wurde noch nicht angenommen.',
+  not_private: 'Der Online-Widerruf ist nur für Privatkunden.',
+  too_late: 'Die Widerrufsfrist ist abgelaufen. Bitte melden Sie sich direkt.',
+  invalid_contract: 'Bitte geben Sie an, welchen Vertrag Sie widerrufen.',
+  invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse für die Eingangsbestätigung ein.',
 };
+
+const EMAIL = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]{2,}$/;
+
+/** Zeitpunkt -> "23.11.2026 um 14:05 Uhr" (deutsche Zeit) */
+function dayTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+  return `${day} um ${time} Uhr`;
+}
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
@@ -340,20 +545,29 @@ function Btn({
   label,
   onPress,
   primary,
+  dark,
   disabled,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   primary?: boolean;
+  dark?: boolean;
   disabled?: boolean;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      style={[styles.btn, primary ? styles.btnPrimary : styles.btnSecondary, disabled && styles.disabled]}>
-      <Text style={[styles.btnText, primary && styles.btnTextPrimary]}>{label}</Text>
+      testID={testID}
+      style={[
+        styles.btn,
+        primary ? styles.btnPrimary : dark ? styles.btnDark : styles.btnSecondary,
+        disabled && styles.disabled,
+      ]}>
+      <Text style={[styles.btnText, primary && styles.btnTextPrimary, dark && styles.btnTextDark]}>{label}</Text>
     </Pressable>
   );
 }
@@ -398,12 +612,21 @@ const styles = StyleSheet.create({
   box: { borderRadius: 12, borderWidth: 1, borderColor: LINE, backgroundColor: '#F7F8F9', padding: 16, gap: 4 },
   boxOk: { borderColor: 'rgba(47,227,154,0.6)', backgroundColor: 'rgba(47,227,154,0.12)' },
   boxTitle: { color: INK, fontSize: 16, fontWeight: '700' },
+  legal: { gap: 10, paddingTop: 8, marginTop: 4, borderTopWidth: 1, borderTopColor: LINE },
+  legalTitle: { color: INK, fontSize: 15, fontWeight: '700', marginTop: 4 },
+  legalSection: { gap: 6 },
+  legalHeading: { color: INK, fontSize: 14, fontWeight: '600' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   btn: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', flexGrow: 1 },
   btnPrimary: { backgroundColor: ACCENT },
   btnSecondary: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   btnText: { color: INK, fontSize: 15, fontWeight: '600' },
   btnTextPrimary: { color: '#000000', fontWeight: '700' },
+  btnDark: { backgroundColor: INK },
+  btnTextDark: { color: '#FFFFFF', fontWeight: '700' },
+  withdrawTop: { marginTop: 10 },
+  withdrawForm: { marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: LINE },
+  statement: { borderLeftWidth: 3, borderLeftColor: LINE, paddingLeft: 10 },
   disabled: { opacity: 0.5 },
   form: { gap: 10 },
   label: { color: MUTED, fontSize: 13, fontWeight: '600' },
