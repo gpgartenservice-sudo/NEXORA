@@ -4,9 +4,10 @@ import { useSharedValue, withTiming, type SharedValue } from 'react-native-reani
 import { useCrm } from '@/features/crm/crm-provider';
 
 import { transcribe } from './assistant-api';
-import { runnableNow } from './assistant-logic';
+import { autoRunnable } from './assistant-logic';
 import { useRunProposals } from './nexy-guide';
 import { useNexy } from './nexy-provider';
+import { CONFIRM_HINT, confirmationNeeded } from './safety-logic';
 import {
   blobToBase64,
   openMic,
@@ -32,8 +33,8 @@ const MAX_QUIET_ROUNDS = 2;
 /**
  * Sprachmodus: zuhören -> verstehen -> Luna fragen -> vorlesen -> wieder zuhören.
  * Vorschläge führt Luna sofort aus und macht es dabei in der App vor (danach
- * hört sie weiter zu); fehlte noch etwas, bestätigt bzw. verwirft "Ja"/"Nein"
- * sie später. "Stopp" beendet.
+ * hört sie weiter zu); fehlte noch etwas oder ändert etwas wichtige Daten
+ * (safety-logic), bestätigt bzw. verwirft "Ja"/"Nein" sie später. "Stopp" beendet.
  */
 export function useVoiceMode() {
   const nexy = useNexy();
@@ -148,14 +149,14 @@ export function useVoiceMode() {
         const reply = await live.current.nexy.send(said, { voice: true });
         if (!s.alive) break;
         if (!reply) continue;
-        // Luna legt sofort los, wenn nichts fehlt – sonst fragt sie wie bisher nach
+        // Luna legt sofort los, wenn nichts fehlt – sonst fragt sie wie bisher nach.
+        // Ändert etwas wichtige Daten (Firma/Bank, Team, Löschen, E-Mails, Geld), legt sie
+        // nie von selbst los, sondern wartet auf ein „Ja“ (bzw. „Bestätigen“ an der Karte).
         const nexy = live.current.nexy;
-        const ready =
-          !reply.error &&
-          reply.status === 'open' &&
-          !!reply.proposals?.length &&
-          runnableNow(reply.proposals, reply.doneIds ?? [], nexy.blockers);
-        await say(s, spokenReply(reply, !ready));
+        const pendingOk = !reply.error && reply.status === 'open' && !!reply.proposals?.length;
+        const ready = pendingOk && autoRunnable(reply.proposals ?? [], reply.doneIds ?? [], nexy.blockers);
+        const important = pendingOk && confirmationNeeded(reply.proposals, reply.doneIds);
+        await say(s, spokenReply(reply, !ready, important ? CONFIRM_HINT : undefined));
         // Fehler (z. B. nicht eingerichtet): nicht endlos weiterfragen
         if (reply.error) break;
         if (ready && s.alive) {

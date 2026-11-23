@@ -58,6 +58,9 @@ export function SendPanel({ doc, customer, offerSent, onMarkOfferSent }: Props) 
   useEffect(() => {
     if (!pdfSupported) return;
     let active = true;
+    // altes PDF nicht weiterverschicken, solange das neue (z. B. jetzt mit Angebots-Link
+    // und Satz zum Online-Widerruf) noch entsteht
+    setPdf(null);
     logoFor(doc)
       .then((logo) => preparePdf(doc, logo))
       .then(

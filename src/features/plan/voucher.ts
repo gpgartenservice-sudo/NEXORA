@@ -16,6 +16,11 @@ export async function redeemVoucher(code: string): Promise<{ months?: number; un
       return { error: 'Gutscheine sind noch nicht eingerichtet (Skript 20261120090000_feinschliff.sql).' };
     return { error: `Das hat nicht geklappt. Bitte versuch es noch einmal.\n\nTechnische Details: ${error.message}` };
   }
-  const r = (data ?? {}) as { months?: number; until?: string };
+  const r = (data ?? {}) as { months?: number; until?: string; error?: string };
+  // Seit 20261204090000_sicherheit.sql: falscher Code als Antwort (damit der Fehlversuch zählt)
+  if (r.error === 'voucher_invalid') return { error: 'Diesen Code kennen wir nicht. Prüf ihn bitte noch einmal.' };
+  if (r.error === 'too_many_attempts')
+    return { error: 'Zu viele falsche Codes in kurzer Zeit. Bitte versuch es in einer Stunde noch einmal.' };
+  if (r.error) return { error: `Das hat nicht geklappt. Bitte versuch es noch einmal.\n\nTechnische Details: ${r.error}` };
   return { months: r.months ?? 3, until: r.until };
 }

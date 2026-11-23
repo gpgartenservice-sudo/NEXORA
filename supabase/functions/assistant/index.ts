@@ -494,14 +494,16 @@ async function signedInUser(req: Request, deps: Deps): Promise<string | null> {
   return typeof u?.id === 'string' ? u.id : null;
 }
 
-type QuotaKind = 'nexy' | 'receipt' | 'voice';
+type QuotaKind = 'nexy' | 'receipt' | 'voice' | 'transcribe';
 
 /**
  * Grenze je Abo: eine Luna-Nachricht, einen Beleg bzw. einmal Vorlesen verbrauchen
  * (Datenbank-Funktion consume_quota, Skripte 20261116090000_plans.sql und 20261117090000_plan_tiers.sql). Fehlt das Skript
  * oder ist die Datenbank kurz nicht erreichbar, geht es ohne Grenze weiter.
  */
-async function consumeQuota(req: Request, deps: Deps, kind: QuotaKind): Promise<Response | null> {
+type Consumed = { blocked: Response } | { blocked: null; account?: string; month?: string };
+
+async function consumeQuota(req: Request, deps: Deps, kind: QuotaKind): Promise<Consumed> {
   const url = deps.env('SUPABASE_URL');
   const res = await deps
     .fetch(`${url}/rest/v1/rpc/consume_quota`, {
@@ -517,30 +519,30 @@ async function consumeQuota(req: Request, deps: Deps, kind: QuotaKind): Promise<
     .catch(() => null);
   if (!res || !res.ok) {
     if (res && res.status !== 404) console.error('consume_quota', res.status, (await res.text().catch(() => '')).slice(0, 200));
-    return null;
+    return { blocked: null };
   }
   const r = (await res.json().catch(() => null)) as
-    | { allowed?: boolean; forbidden?: boolean; limit?: number; used?: number; plan?: string }
+    | { allowed?: boolean; forbidden?: boolean; limit?: number; used?: number; plan?: string; account?: string; month?: string }
     | null;
   // Rolle im Team ohne Luna (Skript 20261128090000_teams.sql)
-  if (r?.allowed === false && r.forbidden) return json(403, { error: 'role_forbidden', area: 'luna' });
-  if (r?.allowed === false) return json(402, { error: 'quota_exceeded', kind, limit: r.limit, used: r.used, plan: r.plan });
-  return null;
+  if (r?.allowed === false && r.forbidden) return { blocked: json(403, { error: 'role_forbidden', area: 'luna' }) };
+  if (r?.allowed === false) return { blocked: json(402, { error: 'quota_exceeded', kind, limit: r.limit, used: r.used, plan: r.plan }) };
+  return { blocked: null, account: r?.account, month: r?.month };
 }
 
-/** Verbrauch zurückgeben, wenn die Anfrage nicht geklappt hat */
-async function refundQuota(req: Request, deps: Deps, kind: QuotaKind) {
+/**
+ * Verbrauch zurückgeben, wenn die Anfrage nicht geklappt hat – nur der Server
+ * (Skript 20261204090000_sicherheit.sql: refund_quota_for mit dem Server-Schlüssel;
+ * vorher konnte jeder Nutzer seinen Zähler selbst senken).
+ */
+async function refundQuota(deps: Deps, kind: QuotaKind, used: Consumed) {
   const url = deps.env('SUPABASE_URL');
+  if (used.blocked || !used.account || !used.month || !url || !deps.env('SUPABASE_SERVICE_ROLE_KEY')) return;
   await deps
-    .fetch(`${url}/rest/v1/rpc/refund_quota`, {
+    .fetch(`${url}/rest/v1/rpc/refund_quota_for`, {
       method: 'POST',
-      headers: {
-        Authorization: req.headers.get('Authorization') ?? '',
-        apikey: req.headers.get('apikey') ?? '',
-        'Content-Type': 'application/json',
-        ...companyHeader(req),
-      },
-      body: JSON.stringify({ p_kind: kind }),
+      headers: serviceHeaders(deps),
+      body: JSON.stringify({ p_account: used.account, p_kind: kind, p_month: used.month }),
     })
     .catch(() => null);
 }
@@ -717,8 +719,12 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
 
   const userId = await signedInUser(req, deps);
   if (!userId) return json(401, { error: 'not_signed_in' });
-  // Kosten pro Konto speichern – im Hintergrund, damit die Antwort nicht wartet
+  // Kosten pro Konto speichern – im Hintergrund, damit die Antwort nicht wartet.
+  // charged: Ein Anbieter hat schon gerechnet -> Kontingent nicht zurückgeben (sonst
+  // gäbe es mit absichtlich kaputten Anfragen beliebig viele bezahlte Aufrufe).
+  let charged = false;
   const meter: Meter = async (row) => {
+    charged = true;
     const saving = recordUsage(deps, userId, row).catch(() => {});
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(saving);
     else await saving;
@@ -731,19 +737,22 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     return json(400, { error: 'invalid_body' });
   }
   if (!body || typeof body !== 'object') return json(400, { error: 'invalid_body' });
-  if (body.mode === 'transcribe') return transcribe(body, deps, meter);
 
-  // Nachrichten, Belege und Vorlesen zählen (Grenzen je Abo: Skript 20261117090000_plan_tiers.sql)
-  const kind: QuotaKind = body.mode === 'receipt' ? 'receipt' : body.mode === 'speak' ? 'voice' : 'nexy';
-  const blocked = await consumeQuota(req, deps, kind);
-  if (blocked) return blocked;
+  // Nachrichten, Belege, Vorlesen und Spracherkennung zählen
+  // (Grenzen je Abo: Skripte 20261117090000_plan_tiers.sql, 20261204090000_sicherheit.sql)
+  const kind: QuotaKind =
+    body.mode === 'receipt' ? 'receipt' : body.mode === 'speak' ? 'voice' : body.mode === 'transcribe' ? 'transcribe' : 'nexy';
+  const used = await consumeQuota(req, deps, kind);
+  if (used.blocked) return used.blocked;
   const res =
     kind === 'receipt'
       ? await readReceipt(body, deps, meter)
       : kind === 'voice'
         ? await speak(body, deps, meter)
-        : await chat(body, deps, meter);
-  if (!res.ok) await refundQuota(req, deps, kind);
+        : kind === 'transcribe'
+          ? await transcribe(body, deps, meter)
+          : await chat(body, deps, meter);
+  if (!res.ok && !charged) await refundQuota(deps, kind, used);
   return res;
 }
 

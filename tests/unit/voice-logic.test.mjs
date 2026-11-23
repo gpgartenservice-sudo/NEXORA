@@ -157,3 +157,17 @@ test('Sprachantwort: legt Luna gleich selbst los, fragt sie nicht nach Ja/Nein',
   assert.equal(spokenReply(reply, false), 'Mach ich – ich lege Frau Berg an.');
   assert.match(spokenReply(reply), /Sag einfach ja oder nein\.$/);
 });
+
+test('Sprachantwort bei wichtigen Daten: Hinweis, dann Rückfrage (auch nach eigener Frage)', () => {
+  const hint = 'Bitte bestätigen – diese Aktion ändert wichtige Daten.';
+  assert.equal(
+    spokenReply({ text: 'Ich ändere die IBAN.', proposals: [{}], status: 'open' }, true, hint),
+    'Ich ändere die IBAN. Bitte bestätigen – diese Aktion ändert wichtige Daten. Soll ich das so machen? Sag einfach ja oder nein.',
+  );
+  assert.equal(
+    spokenReply({ text: 'Soll ich die IBAN ändern?', proposals: [{}], status: 'open' }, true, hint),
+    'Soll ich die IBAN ändern? Bitte bestätigen – diese Aktion ändert wichtige Daten. Soll ich das so machen? Sag einfach ja oder nein.',
+  );
+  // ohne offene Vorschläge kein Hinweis
+  assert.equal(spokenReply({ text: 'Erledigt.' }, true, hint), 'Erledigt.');
+});

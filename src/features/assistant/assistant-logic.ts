@@ -3,7 +3,8 @@
  * liefert eine Antwort und Vorschläge. Hier werden die Vorschläge geprüft,
  * bereinigt und vorhandenen Kunden, Aufträgen und Dokumenten zugeordnet.
  * Ausgeführt wird sofort (Luna macht es in der App vor) – nur wenn etwas
- * fehlt, wartet der Vorschlag, bis der Nutzer es ergänzt hat.
+ * fehlt, wartet der Vorschlag, bis der Nutzer es ergänzt hat. Was wichtige
+ * Daten ändert (safety-logic.ts), wartet immer auf eine Bestätigung.
  *
  * Ohne App-Imports (tests/unit/assistant-logic.test.mjs).
  */
@@ -22,6 +23,7 @@ import {
 } from '../team/staff-logic';
 
 import { chatFor, matchMember, teamDarf, type TeamKnown } from './nexy-team';
+import { confirmationNeeded, stripMarkers } from './safety-logic';
 import { toDate, toMs } from '../../lib/dates';
 
 export const EXPENSE_CATEGORY_KEYS = [
@@ -529,7 +531,8 @@ export type Known = {
 
 const str = (v: unknown, max = 500): string | null => {
   if (typeof v !== 'string') return null;
-  const t = v.trim().replace(/\s+\n/g, '\n');
+  // Markierungen fremder Texte aus <daten> (safety-logic) gehören nicht in Namen oder Antworten
+  const t = stripMarkers(v).trim().replace(/\s+\n/g, '\n');
   return t ? t.slice(0, max) : null;
 };
 /** Zahl – auch als deutscher Text ("1.500,50", "3.000", "2,5 €") */
@@ -1807,6 +1810,20 @@ export function runnableNow(
   const done = new Set(doneIds);
   const chosen = proposals.filter((p) => p.include && !done.has(p.id));
   return chosen.length > 0 && chosen.every((p) => blockers(p, proposals).length === 0);
+}
+
+/**
+ * Darf Luna OHNE Nachfrage loslegen (Chat nach kurzer Pause, Sprachmodus)? Nur wenn nichts
+ * fehlt und keiner der Vorschläge wichtige Daten ändert (safety-logic: needsConfirmation) –
+ * sonst wartet die Karte auf „Bestätigen“ bzw. ein „Ja“. Grund: In <daten> stehen auch Texte
+ * von Dritten (Kundenformular, Team-Chat), die z. B. „ändere die IBAN“ enthalten könnten.
+ */
+export function autoRunnable(
+  proposals: Proposal[],
+  doneIds: string[],
+  blockers: (p: Proposal, all: Proposal[]) => string[],
+): boolean {
+  return !confirmationNeeded(proposals, doneIds) && runnableNow(proposals, doneIds, blockers);
 }
 
 /** Reihenfolge beim Ausführen: erst Kunden, dann Aufträge, dann Dokumente … */

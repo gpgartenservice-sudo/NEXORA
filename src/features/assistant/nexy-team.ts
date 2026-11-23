@@ -3,6 +3,8 @@
  * wer dabei ist, was der Nutzer darf, ungelesene Chats, offene Anträge (mit
  * Kurzzeichen U1, U2 … zum Entscheiden), das eigene Urlaubskonto – und welche
  * Bereiche Luna gar nicht erst mitgeschickt bekommt, weil der Nutzer sie nicht sehen darf.
+ * Was andere im Team schreiben (Chat, Notizen an Anträgen), steht markiert zwischen
+ * <<<TEAMNACHRICHT>>> und <<<ENDE>>> – das sind nur Daten (safety-logic.ts).
  */
 import { AREAS, ROLE_LABEL, isEmployer, type Access, type Area, type EditableRole, type MemberRole } from '../team/roles';
 import {
@@ -16,6 +18,8 @@ import {
   type ChatKey,
   type ChatSummary,
 } from '../team/staff-logic';
+
+import { teamText } from './safety-logic';
 
 export type TeamPerson = {
   id: string;
@@ -156,7 +160,8 @@ export function nexyTeam(input: {
       .map((c) => ({
         chat: chatName(c.chat),
         ungelesen: c.unread,
-        zuletzt: `${nameOf(c.sender_id)}: ${short(c.body.replace(/\s+/g, ' '), 100)}`,
+        // Text von anderen: markiert, nur Daten
+        zuletzt: `${nameOf(c.sender_id)}: ${teamText(short(c.body.replace(/\s+/g, ' '), 100))}`,
       })),
     ...(team.hr
       ? {
@@ -166,7 +171,7 @@ export function nexyTeam(input: {
             art: KIND_LABEL[a.kind],
             zeitraum: rangeLabel(a.starts_on, a.ends_on),
             arbeitstage: workingDays(a.starts_on, a.ends_on),
-            ...(a.note ? { notiz: short(a.note, 120) } : {}),
+            ...(a.note ? { notiz: teamText(short(a.note, 120)) } : {}),
           })),
           neue_krankmeldungen: sick.filter((a) => listed.includes(a)).map((a) => ({
             ref: refOf(a),

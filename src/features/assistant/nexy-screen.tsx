@@ -43,7 +43,8 @@ import { useHover } from '@/hooks/use-hover';
 
 import { NexyAvatar, type NexyMood } from './nexy-avatar';
 import { NexyProposals } from './nexy-proposals';
-import { runnableNow } from './assistant-logic';
+import { autoRunnable } from './assistant-logic';
+import { confirmationNeeded } from './safety-logic';
 import { useGuide, useRunProposals } from './nexy-guide';
 import { useNexy, type NexyMessage } from './nexy-provider';
 import { useVoiceMode, type VoiceMode, type VoicePhase } from './use-voice-mode';
@@ -168,13 +169,23 @@ export function NexyScreen() {
   // Fehlt noch etwas, wartet sie, bis es in der Karte geklärt ist (Kunde/Auftrag
   // gewählt, Firmendaten ergänzt), und legt dann los. Im Sprachmodus übernimmt
   // das der Sprachmodus.
+  // Ändert etwas davon wichtige Daten (Firma/Bank, Team, Löschen, E-Mails, Geld),
+  // legt sie nie von selbst los: Die Karte zeigt „Bestätigen“ (safety-logic.ts).
+  const confirmFirst =
+    !!lastNexy && lastNexy.status === 'open' && confirmationNeeded(lastNexy.proposals, lastNexy.doneIds);
   const autoRun =
     !!lastNexy &&
     lastNexy.status === 'open' &&
     !!lastNexy.proposals?.length &&
-    runnableNow(lastNexy.proposals, lastNexy.doneIds ?? [], blockers);
+    autoRunnable(lastNexy.proposals, lastNexy.doneIds ?? [], blockers);
   useEffect(() => {
-    if (!lastNexy || autoIds.has(lastNexy.id) || !autoRun || executing) return;
+    if (!lastNexy || autoIds.has(lastNexy.id) || executing) return;
+    if (confirmFirst) {
+      // diese Nachricht nie automatisch ausführen – auch nicht, wenn danach etwas abgewählt wird
+      autoIds.add(lastNexy.id);
+      return;
+    }
+    if (!autoRun) return;
     if (voice.active) {
       // die neue Antwort führt der Sprachmodus selbst aus
       autoIds.add(lastNexy.id);
@@ -188,7 +199,7 @@ export function NexyScreen() {
       void runLatest.current(id);
     }, 800);
     return () => clearTimeout(timer);
-  }, [lastNexy, autoIds, autoRun, executing, voice.active]);
+  }, [lastNexy, autoIds, autoRun, confirmFirst, executing, voice.active]);
 
   // "Vorlesen" an: neue Antworten werden vorgelesen (im Sprachmodus übernimmt das der Sprachmodus;
   // legt Luna gleich los, erzählt sie es bei der Vorführung)

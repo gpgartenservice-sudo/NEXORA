@@ -30,8 +30,10 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { TextLink } from '@/components/ui/text-link';
 import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
@@ -56,7 +58,9 @@ import {
   type CompanyChange,
   type Proposal,
 } from './assistant-logic';
+import { useRunProposals } from './nexy-guide';
 import { useNexy, type NexyMessage } from './nexy-provider';
+import { CONFIRM_HINT, confirmationNeeded } from './safety-logic';
 
 const REPEAT = { once: 'einmalig', monthly: 'monatlich', yearly: 'jährlich' } as const;
 const METRIC_LABEL = { views: 'Aufrufe', likes: 'Likes', comments: 'Kommentare', shares: 'Geteilt', saves: 'Gespeichert' } as const;
@@ -432,8 +436,10 @@ function rows(p: Proposal): [string, string][] {
 
 /** Vorschläge einer Luna-Nachricht: an-/abwählen, fehlende Zuordnung wählen, ausführen. */
 export function NexyProposals({ message }: { message: NexyMessage }) {
-  // Ausgeführt wird ohne Knopf: Luna legt von selbst los (nexy-screen), sobald nichts mehr fehlt
-  const { updateProposal, executing, blockers } = useNexy();
+  // Meist ohne Knopf: Luna legt von selbst los (nexy-screen), sobald nichts mehr fehlt.
+  // Ändert etwas wichtige Daten (safety-logic), führt erst „Bestätigen“ es aus.
+  const { updateProposal, executing, blockers, dismiss } = useNexy();
+  const runProposals = useRunProposals();
   const { customers, orders } = useCrm();
   const { documents } = useDocuments();
   const events = useCalendarEvents();
@@ -443,6 +449,11 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
   const chosen = all.filter((p) => p.include && !done.has(p.id));
   const blocked = chosen.some((p) => blockers(p, all).length > 0);
   const issues = all.some((p) => p.kind === 'document' && p.include && !done.has(p.id));
+  // Einmal nötig, bleibt der Knopf (Luna legt dann auch nach dem Abwählen nicht von selbst los)
+  const needsOk = open && confirmationNeeded(all, message.doneIds);
+  const [asked, setAsked] = useState(needsOk);
+  if (needsOk && !asked) setAsked(true);
+  const confirm = open && (needsOk || asked);
 
   return (
     <View style={styles.wrap}>
@@ -616,7 +627,30 @@ export function NexyProposals({ message }: { message: NexyMessage }) {
 
       {open && executing === message.id && <Text style={styles.small}>Ich bin dran …</Text>}
       {open && executing !== message.id && blocked && (
-        <Text style={styles.small}>Sobald das geklärt ist, lege ich los.</Text>
+        <Text style={styles.small}>
+          {confirm ? 'Sobald das geklärt ist, kannst du bestätigen.' : 'Sobald das geklärt ist, lege ich los.'}
+        </Text>
+      )}
+      {confirm && (
+        <View style={styles.confirm}>
+          <Notice>{CONFIRM_HINT}</Notice>
+          <View style={styles.actions}>
+            <Button
+              label="Verwerfen"
+              variant="secondary"
+              onPress={() => dismiss(message.id)}
+              disabled={executing === message.id}
+              style={styles.flex}
+            />
+            <Button
+              label={chosen.length ? `Bestätigen (${chosen.length})` : 'Nichts ausgewählt'}
+              onPress={() => void runProposals(message.id)}
+              loading={executing === message.id}
+              disabled={!chosen.length || blocked || (executing !== null && executing !== message.id)}
+              style={styles.flex}
+            />
+          </View>
+        </View>
       )}
       {open && issues && <Text style={styles.small}>PDFs werden direkt gespeichert.</Text>}
       {message.status === 'dismissed' && <Text style={styles.small}>Verworfen.</Text>}
@@ -717,6 +751,9 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 999, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { color: Colors.text, fontSize: 13 },
   problem: { gap: Spacing.xs },
+  confirm: { gap: Spacing.sm, marginTop: Spacing.xs },
+  actions: { flexDirection: 'row', gap: Spacing.md, flexWrap: 'wrap' },
+  flex: { flex: 1, minWidth: 150 },
   results: {
     gap: Spacing.sm,
     borderRadius: Radius.lg,

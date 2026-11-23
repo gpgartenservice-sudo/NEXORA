@@ -27,7 +27,7 @@ function setup({ claim = INFO, claimStatus = 200 } = {}) {
     return new Response('unerwartet', { status: 500 });
   };
   const deps = {
-    env: (k) => ({ SUPABASE_URL: SB, RESEND_API_KEY: 're_test', MAIL_FROM: 'emails@lunaxora.de' })[k],
+    env: (k) => ({ SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test', RESEND_API_KEY: 're_test', MAIL_FROM: 'emails@lunaxora.de' })[k],
     fetch,
     now: () => new Date('2026-11-23T13:05:01Z'),
   };
@@ -63,8 +63,8 @@ test('Widerruf: ohne Anmeldung, Empfänger nur aus der Datenbank, Kopie an den S
   assert.deepEqual((await res.json()).to, ['erika@example.com', 'max@example.com']);
   assert.ok(!calls.some((c) => c.url.includes('/auth/v1/user')), 'keine Anmeldung nötig');
   const claim = calls.find((c) => c.url.endsWith('/rpc/offer_withdrawal_mail'));
-  assert.equal(claim.init.headers.apikey, 'sb_publishable_x');
-  assert.equal(claim.init.headers.Authorization, undefined, 'mit den Rechten eines Besuchers');
+  assert.equal(claim.init.headers.apikey, 'sb_secret_test', 'mit dem Server-Schlüssel (anon darf die Funktion nicht mehr)');
+  assert.equal(claim.init.headers.Authorization, undefined);
   assert.deepEqual(JSON.parse(claim.init.body), { p_token: TOKEN });
   const sent = JSON.parse(calls.find((c) => c.url === 'https://api.resend.com/emails').init.body);
   assert.deepEqual(sent.to, ['erika@example.com', 'max@example.com']);

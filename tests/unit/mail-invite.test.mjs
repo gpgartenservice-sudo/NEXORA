@@ -16,13 +16,16 @@ function setup({ invite = { email: 'kunde@example.de', token: TOKEN, expires_at:
     if (u === `${SB}/auth/v1/user`) return Response.json({ id: 'u1', email: 'nutzer@example.de' });
     if (u.startsWith(`${SB}/rest/v1/customer_invites?id=eq.${ID}`)) return Response.json(invite ? [invite] : []);
     if (u === `${SB}/rest/v1/rpc/my_plan`) return Response.json({ plan });
-    if (u.startsWith(`${SB}/rest/v1/email_log?`)) return Response.json([]);
-    if (u === `${SB}/rest/v1/email_log`) return new Response(null, { status: 201 });
+    if (u === `${SB}/rest/v1/rpc/nexora_workspace`) return Response.json('33333333-3333-3333-3333-333333333333');
+    if (u === `${SB}/rest/v1/rpc/nexora_may`) return Response.json(true);
+    if (u.startsWith(`${SB}/rest/v1/email_log?select`)) return Response.json([]);
+    if (u === `${SB}/rest/v1/email_log`) return Response.json([{ id: '44444444-4444-4444-4444-444444444444' }], { status: 201 });
+    if (u.startsWith(`${SB}/rest/v1/email_log?id=eq.`)) return new Response(null, { status: 204 });
     if (u === 'https://api.resend.com/emails') return Response.json({ id: 're_1' });
     return new Response('unerwartet', { status: 500 });
   };
   const deps = {
-    env: (k) => ({ SUPABASE_URL: SB, RESEND_API_KEY: 're_test', MAIL_FROM: 'emails@lunaxora.de' })[k],
+    env: (k) => ({ SUPABASE_URL: SB, SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test', RESEND_API_KEY: 're_test', MAIL_FROM: 'emails@lunaxora.de' })[k],
     fetch,
     now: () => new Date('2026-11-15T10:00:00Z'),
   };

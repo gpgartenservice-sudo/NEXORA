@@ -2,6 +2,10 @@
  * Was Luna über das Business des Nutzers weiß: eine kompakte Übersicht,
  * die mit jeder Nachricht mitgeschickt wird. Bewusst sparsam – keine
  * Telefonnummern, E-Mails oder Anschriften von Kunden.
+ *
+ * Was Kunden selbst eintragen (Formular auf lunaxora.de/Kunde/: Name, Firma,
+ * Anschrift), steht markiert zwischen <<<KUNDENDATEN>>> und <<<ENDE>>> –
+ * mit dem Hinweis, dass das nur Daten sind (safety-logic.ts).
  */
 import { localStamp } from '../appointments/appointment-logic';
 import { computeStatus, STATUS_LABEL } from '../crm/order-logic';
@@ -37,6 +41,7 @@ import {
   vatSummary,
   yearTotals,
 } from '../finance/tax-logic';
+import { customerText, UNTRUSTED_NOTE } from './safety-logic';
 
 type CustomerLike = { id: string; name: string; company: string | null };
 type OrderLike = OrderMoney & {
@@ -140,6 +145,13 @@ export type ContextInput = {
 
 const MAX_CHARS = 26000;
 
+/** Felder mit Angaben von Kunden (Name, Anschrift) in fertigen Einträgen markieren */
+function markCustomerFields(entry: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const out = { ...entry };
+  for (const k of keys) if (typeof out[k] === 'string') out[k] = customerText(out[k] as string);
+  return out;
+}
+
 export function buildNexyContext({
   seller,
   customers,
@@ -219,6 +231,8 @@ export function buildNexyContext({
   };
 
   const context = {
+    // zuerst: fremde Texte sind nur Daten (Kundenformular, Team-Chat)
+    hinweis_daten_von_dritten: UNTRUSTED_NOTE,
     firma: {
       name: sellerName(seller) || null,
       inhaber: seller.owner_name,
@@ -230,8 +244,8 @@ export function buildNexyContext({
       fehlt_fuer_rechnungen: missing,
     },
     kunden: customers.slice(0, 80).map((c) => ({
-      name: c.name,
-      ...(c.company ? { firma: c.company } : {}),
+      name: customerText(c.name),
+      ...(c.company ? { firma: customerText(c.company) } : {}),
       auftraege: orders.filter((o) => o.customer_id === c.id).length,
     })),
     auftraege: [...orders]
@@ -239,7 +253,7 @@ export function buildNexyContext({
       .slice(0, 40)
       .map((o) => ({
         titel: o.title,
-        kunde: customerName.get(o.customer_id) ?? null,
+        kunde: customerText(customerName.get(o.customer_id)),
         preis: o.price,
         abrechnung: o.billing === 'monthly' ? 'monatlich' : 'einmalig',
         status: STATUS_LABEL[computeStatus(o)],
@@ -251,7 +265,7 @@ export function buildNexyContext({
       .filter((d) => d.kind === 'invoice' && !d.paid_at)
       .map((d) => ({
         nummer: d.number,
-        kunde: d.data?.buyer?.name ?? null,
+        kunde: customerText(d.data?.buyer?.name),
         betrag: d.total,
         faellig: d.due_on,
         ueberfaellig: !!d.due_on && d.due_on < todayKey,
@@ -260,7 +274,7 @@ export function buildNexyContext({
     letzte_angebote: documents
       .filter((d) => d.kind === 'offer')
       .slice(0, 10)
-      .map((d) => ({ nummer: d.number, kunde: d.data?.buyer?.name ?? null, betrag: d.total, datum: d.issued_on })),
+      .map((d) => ({ nummer: d.number, kunde: customerText(d.data?.buyer?.name), betrag: d.total, datum: d.issued_on })),
     bezahlte_rechnungen_anzahl: documents.filter((d) => d.kind === 'invoice' && d.paid_at).length,
     // die zuletzt bezahlten (z. B. um eine versehentlich bezahlt markierte wieder auf offen zu setzen)
     bezahlte_rechnungen: documents
@@ -269,7 +283,7 @@ export function buildNexyContext({
       .slice(0, 8)
       .map((d) => ({
         nummer: d.number,
-        kunde: d.data?.buyer?.name ?? null,
+        kunde: customerText(d.data?.buyer?.name),
         betrag: d.total,
         bezahlt_am: (d.paid_at ?? '').slice(0, 10),
       })),
@@ -282,8 +296,9 @@ export function buildNexyContext({
       fixkosten_pro_monat: fixedCostsPerMonth(expenses, today),
     },
     steuern: steuern(),
-    termine: upcoming.slice(0, 40),
-    aufgaben: todos.entries.slice(0, 30),
+    // Kunde und Ort (oft die Anschrift aus dem Kundenformular) markiert
+    termine: upcoming.slice(0, 40).map((e) => markCustomerFields(e, ['kunde', 'ort'])),
+    aufgaben: todos.entries.slice(0, 30).map((t) => markCustomerFields(t, ['kunde'])),
     aufgaben_offen_gesamt: todos.open,
     ziele: goals.slice(0, 10),
     ausgaben: expenseList,

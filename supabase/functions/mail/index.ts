@@ -7,10 +7,12 @@
  * Firma (Name) mit der Adresse aus MAIL_FROM; Antworten des Kunden landen bei
  * deiner eigenen E-Mail-Adresse (Antwort-an).
  *
- * Nur angemeldete Lunaxora-Nutzer; höchstens 3 Empfänger je E-Mail, nur PDFs
- * als Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag je Nutzer.
- * Jeder Versand wird im Protokoll (Tabelle email_log) vermerkt – mit den
- * Rechten des Nutzers.
+ * Nur angemeldete Lunaxora-Nutzer mit dem Recht „Dokumente“ (Datenschutz-Link
+ * und Bewertungen: „Kunden“); höchstens 3 Empfänger je E-Mail, nur PDFs als
+ * Anhang, höchstens 20 E-Mails pro Stunde und 100 pro Tag je Firma (in der
+ * Testphase 5 und 20). Jeder Versand wird VOR dem Versand im Protokoll (Tabelle
+ * email_log) vermerkt – mit dem Server-Schlüssel SUPABASE_SERVICE_ROLE_KEY, den
+ * Supabase jeder Funktion selbst mitgibt (Skript 20261204090000_sicherheit.sql).
  *
  * Einrichtung: siehe supabase/README.md (Abschnitt "E-Mails direkt verschicken").
  * Geheimnisse (Supabase -> Edge Functions -> Secrets) – Weg A ODER Weg B:
@@ -40,6 +42,16 @@
  * Text nur über den geheimen Angebots-Link aus der Datenbank (offer_withdrawal_mail,
  * höchstens 3 Versuche) und schickt dem Kunden die Eingangsbestätigung nach
  * § 356a Abs. 4 BGB, mit Kopie an den Selbstständigen. Geht in jedem Abo.
+ *
+ * Auftragsbestätigung (kind "acceptance", Skript 20261204090000_sicherheit.sql):
+ * Kommt ebenfalls von der Angebotsseite ohne Anmeldung, direkt nach „Verbindlich
+ * annehmen“. Bestätigung des Vertrags mit Vertragsinhalt und – bei Privatkunden –
+ * Widerrufsbelehrung und Muster-Widerrufsformular auf einem dauerhaften
+ * Datenträger (§ 312f Abs. 2 BGB). Empfänger: die E-Mail, die der Kunde bei der
+ * Annahme angegeben hat, Kopie an die E-Mail aus den Firmendaten.
+ *   OFFER_URL       (optional) Adresse der Angebotsseite, Standard https://lunaxora.de/Angebot
+ *
+ * Beide Kunden-Mails holen ihre Daten nur mit dem Server-Schlüssel.
  */
 
 const RESEND_URL = 'https://api.resend.com/emails';
@@ -50,6 +62,9 @@ const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_BASE64 = 9_000_000; // zusammen ~6,5 MB
 const PER_HOUR = 20;
 const PER_DAY = 100;
+// Testphase: weniger, damit niemand über ein Gratis-Konto Werbung verschickt
+const PER_HOUR_TRIAL = 5;
+const PER_DAY_TRIAL = 20;
 const KINDS = ['offer', 'invoice', 'reminder', 'review', 'other'];
 
 const CORS = {
@@ -102,6 +117,15 @@ type Body = {
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+/** Server-Schlüssel: neue Secret Keys (sb_secret_…) nur als apikey, alte service_role-Schlüssel (JWT) zusätzlich als Bearer */
+function serviceHeaders(deps: Deps): Record<string, string> | null {
+  const key = deps.env('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  if (!key) return null;
+  return key.startsWith('sb_')
+    ? { apikey: key, 'Content-Type': 'application/json' }
+    : { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+}
 
 const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]{2,}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -577,35 +601,191 @@ export function withdrawalMail(w: WithdrawalInfo) {
   };
 }
 
-async function handleWithdrawal(req: Request, body: Body, deps: Deps): Promise<Response> {
+// ---------------------------------------------------------------------------
+// Auftragsbestätigung nach der Online-Annahme (§ 312f Abs. 2 BGB)
+// ---------------------------------------------------------------------------
+
+type OfferItem = { description?: unknown; details?: unknown; quantity?: unknown; unit?: unknown; unit_price?: unknown };
+
+export type AcceptanceInfo = {
+  number: string;
+  issued_on?: string | null;
+  valid_until?: string | null;
+  accepted_at: string;
+  accepted_name?: string | null;
+  accepted_email: string;
+  data?: {
+    buyer?: { name?: string | null; company?: string | null; address?: string | null } | null;
+    items?: OfferItem[] | null;
+    totals?: { discount_percent?: number; discount_amount?: number; net?: number; vat_rate?: number; vat_amount?: number; gross?: number } | null;
+    small_business?: boolean;
+    monthly?: boolean;
+  } | null;
+  seller?: SellerInfo | null;
+};
+
+const money = (v: unknown) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(v) || 0);
+const num = (v: unknown) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(v) || 0);
+/** "2026-11-22" -> "22.11.2026" */
+const dateDe = (iso: string | null | undefined) => {
+  if (!iso) return '';
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return `${d}.${m}.${y}`;
+};
+
+function sellerNameOf(s: SellerInfo): string {
+  return String(s.company_name || s.owner_name || '').trim();
+}
+
+/** Gleich wie sellerContactLine in src/features/documents/document-logic.ts */
+function contactLineOf(s: SellerInfo, withPhone = true): string {
+  return [
+    sellerNameOf(s),
+    s.street,
+    [s.zip, s.city].filter(Boolean).join(' '),
+    withPhone && s.phone ? `Tel. ${s.phone}` : null,
+    s.email ? `E-Mail ${s.email}` : null,
+  ]
+    .map((v) => (v ? String(v).trim() : ''))
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * Widerrufsbelehrung, Hinweis zum frühen Start und Muster-Formular – Wortlaut
+ * wie withdrawalNotice / earlyStartHint / withdrawalForm in
+ * src/features/documents/document-logic.ts (ein Test vergleicht beides).
+ */
+export function withdrawalTexts(s: SellerInfo) {
+  const notice = [
+    {
+      heading: 'Widerrufsrecht',
+      paragraphs: [
+        'Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.',
+        'Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.',
+        `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (${contactLineOf(s)}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist. Sie können Ihr Widerrufsrecht auch online unter dem Link zu diesem Angebot (Schaltfläche „Vertrag widerrufen“) ausüben. Wenn Sie diese Online-Funktion nutzen, übermitteln wir Ihnen auf einem dauerhaften Datenträger (z. B. durch eine E-Mail) unverzüglich eine Eingangsbestätigung mit Informationen zum Inhalt der Widerrufserklärung sowie dem Datum und der Uhrzeit ihres Eingangs.`,
+        'Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.',
+      ],
+    },
+    {
+      heading: 'Folgen des Widerrufs',
+      paragraphs: [
+        'Wenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass Sie eine andere Art der Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt haben), unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.',
+        'Haben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.',
+      ],
+    },
+  ];
+  const who = sellerNameOf(s) || 'Ihr Auftragnehmer';
+  const early = s.email
+    ? `Soll ${who} schon vor Ablauf der Widerrufsfrist anfangen? Dann schreiben Sie das bitte ausdrücklich per E-Mail an ${s.email}.`
+    : `Soll ${who} schon vor Ablauf der Widerrufsfrist anfangen? Dann teilen Sie das bitte ausdrücklich schriftlich mit, zum Beispiel per E-Mail.`;
+  const form = [
+    '(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)',
+    `– An ${contactLineOf(s, false)}:`,
+    '– Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*)/die Erbringung der folgenden Dienstleistung (*)',
+    '– Bestellt am (*)/erhalten am (*)',
+    '– Name des/der Verbraucher(s)',
+    '– Anschrift des/der Verbraucher(s)',
+    '– Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier)',
+    '– Datum',
+    '(*) Unzutreffendes streichen.',
+  ];
+  return { notice, early, form };
+}
+
+/** Auftragsbestätigung: Vertragsinhalt, bei Privatkunden mit Widerrufsbelehrung und Formular */
+export function acceptanceMail(a: AcceptanceInfo, link: string | null) {
+  const s = a.seller ?? {};
+  const seller = sellerNameOf(s) || 'Ihr Auftragnehmer';
+  const d = a.data ?? {};
+  const b = d.buyer ?? {};
+  const t = d.totals ?? {};
+  const items = Array.isArray(d.items) ? d.items : [];
+  const privateBuyer = !String(b.company ?? '').trim();
+  const name = String(a.accepted_name || b.name || '').trim();
+  const lines: string[] = [
+    `Guten Tag ${name},`,
+    '',
+    `vielen Dank für Ihren Auftrag! Sie haben das Angebot ${a.number}${a.issued_on ? ` vom ${dateDe(a.issued_on)}` : ''} am ${dayTimeDe(a.accepted_at)} online angenommen. Damit ist der Vertrag zustande gekommen. Hier ist Ihre Bestätigung mit dem Vertragsinhalt.`,
+    '',
+    `Auftragnehmer: ${contactLineOf(s)}`,
+    `Auftraggeber: ${[b.company, b.name, b.address].map((v) => String(v ?? '').trim()).filter(Boolean).join(', ')}`,
+    '',
+    'Leistungen:',
+  ];
+  items.forEach((it, i) => {
+    const qty = Number(it.quantity) || 0;
+    const price = Number(it.unit_price) || 0;
+    lines.push(`${i + 1}. ${String(it.description ?? '').trim()} – ${num(qty)} ${String(it.unit ?? '').trim()} × ${money(price)} = ${money(qty * price)}`);
+    if (it.details) lines.push(`   ${String(it.details).trim()}`);
+  });
+  lines.push('');
+  if (Number(t.discount_amount) > 0) lines.push(`Rabatt ${num(t.discount_percent)} %: – ${money(t.discount_amount)}`);
+  if (!d.small_business) {
+    lines.push(`Netto: ${money(t.net)}`);
+    lines.push(`zzgl. ${num(t.vat_rate)} % USt: ${money(t.vat_amount)}`);
+  }
+  lines.push(`${d.monthly ? 'Gesamt pro Monat' : 'Gesamt'}: ${money(t.gross)}`);
+  if (d.small_business) lines.push('Gemäß § 19 UStG von der Umsatzsteuer befreit (Kleinunternehmerregelung).');
+  if (link) lines.push('', `Das Angebot online: ${link}`);
+
+  if (privateBuyer) {
+    const w = withdrawalTexts(s);
+    lines.push('', '———', '', 'WIDERRUFSBELEHRUNG');
+    for (const sec of w.notice) lines.push('', sec.heading, '', ...sec.paragraphs.flatMap((p) => [p, '']).slice(0, -1));
+    lines.push('', w.early, '', '———', '', 'MUSTER-WIDERRUFSFORMULAR', '', ...w.form);
+  }
+  const contact = contactLineOf({ ...s, company_name: null, owner_name: null });
+  lines.push('', '———', '', `Eine Kopie dieser E-Mail geht an ${seller}.`, '', 'Viele Grüße', seller, ...(contact ? [contact] : []));
+  return {
+    fromName: seller,
+    subject: `Auftragsbestätigung: Angebot ${a.number}`,
+    text: lines.join('\n'),
+  };
+}
+
+/**
+ * Kunden-Mail ohne Anmeldung: Daten mit dem Server-Schlüssel über den geheimen
+ * Angebots-Link holen (zählt einen Versuch), verschicken, als verschickt vermerken.
+ */
+async function sendCustomerMail(
+  body: Body,
+  deps: Deps,
+  o: {
+    claim: string;
+    mailed: string;
+    missing: string;
+    recipient: (info: Record<string, unknown>) => string;
+    build: (info: Record<string, unknown>, token: string) => { fromName: string; subject: string; text: string };
+  },
+): Promise<Response> {
   const url = deps.env('SUPABASE_URL');
-  const apikey = req.headers.get('apikey')?.trim() || deps.env('SUPABASE_ANON_KEY');
-  if (!url || !apikey) return json(500, { error: 'missing_config' });
+  const db = serviceHeaders(deps);
+  if (!url || !db) return json(500, { error: 'missing_config' });
   const token = typeof body.token === 'string' ? body.token.trim() : '';
   if (!OFFER_TOKEN.test(token)) return json(400, { error: 'invalid_token' });
   const cfg = mailConfig(deps);
   if ('error' in cfg) return json(cfg.status, { error: cfg.error });
 
-  // Daten holen (zählt einen Versuch) – mit den Rechten eines Besuchers ohne Anmeldung
-  const db = { apikey, 'Content-Type': 'application/json' };
   const claim = await deps
-    .fetch(`${url}/rest/v1/rpc/offer_withdrawal_mail`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
+    .fetch(`${url}/rest/v1/rpc/${o.claim}`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
     .catch(() => null);
   if (!claim?.ok) {
     const detail = claim ? (await claim.text().catch(() => '')).slice(0, 300) : 'unreachable';
-    if (claim && (claim.status === 404 || /PGRST202|42883/.test(detail))) return json(500, { error: 'missing_withdrawal_function' });
-    console.error('offer_withdrawal_mail', claim?.status, detail);
-    return json(502, { error: 'withdrawal_error', detail });
+    if (claim && (claim.status === 404 || /PGRST202|42883/.test(detail))) return json(500, { error: o.missing });
+    console.error(o.claim, claim?.status, detail);
+    return json(502, { error: 'claim_error', detail });
   }
-  const info = (await claim.json().catch(() => null)) as (WithdrawalInfo & { error?: string }) | null;
-  if (!info) return json(502, { error: 'withdrawal_error' });
+  const info = (await claim.json().catch(() => null)) as (Record<string, unknown> & { error?: string; seller?: SellerInfo | null }) | null;
+  if (!info) return json(502, { error: 'claim_error' });
   if (info.error) return json(info.error === 'not_found' ? 404 : 409, { error: info.error });
 
-  const to = String(info.withdrawal?.email ?? '').trim();
+  const to = o.recipient(info).trim();
   if (!EMAIL.test(to) || to.length > 320) return json(400, { error: 'invalid_to' });
+  // Kopie an die E-Mail aus den Firmendaten (nie an eine Adresse aus dem Angebot)
   const sellerMail = String(info.seller?.email ?? '').trim();
   const copy = EMAIL.test(sellerMail) && sellerMail.toLowerCase() !== to.toLowerCase() ? [sellerMail] : [];
-  const m = withdrawalMail(info);
+  const m = o.build(info, token);
   const sent = await deliver(
     cfg,
     { fromName: cleanName(m.fromName), to: [to, ...copy], replyTo: copy[0] ?? null, subject: m.subject, text: m.text, attachments: [] },
@@ -616,10 +796,31 @@ async function handleWithdrawal(req: Request, body: Body, deps: Deps): Promise<R
 
   // vermerken (Fehler hier ändern nichts mehr am Versand)
   const marked = await deps
-    .fetch(`${url}/rest/v1/rpc/offer_withdrawal_mailed`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
+    .fetch(`${url}/rest/v1/rpc/${o.mailed}`, { method: 'POST', headers: db, body: JSON.stringify({ p_token: token }) })
     .catch((e) => e);
-  if (!(marked instanceof Response) || !marked.ok) console.error('offer_withdrawal_mailed', marked);
+  if (!(marked instanceof Response) || !marked.ok) console.error(o.mailed, marked);
   return json(200, { ok: true, id: sent.id, to: [to, ...copy] });
+}
+
+function handleWithdrawal(body: Body, deps: Deps): Promise<Response> {
+  return sendCustomerMail(body, deps, {
+    claim: 'offer_withdrawal_mail',
+    mailed: 'offer_withdrawal_mailed',
+    missing: 'missing_withdrawal_function',
+    recipient: (info) => String((info as unknown as WithdrawalInfo).withdrawal?.email ?? ''),
+    build: (info) => withdrawalMail(info as unknown as WithdrawalInfo),
+  });
+}
+
+function handleAcceptance(body: Body, deps: Deps): Promise<Response> {
+  const base = (deps.env('OFFER_URL')?.trim() || 'https://lunaxora.de/Angebot').replace(/\/+$/, '');
+  return sendCustomerMail(body, deps, {
+    claim: 'offer_acceptance_mail',
+    mailed: 'offer_acceptance_mailed',
+    missing: 'missing_acceptance_function',
+    recipient: (info) => String(info.accepted_email ?? ''),
+    build: (info, token) => acceptanceMail(info as unknown as AcceptanceInfo, `${base}/?angebot=${encodeURIComponent(token)}`),
+  });
 }
 
 export async function handleRequest(req: Request, deps: Deps): Promise<Response> {
@@ -633,7 +834,9 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     parsed = null;
   }
   // Eingangsbestätigung für den Online-Widerruf: kommt vom Kunden, ohne Lunaxora-Anmeldung
-  if (parsed && typeof parsed === 'object' && parsed.kind === 'withdrawal') return handleWithdrawal(req, parsed, deps);
+  if (parsed && typeof parsed === 'object' && parsed.kind === 'withdrawal') return handleWithdrawal(parsed, deps);
+  // Auftragsbestätigung nach der Online-Annahme: ebenfalls vom Kunden
+  if (parsed && typeof parsed === 'object' && parsed.kind === 'acceptance') return handleAcceptance(parsed, deps);
 
   // Angemeldet? (Prüfung beim Supabase-Auth-Server)
   const auth = req.headers.get('Authorization');
@@ -694,43 +897,95 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   // Weg A: eigenes Postfach (SMTP), Weg B: Resend
   const cfg = mailConfig(deps);
   if ('error' in cfg) return json(cfg.status, { error: cfg.error });
+  const svc = serviceHeaders(deps);
+  if (!svc) return json(500, { error: 'missing_service_key' });
 
-  // Nur mit Pro (Skript 20261116090000_plans.sql; fehlt es, gilt keine Einschränkung).
-  // Der Datenschutz-Link für neue Kunden geht in jedem Abo.
-  const planRes = isInvite
-    ? null
-    : await deps
-        .fetch(`${url}/rest/v1/rpc/my_plan`, {
-          method: 'POST',
-          headers: db,
-          body: '{}',
-        })
-        .catch(() => null);
-  if (planRes?.ok) {
-    const info = (await planRes.json().catch(() => null)) as { plan?: string } | null;
-    if (info?.plan === 'free') return json(402, { error: 'pro_required' });
+  // Für welche Firma? (Kopfzeile x-lunaxora-company, geprüft in der Datenbank)
+  const wsRes = await deps
+    .fetch(`${url}/rest/v1/rpc/nexora_workspace`, { method: 'POST', headers: db, body: '{}' })
+    .catch(() => null);
+  const company = wsRes?.ok ? await wsRes.json().catch(() => null) : null;
+  if (typeof company !== 'string' || !UUID.test(company)) {
+    console.error('nexora_workspace', wsRes?.status);
+    return json(502, { error: 'workspace_error' });
   }
 
-  // Bremse: Wie viele E-Mails in der letzten Stunde / am letzten Tag?
+  // Recht im Team: Dokumente (Datenschutz-Link und Bewertungen: Kunden)
+  const area = msg.kind === 'invite' || msg.kind === 'review' ? 'kunden' : 'dokumente';
+  const mayRes = await deps
+    .fetch(`${url}/rest/v1/rpc/nexora_may`, { method: 'POST', headers: db, body: JSON.stringify({ p_area: area, p_level: 'write' }) })
+    .catch(() => null);
+  if (mayRes?.ok) {
+    if ((await mayRes.json().catch(() => null)) !== true) return json(403, { error: 'role_forbidden', area });
+  } else if (!mayRes || mayRes.status !== 404) {
+    // 404 = Team-Skript fehlt (dann gibt es auch keine Rollen)
+    return json(502, { error: 'role_check_error' });
+  }
+
+  // Nur mit Pro (Testphase mit kleinerer Bremse). Der Datenschutz-Link geht in jedem Abo.
+  let trial = false;
+  if (!isInvite) {
+    const planRes = await deps
+      .fetch(`${url}/rest/v1/rpc/my_plan`, { method: 'POST', headers: db, body: '{}' })
+      .catch(() => null);
+    if (planRes?.ok) {
+      const info = (await planRes.json().catch(() => null)) as { plan?: string } | null;
+      if (!info?.plan || info.plan === 'free') return json(402, { error: 'pro_required' });
+      trial = info.plan === 'trial';
+    } else if (!planRes || planRes.status !== 404) {
+      return json(502, { error: 'plan_error' });
+    }
+  }
+
+  // Dokument muss zur Firma gehören (sonst zählt das Protokoll nicht)
+  if (msg.documentId) {
+    const docRes = await deps
+      .fetch(`${url}/rest/v1/documents?id=eq.${msg.documentId}&user_id=eq.${company}&select=id`, { headers: svc })
+      .catch(() => null);
+    if (!docRes?.ok) return json(502, { error: 'log_error' });
+    const rows = ((await docRes.json().catch(() => [])) as unknown[]) ?? [];
+    if (!rows.length) return json(400, { error: 'invalid_document' });
+  }
+
+  // Bremse: Wie viele E-Mails hat die Firma in der letzten Stunde / am letzten Tag verschickt?
   const now = deps.now?.() ?? new Date();
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-  const logRes = await deps.fetch(
-    `${url}/rest/v1/email_log?select=created_at&created_at=gte.${encodeURIComponent(since)}`,
-    {
-      headers: db,
-    },
-  );
-  if (!logRes.ok) {
-    const detail = (await logRes.text().catch(() => '')).slice(0, 300);
-    if (logRes.status === 404 || /PGRST205|42P01/.test(detail)) return json(500, { error: 'missing_log_table' });
-    console.error('email_log', logRes.status, detail);
+  const logRes = await deps
+    .fetch(`${url}/rest/v1/email_log?select=created_at&user_id=eq.${company}&created_at=gte.${encodeURIComponent(since)}`, {
+      headers: svc,
+    })
+    .catch(() => null);
+  if (!logRes?.ok) {
+    const detail = logRes ? (await logRes.text().catch(() => '')).slice(0, 300) : 'unreachable';
+    if (logRes && (logRes.status === 404 || /PGRST205|42P01/.test(detail))) return json(500, { error: 'missing_log_table' });
+    console.error('email_log', logRes?.status, detail);
     return json(502, { error: 'log_error', detail });
   }
   const sent = ((await logRes.json().catch(() => [])) as { created_at: string }[]) ?? [];
   const hourAgo = now.getTime() - 60 * 60 * 1000;
-  if (sent.length >= PER_DAY) return json(429, { error: 'too_many_today' });
-  if (sent.filter((s) => new Date(s.created_at).getTime() >= hourAgo).length >= PER_HOUR)
-    return json(429, { error: 'too_many_this_hour' });
+  if (sent.length >= (trial ? PER_DAY_TRIAL : PER_DAY)) return json(429, { error: 'too_many_today', trial });
+  if (sent.filter((s) => new Date(s.created_at).getTime() >= hourAgo).length >= (trial ? PER_HOUR_TRIAL : PER_HOUR))
+    return json(429, { error: 'too_many_this_hour', trial });
+
+  // Erst ins Protokoll, dann verschicken – klappt das Protokoll nicht, geht nichts raus
+  const logged = await deps
+    .fetch(`${url}/rest/v1/email_log`, {
+      method: 'POST',
+      headers: { ...svc, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        user_id: company,
+        document_id: msg.documentId,
+        kind: msg.kind,
+        to_email: msg.to.join(', ').slice(0, 320),
+        subject: msg.subject,
+      }),
+    })
+    .catch(() => null);
+  const logId = logged?.ok ? (((await logged.json().catch(() => [])) as { id?: string }[])[0]?.id ?? null) : null;
+  if (!logged?.ok) {
+    console.error('email_log insert', logged?.status, logged ? (await logged.text().catch(() => '')).slice(0, 300) : 'unreachable');
+    return json(502, { error: 'log_error' });
+  }
 
   // Verschicken
   const delivered = await deliver(
@@ -746,24 +1001,19 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     deps,
     now,
   );
-  if ('response' in delivered) return delivered.response;
+  const logUrl = logId && UUID.test(logId) ? `${url}/rest/v1/email_log?id=eq.${logId}` : null;
+  if ('response' in delivered) {
+    // nicht verschickt -> Eintrag wieder raus (zählt nicht, steht nicht in der Liste)
+    if (logUrl) await deps.fetch(logUrl, { method: 'DELETE', headers: svc }).catch(() => null);
+    return delivered.response;
+  }
   const providerId = delivered.id;
-
-  // Im Protokoll vermerken (Fehler hier verhindern den Versand nicht mehr)
-  const logged = await deps
-    .fetch(`${url}/rest/v1/email_log`, {
-      method: 'POST',
-      headers: { ...db, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        document_id: msg.documentId,
-        kind: msg.kind,
-        to_email: msg.to.join(', ').slice(0, 320),
-        subject: msg.subject,
-        provider_id: providerId,
-      }),
-    })
-    .catch((e) => e);
-  if (!(logged instanceof Response) || !logged.ok) console.error('email_log insert', logged);
+  if (logUrl && providerId) {
+    const marked = await deps
+      .fetch(logUrl, { method: 'PATCH', headers: { ...svc, Prefer: 'return=minimal' }, body: JSON.stringify({ provider_id: providerId }) })
+      .catch((e) => e);
+    if (!(marked instanceof Response) || !marked.ok) console.error('email_log provider_id', marked);
+  }
 
   return json(200, { id: providerId, to: msg.to });
 }

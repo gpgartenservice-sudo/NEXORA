@@ -15,6 +15,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { isSafeExternalUrl } = require('./external-url');
+
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const DEV_URL = process.env.NEXORA_DEV_URL; // z. B. http://localhost:8081
 const APP_URL = 'app://nexora/';
@@ -133,14 +135,34 @@ function safeFileName(name) {
 
 const allowedUrl = (url) => typeof url === 'string' && (url.startsWith('mailto:') || url.startsWith('https://wa.me/'));
 
+/**
+ * Link im Standard-Programm öffnen – nur http(s), mailto, tel und Kalender-Abos
+ * (external-url.js). Alles andere (file:, smb:, javascript:, fremde Schemata) wird ignoriert.
+ */
+function openExternalSafe(url) {
+  if (!isSafeExternalUrl(url)) {
+    console.warn('[Link] nicht geöffnet:', String(url).slice(0, 200));
+    return Promise.resolve(false);
+  }
+  return shell.openExternal(url).then(
+    () => true,
+    (error) => {
+      console.warn('[Link]', error?.message ?? error);
+      return false;
+    },
+  );
+}
+
 ipcMain.handle('nexora:send-file', async (event, payload) => {
   if (!fromApp(event)) throw new Error('Nicht erlaubt');
   const { bytes, fileName, via, url, text, from } = payload ?? {};
   if (!ArrayBuffer.isView(bytes) || bytes.byteLength === 0 || bytes.byteLength > MAX_PDF_BYTES) {
     throw new Error('Ungültige Datei');
   }
-  if (via === 'open' && !allowedUrl(url)) throw new Error('Ungültiger Link');
-  if (via === 'mail' && !(typeof url === 'string' && url.startsWith('mailto:'))) throw new Error('Ungültiger Link');
+  if (via === 'open' && !(allowedUrl(url) && isSafeExternalUrl(url))) throw new Error('Ungültiger Link');
+  if (via === 'mail' && !(typeof url === 'string' && url.startsWith('mailto:') && isSafeExternalUrl(url))) {
+    throw new Error('Ungültiger Link');
+  }
   if (via !== 'open' && via !== 'share' && via !== 'mail') throw new Error('Unbekannte Aktion');
 
   const dir = path.join(app.getPath('downloads'), 'Lunaxora');
@@ -161,10 +183,12 @@ ipcMain.handle('nexora:send-file', async (event, payload) => {
     const sender = typeof from === 'string' && /^[^\s@<>",]+@[^\s@<>",]+\.[^\s@<>",]+$/.test(from.trim()) ? from.trim() : '';
     const result = mail ? await composeInAppleMail(mail, filePath, sender) : { problem: 'failed' };
     if (result.ok) return { filePath, attached: true, senderMissing: result.senderMissing };
+    // Link oben geprüft (mailto: + isSafeExternalUrl); Fehler gehen an die App zurück
     await shell.openExternal(url);
     shell.showItemInFolder(filePath);
     return { filePath, attached: false, reason: result.problem };
   }
+  // Link oben geprüft (mailto:/wa.me + isSafeExternalUrl)
   await shell.openExternal(url);
   shell.showItemInFolder(filePath);
   return { filePath };
@@ -403,10 +427,19 @@ function createWindow() {
     );
   });
 
-  // Links nach außen im normalen Browser öffnen, nicht in der App
+  // Links nach außen im normalen Browser öffnen, nicht in der App – nur sichere Links
+  // (http/https, mailto, tel, webcal; kein file:, smb:, javascript: oder fremde Schemata)
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    void openExternalSafe(url);
     return { action: 'deny' };
+  });
+  // Das Fenster selbst zeigt nur die App: fremde Seiten nicht darin laden, sondern
+  // (wenn sicher) im Browser öffnen
+  win.webContents.on('will-navigate', (e, legacyUrl) => {
+    const target = e?.url ?? legacyUrl;
+    if (isAppUrl(target)) return;
+    e.preventDefault();
+    void openExternalSafe(target);
   });
 
   win.loadURL(DEV_URL || APP_URL);

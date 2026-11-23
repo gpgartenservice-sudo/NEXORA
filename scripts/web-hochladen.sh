@@ -48,12 +48,12 @@ printf '%s' "$SUB" | grep -Eq '^[A-Za-z0-9-]+$' || {
 
 # Welche Seite? Standard: Angebotsseite; "kunde": Kundenseite für neue Kunden
 # (Links https://lunaxora.de/Kunde/?einladung=…, Server-Funktion "mail")
-SRC="web-angebot"; DIST="dist-angebot"; TEST_URL="$WEB_URL/"; FILES="index.html"
+SRC="web-angebot"; DIST="dist-angebot"; TEST_URL="$WEB_URL/"; FILES="index.html .htaccess"
 case "${1:-angebot}" in
     angebot) ;;
     kunde)
         # Formular + Standard-Datenschutzerklärung
-        SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"; FILES="index.html datenschutz.html"
+        SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"; FILES="index.html datenschutz.html .htaccess"
         TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/Kunde/" ;;
     *) red "Unbekannte Seite \"$1\" – erlaubt: angebot (Standard) oder kunde"; exit 1 ;;
 esac

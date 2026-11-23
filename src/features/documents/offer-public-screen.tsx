@@ -46,6 +46,9 @@ type OfferView = {
   withdrawal?: { name?: string; contract?: string; email?: string } | null;
   withdrawal_mailed_at?: string | null;
   withdrawal_open?: boolean;
+  /** Auftragsbestätigung nach der Annahme (Skript 20261204090000_sicherheit.sql) */
+  accepted_email?: string | null;
+  acceptance_mailed_at?: string | null;
   logo: LogoImage | null;
 };
 
@@ -60,6 +63,8 @@ export function OfferPublicScreen() {
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'failed'>('loading');
   const [mode, setMode] = useState<'none' | 'accept' | 'decline' | 'withdraw'>('none');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [confirmation, setConfirmation] = useState<'sending' | 'sent' | 'failed' | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -125,16 +130,33 @@ export function OfferPublicScreen() {
   };
 
   const accept = async () => {
+    const mail = email.trim();
     if (name.trim().length < 2) return setProblem('Bitte geben Sie Ihren Namen ein.');
+    if (isPrivateBuyer(d.buyer) && !mail) return setProblem('Bitte geben Sie Ihre E-Mail-Adresse für die Auftragsbestätigung ein.');
+    if (mail && !EMAIL.test(mail)) return setProblem(ERRORS.invalid_email);
     if (!confirm) return setProblem('Bitte bestätigen Sie, dass Sie das Angebot verbindlich annehmen.');
     setBusy(true);
     setProblem(null);
-    const { data, error } = await supabase.rpc('offer_accept', { p_token: token, p_name: name.trim() });
+    const { data, error } = await supabase.rpc('offer_accept', { p_token: token, p_name: name.trim(), p_email: mail || null });
     setBusy(false);
     const err = error ? 'failed' : (data as { error?: string } | null)?.error;
     if (err) return setProblem(ERRORS[err] ?? ERRORS.failed);
     setMode('none');
     await reload();
+    if (mail) await sendConfirmation();
+  };
+
+  // Auftragsbestätigung mit Vertragsinhalt und Widerrufsbelehrung (§ 312f BGB, Funktion "mail")
+  const sendConfirmation = async () => {
+    setConfirmation('sending');
+    const { error } = await supabase.functions.invoke('mail', { body: { kind: 'acceptance', token } });
+    let sent = !error;
+    if (error) {
+      const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      sent = (body as { error?: string } | null)?.error === 'already_sent';
+    }
+    setConfirmation(sent ? 'sent' : 'failed');
+    if (sent) await reload();
   };
 
   const decline = async () => {
@@ -385,6 +407,21 @@ export function OfferPublicScreen() {
               am {formatDay(answer.at.slice(0, 10))}
               {answer.name ? ` von ${answer.name}` : ''}. Vielen Dank! {s.owner_name || company} meldet sich bei Ihnen.
             </Text>
+            {!!offer.accepted_email &&
+              (offer.acceptance_mailed_at || confirmation === 'sent' ? (
+                <Text style={styles.text}>Die Auftragsbestätigung haben wir an {offer.accepted_email} geschickt.</Text>
+              ) : confirmation === 'sending' ? (
+                <Text style={styles.text}>Die Auftragsbestätigung wird gerade per E-Mail verschickt …</Text>
+              ) : confirmation === 'failed' ? (
+                <>
+                  <Text style={styles.problem} accessibilityRole="alert">
+                    Die Auftragsbestätigung per E-Mail hat noch nicht geklappt. Ihr Auftrag ist trotzdem angenommen.
+                  </Text>
+                  <View style={styles.actions}>
+                    <Btn label="Bestätigung erneut senden" onPress={() => void sendConfirmation()} />
+                  </View>
+                </>
+              ) : null)}
           </View>
         )}
         {answer.state === 'declined' && (
@@ -404,7 +441,14 @@ export function OfferPublicScreen() {
 
         {answer.state === 'open' && mode === 'none' && (
           <View style={styles.actions}>
-            <Btn label="Angebot annehmen" primary onPress={() => setMode('accept')} />
+            <Btn
+              label="Angebot annehmen"
+              primary
+              onPress={() => {
+                if (!email) setEmail(d.buyer.email ?? '');
+                setMode('accept');
+              }}
+            />
             <Btn label="Ablehnen oder Rückfrage" onPress={() => setMode('decline')} />
           </View>
         )}
@@ -420,6 +464,23 @@ export function OfferPublicScreen() {
               accessibilityLabel="Ihr Name"
               maxLength={100}
             />
+            <Text style={styles.label}>{isPrivateBuyer(d.buyer) ? 'Ihre E-Mail-Adresse' : 'Ihre E-Mail-Adresse (freiwillig)'}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="name@beispiel.de"
+              style={styles.input}
+              accessibilityLabel="Ihre E-Mail-Adresse"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              maxLength={254}
+            />
+            <Text style={styles.small}>
+              {isPrivateBuyer(d.buyer)
+                ? 'Dorthin schicken wir Ihnen die Auftragsbestätigung mit Widerrufsbelehrung.'
+                : 'Dorthin schicken wir Ihnen die Auftragsbestätigung.'}
+            </Text>
             <Pressable
               onPress={() => setConfirm((v) => !v)}
               accessibilityRole="checkbox"
@@ -510,7 +571,7 @@ const ERRORS: Record<string, string> = {
   not_private: 'Der Online-Widerruf ist nur für Privatkunden.',
   too_late: 'Die Widerrufsfrist ist abgelaufen. Bitte melden Sie sich direkt.',
   invalid_contract: 'Bitte geben Sie an, welchen Vertrag Sie widerrufen.',
-  invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse für die Eingangsbestätigung ein.',
+  invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
 };
 
 const EMAIL = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]{2,}$/;

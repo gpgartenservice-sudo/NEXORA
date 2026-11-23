@@ -336,10 +336,14 @@ export function speechChunks(text: string, max = 220): string[] {
 }
 
 /** Was Luna im Sprachmodus zu einer Antwort sagt. */
-/** `ask` = false: Luna legt gleich selbst los, also nicht nach Ja/Nein fragen */
+/**
+ * `ask` = false: Luna legt gleich selbst los, also nicht nach Ja/Nein fragen.
+ * `hint`: Satz vor der Frage (z. B. „Bitte bestätigen – diese Aktion ändert wichtige Daten.“)
+ */
 export function spokenReply(
   message: { text: string; error?: string; proposals?: unknown[]; status?: string },
   ask = true,
+  hint?: string,
 ): string {
   if (message.error) {
     // nur der verständliche Teil, keine technischen Details
@@ -347,8 +351,9 @@ export function spokenReply(
   }
   const text = speechText(message.text);
   if (ask && message.proposals?.length && message.status === 'open') {
-    const question = /\?\s*$/.test(text) ? '' : ' Soll ich das so machen?';
-    return `${text}${question} Sag einfach ja oder nein.`.trim();
+    const extra = hint ? ` ${speechText(hint)}` : '';
+    const question = !extra && /\?\s*$/.test(text) ? '' : ' Soll ich das so machen?';
+    return `${text}${extra}${question} Sag einfach ja oder nein.`.trim();
   }
   return text;
 }

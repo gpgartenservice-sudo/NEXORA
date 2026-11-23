@@ -2,10 +2,15 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf
 
 import {
   documentNotes,
+  earlyStartHint,
   formatDay,
   formatMoney,
+  isPrivateBuyer,
   legalFooterLines,
   sellerName,
+  withdrawalContract,
+  withdrawalForm,
+  withdrawalNotice,
   type DocumentData,
   type DocumentKind,
   type Seller,
@@ -26,7 +31,37 @@ export type IssuedDocument = {
   issued_on: string;
   due_on: string | null;
   data: DocumentData;
+  /**
+   * Angebot: geheimer Link zum Online-Annehmen (wie in der Tabelle documents).
+   * null = (noch) kein Link, fehlt das Feld ganz = unbekannt. Steuert den Satz zur
+   * Online-Widerrufsfunktion in der Widerrufsbelehrung.
+   */
+  public_token?: string | null;
 };
+
+/**
+ * Angebot an Privatkunden: Widerrufsbelehrung und Muster-Widerrufsformular kommen
+ * auf eigene Seite(n) ans Ende – auf einem dauerhaften Datenträger, egal ob der Kunde
+ * per Telefon, E-Mail, online oder bei sich zu Hause annimmt (§§ 312b, 312c, 355 BGB).
+ */
+export function hasWithdrawalPage(doc: Pick<IssuedDocument, 'kind' | 'data'>): boolean {
+  return doc.kind === 'offer' && isPrivateBuyer(doc.data.buyer);
+}
+
+/**
+ * Satz zur Online-Widerrufsfunktion nur, wenn der Kunde den Link zum Angebot hat:
+ * Link vorhanden = mit Satz, ausdrücklich kein Link (null/leer) = ohne Satz,
+ * Feld fehlt (z. B. PDF von der Angebotsseite selbst) = mit Satz, denn Angebote
+ * gehen in der App mit Link raus.
+ */
+export function pdfOnlineWithdrawal(doc: Pick<IssuedDocument, 'public_token'>): boolean {
+  return doc.public_token === undefined || !!doc.public_token?.trim();
+}
+
+/** Zeile unter den Summen, die auf die Widerrufsbelehrung verweist */
+export function withdrawalPointer(page: number): string {
+  return `Widerrufsbelehrung und Muster-Widerrufsformular: siehe Seite ${page}.`;
+}
 
 export const A4 = { w: 595.28, h: 841.89 };
 export const M = { left: 62, right: 57, bottom: 70 }; // Ränder in pt
@@ -216,6 +251,14 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
     });
     y -= 4;
   }
+  // Privatkunden-Angebot: Verweis auf die Widerrufsbelehrung (Seitenzahl steht erst am Ende fest)
+  const withdrawal = hasWithdrawalPage(doc);
+  let pointer: { page: PDFPage; y: number } | null = null;
+  if (withdrawal) {
+    newPageIfNeeded(19);
+    pointer = { page, y };
+    y -= 17;
+  }
   y -= 10;
   newPageIfNeeded(40);
   text(page, 'Mit freundlichen Grüßen', M.left, y, 10);
@@ -223,7 +266,106 @@ export async function renderDocumentPdf(doc: IssuedDocument, logo?: LogoImage | 
 
   drawFooter(page, s, regular);
 
+  if (withdrawal) {
+    if (pointer) text(pointer.page, withdrawalPointer(pdf.getPageCount() + 1), M.left, pointer.y, 9.5, bold);
+    drawWithdrawalPages(pdf, doc, regular, bold);
+  }
+
   return pdf.save();
+}
+
+/**
+ * Widerrufsbelehrung + Muster-Widerrufsformular für Privatkunden-Angebote, ab einer
+ * neuen Seite (bricht bei Bedarf auf die nächste um). Wortlaut aus document-logic.ts –
+ * gleich wie auf der Angebotsseite, nicht umformulieren.
+ */
+function drawWithdrawalPages(pdf: PDFDocument, doc: IssuedDocument, regular: PDFFont, bold: PDFFont) {
+  const s = doc.data.seller;
+  const right = A4.w - M.right;
+  const width = right - M.left;
+  const top = A4.h - 70;
+  let page = pdf.addPage([A4.w, A4.h]);
+  let y = top;
+
+  const ensure = (needed: number) => {
+    if (y - needed < M.bottom + 30) {
+      drawFooter(page, s, regular);
+      page = pdf.addPage([A4.w, A4.h]);
+      y = top;
+    }
+  };
+  const draw = (value: string, size: number, font: PDFFont, color = INK, x = M.left) =>
+    page.drawText(value, { x, y, size, font, color });
+  /** Absatz umbrechen und zeichnen; `keep` Zeilen bleiben auf jeden Fall zusammen. Gibt die letzte Zeile zurück. */
+  const paragraph = (value: string, size: number, font: PDFFont, lineHeight: number, color = INK, keep = 2) => {
+    const lines = wrap(value, font, size, width);
+    ensure(lineHeight * Math.min(keep, lines.length));
+    let last = '';
+    lines.forEach((l, i) => {
+      if (i > 0) ensure(lineHeight);
+      draw(l, size, font, color);
+      last = l;
+      y -= lineHeight;
+    });
+    return last;
+  };
+  /** Schreiblinie fürs Ausfüllen auf Papier – hinter dem Text oder über die ganze Breite */
+  const fillLine = (fromX: number, baseline: number) => {
+    if (right - fromX < 40) return;
+    page.drawLine({ start: { x: fromX, y: baseline - 2 }, end: { x: right, y: baseline - 2 }, thickness: 0.5, color: LINE });
+  };
+
+  // --- Widerrufsbelehrung (Muster Anlage 1 zu Art. 246a EGBGB)
+  draw('Widerrufsbelehrung', 13, bold);
+  y -= 15;
+  draw(safe(`Anlage zum ${withdrawalContract(doc.number, doc.issued_on)}`), 9, regular, MUTED);
+  y -= 20;
+  for (const section of withdrawalNotice(s, pdfOnlineWithdrawal(doc))) {
+    ensure(15 + 2 * 11.5);
+    draw(safe(section.heading), 10.5, bold);
+    y -= 15;
+    for (const p of section.paragraphs) {
+      paragraph(p, 9, regular, 11.5);
+      y -= 4;
+    }
+    y -= 6;
+  }
+
+  // --- Früher Beginn (kein Teil des Musters, deshalb abgesetzt)
+  ensure(14 + 2 * 11.5);
+  page.drawLine({ start: { x: M.left, y: y + 6 }, end: { x: right, y: y + 6 }, thickness: 0.4, color: LINE });
+  y -= 8;
+  paragraph(earlyStartHint(s), 9, regular, 11.5);
+  y -= 14;
+
+  // --- Muster-Widerrufsformular (Anlage 2 zu Art. 246a EGBGB) – bleibt möglichst auf einer Seite
+  const form = withdrawalForm(s).map((line) => {
+    const toFill = line.startsWith('– ') && !line.startsWith('– An ');
+    // Mehr Platz für die Dienstleistung und die Anschrift
+    const extra = toFill && /Dienstleistung \(\*\)$|^– Anschrift/.test(line);
+    const lineHeight = toFill ? 16 : 12.5;
+    const height = wrap(line, regular, 9.5, width).length * lineHeight + (extra ? lineHeight : 0) + (toFill ? 0 : 2);
+    return { line, toFill, extra, lineHeight, height };
+  });
+  const formHeight = 18 + form.reduce((sum, f) => sum + f.height, 0);
+  ensure(Math.min(formHeight, top - M.bottom - 30));
+  draw('Muster-Widerrufsformular', 13, bold);
+  y -= 18;
+  for (const f of form) {
+    const last = paragraph(f.line, 9.5, regular, f.lineHeight);
+    if (!f.toFill) {
+      y -= 2;
+      continue;
+    }
+    fillLine(M.left + regular.widthOfTextAtSize(last, 9.5) + 6, y + f.lineHeight);
+    if (f.extra) {
+      ensure(f.lineHeight);
+      fillLine(M.left + 8, y);
+      y -= f.lineHeight;
+    }
+  }
+
+  drawFooter(page, s, regular);
 }
 
 /**

@@ -133,6 +133,11 @@ export async function transcribe(audio: string, mime: string, hints: string[] = 
     if (http.status === 429)
       return { error: 'Gerade sind es zu viele Anfragen. Versuch es in einer Minute noch einmal.' };
     if (http.code === 'audio_too_large') return { error: 'Die Aufnahme war zu lang. Sag es bitte etwas kürzer.' };
+    // Spracherkennung zählt seit 20261204090000_sicherheit.sql zum Kontingent und braucht das Recht „Luna“
+    if (http.code === 'role_forbidden')
+      return { error: 'In deiner Rolle im Team ist Luna ausgeschaltet. Das kann die Leitung unter Profil → Team ändern.' };
+    if (http.code === 'quota_exceeded')
+      return { error: 'Die Spracheingabe ist für diesen Monat aufgebraucht. Du kannst Luna weiter schreiben.' };
     if (http.code === 'unsupported_audio' || http.code === 'invalid_audio')
       return { error: 'Die Aufnahme konnte nicht gelesen werden. Versuch es noch einmal.' };
     return {

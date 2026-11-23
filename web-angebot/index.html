@@ -8,6 +8,9 @@
   (supabase/migrations/20261113090000_offer_links_mail.sql). Privatkunden können
   danach online widerrufen (offer_withdraw, 20261203090000_widerruf_online.sql);
   die Eingangsbestätigung verschickt die Funktion "mail" (kind "withdrawal").
+  Nach der Annahme verschickt dieselbe Funktion die Auftragsbestätigung mit
+  Vertragsinhalt und Widerrufsbelehrung (kind "acceptance", § 312f BGB,
+  20261204090000_sicherheit.sql).
 
   %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-hochladen.sh aus der
   .env ein (öffentliche Daten, kein Geheimnis). Fertige Datei: dist-angebot/.
@@ -145,7 +148,7 @@
         not_private: 'Der Online-Widerruf ist nur für Privatkunden.',
         too_late: 'Die Widerrufsfrist ist abgelaufen. Bitte melden Sie sich direkt.',
         invalid_contract: 'Bitte geben Sie an, welchen Vertrag Sie widerrufen.',
-        invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse für die Eingangsbestätigung ein.',
+        invalid_email: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
         failed: 'Das hat gerade nicht geklappt. Bitte versuchen Sie es noch einmal.'
       };
 
@@ -154,7 +157,9 @@
       var validToken = /^[A-Za-z0-9_-]{32,64}$/.test(token);
 
       var state = {
-        offer: null, mode: 'none', name: '', confirm: false, note: '', busy: false, problem: null, legalOpen: false,
+        offer: null, mode: 'none', name: '', email: '', confirm: false, note: '', busy: false, problem: null, legalOpen: false,
+        // Auftragsbestätigung per E-Mail nach der Annahme (null | sending | sent | failed)
+        confirmation: null,
         // Online-Widerruf: Angaben im Formular und Stand der Eingangsbestätigung (null | sending | sent | failed)
         wName: '', wContract: '', wEmail: '', receipt: null
       };
@@ -372,6 +377,29 @@
         return form;
       }
 
+      function acceptedBox(o, answer, s, company) {
+        var box = el('div', { class: 'box ok', id: 'result' },
+          el('span', { class: 'box-title' }, '✓ Angenommen'),
+          el('p', null, 'am ' + day(answer.at) + (answer.name ? ' von ' + answer.name : '') + '. Vielen Dank! ' +
+            (s.owner_name || company || 'Wir') + ' meldet sich bei Ihnen.')
+        );
+        // Auftragsbestätigung (§ 312f BGB) – nur, wenn bei der Annahme eine E-Mail angegeben wurde
+        if (!o.accepted_email) return box;
+        if (o.acceptance_mailed_at || state.confirmation === 'sent') {
+          box.appendChild(el('p', null, 'Die Auftragsbestätigung haben wir an ' + o.accepted_email + ' geschickt.'));
+        } else if (state.confirmation === 'sending') {
+          box.appendChild(el('p', null, 'Die Auftragsbestätigung wird gerade per E-Mail verschickt …'));
+        } else if (state.confirmation === 'failed') {
+          box.appendChild(el('p', { class: 'problem', role: 'alert' },
+            'Die Auftragsbestätigung per E-Mail hat noch nicht geklappt. Ihr Auftrag ist trotzdem angenommen.'));
+          box.appendChild(el('div', { class: 'actions' },
+            el('button', { type: 'button', onclick: sendConfirmation }, 'Bestätigung erneut senden'),
+            el('button', { type: 'button', onclick: function () { window.print(); } }, 'Seite drucken')
+          ));
+        }
+        return box;
+      }
+
       function withdrawnBox(o) {
         var w = o.withdrawal || {};
         var mailed = !!o.withdrawal_mailed_at || state.receipt === 'sent';
@@ -463,11 +491,7 @@
         if (o.withdrawn_at) {
           parts.push(withdrawnBox(o));
         } else if (answer.state === 'accepted') {
-          parts.push(el('div', { class: 'box ok', id: 'result' },
-            el('span', { class: 'box-title' }, '✓ Angenommen'),
-            el('p', null, 'am ' + day(answer.at) + (answer.name ? ' von ' + answer.name : '') + '. Vielen Dank! ' +
-              (s.owner_name || company || 'Wir') + ' meldet sich bei Ihnen.')
-          ));
+          parts.push(acceptedBox(o, answer, s, company));
         } else if (answer.state === 'declined') {
           parts.push(el('div', { class: 'box', id: 'result' },
             el('span', { class: 'box-title' }, 'Abgelehnt'),
@@ -484,7 +508,10 @@
           parts.push(declineForm(s));
         } else {
           parts.push(el('div', { class: 'actions' },
-            el('button', { type: 'button', class: 'primary', onclick: function () { setMode('accept'); } }, 'Angebot annehmen'),
+            el('button', { type: 'button', class: 'primary', onclick: function () {
+              if (!state.email) state.email = String(b.email || '');
+              setMode('accept');
+            } }, 'Angebot annehmen'),
             el('button', { type: 'button', onclick: function () { setMode('decline'); } }, 'Ablehnen oder Rückfrage')
           ));
         }
@@ -507,9 +534,20 @@
           placeholder: 'Vor- und Nachname', value: state.name,
           oninput: function (e) { state.name = e.target.value; }
         });
+        var privateBuyer = !String((d.buyer || {}).company || '').trim();
+        var emailInput = el('input', {
+          type: 'email', id: 'email', name: 'email', autocomplete: 'email', maxlength: 254,
+          placeholder: 'name@beispiel.de', value: state.email,
+          oninput: function (e) { state.email = e.target.value; }
+        });
         var form = el('form', { novalidate: true, onsubmit: function (e) { e.preventDefault(); accept(); } },
           el('label', { class: 'field', for: 'name' }, 'Ihr Name'),
           nameInput,
+          el('label', { class: 'field', for: 'email' }, privateBuyer ? 'Ihre E-Mail-Adresse' : 'Ihre E-Mail-Adresse (freiwillig)'),
+          emailInput,
+          el('p', { class: 'small' }, privateBuyer
+            ? 'Dorthin schicken wir Ihnen die Auftragsbestätigung mit Widerrufsbelehrung.'
+            : 'Dorthin schicken wir Ihnen die Auftragsbestätigung.'),
           el('label', { class: 'confirm' },
             el('input', { type: 'checkbox', checked: state.confirm, onchange: function (e) { state.confirm = e.target.checked; } }),
             el('span', null, 'Ich nehme das Angebot ' + (o.number || '') + ' über ' + money(t.gross) + (d.monthly ? ' pro Monat' : '') + ' verbindlich an.')
@@ -561,19 +599,47 @@
         if (err) {
           state.problem = ERRORS[err] || ERRORS.failed;
           render();
-          return;
+          return false;
         }
         state.mode = 'none';
         await load();
         render();
         var box = document.getElementById('result');
         if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return true;
       }
 
-      function accept() {
+      async function accept() {
+        var b = ((state.offer || {}).data || {}).buyer || {};
+        var privateBuyer = !String(b.company || '').trim();
+        var email = state.email.trim();
         if (state.name.trim().length < 2) { state.problem = 'Bitte geben Sie Ihren Namen ein.'; return render(); }
+        if (privateBuyer && !email) { state.problem = 'Bitte geben Sie Ihre E-Mail-Adresse für die Auftragsbestätigung ein.'; return render(); }
+        if (email && !EMAIL.test(email)) { state.problem = ERRORS.invalid_email; return render(); }
         if (!state.confirm) { state.problem = 'Bitte bestätigen Sie, dass Sie das Angebot verbindlich annehmen.'; return render(); }
-        send('offer_accept', { p_token: token, p_name: state.name.trim() });
+        if (email) state.confirmation = 'sending';
+        var ok = await send('offer_accept', { p_token: token, p_name: state.name.trim(), p_email: email || null });
+        if (!ok) { state.confirmation = null; return render(); }
+        if (email) await sendConfirmation();
+      }
+
+      // Auftragsbestätigung per E-Mail (Funktion "mail", ohne Anmeldung)
+      async function sendConfirmation() {
+        state.confirmation = 'sending';
+        render();
+        try {
+          var res = await fetch(SUPABASE_URL + '/functions/v1/mail', {
+            method: 'POST',
+            headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: 'acceptance', token: token })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          state.confirmation = res.ok || data.error === 'already_sent' ? 'sent' : 'failed';
+        } catch (e) {
+          state.confirmation = 'failed';
+        }
+        if (state.confirmation === 'sent') await load();
+        render();
       }
 
       function decline() {

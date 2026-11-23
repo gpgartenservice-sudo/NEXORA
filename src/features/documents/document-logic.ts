@@ -245,15 +245,18 @@ export function withdrawalStatement(contract: string): string {
  * Art. 246a § 1 Abs. 2 Satz 2 EGBGB (Gestaltungshinweise: Dienstleistung, Frist
  * ab Vertragsabschluss, Online-Widerrufsfunktion, Absatz zum Wertersatz).
  * Nur Text einsetzen, nicht umformulieren.
+ *
+ * `online = false` lässt den Satz zur Online-Widerrufsfunktion weg – nur, wenn der
+ * Kunde gar keinen Link zum Angebot hat (z. B. PDF ohne Online-Angebot).
  */
-export function withdrawalNotice(s: Seller): WithdrawalSection[] {
+export function withdrawalNotice(s: Seller, online = true): WithdrawalSection[] {
   return [
     {
       heading: 'Widerrufsrecht',
       paragraphs: [
         'Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.',
         'Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.',
-        `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (${sellerContactLine(s)}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist. ${ONLINE_WITHDRAWAL_NOTE}`,
+        `Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (${sellerContactLine(s)}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.${online ? ` ${ONLINE_WITHDRAWAL_NOTE}` : ''}`,
         'Zur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.',
       ],
     },
