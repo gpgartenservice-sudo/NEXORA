@@ -23,13 +23,14 @@ let introAlreadyPlayed = false;
 /**
  * Startadresse. Links zu Online-Angeboten kommen als „/?angebot=…“ (das
  * funktioniert auf jedem Webspace) und führen direkt zur Angebotsseite.
+ * „/?konto=geloescht“: nach dem Löschen des Kontos (Profil → Konto löschen).
  */
 export default function StartScreen() {
-  const { angebot } = useLocalSearchParams<{ angebot?: string }>();
+  const { angebot, konto } = useLocalSearchParams<{ angebot?: string; konto?: string }>();
   if (typeof angebot === 'string' && angebot) {
     return <Redirect href={{ pathname: '/angebot/[token]', params: { token: angebot } }} />;
   }
-  return <WelcomeScreen />;
+  return <WelcomeScreen deleted={konto === 'geloescht'} />;
 }
 
 /**
@@ -37,7 +38,7 @@ export default function StartScreen() {
  * nach oben und der Anmelde-Screen blendet darunter ein. Wer schon
  * angemeldet ist, landet nach dem Intro direkt in der App.
  */
-function WelcomeScreen() {
+function WelcomeScreen({ deleted }: { deleted?: boolean }) {
   const reduceMotion = useReducedMotion();
   const { session, initializing } = useAuth();
   const [introDone, setIntroDone] = useState(reduceMotion || introAlreadyPlayed);
@@ -90,8 +91,12 @@ function WelcomeScreen() {
     <View style={styles.root}>
       {!session && (
         <AuthShell
-          title="Willkommen zurück"
-          subtitle="Melde dich an, um weiterzumachen."
+          title={deleted ? 'Konto gelöscht' : 'Willkommen zurück'}
+          subtitle={
+            deleted
+              ? 'Dein LUNAXORA-Konto und deine Daten sind gelöscht. Danke, dass du dabei warst.'
+              : 'Melde dich an, um weiterzumachen.'
+          }
           contentStyle={contentStyle}
           ambientStyle={ambientStyle}
           ready={contentReady}

@@ -496,7 +496,64 @@ Vor dem Start Pflicht: Datenschutzerklärung der App, AGB, AV-Vertrag und der K�
    where done_at is null order by received_at;
   ```
   Abos aus App Store / Google Play kündigt der Kunde selbst im Store; die Bestätigung sagt ihm, wo.
-  „Ganzes Konto“: erst löschen, wenn der Kunde das per Antwort auf die Bestätigung bestätigt hat.
+  „Ganzes Konto“: erst löschen, wenn der Kunde das per Antwort auf die Bestätigung bestätigt hat
+  (am einfachsten löscht er es selbst in der App, Abschnitt 18; sonst „Von Hand löschen“ dort).
+
+## 18. Konto in der App löschen (App Store 5.1.1(v))
+
+Apple verlangt: Wer in der App ein Konto anlegen kann, muss es dort auch löschen können. In der App:
+**Profil → Konto → „Konto löschen“** (`src/features/account/`). Die Seite zeigt, was gelöscht wird, erinnert an den
+Export (Finanzen → Steuern → „Alles als ZIP“), warnt bei laufendem Abo und bei Teams und verlangt zur Bestätigung die
+E-Mail-Adresse des Kontos. Danach meldet sie ab und zeigt „Konto gelöscht“.
+
+**Einrichten (einmalig):**
+1. Skript [`migrations/20261206090000_konto_loeschen.sql`](migrations/20261206090000_konto_loeschen.sql) im SQL Editor
+   ausführen (Voraussetzung: alle Skripte bis `20261205090000_kuendigung.sql`).
+2. **Edge Functions → Deploy a new function → Via Editor**, Name genau `account`, Inhalt von
+   [`functions/account/index.ts`](functions/account/index.ts) → **Deploy**. In den Einstellungen der Funktion
+   **Verify JWT** ausschalten (die Funktion prüft die Anmeldung selbst). Keine eigenen Secrets nötig.
+3. Funktion `billing` neu einspielen (Stripe-Meldungen zu gelöschten Konten werden jetzt bestätigt statt
+   tagelang wiederholt).
+
+**Was beim Löschen passiert** (Funktion `account`, `mode: "delete"`):
+1. Prüfen: angemeldet, E-Mail richtig abgetippt, **kein laufendes Stripe-Abo**. Läuft eins (nicht gekündigt), bricht
+   sie mit `subscription_active` ab – sonst würde Stripe weiter abbuchen. Die App bietet dann das Stripe-Kundenportal
+   („Im Kundenportal kündigen“, wirkt sofort) und „Verträge hier kündigen“ an. Ein gekündigtes Abo, das noch bis zum
+   Zeitraumende läuft, hält nicht auf (es endet dann sofort, ohne Erstattung – AGB § 13).
+   Abos aus App Store / Google Play halten auch nicht auf; die App sagt, dass man sie im Store kündigen muss.
+2. `account_delete_prepare`: Abo noch einmal prüfen, Kündigung „Mein ganzes LUNAXORA-Konto“ als erledigt markieren,
+   Einträge zum Missbrauchsschutz löschen, Kalender-Links der Teams, in denen die Person Mitglied war, ungültig machen
+   (wie beim Entfernen aus dem Team), Besitz an Dateien im Speicher lösen.
+3. TikTok-Zugang bei TikTok zurückziehen (über die Funktion `social`, nur wenn verbunden; Fehler halten nicht auf).
+4. Alle Belege im Speicher `receipts` der eigenen Firmen löschen (Ordner = Firmen-ID; erste Firma und weitere).
+5. Konto über die Auth-Admin-API löschen. Den Rest löscht die Datenbank selbst (`on delete cascade`): Profil,
+   Abo-Eintrag, Kontingent, Geräte, Push-Tokens, TikTok/Instagram, alle eigenen Firmen mit Kunden, Aufträgen,
+   Rechnungen, Finanzen, Terminen, Kalender-Link, Logo, To-dos, Lager, Social und deren Teams.
+
+**Was bleibt:**
+- **Unsere Rechnungen an den Kunden** liegen bei Stripe und bleiben dort (Aufbewahrungspflicht). Der Stripe-Kunde
+  wird nicht gelöscht.
+- **Einnahmen und Kosten** (`kosten.zahlungen`, `kosten.nutzung`) bleiben für unsere Buchhaltung, nur ohne Konto-ID.
+- **Kündigungen** (`contract_cancellations`) bleiben als Nachweis, ohne Konto-ID.
+- **Löscht ein Teammitglied sein Konto**, bleiben seine Stunden, Abwesenheiten, Einsätze und Chat-Nachrichten bei der
+  Firma (die Firma ist dafür verantwortlich, z. B. für die Lohnabrechnung) – die App zeigt „Ehemaliges Mitglied“.
+  Belege, die es in der Firma hochgeladen hat, bleiben ebenfalls bei der Firma.
+- **Löscht der Inhaber**, verlieren alle Teammitglieder den Zugang; ihre eigenen Konten bleiben.
+
+**Von Hand löschen** (Kunde hat per E-Mail oder Kündigungsseite gebeten und bestätigt):
+1. Läuft ein Stripe-Abo: erst in Stripe kündigen.
+2. SQL Editor (aufräumen, gibt die Firmen-IDs zurück):
+   ```sql
+   select public.account_delete_prepare(id) from auth.users where email = 'kunde@example.com';
+   ```
+3. Storage → `receipts` → die Ordner mit diesen Firmen-IDs löschen.
+4. Authentication → Users → Nutzer → **Delete user**.
+
+**Prüfen nach dem Einrichten** (ohne etwas zu löschen):
+```sql
+select proname from pg_proc where proname in ('account_deletion_info', 'account_delete_prepare');   -- 2 Zeilen
+select public.account_deletion_info(id) from auth.users where email = 'du@example.com';           -- was passieren würde
+```
 
 ## Sicherheit
 

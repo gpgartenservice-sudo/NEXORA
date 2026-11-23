@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Smartphone,
   UserRound,
+  UserX,
   Users,
   Volume2,
 } from 'lucide-react-native';
@@ -46,7 +47,7 @@ import { useProfile } from '@/providers/profile-provider';
 
 /**
  * Profil: kompakt als Liste – je Thema eine Zeile mit kurzem Stand, Details auf eigenen Seiten
- * (Angaben, Abo, Geräte, Firma, Firmen, Team, Design, Benachrichtigungen, Einführungen),
+ * (Angaben, Abo, Geräte, Konto löschen, Firma, Firmen, Team, Design, Benachrichtigungen, Einführungen),
  * dazu Rechtliches (AGB, Datenschutz, AV-Vertrag, Impressum, „Verträge hier kündigen“ nach § 312k BGB,
  * „Vertrag widerrufen“ nach § 356a BGB).
  */
@@ -133,6 +134,13 @@ export default function ProfileScreen() {
             testID="profile-plan"
           />
           <SettingsRow icon={Smartphone} label="Geräte" value="Wo dein Konto angemeldet ist" onPress={() => router.push('/profil/geraete')} />
+          <SettingsRow
+            icon={UserX}
+            label="Konto löschen"
+            value="Konto und alle Daten endgültig löschen"
+            onPress={() => router.push('/profil/konto-loeschen')}
+            testID="profile-delete-account"
+          />
         </SettingsGroup>
       </Reveal>
 

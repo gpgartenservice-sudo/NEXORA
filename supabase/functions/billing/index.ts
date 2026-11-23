@@ -233,7 +233,15 @@ async function saveRow(deps: Deps, userId: string, exists: boolean, change: Reco
         headers: { ...serviceHeaders(deps), Prefer: 'return=minimal' },
         body: JSON.stringify({ user_id: userId, ...JSON.parse(body) }),
       });
-  if (!res.ok) throw new Error(`subscriptions speichern: ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  if (res.ok) return;
+  const detail = (await res.text().catch(() => '')).slice(0, 200);
+  // Konto inzwischen gelöscht (Fremdschlüssel 23503): nichts mehr einzutragen – sonst
+  // wiederholt Stripe die Meldung tagelang (z. B. das Ende eines gekündigten Abos)
+  if (!exists && res.status === 409 && detail.includes('23503')) {
+    console.warn('billing: Konto gelöscht, Abo-Meldung übersprungen', userId);
+    return;
+  }
+  throw new Error(`subscriptions speichern: ${res.status} ${detail}`);
 }
 
 // ---------------------------------------------------------------------------

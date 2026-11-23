@@ -287,6 +287,24 @@ test('Webhook: Nutzer über Stripe-Kunde finden, sonst neue Zeile', async () => 
   assert.equal(inserted.status, 'active');
 });
 
+test('Webhook: Konto inzwischen gelöscht -> Meldung bestätigen statt endlos wiederholen', async () => {
+  const gone = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_1'), [200, sub({ status: 'canceled' })]],
+    [is('GET', '/rest/v1/subscriptions'), [200, []]],
+    [is('POST', '/rest/v1/subscriptions'), [409, { code: '23503', message: 'insert or update on table "subscriptions" violates foreign key constraint' }]],
+  ]);
+  const res = await handleRequest(hook({ type: 'customer.subscription.deleted', data: { object: sub({ status: 'canceled' }) } }), gone.deps);
+  assert.equal(res.status, 200);
+
+  // anderer Konflikt (z. B. doppelte Zeile) bleibt ein Fehler -> Stripe versucht es noch einmal
+  const other = fakeNet([
+    [is('GET', 'api.stripe.com/v1/subscriptions/sub_1'), [200, sub()]],
+    [is('GET', '/rest/v1/subscriptions'), [200, []]],
+    [is('POST', '/rest/v1/subscriptions'), [409, { code: '23505', message: 'duplicate key' }]],
+  ]);
+  assert.equal((await handleRequest(hook({ type: 'customer.subscription.updated', data: { object: sub() } }), other.deps)).status, 500);
+});
+
 test('Webhook: späte Meldung zu altem Abo überschreibt neues nicht', async () => {
   const { calls, deps } = fakeNet([
     [is('GET', 'api.stripe.com/v1/subscriptions/sub_alt'), [200, sub({ id: 'sub_alt', status: 'canceled' })]],
