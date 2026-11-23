@@ -1,8 +1,9 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 
+import { setTextTone } from '@/constants/text-tone-store';
 import { ACCENT } from '@/constants/theme';
 
-import { DEFAULT_DESIGN, type DesignSettings } from './design-logic';
+import { DEFAULT_DESIGN, designActive, type DesignSettings } from './design-logic';
 
 /**
  * Das gewählte Design für alle Seiten. Eigene Datei ohne weitere Abhängigkeiten,
@@ -13,6 +14,9 @@ const DesignCtx = createContext<DesignSettings>({ ...DEFAULT_DESIGN, accent: ACC
 
 /** Liefert allen Seiten das gewählte Design (Gratis: klassischer Hintergrund, Luna wie gewählt). */
 export function DesignProvider({ design, children }: { design: DesignSettings; children: ReactNode }) {
+  const active = designActive(design);
+  // graue Schrift passend zum Hintergrund (Mac/Browser sofort, Handy ab dem nächsten Öffnen)
+  useEffect(() => setTextTone(active ? 'design' : 'classic'), [active]);
   return <DesignCtx.Provider value={design}>{children}</DesignCtx.Provider>;
 }
 

@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { rgbaOf, rgbOf } from './accent';
 import { loadAccent } from './accent-store';
+import { TEXT_FAINT, TEXT_MUTED } from './text-tone-store';
 
 /** Akzentfarbe (Profil → Design) – beim Start gelesen, gilt für die ganze App */
 export const ACCENT = loadAccent();
@@ -28,8 +29,9 @@ export const Colors = {
   border: '#232326',
   borderFocus: '#5A5A60',
   text: '#FFFFFF',
-  textMuted: '#8E8E93',
-  textFaint: '#55555A',
+  /** Grau – mit Design (Profil → Design) helleres, durchscheinendes Weiß (text-tone.ts) */
+  textMuted: TEXT_MUTED,
+  textFaint: TEXT_FAINT,
   danger: '#FF6B6B',
   /** Akzentfarbe (Standard Wachstums-Grün, Kontrast auf Schwarz 12.6:1) */
   accent: ACCENT,

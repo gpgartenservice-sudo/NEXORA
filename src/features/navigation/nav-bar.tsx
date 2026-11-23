@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/brand/wordmark';
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
 import { Glass, WEB_GLASS } from '@/components/ui/glass';
+import { useTextToneColors } from '@/constants/text-tone-store';
 import { Colors, Radius, Spacing, accentAlpha } from '@/constants/theme';
 import { useCompanyName } from '@/features/companies/company-provider';
 import { useNavVisible } from '@/features/team/area-gate';
@@ -284,9 +285,12 @@ function SidebarItem({ item, isFocused, compact, ...pressable }: ItemProps & { i
     transform: [{ scale: 1 - 0.02 * press.get() }],
   }));
   const barStyle = useAnimatedStyle(() => ({ opacity: active.get(), transform: [{ scaleY: 0.3 + 0.7 * active.get() }] }));
-  const labelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(Math.max(active.get(), hover.get() * 0.7), [0, 1], [Colors.textMuted, Colors.text]),
-  }));
+  // feste Farbe statt Colors.textMuted: am Mac ist das eine CSS-Variable, die interpolateColor nicht kennt
+  const muted = useTextToneColors().muted;
+  const labelStyle = useAnimatedStyle(
+    () => ({ color: interpolateColor(Math.max(active.get(), hover.get() * 0.7), [0, 1], [muted, Colors.text]) }),
+    [muted],
+  );
 
   return (
     <Pressable

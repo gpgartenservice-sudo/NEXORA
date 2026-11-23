@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { EASE_OUT_EXPO } from '@/components/motion/reveal';
+import { useTextToneColors } from '@/constants/text-tone-store';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 type Props = TextInputProps & {
@@ -68,9 +69,12 @@ export const TextField = forwardRef<TextInputInstance, Props>(function TextField
     transform: [{ translateX: shake.get() }, { scale: 0.98 + 0.02 * focus.get() }],
   }));
 
-  const labelStyle = useAnimatedStyle(() => ({
-    color: hasError ? Colors.danger : interpolateColor(focus.get(), [0, 1], [Colors.textMuted, Colors.text]),
-  }));
+  // feste Farbe statt Colors.textMuted: am Mac ist das eine CSS-Variable, die interpolateColor nicht kennt
+  const muted = useTextToneColors().muted;
+  const labelStyle = useAnimatedStyle(
+    () => ({ color: hasError ? Colors.danger : interpolateColor(focus.get(), [0, 1], [muted, Colors.text]) }),
+    [hasError, muted],
+  );
 
   const messageStyle = useAnimatedStyle(() => ({
     opacity: message.get(),
