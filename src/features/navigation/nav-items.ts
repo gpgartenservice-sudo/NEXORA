@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   Ellipsis,
+  FolderLock,
   House,
   ListChecks,
   Megaphone,
@@ -29,6 +30,7 @@ export type NavItem = {
     | '/team'
     | '/aufgaben'
     | '/firma'
+    | '/dokumente'
     | '/finanzen'
     | '/inventar'
     | '/social'
@@ -126,6 +128,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Firma',
     icon: Building2,
     description: 'Logo, Adresse, Steuern und Bankverbindung für deine Angebote und Rechnungen.',
+  },
+  {
+    name: 'dokumente',
+    href: '/dokumente',
+    label: 'Dokumente',
+    icon: FolderLock,
+    description: 'Gewerbeanmeldung, ELSTER-Zertifikat, Versicherungen und Verträge – sicher an einem Ort.',
   },
   {
     name: 'finanzen',

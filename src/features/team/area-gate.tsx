@@ -24,6 +24,8 @@ export function useNavVisible(): (name: string) => boolean {
   return useCallback(
     (name: string) => {
       if (name === 'team') return access.inTeam || teamPlan;
+      // Dokumente (ELSTER-Zertifikat, Verträge …): nur Inhaber und Mitgründer
+      if (name === 'dokumente') return access.employer;
       const area = navArea(name);
       return !area || access.can(area);
     },

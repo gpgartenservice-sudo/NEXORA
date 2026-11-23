@@ -9,6 +9,7 @@ import { useFinance } from '@/features/finance/finance-provider';
 import { NotificationScheduler } from '@/features/notifications/notification-scheduler';
 import { OfferReplyWatcher, PushRegistrar } from '@/features/notifications/offer-reply-watcher';
 import { preloadSounds } from '@/features/sound/ui-sound';
+import { GoalCheer } from '@/features/goals/goal-cheer';
 import { useAccess } from '@/features/team/team-provider';
 
 import { LunaGreeting } from './luna-greeting';
@@ -16,8 +17,8 @@ import { allTimeIncome, monthNumbers, queueCelebration, takeStartCelebration } f
 import { MoneyCelebrationHost } from './money-celebration';
 
 /**
- * Was über allen Seiten läuft: fliegende Geldscheine, das Erkennen neuer Einnahmen
- * und das Planen der Benachrichtigungen.
+ * Was über allen Seiten läuft: fliegende Geldscheine, das Erkennen neuer Einnahmen,
+ * Lunas Jubel bei erreichten Zielen und das Planen der Benachrichtigungen.
  */
 export function AppExtras() {
   useEffect(() => preloadSounds(), []);
@@ -31,6 +32,7 @@ export function AppExtras() {
       <OfferReplyWatcher />
       <PushRegistrar />
       {access.can('luna') && <LunaGreeting />}
+      {access.can('luna') && <GoalCheer />}
       {money && <MoneyCelebrationHost />}
       <MoneyBurstHost />
     </>

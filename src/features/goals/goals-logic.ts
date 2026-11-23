@@ -401,3 +401,46 @@ export function nexyGoals(goals: Goal[], data: GoalData, now: Date = new Date(),
       };
     });
 }
+
+// ——— Ziel erreicht: Luna jubelt ———
+
+type Progressed = { goal: Goal; progress: GoalProgress };
+const reachedKey = (x: Progressed) => `${x.goal.id}|${x.progress.periodLabel}`;
+
+/**
+ * Ziele, die seit dem letzten Blick erreicht wurden (vorher bekannt und noch nicht geschafft).
+ * Beim ersten Blick (`before` = null) keine – gefeiert wird nur, was passiert, während die App offen
+ * ist. Ein neuer Zeitraum (neue Woche/neuer Monat) zählt neu.
+ */
+export function newlyReached(
+  before: ReadonlyMap<string, boolean> | null,
+  list: readonly Progressed[],
+): { reached: Goal[]; seen: Map<string, boolean> } {
+  const seen = new Map(list.map((x) => [reachedKey(x), x.progress.status === 'done'] as const));
+  if (!before) return { reached: [], seen };
+  const reached = list.filter((x) => x.progress.status === 'done' && before.get(reachedKey(x)) === false);
+  return { reached: reached.map((x) => x.goal), seen };
+}
+
+const THIS_PERIOD: Record<GoalPeriod, string> = { once: '', week: ' diese Woche', month: ' diesen Monat', year: ' dieses Jahr' };
+
+/** Was Luna sagt, wenn ein Ziel erreicht ist – gut vorlesbar (Beträge als „Euro“, ohne Emoji) */
+export function goalCheerLine(goal: Goal, rnd: () => number = Math.random): string {
+  const per = THIS_PERIOD[goal.period] ?? '';
+  const what =
+    goal.kind === 'custom'
+      ? `„${goalTitle(goal)}“`
+      : goal.kind === 'revenue'
+        ? `${Math.round(Number(goal.target)).toLocaleString('de-DE')} Euro Umsatz${per}`
+        : goal.kind === 'customers'
+          ? `${count(Number(goal.target), 'neuer Kunde', 'neue Kunden')}${per}`
+          : goal.kind === 'orders'
+            ? `${count(Number(goal.target), 'abgeschlossener Auftrag', 'abgeschlossene Aufträge')}${per}`
+            : `${count(Number(goal.target), 'Post', 'Posts')}${per}`;
+  const lines = [
+    `Ziel erreicht: ${what}! Richtig stark!`,
+    `Geschafft! ${what} – ich bin stolz auf dich!`,
+    `Juhu, Ziel erreicht: ${what}! Weiter so!`,
+  ];
+  return lines[Math.min(lines.length - 1, Math.floor(rnd() * lines.length))];
+}

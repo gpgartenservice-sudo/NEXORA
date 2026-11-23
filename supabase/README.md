@@ -525,7 +525,8 @@ E-Mail-Adresse des Kontos. Danach meldet sie ab und zeigt „Konto gelöscht“.
    Einträge zum Missbrauchsschutz löschen, Kalender-Links der Teams, in denen die Person Mitglied war, ungültig machen
    (wie beim Entfernen aus dem Team), Besitz an Dateien im Speicher lösen.
 3. TikTok-Zugang bei TikTok zurückziehen (über die Funktion `social`, nur wenn verbunden; Fehler halten nicht auf).
-4. Alle Belege im Speicher `receipts` der eigenen Firmen löschen (Ordner = Firmen-ID; erste Firma und weitere).
+4. Alle Belege im Speicher `receipts` und alle Dokumente im Speicher `business-files` der eigenen Firmen löschen
+   (Ordner = Firmen-ID; erste Firma und weitere).
 5. Konto über die Auth-Admin-API löschen. Den Rest löscht die Datenbank selbst (`on delete cascade`): Profil,
    Abo-Eintrag, Kontingent, Geräte, Push-Tokens, TikTok/Instagram, alle eigenen Firmen mit Kunden, Aufträgen,
    Rechnungen, Finanzen, Terminen, Kalender-Link, Logo, To-dos, Lager, Social und deren Teams.
@@ -546,7 +547,7 @@ E-Mail-Adresse des Kontos. Danach meldet sie ab und zeigt „Konto gelöscht“.
    ```sql
    select public.account_delete_prepare(id) from auth.users where email = 'kunde@example.com';
    ```
-3. Storage → `receipts` → die Ordner mit diesen Firmen-IDs löschen.
+3. Storage → `receipts` und `business-files` → die Ordner mit diesen Firmen-IDs löschen.
 4. Authentication → Users → Nutzer → **Delete user**.
 
 **Prüfen nach dem Einrichten** (ohne etwas zu löschen):
@@ -554,6 +555,28 @@ E-Mail-Adresse des Kontos. Danach meldet sie ab und zeigt „Konto gelöscht“.
 select proname from pg_proc where proname in ('account_deletion_info', 'account_delete_prepare');   -- 2 Zeilen
 select public.account_deletion_info(id) from auth.users where email = 'du@example.com';           -- was passieren würde
 ```
+
+## 19. Dokumente (Gewerbe, ELSTER-Zertifikat, Versicherungen, Verträge)
+
+Menüpunkt **Dokumente** (`src/features/vault/`): Gewerbeanmeldung, ELSTER-Zertifikat (.pfx) und Aktivierungsbrief,
+Steuernummer-Brief, Versicherungen, Verträge, Nachweise – als PDF, Foto, .pfx/.p12, Word oder Excel (höchstens 20 MB,
+500 Dateien je Firma). Mit „Gültig bis“ zeigt die Seite, was bald abläuft. **Nur Inhaber und Mitgründer** sehen den
+Bereich – Mitarbeiter nie, auch nicht mit Rechten (das prüft die Datenbank, nicht nur die App).
+
+**Einrichten (einmalig):**
+1. Skript [`migrations/20261207090000_dokumente.sql`](migrations/20261207090000_dokumente.sql) im SQL Editor ausführen
+   (Voraussetzung: alle Skripte bis `20261206090000_konto_loeschen.sql`). Es legt die Tabelle `business_files` und den
+   privaten Speicher `business-files` an (Ordner = Firmen-ID).
+2. Funktion `account` neu einspielen (löscht beim Konto-Löschen auch diese Dateien).
+3. Funktion `assistant` neu einspielen (Luna kann die Seite „Dokumente“ öffnen).
+
+**Prüfen nach dem Einrichten:**
+```sql
+select id, public, file_size_limit from storage.buckets where id = 'business-files';       -- false, 20971520
+select count(*) from pg_policies where policyname like 'business_files_%';                  -- 8
+```
+
+Passwörter gehören nicht in die Dokumente – die App warnt, wenn in Name oder Notiz „Passwort“ oder „PIN“ steht.
 
 ## Sicherheit
 

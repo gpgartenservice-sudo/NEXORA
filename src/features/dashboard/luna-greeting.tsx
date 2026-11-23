@@ -32,6 +32,8 @@ const START_DELAY = 1300;
 const TYPE_MS = 50;
 /** So lange wartet der Text höchstens auf die Stimme, dann tippt er allein los */
 const VOICE_WAIT = 1500;
+/** Beim Jubeln (cheer) beginnt Luna erst nach dem Konfetti zu sprechen */
+const CHEER_MS = 2700;
 /** Einmal pro App-Start */
 let shownThisStart = false;
 
@@ -90,8 +92,22 @@ export function LunaGreeting() {
   return <LunaGreetingView text={quip} away={pathname !== '/home'} onDone={() => setQuip(null)} />;
 }
 
-/** Der eigentliche Auftritt (auch einzeln nutzbar). `away` = Seite gewechselt → sofort verabschieden */
-export function LunaGreetingView({ text, away = false, onDone }: { text: string; away?: boolean; onDone: () => void }) {
+/**
+ * Der eigentliche Auftritt (auch einzeln nutzbar). `away` = Seite gewechselt → sofort verabschieden.
+ * `cheer` = Luna jubelt nach der Landung erst (Konfetti, z. B. Ziel erreicht), dann spricht sie;
+ * sonst winkt sie zur Begrüßung.
+ */
+export function LunaGreetingView({
+  text,
+  away = false,
+  cheer = false,
+  onDone,
+}: {
+  text: string;
+  away?: boolean;
+  cheer?: boolean;
+  onDone: () => void;
+}) {
   const { width, height } = useWindowDimensions();
   const reduce = useReducedMotion();
   const [phase, setPhase] = useState<Phase>('in');
@@ -192,7 +208,9 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
       later(760, () =>
         squash.set(withSequence(withTiming(0.88, { duration: 110 }), withSpring(1, { damping: 7, stiffness: 240 }))),
       );
-      later(900, () => {
+      // Jubel: erst Freudensprünge mit Konfetti, dann spricht sie
+      if (cheer) later(760, () => setMood('celebrate'));
+      later(cheer ? CHEER_MS : 900, () => {
         setPhase('talk');
         setMood('talking');
         bubble.set(withSpring(1, { damping: 12, stiffness: 200 }));
@@ -273,7 +291,7 @@ export function LunaGreetingView({ text, away = false, onDone }: { text: string;
         accessibilityRole="button"
         accessibilityLabel={`Luna: ${text}. Antippen zum Schließen`}>
         <Animated.View style={lunaStyle} testID="greeting-luna">
-          <NexyAvatar size={size} mood={speaking ? 'talking' : mood} />
+          <NexyAvatar size={size} mood={speaking ? 'talking' : mood} greet={cheer || reduce ? undefined : 820} />
         </Animated.View>
         <Animated.View style={[styles.bubble, bubbleStyle]} testID="greeting-bubble">
           <View style={styles.tail} />

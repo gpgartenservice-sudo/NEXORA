@@ -28,7 +28,7 @@ import { setMoneyShowRunning } from './money';
  * Die große Show bei einer neuen Einnahme (läuft genau einmal pro Einnahme):
  * grünes Aufleuchten, der Betrag knallt in die Mitte, drei Wellen Geldscheine (unten,
  * aus den Ecken, Regen von oben), das iPhone vibriert – und Luna kommt nebenbei
- * ins Bild und gratuliert (mit Stimme). Antippen von Luna beendet sie.
+ * ins Bild, gratuliert (mit Stimme) und jubelt danach mit Konfetti. Antippen von Luna beendet sie.
  */
 
 type Show = { id: number; amount: number };
@@ -191,8 +191,9 @@ function IncomeShow({ amount, onDone }: { amount: number; onDone: () => void }) 
   useEffect(() => {
     if (!typing) return;
     if (typed >= line.text.length) {
-      const a = setTimeout(() => setMood('happy'), 250);
-      const b = setTimeout(() => setReadDone(true), Math.max(1800, line.text.length * 35));
+      // fertig gesprochen: Jubel mit Konfetti, dann bleibt sie noch kurz zum Lesen
+      const a = setTimeout(() => setMood('celebrate'), 250);
+      const b = setTimeout(() => setReadDone(true), Math.max(2600, line.text.length * 35));
       return () => {
         clearTimeout(a);
         clearTimeout(b);

@@ -12,7 +12,8 @@
  *        2. account_delete_prepare: Abo noch einmal prüfen, Missbrauchsschutz, Kündigung
  *           „ganzes Konto“ erledigt, Kalender-Links fremder Teams neu, Besitz an Dateien lösen
  *        3. TikTok-Zugang auch bei TikTok zurückziehen (über die Funktion "social", wenn verbunden)
- *        4. Belege im Speicher "receipts" aller eigenen Firmen löschen (Ordner = Firmen-ID)
+ *        4. Belege ("receipts") und Dokumente ("business-files") aller eigenen Firmen im Speicher
+ *           löschen (Ordner = Firmen-ID)
  *        5. Konto löschen (Auth-Admin-API) – alles Weitere löscht die Datenbank mit
  *           (on delete cascade, siehe 20261206090000_konto_loeschen.sql)
  *        -> { deleted: true }
@@ -49,7 +50,8 @@ export type DeletionInfo = {
   memberships: { company_id: string; name: string | null }[];
 };
 
-const BUCKET = 'receipts';
+/** Speicher mit Ordnern je Firma: Belege und Dokumente (Gewerbe, ELSTER, Verträge …) */
+export const BUCKETS = ['receipts', 'business-files'] as const;
 const PAGE = 1000;
 /** höchstens so viele Seiten je Firma (= 50.000 Belege) */
 const MAX_PAGES = 50;
@@ -160,12 +162,12 @@ export async function purgeFolder(deps: Deps, bucket: string, folder: string): P
     });
     if (!list.ok) {
       const text = await list.text().catch(() => '');
-      // Speicher "receipts" gibt es (noch) nicht -> nichts zu löschen
+      // Speicher gibt es (noch) nicht -> nichts zu löschen
       if (/bucket not found/i.test(text)) return removed;
       throw new Failure(502, 'storage_failed', `Liste ${folder}: ${list.status} ${text.slice(0, 200)}`);
     }
     const items = ((await list.json().catch(() => [])) as { name?: string; id?: string | null }[]) ?? [];
-    // Unterordner (id null) gibt es bei Belegen nicht: <Firma>/<Datei>
+    // Unterordner (id null) gibt es hier nicht: <Firma>/<Datei>
     const paths = items.filter((i) => i?.name && i.id !== null).map((i) => `${folder}/${i.name}`);
     if (!paths.length) return removed;
     const del = await deps.fetch(`${base(deps)}/storage/v1/object/${bucket}`, {
@@ -243,10 +245,10 @@ async function remove(req: Request, user: User, body: Record<string, unknown>, d
 
   const tiktok = await revokeTikTok(req, deps, user);
 
-  // Belege aller eigenen Firmen (erste Firma = Konto-ID, weitere Firmen eigene IDs)
+  // Belege und Dokumente aller eigenen Firmen (erste Firma = Konto-ID, weitere Firmen eigene IDs)
   const companies = new Set([...(prepared?.companies ?? []), ...info.companies.map((c) => c.id)]);
   let files = 0;
-  for (const id of companies) files += await purgeFolder(deps, BUCKET, id);
+  for (const bucket of BUCKETS) for (const id of companies) files += await purgeFolder(deps, bucket, id);
 
   await deleteAuthUser(deps, user.id);
 

@@ -41,23 +41,25 @@ const post = (body, headers = {}) =>
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 
-/** Speicher: je Ordner eine Liste, die nach dem Löschen leer ist */
-function storage(files) {
-  const left = new Map(Object.entries(files));
+/** Speicher: je Ordner eine Liste, die nach dem Löschen leer ist (Belege; docs = Dokumente) */
+function storage(files, docs = {}) {
+  const left = { receipts: new Map(Object.entries(files)), 'business-files': new Map(Object.entries(docs)) };
+  const bucketOf = (url) => decodeURIComponent(new URL(url).pathname.split('/').pop());
   return [
     [
-      is('POST', '/storage/v1/object/list/receipts'),
-      (_url, init) => {
+      (url, init) => (init.method ?? 'GET') === 'POST' && /\/storage\/v1\/object\/list\/(receipts|business-files)$/.test(new URL(url).pathname),
+      (url, init) => {
         const { prefix, limit } = JSON.parse(init.body);
-        return [200, (left.get(prefix) ?? []).slice(0, limit).map((name) => ({ name, id: `id-${name}` }))];
+        return [200, (left[bucketOf(url)].get(prefix) ?? []).slice(0, limit).map((name) => ({ name, id: `id-${name}` }))];
       },
     ],
     [
-      is('DELETE', '/storage/v1/object/receipts'),
-      (_url, init) => {
+      (url, init) => init.method === 'DELETE' && /\/storage\/v1\/object\/(receipts|business-files)$/.test(new URL(url).pathname),
+      (url, init) => {
+        const bucket = left[bucketOf(url)];
         for (const p of JSON.parse(init.body).prefixes) {
           const [folder, name] = p.split('/');
-          left.set(folder, (left.get(folder) ?? []).filter((n) => n !== name));
+          bucket.set(folder, (bucket.get(folder) ?? []).filter((n) => n !== name));
         }
         return [200, []];
       },
@@ -168,12 +170,12 @@ test('delete: alles in der richtigen Reihenfolge – Vorbereitung, TikTok, Beleg
     [is('POST', '/rpc/account_delete_prepare'), [200, { companies: [USER, EXTRA], files_released: 1 }]],
     [is('GET', '/rest/v1/social_accounts'), [200, [{ id: 'sa1' }]]],
     [is('POST', '/functions/v1/social'), [200, { ok: true }]],
-    ...storage({ [USER]: ['a.pdf', 'b.jpg'], [EXTRA]: ['c.png'] }),
+    ...storage({ [USER]: ['a.pdf', 'b.jpg'], [EXTRA]: ['c.png'] }, { [USER]: ['elster.pfx'], [EXTRA]: ['gewerbe.pdf'] }),
     [is('DELETE', `/auth/v1/admin/users/${USER}`), [200, {}]],
   ]);
   const res = await handleRequest(post({ mode: 'delete', confirm: 'TOM@example.de' }), deps);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { deleted: true, files: 3 });
+  assert.deepEqual(await res.json(), { deleted: true, files: 5 });
 
   const order = calls.map((c) => `${c.method} ${new URL(c.url).pathname}`);
   const at = (part) => order.findIndex((o) => o.includes(part));
@@ -187,7 +189,11 @@ test('delete: alles in der richtigen Reihenfolge – Vorbereitung, TikTok, Beleg
   assert.deepEqual(JSON.parse(social.body), { action: 'disconnect', platform: 'tiktok' });
   // Belege beider Firmen
   const deleted = calls.filter((c) => c.method === 'DELETE' && c.url.endsWith('/object/receipts')).flatMap((c) => JSON.parse(c.body).prefixes);
-  assert.deepEqual(deleted.sort(), [`${USER}/a.pdf`, `${USER}/b.jpg`, `${EXTRA}/c.png`]);
+  assert.deepEqual(deleted.sort(), [`${USER}/a.pdf`, `${USER}/b.jpg`, `${EXTRA}/c.png`].sort());
+  // Dokumente (Gewerbe, ELSTER …) beider Firmen – auch vor dem Konto
+  const docs = calls.filter((c) => c.method === 'DELETE' && c.url.endsWith('/object/business-files')).flatMap((c) => JSON.parse(c.body).prefixes);
+  assert.deepEqual(docs.sort(), [`${USER}/elster.pfx`, `${EXTRA}/gewerbe.pdf`].sort());
+  assert.ok(order.lastIndexOf(`DELETE /storage/v1/object/business-files`) < at('/auth/v1/admin/users'), 'Dokumente vor dem Konto');
   // Konto über die Admin-API, endgültig
   const del = calls.find((c) => c.url.includes('/auth/v1/admin/users/'));
   assert.equal(del.headers.apikey, 'sb_secret_x');

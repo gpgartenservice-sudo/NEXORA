@@ -327,6 +327,7 @@ export const PAGES = {
   beleg: { href: '/finanzen/beleg', label: 'Beleg erfassen' },
   social: { href: '/social', label: 'Social Media' },
   firma: { href: '/firma', label: 'Firma' },
+  dokumente: { href: '/dokumente', label: 'Dokumente' },
   fahrplan: { href: '/fahrplan', label: 'Fahrplan' },
   profil: { href: '/profil', label: 'Profil' },
   abo: { href: '/profil/abo', label: 'Abo' },

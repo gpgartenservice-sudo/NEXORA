@@ -163,7 +163,20 @@ export function NexyScreen() {
   };
 
   const lastNexy = [...messages].reverse().find((m) => m.role === 'nexy');
-  const heroMood: NexyMood = voiceMood(voice.phase) ?? (voice.reading ? 'talking' : thinking ? 'thinking' : 'idle');
+  // Gefühle: nach einem Fehler kurz traurig, nach dem Erledigen kurz froh
+  // (nicht für das, was beim Öffnen schon im Verlauf stand)
+  const sadKey = lastNexy?.error
+    ? `${lastNexy.id}:${lastNexy.error}`
+    : voice.error && !voice.active
+      ? `voice:${voice.error.text}`
+      : null;
+  const doneKey = lastNexy?.status === 'done' ? lastNexy.id : null;
+  const [seenAtStart] = useState(() => ({ sad: sadKey, done: doneKey }));
+  const sadNow = useMoment(sadKey === seenAtStart.sad ? null : sadKey, 4500);
+  const gladNow = useMoment(doneKey === seenAtStart.done ? null : doneKey, 2500);
+  const heroMood: NexyMood =
+    voiceMood(voice.phase) ??
+    (voice.reading ? 'talking' : thinking ? 'thinking' : sadNow ? 'sad' : gladNow ? 'happy' : 'idle');
 
   // Luna legt sofort los, sobald sie weiß, was zu tun ist – ohne „Ausführen“.
   // Fehlt noch etwas, wartet sie, bis es in der Karte geklärt ist (Kunde/Auftrag
@@ -236,7 +249,7 @@ export function NexyScreen() {
               </View>
               <Reveal style={styles.heroFigure}>
                 <TourTarget id="guide.nexy">
-                  <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk level={voice.level} />
+                  <NexyAvatar size={wide ? 140 : 112} mood={heroMood} interactive talk greet level={voice.level} />
                 </TourTarget>
               </Reveal>
               <AnimatedTitle text="Hey, ich bin Luna." style={styles.heroTitle} delay={150} />
@@ -404,7 +417,7 @@ function NexyRow({
 }) {
   const shown = useTypewriter(m.text, typing);
   const finished = shown.length >= m.text.length;
-  const mood: NexyMood = latest && m.status === 'done' ? 'happy' : 'idle';
+  const mood: NexyMood = !latest ? 'idle' : m.status === 'done' ? 'happy' : m.error ? 'sad' : 'idle';
   return (
     <Animated.View entering={FadeInDown.duration(280)} style={styles.nexyRow}>
       <NexyAvatar size={30} mood={mood} animate={latest} interactive={latest} />
@@ -621,6 +634,17 @@ function QuickReply({ text, onPress, disabled }: { text: string; onPress: () => 
       <Text style={styles.quickText}>{text}</Text>
     </Pressable>
   );
+}
+
+/** true für `ms` Millisekunden, nachdem `key` neu gesetzt wurde (z. B. kurz traurig nach einem Fehler) */
+function useMoment(key: string | null, ms: number): boolean {
+  const [over, setOver] = useState<string | null>(null);
+  useEffect(() => {
+    if (!key) return;
+    const t = setTimeout(() => setOver(key), ms);
+    return () => clearTimeout(t);
+  }, [key, ms]);
+  return !!key && over !== key;
 }
 
 const styles = StyleSheet.create({

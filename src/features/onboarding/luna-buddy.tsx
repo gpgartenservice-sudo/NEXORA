@@ -41,7 +41,7 @@ export function LunaBuddy({ message, mood = 'idle', compact }: { message: string
   return (
     <View style={styles.row} accessibilityLiveRegion="polite">
       <Animated.View style={lunaStyle}>
-        <NexyAvatar size={size} mood={mood} interactive />
+        <NexyAvatar size={size} mood={mood} interactive greet />
       </Animated.View>
       <Animated.View style={[styles.bubble, glassSurface, bubbleStyle]}>
         <GlassBackdrop radius={18} />
