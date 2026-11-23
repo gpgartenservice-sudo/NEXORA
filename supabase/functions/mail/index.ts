@@ -51,7 +51,14 @@
  * Annahme angegeben hat, Kopie an die E-Mail aus den Firmendaten.
  *   OFFER_URL       (optional) Adresse der Angebotsseite, Standard https://lunaxora.de/Angebot
  *
- * Beide Kunden-Mails holen ihre Daten nur mit dem Server-Schlüssel.
+ * Kündigungsbestätigung (kind "cancellation", Skript 20261205090000_kuendigung.sql):
+ * Kommt von lunaxora.de/kuendigen/ („Verträge hier kündigen“, § 312k BGB) ohne
+ * Anmeldung. Eingangsbestätigung mit Inhalt der Kündigung, Datum und Uhrzeit des
+ * Eingangs und wann der Vertrag endet – an die E-Mail aus dem Formular, Kopie an
+ * LUNAXORA.
+ *   CANCEL_COPY_TO  (optional) Kopie an, Standard kontakt@lunaxora.de
+ *
+ * Alle drei Kunden-Mails holen ihre Daten nur mit dem Server-Schlüssel.
  */
 
 const RESEND_URL = 'https://api.resend.com/emails';
@@ -111,7 +118,7 @@ type Body = {
   document_id?: unknown;
   kind?: unknown;
   invite_id?: unknown;
-  /** Online-Widerruf: geheimer Angebots-Link */
+  /** Online-Widerruf / Auftragsbestätigung: geheimer Angebots-Link; Kündigung: Schlüssel der Kündigung */
   token?: unknown;
 };
 
@@ -756,6 +763,8 @@ async function sendCustomerMail(
     mailed: string;
     missing: string;
     recipient: (info: Record<string, unknown>) => string;
+    /** Kopie an (Standard: E-Mail aus den Firmendaten im Angebot) */
+    copy?: (info: Record<string, unknown>) => string;
     build: (info: Record<string, unknown>, token: string) => { fromName: string; subject: string; text: string };
   },
 ): Promise<Response> {
@@ -783,7 +792,7 @@ async function sendCustomerMail(
   const to = o.recipient(info).trim();
   if (!EMAIL.test(to) || to.length > 320) return json(400, { error: 'invalid_to' });
   // Kopie an die E-Mail aus den Firmendaten (nie an eine Adresse aus dem Angebot)
-  const sellerMail = String(info.seller?.email ?? '').trim();
+  const sellerMail = String((o.copy ? o.copy(info) : info.seller?.email) ?? '').trim();
   const copy = EMAIL.test(sellerMail) && sellerMail.toLowerCase() !== to.toLowerCase() ? [sellerMail] : [];
   const m = o.build(info, token);
   const sent = await deliver(
@@ -823,6 +832,245 @@ function handleAcceptance(body: Body, deps: Deps): Promise<Response> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Kündigungsbestätigung (§ 312k Abs. 4 BGB): „Verträge hier kündigen“ auf
+// lunaxora.de/kuendigen/ – und Widerrufsbestätigung (§ 356a Abs. 4 BGB):
+// „Vertrag widerrufen“ auf lunaxora.de/kuendigen/?widerrufen (kind 'widerruf').
+// Vertragspartner ist hier LUNAXORA selbst.
+// ---------------------------------------------------------------------------
+
+export type CancellationInfo = {
+  received_at: string;
+  name: string;
+  email: string;
+  company?: string | null;
+  contract: string;
+  kind: string;
+  reason?: string | null;
+  wished_on?: string | null;
+  plan?: string | null;
+  period_end?: string | null;
+  trial_ends_at?: string | null;
+  extra_companies?: number | null;
+  effect: string;
+  ends_on?: string | null;
+};
+
+const LUNAXORA_ADDRESS = 'LUNAXORA GbR, Zu den Gärten 60, 59755 Arnsberg, kontakt@lunaxora.de';
+
+export const CANCEL_CONTRACTS: Record<string, string> = {
+  abo: 'LUNAXORA-Abo (Pro, Business oder Teams)',
+  zusatzfirma: 'Zusätzliche Firma im Konto',
+  konto: 'Mein ganzes LUNAXORA-Konto (Abo und Konto)',
+};
+const PLAN_NAMES: Record<string, string> = { pro: 'Pro', business: 'Business', teams: 'Teams' };
+
+/**
+ * Jahresabo (bezahlter Zeitraum endet mehr als einen Monat nach der Kündigung):
+ * Verbraucher, deren erstes Jahr vorbei ist, kündigen mit einem Monat Frist (§ 309 Nr. 9 BGB, AGB § 5 Abs. 3).
+ */
+function yearlyRest(c: CancellationInfo): string {
+  if (c.kind !== 'ordentlich' || !c.period_end || !c.received_at) return '';
+  const month = plusMonthDe(c.received_at);
+  const limit = new Date(c.received_at);
+  limit.setUTCDate(limit.getUTCDate() + 31);
+  if (!(new Date(c.period_end) > limit)) return '';
+  return (
+    `Hast du das Jahresabo als Verbraucher abgeschlossen und ist sein erstes Jahr schon vorbei, endet es früher: am ${month}, einen Monat nach Eingang deiner Kündigung. ` +
+    'Was du für die Zeit danach schon bezahlt hast, bekommst du anteilig zurück.'
+  );
+}
+
+/** "2027-01-31" -> "31.01.2027" (reines Datum, ohne Zeitzonen-Verschiebung) */
+function dateOnlyDe(v: unknown): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v ?? ''));
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
+}
+
+/** "2026-11-23T13:05:00Z" + 1 Monat -> "23.12.2026" (deutsche Zeit, Monatsende beachtet) */
+function plusMonthDe(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const [y, m, day] = d
+    .toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .split('-')
+    .map(Number);
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const t = new Date(Date.UTC(y, m, Math.min(day, last)));
+  return t.toLocaleDateString('de-DE', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/** Was passiert nach einem Widerruf? (kind 'widerruf') */
+export function withdrawalEnd(c: CancellationInfo): string {
+  const plan = PLAN_NAMES[String(c.plan ?? '')] ?? '';
+  const abo = plan ? `Dein ${plan}-Abo` : 'Dein Abo';
+  switch (c.effect) {
+    case 'withdrawal':
+      return (
+        `Lief die Widerrufsfrist noch (14 Tage ab Vertragsschluss), endet ${c.contract === 'zusatzfirma' ? 'die Buchung der zusätzlichen Firma' : abo.replace(/^Dein/, 'dein')} mit dem Eingang dieses Widerrufs ` +
+        'und wir zahlen dir dein Geld unverzüglich, spätestens innerhalb von 14 Tagen, auf demselben Zahlungsweg zurück. ' +
+        'Hattest du verlangt, dass wir schon während der Widerrufsfrist beginnen, ziehen wir den Anteil für die Zeit bis zum Widerruf ab. ' +
+        'Danach geht es mit dem kostenlosen Tarif Gratis weiter, deine Daten bleiben erhalten. Wir melden uns, sobald die Rückzahlung unterwegs ist.'
+      );
+    case 'store':
+      return (
+        'Dein Abo hast du über den App Store oder Google Play gekauft. Für den Widerruf und die Erstattung ist dann der Store zuständig: ' +
+        'bei Apple unter reportaproblem.apple.com, bei Google in Google Play unter Profil > Zahlungen und Abos > Budget und Verlauf.'
+      );
+    case 'trial':
+      return 'Du nutzt gerade die kostenlose Testphase. Sie endet von selbst und kostet nichts, es ist also nichts zu erstatten.';
+    default:
+      return (
+        'Zu dieser E-Mail-Adresse läuft bei uns kein bezahltes Abo, es ist also nichts zu erstatten. ' +
+        'Hast du dich mit einer anderen E-Mail-Adresse angemeldet, widerrufe bitte noch einmal mit dieser Adresse oder antworte auf diese E-Mail.'
+      );
+  }
+}
+
+/** Wortlaut der Widerrufserklärung – gleich wie auf web-kuendigen/index.html */
+export function lunaxoraWithdrawalStatement(contract: string): string {
+  return `Hiermit widerrufe ich den von mir abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung: ${CANCEL_CONTRACTS[contract] ?? contract}`;
+}
+
+/** Wann endet der Vertrag? (Pflichtangabe in der Bestätigung, § 312k Abs. 4 BGB) */
+export function cancellationEnd(c: CancellationInfo): string {
+  const plan = PLAN_NAMES[String(c.plan ?? '')] ?? '';
+  const abo = plan ? `Dein ${plan}-Abo` : 'Dein Abo';
+  const ends = dateOnlyDe(c.ends_on);
+  const periodEnd = c.period_end ? dayDe(c.period_end) : '';
+  const deleteAfter =
+    'Dein Konto beenden und deine Daten löschen wir, sobald du uns das mit einer kurzen Antwort auf diese E-Mail bestätigst. ' +
+    'Was wir aus steuerlichen Gründen aufbewahren müssen (zum Beispiel unsere Rechnungen an dich), bleibt bis zum Ende der gesetzlichen Frist gespeichert.';
+  const konto = c.contract === 'konto';
+  switch (c.effect) {
+    case 'period_end':
+      if (c.contract === 'zusatzfirma') {
+        return [
+          `Die Buchung der zusätzlichen Firma endet am ${ends}, zum Ende des bezahlten Zeitraums. Dein Abo selbst läuft unverändert weiter.`,
+          ...(Number(c.extra_companies) > 1 ? ['Du hast mehrere zusätzliche Firmen gebucht: Antworte bitte kurz auf diese E-Mail, welche wegfallen soll.'] : []),
+        ].join(' ');
+      }
+      return [
+        konto
+          ? `${abo} endet am ${ends}, zum Ende des bezahlten Zeitraums. Bis dahin kannst du alles wie gewohnt nutzen. ${deleteAfter}`
+          : `${abo} endet am ${ends}, zum Ende des bezahlten Zeitraums. Bis dahin kannst du alles wie gewohnt nutzen, danach geht es mit dem kostenlosen Tarif Gratis weiter. Deine Daten bleiben erhalten.`,
+        ...(yearlyRest(c) ? [yearlyRest(c)] : []),
+      ].join(' ');
+    case 'wished':
+      return `${abo} endet zum Ende des Abrechnungszeitraums, in den dein Wunschtermin ${dateOnlyDe(c.wished_on)} fällt. Bis dahin verlängert es sich wie gewohnt.${konto ? ` ${deleteAfter}` : ''}`;
+    case 'store':
+      return (
+        'Dein Abo hast du über den App Store oder Google Play abgeschlossen. Solche Abos kann nur der Store beenden: ' +
+        'Kündige es bitte auf dem iPhone unter Einstellungen > dein Name > Abonnements oder in Google Play unter Profil > Zahlungen und Abos > Abos. ' +
+        'Es endet dann zum Ende des bezahlten Zeitraums.' +
+        (konto ? ` ${deleteAfter}` : '')
+      );
+    case 'trial':
+      return `Du nutzt gerade die kostenlose Testphase. Sie endet von selbst am ${c.trial_ends_at ? dayDe(c.trial_ends_at) : ''} und kostet nichts, danach geht es mit Gratis weiter.${konto ? ` ${deleteAfter}` : ' Du musst nichts weiter tun.'}`;
+    case 'no_extra':
+      return 'In deinem Konto ist keine zusätzliche Firma gebucht, dafür fallen also keine Kosten an. Dein Abo läuft unverändert weiter.';
+    case 'immediate':
+      return (
+        `Fristlose Kündigung: Sie wird mit dem Eingang am ${dayDe(c.received_at)} wirksam, wenn ein wichtiger Grund vorliegt. ` +
+        'Wir prüfen deinen Grund und melden uns bei dir. Liegt kein wichtiger Grund vor, gilt deine Kündigung als ordentliche Kündigung ' +
+        `zum Ende des bezahlten Zeitraums${periodEnd ? ` am ${periodEnd}` : ''}.` +
+        (konto ? ` ${deleteAfter}` : '')
+      );
+    case 'check':
+      return `${abo} wurde von Hand für dich eingerichtet. Wir beenden es zum nächstmöglichen Zeitpunkt und schreiben dir, an welchem Tag es endet.${konto ? ` ${deleteAfter}` : ''}`;
+    default:
+      return (
+        'Zu dieser E-Mail-Adresse läuft bei uns kein bezahltes Abo, es fallen also keine Kosten an. ' +
+        'Hast du dich mit einer anderen E-Mail-Adresse angemeldet, kündige bitte noch einmal mit dieser Adresse oder antworte auf diese E-Mail.' +
+        (konto ? ` ${deleteAfter}` : '')
+      );
+  }
+}
+
+/** Eingangsbestätigung: Inhalt der Kündigung, Datum und Uhrzeit des Eingangs, Vertragsende */
+export function cancellationMail(c: CancellationInfo) {
+  if (c.kind === 'widerruf') return lunaxoraWithdrawalMail(c);
+  const name = String(c.name ?? '').trim();
+  const reason = String(c.reason ?? '').trim();
+  const company = String(c.company ?? '').trim();
+  const fristlos = c.kind === 'ausserordentlich';
+  return {
+    fromName: 'LUNAXORA',
+    subject: 'Eingangsbestätigung: deine Kündigung bei LUNAXORA',
+    text: [
+      `Hallo ${name},`,
+      '',
+      'deine Kündigung ist bei uns eingegangen.',
+      '',
+      `Eingang: ${dayTimeDe(c.received_at)}`,
+      '',
+      'Deine Kündigung:',
+      `Name: ${name}`,
+      `E-Mail: ${String(c.email ?? '').trim()}`,
+      ...(company ? [`Firma: ${company}`] : []),
+      `Vertrag: ${CANCEL_CONTRACTS[c.contract] ?? c.contract}`,
+      `Art: ${fristlos ? 'Außerordentliche (fristlose) Kündigung' : 'Ordentliche Kündigung'}`,
+      ...(reason ? [`Grund: ${reason}`] : []),
+      `Zeitpunkt: ${fristlos ? 'Sofort (fristlos)' : c.wished_on ? `Zum ${dateOnlyDe(c.wished_on)}` : 'Zum nächstmöglichen Zeitpunkt'}`,
+      '',
+      'Wann endet dein Vertrag?',
+      cancellationEnd(c),
+      '',
+      'Eine Kopie dieser E-Mail geht an LUNAXORA. Fragen? Antworte einfach auf diese E-Mail.',
+      '',
+      'Viele Grüße',
+      'LUNAXORA',
+      LUNAXORA_ADDRESS,
+    ].join('\n'),
+  };
+}
+
+/** Eingangsbestätigung für den Widerruf (§ 356a Abs. 4 BGB): Inhalt der Erklärung, Datum und Uhrzeit */
+function lunaxoraWithdrawalMail(c: CancellationInfo) {
+  const name = String(c.name ?? '').trim();
+  const company = String(c.company ?? '').trim();
+  return {
+    fromName: 'LUNAXORA',
+    subject: 'Eingangsbestätigung: dein Widerruf bei LUNAXORA',
+    text: [
+      `Hallo ${name},`,
+      '',
+      'dein Widerruf ist bei uns eingegangen.',
+      '',
+      `Eingang: ${dayTimeDe(c.received_at)}`,
+      '',
+      'Deine Widerrufserklärung:',
+      `„${lunaxoraWithdrawalStatement(c.contract)}“`,
+      '',
+      `Name: ${name}`,
+      `E-Mail für diese Bestätigung: ${String(c.email ?? '').trim()}`,
+      ...(company ? [`Firma: ${company}`] : []),
+      `Vertrag: ${CANCEL_CONTRACTS[c.contract] ?? c.contract}`,
+      '',
+      'Wie geht es weiter?',
+      withdrawalEnd(c),
+      '',
+      'Eine Kopie dieser E-Mail geht an LUNAXORA. Fragen? Antworte einfach auf diese E-Mail.',
+      '',
+      'Viele Grüße',
+      'LUNAXORA',
+      LUNAXORA_ADDRESS,
+    ].join('\n'),
+  };
+}
+
+function handleCancellation(body: Body, deps: Deps): Promise<Response> {
+  const copyTo = deps.env('CANCEL_COPY_TO')?.trim() || 'kontakt@lunaxora.de';
+  return sendCustomerMail(body, deps, {
+    claim: 'contract_cancel_mail',
+    mailed: 'contract_cancel_mailed',
+    missing: 'missing_cancellation_function',
+    recipient: (info) => String(info.email ?? ''),
+    copy: () => copyTo,
+    build: (info) => cancellationMail(info as unknown as CancellationInfo),
+  });
+}
+
 export async function handleRequest(req: Request, deps: Deps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
@@ -837,6 +1085,8 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (parsed && typeof parsed === 'object' && parsed.kind === 'withdrawal') return handleWithdrawal(parsed, deps);
   // Auftragsbestätigung nach der Online-Annahme: ebenfalls vom Kunden
   if (parsed && typeof parsed === 'object' && parsed.kind === 'acceptance') return handleAcceptance(parsed, deps);
+  // Kündigungsbestätigung („Verträge hier kündigen“): ebenfalls ohne Anmeldung
+  if (parsed && typeof parsed === 'object' && parsed.kind === 'cancellation') return handleCancellation(parsed, deps);
 
   // Angemeldet? (Prüfung beim Supabase-Auth-Server)
   const auth = req.headers.get('Authorization');

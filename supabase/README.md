@@ -463,6 +463,41 @@ Ansehen: **Table Editor** → oben links Schema **kosten** wählen, oder im **SQ
 
 Das Schema `kosten` ist über die App-API nicht erreichbar – Nutzer sehen weder eigene noch fremde Kosten und Einnahmen, nur im Dashboard sind sie sichtbar. Wird ein Konto gelöscht, verschwinden seine Einträge mit.
 
+## 17. Rechtstexte und Kündigungsbutton („Verträge hier kündigen“)
+
+Vor dem Start Pflicht: Datenschutzerklärung der App, AGB, AV-Vertrag und der Kündigungsbutton nach § 312k BGB.
+
+- **Texte:** `web-recht/datenschutz.html`, `web-recht/agb.html`, `web-recht/avv.html` → auf lunaxora.de in den Ordner `App/`
+  (`bash scripts/web-hochladen.sh recht` oder von Hand). Vor dem Start von einer Anwältin / einem Anwalt prüfen lassen.
+- **Registrierung:** Ohne Häkchen bei „Ich stimme den AGB und dem AV-Vertrag zu“ kein Konto. Fassung und Zeitpunkt
+  stehen am Konto (Authentication → Users → User Metadata: `terms_version`, `terms_accepted_at`).
+  Neue Fassung der Texte → `TERMS_VERSION` in `src/features/legal/legal-logic.ts` hochsetzen.
+- **App:** Profil → Rechtliches (Verträge hier kündigen, AGB, Datenschutz, AV-Vertrag, Impressum) und Profil → Abo
+  („Verträge hier kündigen“).
+- **Widerrufsfunktion** (§ 356a BGB, seit 19.06.2026 Pflicht): dieselbe Seite mit `?widerrufen`
+  (lunaxora.de/kuendigen/?widerrufen, „Vertrag widerrufen“ → „Widerruf bestätigen“), in der App unter Profil → Rechtliches
+  und Profil → Abo. Nach einem Widerruf (effect `withdrawal`): prüfen, ob die 14 Tage noch liefen, dann Abo beenden und
+  Geld zurück (Stripe → Zahlung → Erstatten), abzüglich Wertersatz, falls der Kunde den sofortigen Beginn verlangt hat.
+- **Kündigungsseite** lunaxora.de/kuendigen/ (Quelle `web-kuendigen/`), ohne Anmeldung:
+  1. Skript `20261205090000_kuendigung.sql` im SQL Editor ausführen.
+  2. Funktion `mail` neu einspielen (kind `cancellation`). Optional Secret `CANCEL_COPY_TO`
+     (Kopie jeder Kündigung, Standard `kontakt@lunaxora.de`).
+  3. Seite hochladen: `bash scripts/web-hochladen.sh kuendigen` (setzt Supabase-Adresse und Publishable Key ein,
+     lädt `index.html` und `.htaccess` hoch).
+- **Was nach einer Kündigung zu tun ist** (vorerst von Hand): Die Kopie kommt an kontakt@lunaxora.de.
+  Stripe-Abo: Stripe-Dashboard → Kunde → Abo → „Abo kündigen“ → „Am Ende des aktuellen Zeitraums“.
+  Danach in Supabase markieren:
+  ```sql
+  update public.contract_cancellations set done_at = now() where email = 'kunde@example.com' and done_at is null;
+  ```
+  Offene Kündigungen ansehen:
+  ```sql
+  select received_at, name, email, contract, kind, effect, ends_on, mailed_at from public.contract_cancellations
+   where done_at is null order by received_at;
+  ```
+  Abos aus App Store / Google Play kündigt der Kunde selbst im Store; die Bestätigung sagt ihm, wo.
+  „Ganzes Konto“: erst löschen, wenn der Kunde das per Antwort auf die Bestätigung bestätigt hat.
+
 ## Sicherheit
 
 - In der App steht nur der **Publishable Key** (`.env`). Der ist öffentlich und darf in die App.

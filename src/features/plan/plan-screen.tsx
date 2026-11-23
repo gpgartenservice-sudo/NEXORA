@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Check, Minus, Sparkles } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
@@ -14,6 +14,8 @@ import { Segmented } from '@/components/ui/segmented';
 import { GradientFrame, GradientText } from '@/components/ui/gradient';
 import { Colors, Spacing, accentAlpha } from '@/constants/theme';
 import { formatDay } from '@/features/documents/document-logic';
+import { cancelPageUrl } from '@/features/legal/legal-logic';
+import { useAuth } from '@/providers/auth-provider';
 
 import { type BillingInterval, openBillingPortal, startCheckout } from './billing-api';
 import {
@@ -79,6 +81,7 @@ export function PlanScreen() {
   const { funktion } = useLocalSearchParams<{ funktion?: string }>();
   const feature = funktion && funktion in FEATURE_LABEL ? (funktion as ProFeature) : null;
   const { info, missing, admin, refresh } = usePlan();
+  const { user } = useAuth();
   const [now] = useState(() => new Date());
   const [interval, setBillingInterval] = useState<BillingInterval>('year');
   const [busy, setBusy] = useState<PaidTier | 'portal' | null>(null);
@@ -268,6 +271,20 @@ export function PlanScreen() {
           </Reveal>
         );
       })}
+      {/* Kündigungsbutton nach § 312k BGB: immer sichtbar, führt zu lunaxora.de/kuendigen/ */}
+      <Reveal delay={260 + TIERS.length * 60}>
+        <View style={styles.cancel} testID="plan-cancel">
+          <Button label="Verträge hier kündigen" variant="secondary" onPress={() => void Linking.openURL(cancelPageUrl(user?.email))} />
+          <Button
+            label="Vertrag widerrufen"
+            variant="secondary"
+            onPress={() => void Linking.openURL(cancelPageUrl(user?.email, null, 'widerrufen'))}
+          />
+          <Text style={styles.hint}>
+            Kündigen geht jederzeit online, ohne Anmeldung, mit Bestätigung per E-Mail. Dein Abo läuft bis zum Ende des bezahlten Zeitraums, danach geht es mit Gratis weiter. Als Verbraucher kannst du ein neues Abo innerhalb von 14 Tagen auch widerrufen.
+          </Text>
+        </View>
+      </Reveal>
       {!CAN_PAY && !paid && (
         <View testID="plan-soon">
           <Notice>
@@ -333,6 +350,7 @@ const styles = StyleSheet.create({
   big: { color: Colors.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.4 },
   body: { color: Colors.textMuted, fontSize: 14.5, lineHeight: 21 },
   hint: { color: Colors.textFaint, fontSize: 12.5, lineHeight: 18, marginTop: Spacing.xs },
+  cancel: { gap: Spacing.sm },
   usage: { gap: 6 },
   usageHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },
   usageLabel: { color: Colors.textMuted, fontSize: 13.5 },

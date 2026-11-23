@@ -1,0 +1,527 @@
+<!doctype html>
+<!--
+  LUNAXORA – Allgemeine Geschäftsbedingungen für die App (veröffentlicht unter https://lunaxora.de/App/agb.html)
+  Eine einzige Datei, nur Inline-CSS, keine externen Schriften, Skripte oder Tracker.
+  Preise und Kontingente müssen zu lunaxora.de/#preise und zur App passen.
+  Muster, keine Rechtsberatung.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Allgemeine Geschäftsbedingungen der LUNAXORA GbR für die App LUNAXORA: Tarife, Preise, Laufzeit, Kündigung, Widerrufsrecht, Luna und Haftung.">
+  <link rel="canonical" href="https://lunaxora.de/App/agb.html">
+  <title>AGB – App LUNAXORA</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0E0E0F;
+      --surface-2: #151517;
+      --border: #232326;
+      --text: #FFFFFF;
+      --muted: #8E8E93;
+      --accent: #2FE39A;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    main {
+      width: 100%;
+      max-width: 760px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } main { padding: 20px; } }
+    h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 22px 0 2px; font-size: 17px; line-height: 1.3; scroll-margin-top: 16px; }
+    h3 { margin: 8px 0 0; font-size: 15px; }
+    p { margin: 0; }
+    ul, ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+    a { color: var(--text); text-decoration-color: rgba(47, 227, 154, 0.7); text-underline-offset: 2px; }
+    a:hover { color: var(--accent); }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .lead { color: var(--muted); }
+    .small { color: var(--muted); font-size: 13px; }
+    .back { font-size: 14px; }
+    .back a { color: var(--muted); text-decoration: none; }
+    .back a:hover { color: var(--accent); }
+    .box { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .box.strong { border-color: rgba(47, 227, 154, 0.55); background: rgba(47, 227, 154, 0.08); }
+    .name { font-weight: 700; }
+    .paras { list-style: none; counter-reset: absatz; padding-left: 32px; gap: 6px; }
+    .paras > li { counter-increment: absatz; position: relative; }
+    .paras > li::before { content: "(" counter(absatz) ")"; position: absolute; left: -32px; color: var(--muted); }
+    .paras ul { margin-top: 4px; }
+    .toc { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; }
+    .toc p { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .toc ol { display: block; columns: 2; column-gap: 28px; font-size: 14px; list-style: none; padding-left: 0; }
+    .toc li { margin-bottom: 3px; break-inside: avoid; }
+    .toc a { text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    @media (max-width: 560px) { .toc ol { columns: 1; } }
+    .table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
+    tr:last-child td { border-bottom: none; }
+    .form p { line-height: 1.8; }
+    footer { width: 100%; max-width: 760px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    footer a { color: var(--muted); }
+    @media print {
+      :root { --bg: #fff; --surface: #fff; --surface-2: #fff; --border: #ccc; --text: #000; --muted: #444; }
+      body { padding: 0; }
+      main { border: none; padding: 0; max-width: none; }
+      .back, .toc, footer nav { display: none; }
+    }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .table-wrap table { min-width: 520px; }
+    .form p { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="back"><a href="https://lunaxora.de/">← lunaxora.de</a></p>
+    <h1>Allgemeine Geschäftsbedingungen (AGB)</h1>
+    <p class="lead">für die Nutzung der App LUNAXORA – für Unternehmer und für Verbraucher</p>
+
+    <nav class="toc" aria-label="Inhalt">
+      <p>Inhalt</p>
+      <ol>
+        <li><a href="#p1">§ 1 Geltungsbereich und Vertragspartner</a></li>
+        <li><a href="#p2">§ 2 Leistungen und Tarife</a></li>
+        <li><a href="#p3">§ 3 Registrierung und Konto</a></li>
+        <li><a href="#p4">§ 4 Preise und Zahlung</a></li>
+        <li><a href="#p5">§ 5 Laufzeit, Verlängerung und Kündigung</a></li>
+        <li><a href="#p6">§ 6 Widerrufsrecht für Verbraucher</a></li>
+        <li><a href="#p7">§ 7 Luna – die KI-Assistentin</a></li>
+        <li><a href="#p8">§ 8 Deine Pflichten</a></li>
+        <li><a href="#p9">§ 9 Daten und Auftragsverarbeitung</a></li>
+        <li><a href="#p10">§ 10 Verfügbarkeit und Änderungen der App</a></li>
+        <li><a href="#p11">§ 11 Haftung</a></li>
+        <li><a href="#p12">§ 12 Freistellung (nur Unternehmer)</a></li>
+        <li><a href="#p13">§ 13 Vertragsende und Kontolöschung</a></li>
+        <li><a href="#p14">§ 14 Änderungen dieser AGB</a></li>
+        <li><a href="#p15">§ 15 Streitbeilegung</a></li>
+        <li><a href="#p16">§ 16 Schlussbestimmungen</a></li>
+        <li><a href="#anlage">Anlage: Muster-Widerrufsformular</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="p1">§ 1 Geltungsbereich und Vertragspartner</h2>
+    <ol class="paras">
+      <li>Diese AGB gelten für alle Verträge über die Nutzung der App LUNAXORA – auf dem iPhone, auf Android, als
+        Mac-App und im Browser – in allen Tarifen, auch im kostenlosen Tarif Gratis und in der Testphase.</li>
+      <li>Dein Vertragspartner ist:
+        <div class="box" style="margin-top: 6px;">
+          <p class="name">LUNAXORA GbR</p>
+          <p>vertreten durch die Gesellschafter Pascal Pape und Tom Grau<br>
+            Zu den Gärten 60, 59755 Arnsberg<br>
+            E-Mail: <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> · Telefon: 0176 55968938</p>
+        </div>
+        Im Folgenden heißt das „wir“.</li>
+      <li>LUNAXORA richtet sich an Selbstständige, Gründerinnen und Gründer und kleine Dienstleistungsbetriebe. Du kannst
+        den Vertrag als Unternehmer (§ 14 BGB) oder als Verbraucher (§ 13 BGB) schließen. Regeln, die nur für eine der
+        beiden Gruppen gelten, sind so gekennzeichnet.</li>
+      <li>Bedingungen von Unternehmern, die von diesen AGB abweichen oder sie ergänzen, gelten nur, wenn wir ihnen
+        ausdrücklich in Textform zustimmen.</li>
+      <li>Vertragssprache ist Deutsch. Die aktuelle Fassung dieser AGB findest du jederzeit unter
+        <a href="https://lunaxora.de/App/agb.html">lunaxora.de/App/agb.html</a>. Du kannst sie dort speichern und
+        ausdrucken.</li>
+    </ol>
+
+    <h2 id="p2">§ 2 Leistungen und Tarife</h2>
+    <ol class="paras">
+      <li>LUNAXORA ist eine Organisations-App für Selbstständige, Gründer und kleine Dienstleistungsbetriebe. Je nach
+        Tarif enthält sie unter anderem: Kunden, Aufträge, Termine mit Wetter, To-dos und Ziele, den Gründer-Fahrplan,
+        Angebote und Rechnungen als PDF mit deinem Logo, die Online-Annahme von Angeboten über einen geheimen Link,
+        Zahlungserinnerungen und Mahnungen, Finanzen und Ausgaben, Belege, Steuer-Topf, Kleinunternehmer-Grenze,
+        Einkommensnachweis, Steuer-Export als ZIP, Social-Media-Planung mit TikTok-Statistiken, ein Kalender-Abo,
+        Lagerbestand, ein Kundenformular für deine Kunden, Team-Funktionen und die KI-Assistentin Luna.</li>
+      <li>Es gibt diese Tarife:
+        <div class="table" style="margin-top: 6px;">
+          <div class="table-wrap"><table>
+            <thead>
+              <tr><th scope="col">Tarif</th><th scope="col">Preis</th><th scope="col">Umfang</th><th scope="col">Luna pro Monat*</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Gratis</td><td>0 €</td><td>1 Person, 1 Gerät; PDFs mit dem Hinweis „Erstellt mit LUNAXORA“</td><td>15 / 3 / ca. 30</td></tr>
+              <tr><td>Pro</td><td>23,99 € im Monat oder 239,90 € im Jahr</td><td>1 Person, 1 Handy und 1 Computer</td><td>100 / 50 / ca. 120</td></tr>
+              <tr><td>Business</td><td>150 € im Monat oder 1.500 € im Jahr</td><td>bis zu 5 Personen, Team-Funktionen</td><td>500 / 250 / ca. 600 für das ganze Team</td></tr>
+              <tr><td>Teams</td><td>349 € im Monat oder 3.490 € im Jahr</td><td>bis zu 30 Personen, Team-Funktionen</td><td>2.000 / 1.000 / ca. 2.400 für das ganze Team</td></tr>
+              <tr><td>Zusätzliche Firma (ab Pro)</td><td>9,99 € im Monat oder 99,90 € im Jahr je Firma</td><td>eine weitere Firma im selben Konto</td><td>–</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <p class="small" style="margin-top: 6px;">* Nachrichten an Luna / Belege, die Luna liest / vorgelesene Antworten.
+          Vorlese-Antworten werden nach Zeichen gezählt, daher „ca.“.</p></li>
+      <li>Die aktuelle Beschreibung der Tarife findest du unter <a href="https://lunaxora.de/#preise">lunaxora.de/#preise</a>
+        und in der App. Für deinen Vertrag gilt die Beschreibung, die du beim Abschluss siehst.</li>
+      <li>Die Kontingente für Luna gelten je Kalendermonat. Was du in einem Monat nicht nutzt, verfällt am Monatsende.
+        Ist ein Kontingent verbraucht, pausiert die jeweilige Funktion bis zum nächsten Monat oder bis zu einem
+        Tarifwechsel. Alle anderen Funktionen laufen weiter.</li>
+      <li><strong>Testphase:</strong> Neue Konten können LUNAXORA 14 Tage lang kostenlos testen – mit allen Funktionen
+        von Pro und den Team-Funktionen für bis zu 5 Personen. Du gibst dafür keine Zahlungsdaten an. Die Testphase
+        endet automatisch; danach läuft dein Konto als Gratis weiter. Ein bezahltes Abo entsteht nur, wenn du selbst
+        eines abschließt.</li>
+      <li><strong>Bonus für die Warteliste:</strong> Die ersten 20 Personen auf der Warteliste von lunaxora.de bekommen
+        3 Monate Pro kostenlos. Danach läuft das Konto als Gratis weiter, wenn kein Abo abgeschlossen wird.</li>
+      <li><strong>Gutscheincodes:</strong> Mit einem Gutscheincode kannst du einen Tarif für den Zeitraum und zu den
+        Bedingungen freischalten, die zum Code angegeben sind. Eine Auszahlung in Geld ist ausgeschlossen.</li>
+      <li><strong>Was LUNAXORA nicht ist:</strong>
+        <ul>
+          <li>keine Steuer-, Rechts- oder Finanzberatung. Steuer-Topf, Kleinunternehmer-Grenze, Einkommensnachweis und
+            Gründer-Fahrplan sind Hilfen zur Orientierung auf Grundlage deiner Eingaben.</li>
+          <li>kein E-Rechnungs-Programm: Angebote und Rechnungen erstellt die App als PDF. Strukturierte
+            E-Rechnungsformate wie XRechnung oder ZUGFeRD erzeugt sie nicht. Ob du E-Rechnungen ausstellen musst,
+            prüfst du selbst.</li>
+          <li>keine Lohnabrechnung und keine Stempeluhr: Arbeitsstunden tragen Teammitglieder von Hand ein; die App
+            exportiert sie als CSV-Datei.</li>
+          <li>kein Programm, das in deinem Namen in sozialen Netzwerken veröffentlicht. Die TikTok-Verbindung liest nur
+            die Statistiken deiner Beiträge.</li>
+        </ul></li>
+    </ol>
+
+    <h2 id="p3">§ 3 Registrierung und Konto</h2>
+    <ol class="paras">
+      <li>Für LUNAXORA brauchst du ein Konto. Ein Konto anlegen darfst du nur, wenn du mindestens 18 Jahre alt und
+        unbeschränkt geschäftsfähig bist.</li>
+      <li><strong>Vertragsschluss:</strong> Mit der Registrierung und der Bestätigung dieser AGB bietest du uns den
+        Abschluss eines Nutzungsvertrags im Tarif Gratis an, einschließlich der Testphase. Der Vertrag kommt zustande,
+        wenn wir dein Konto freischalten, also nachdem du deine E-Mail-Adresse mit dem zugeschickten Code bestätigt hast.
+        Deine Eingaben kannst du vor dem Absenden jederzeit prüfen und korrigieren.</li>
+      <li>Deine Angaben müssen stimmen. Ändert sich etwas Wichtiges – etwa deine E-Mail-Adresse oder deine
+        Firmendaten –, aktualisiere es bitte in der App.</li>
+      <li>Halte dein Passwort geheim und gib es nicht weiter. Hast du den Verdacht, dass jemand anderes dein Konto
+        nutzt, ändere dein Passwort und sag uns sofort Bescheid.</li>
+      <li>Jedes Konto gehört einer Person. Logins dürfen nicht geteilt werden. Die Gerätegrenzen deines Tarifs gelten je
+        Person.</li>
+      <li><strong>Teammitglieder:</strong> In den Tarifen Business und Teams lädt der Inhaber des Kontos weitere Personen
+        mit einem Einladungscode ein. Jede eingeladene Person legt ein eigenes Login an und erkennt dabei diese AGB an.
+        Vertragspartner für den Tarif und zahlungspflichtig bleibt der Inhaber. Er ist für die Personen verantwortlich,
+        die er einlädt: für ihre Rollen und Rechte, dafür, dass sie diese AGB einhalten, und dafür, dass er ihre Daten
+        rechtmäßig verarbeitet. Der Zugang einer Person zum Team endet, wenn der Inhaber sie entfernt oder der Tarif
+        keine Team-Funktionen mehr enthält.</li>
+      <li>Verstößt jemand schwer oder wiederholt gegen diese AGB, dürfen wir den Zugang vorübergehend sperren. Wir
+        mahnen vorher ab, wenn das zumutbar ist, und berücksichtigen deine berechtigten Interessen.</li>
+    </ol>
+
+    <h2 id="p4">§ 4 Preise und Zahlung</h2>
+    <ol class="paras">
+      <li>Es gelten die Preise, die du beim Abschluss siehst. Alle Preise sind Endpreise. Als Kleinunternehmer nach
+        § 19 UStG berechnen wir keine Umsatzsteuer und weisen sie deshalb auch nicht aus.</li>
+      <li><strong>Abschluss eines Abos:</strong> Ein bezahltes Abo schließt du im Browser oder in der Mac-App über die
+        Bezahlseite von Stripe ab. Vor dem Absenden siehst du Tarif, Preis und Abrechnungszeitraum und kannst deine
+        Eingaben korrigieren. Mit dem Klick auf den Bestellknopf gibst du ein verbindliches Angebot ab. Der Vertrag
+        kommt zustande, wenn die Zahlung bestätigt ist und wir dein Abo freischalten. Den Vertragsschluss bestätigen
+        wir dir per E-Mail.</li>
+      <li>Du zahlst im Voraus für den jeweiligen Abrechnungszeitraum – monatlich oder jährlich. Verlängert sich dein
+        Abo, wird der Betrag zu Beginn des neuen Zeitraums fällig. Zahlen kannst du mit den Zahlungsarten, die dir auf
+        der Bezahlseite von Stripe angeboten werden. Im Kundenportal von Stripe kannst du deine Zahlungsart ändern,
+        deine Rechnungen abrufen und kündigen.</li>
+      <li><strong>Käufe im App Store oder bei Google Play</strong> (später): Schließt du ein Abo als Kauf in der App
+        über Apple oder Google ab, zahlst du an den jeweiligen Store. Für Abrechnung, Kündigung und Erstattung gelten
+        dann zusätzlich die Bedingungen des Stores.</li>
+      <li>Schlägt eine Zahlung fehl, informieren wir dich bzw. Stripe dich darüber. Wird die Zahlung nicht nachgeholt,
+        dürfen wir dein Abo auf Gratis umstellen. Deine Daten bleiben dabei erhalten. Weitere gesetzliche Rechte bleiben
+        unberührt.</li>
+      <li>Die Preise eines laufenden Abos ändern wir nur mit deiner Zustimmung. Stimmst du nicht zu, läuft dein Abo zum
+        bisherigen Preis weiter; unser Kündigungsrecht nach § 13 Abs. 3 bleibt unberührt.</li>
+    </ol>
+
+    <h2 id="p5">§ 5 Laufzeit, Verlängerung und Kündigung</h2>
+    <ol class="paras">
+      <li><strong>Gratis und Testphase:</strong> Der Tarif Gratis läuft unbefristet. Die Testphase endet nach 14 Tagen
+        von selbst; du musst nichts kündigen, und es entstehen keine Kosten.</li>
+      <li><strong>Monatsabo:</strong> Die Laufzeit beträgt einen Monat. Das Abo verlängert sich automatisch um jeweils
+        einen weiteren Monat, wenn du nicht kündigst. Du kannst jederzeit zum Ende des laufenden Monats kündigen.</li>
+      <li><strong>Jahresabo:</strong> Die erste Laufzeit beträgt ein Jahr. Du kannst jederzeit zum Ende der ersten
+        Laufzeit kündigen. Danach gilt:
+        <ul>
+          <li><strong>Für Unternehmer</strong> verlängert sich das Jahresabo um jeweils ein weiteres Jahr, wenn du nicht
+            vor dem Ende der laufenden Laufzeit kündigst.</li>
+          <li><strong>Für Verbraucher</strong> verlängert sich das Jahresabo nach der ersten Laufzeit nicht um ein
+            weiteres festes Jahr, sondern läuft auf unbestimmte Zeit weiter. Du kannst es dann jederzeit mit einer Frist
+            von einem Monat kündigen. Hast du für die Zeit nach dem Vertragsende schon bezahlt, erstatten wir dir diesen
+            Teil anteilig.</li>
+        </ul></li>
+      <li>Eine ordentliche Kündigung wirkt zum Ende des bezahlten Zeitraums bzw. – bei Verbrauchern nach Absatz 3 – zum
+        Ende der Kündigungsfrist. Bis dahin kannst du alles wie gewohnt nutzen. Danach läuft dein Konto als Gratis weiter
+        und deine Daten bleiben erhalten. Funktionen, die Gratis nicht enthält – zum Beispiel Team-Funktionen, höhere
+        Kontingente und zusätzliche Firmen –, stehen dann nicht mehr zur Verfügung.</li>
+      <li><strong>So kündigst du:</strong>
+        <ul>
+          <li>in der App unter Profil → Abo → „Verträge hier kündigen“,</li>
+          <li>ohne Anmeldung über <a href="https://lunaxora.de/kuendigen/">lunaxora.de/kuendigen/</a>
+            (Kündigungsschaltfläche nach § 312k BGB),</li>
+          <li>per E-Mail an <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> oder</li>
+          <li>im Kundenportal von Stripe.</li>
+        </ul>
+        Textform genügt. Du kannst ordentlich oder aus wichtigem Grund fristlos kündigen und einen späteren Zeitpunkt
+        wählen. Den Eingang deiner Kündigung bestätigen wir dir sofort per E-Mail – mit Inhalt, Datum und Uhrzeit des
+        Eingangs und dem Zeitpunkt, zu dem der Vertrag endet.</li>
+      <li><strong>Abos aus dem App Store oder von Google Play</strong> kann nur der Store beenden. Kündige sie in den
+        Abo-Einstellungen deines Apple- oder Google-Kontos. Es gelten die Bedingungen des Stores.</li>
+      <li><strong>Zusätzliche Firma:</strong> Eine zusätzliche Firma hat einen eigenen Abrechnungszeitraum (monatlich
+        oder jährlich). Du kannst sie getrennt von deinem Abo kündigen; die Absätze 2 bis 5 gelten entsprechend. Endet
+        dein Abo oder wechselst du auf Gratis, endet die zusätzliche Firma zum selben Zeitpunkt.</li>
+      <li>Wechselst du den Tarif, siehst du die Bedingungen des Wechsels – etwa ab wann er gilt und wie bereits Bezahltes
+        verrechnet wird – vor dem Abschluss in der App bzw. im Kundenportal von Stripe.</li>
+      <li>Das Recht beider Seiten, aus wichtigem Grund fristlos zu kündigen, bleibt unberührt (§ 314 BGB). Ein wichtiger
+        Grund für uns liegt zum Beispiel vor, wenn du trotz Abmahnung schwer gegen § 8 verstößt.</li>
+    </ol>
+
+    <h2 id="p6">§ 6 Widerrufsrecht für Verbraucher</h2>
+    <p>Bist du Verbraucher, hast du bei Verträgen, die du über die App oder lunaxora.de mit uns schließt, ein
+      gesetzliches Widerrufsrecht. Schließt du ein Abo als Kauf in der App über den App Store oder Google Play ab,
+      kaufst du beim jeweiligen Store; dann gilt dessen Verfahren für Widerruf und Erstattung.</p>
+    <div class="box">
+      <h3 style="margin: 0;">Widerrufsbelehrung</h3>
+      <p><strong>Widerrufsrecht</strong></p>
+      <p>Du hast das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.</p>
+      <p>Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.</p>
+      <p>Um dein Widerrufsrecht auszuüben, musst du uns (LUNAXORA GbR, Pascal Pape und Tom Grau, Zu den Gärten 60,
+        59755 Arnsberg, E-Mail: kontakt@lunaxora.de, Telefon: 0176 55968938) mittels einer eindeutigen Erklärung
+        (z. B. ein mit der Post versandter Brief oder eine E-Mail) über deinen Entschluss, diesen Vertrag zu widerrufen,
+        informieren. Du kannst dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben
+        ist. Du kannst dein Widerrufsrecht auch online ausüben: in der App unter Profil → Rechtliches → „Vertrag
+        widerrufen“ oder unter <a href="https://lunaxora.de/kuendigen/?widerrufen">lunaxora.de/kuendigen/?widerrufen</a>
+        (Schaltfläche „Vertrag widerrufen“). Wenn du diese Online-Funktion nutzt, übermitteln wir dir auf einem
+        dauerhaften Datenträger (z. B. durch eine E-Mail) unverzüglich eine Eingangsbestätigung mit Informationen zum
+        Inhalt der Widerrufserklärung sowie dem Datum und der Uhrzeit ihres Eingangs.</p>
+      <p>Zur Wahrung der Widerrufsfrist reicht es aus, dass du die Mitteilung über die Ausübung des Widerrufsrechts vor
+        Ablauf der Widerrufsfrist absendest.</p>
+      <p><strong>Folgen des Widerrufs</strong></p>
+      <p>Wenn du diesen Vertrag widerrufst, haben wir dir alle Zahlungen, die wir von dir erhalten haben, einschließlich
+        der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass du eine andere Art der
+        Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt hast), unverzüglich und spätestens
+        binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über deinen Widerruf dieses Vertrags bei
+        uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das du bei der ursprünglichen
+        Transaktion eingesetzt hast, es sei denn, mit dir wurde ausdrücklich etwas anderes vereinbart; in keinem Fall
+        werden dir wegen dieser Rückzahlung Entgelte berechnet.</p>
+      <p>Wenn du verlangt hast, dass die Dienstleistungen während der Widerrufsfrist beginnen sollen, so hast du uns einen
+        angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem du uns von der Ausübung des
+        Widerrufsrechts hinsichtlich dieses Vertrags unterrichtest, bereits erbrachten Dienstleistungen im Vergleich zum
+        Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.</p>
+      <p class="small">Ende der Widerrufsbelehrung</p>
+    </div>
+    <ol class="paras">
+      <li><strong>Sofortiger Beginn:</strong> Beim Abschluss eines bezahlten Abos kannst du verlangen, dass wir sofort –
+        also schon vor Ablauf der Widerrufsfrist – mit unserer Leistung beginnen. Widerrufst du danach, zahlst du für die
+        Zeit bis zum Widerruf anteilig Wertersatz (§ 357a Abs. 2 BGB).</li>
+      <li><strong>Erlöschen:</strong> Dein Widerrufsrecht erlischt, wenn wir die Leistung vollständig erbracht haben und
+        du vorher ausdrücklich zugestimmt hast, dass wir vor Ablauf der Widerrufsfrist beginnen, und bestätigt hast, dass
+        du weißt, dass dein Widerrufsrecht mit vollständiger Vertragserfüllung erlischt (§ 356 Abs. 4 BGB).</li>
+      <li>Am einfachsten widerrufst du über die Schaltfläche „Vertrag widerrufen“ in der App oder auf
+        <a href="https://lunaxora.de/kuendigen/?widerrufen">lunaxora.de/kuendigen/?widerrufen</a>, oder per E-Mail an
+        <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a>. Das Muster-Widerrufsformular findest du in der
+        <a href="#anlage">Anlage</a>.</li>
+    </ol>
+
+    <h2 id="p7">§ 7 Luna – die KI-Assistentin</h2>
+    <ol class="paras">
+      <li><strong>Luna ist eine KI, kein Mensch.</strong> Sie beruht auf einem KI-Sprachmodell (Claude von Anthropic).
+        Die Stimme, mit der Luna vorliest, ist künstlich erzeugt.</li>
+      <li>Du kannst Luna schreiben oder mit ihr sprechen. Einfache Einträge – Termine, Aufträge, Ausgaben, Angebote und
+        eigene To-dos – legt Luna direkt an; du kannst sie danach ändern oder löschen. Vor Rechnungen, neuen Kunden,
+        Änderungen an Firmen-, Bank- oder Kundendaten, Beträgen, dem Löschen und vor Team-Aktionen fragt Luna dich und
+        wartet auf deine Bestätigung. Was du bestätigst, verantwortest du.</li>
+      <li>Luna kann sich irren. Antworten und Einträge können falsch oder unvollständig sein. Prüf die Ergebnisse,
+        bevor du sie verwendest – besonders Beträge, Daten, Kundendaten und alles, was du an andere schickst. Unsere
+        Haftung nach § 11 bleibt davon unberührt.</li>
+      <li>Luna gibt keine Steuer-, Rechts- oder Finanzberatung. Für solche Fragen wende dich an eine Steuerberatung
+        oder eine Rechtsanwältin bzw. einen Rechtsanwalt.</li>
+      <li>Wie viel du Luna im Monat nutzen kannst, richtet sich nach deinem Tarif (§ 2 Abs. 2 und 4).</li>
+      <li>Welche Daten bei der Nutzung von Luna an welche Anbieter gehen, steht in der
+        <a href="datenschutz.html">Datenschutzerklärung</a> (Abschnitt 7).</li>
+    </ol>
+
+    <h2 id="p8">§ 8 Deine Pflichten</h2>
+    <ol class="paras">
+      <li>Du nutzt LUNAXORA nur im Rahmen der Gesetze. Du speicherst und verschickst keine rechtswidrigen Inhalte und
+        verletzt keine Rechte anderer.</li>
+      <li><strong>Deine Dokumente:</strong> Für den Inhalt deiner Angebote und Rechnungen bist du selbst verantwortlich –
+        zum Beispiel für Pflichtangaben, die richtige steuerliche Behandlung (etwa den Hinweis auf die
+        Kleinunternehmerregelung oder die Umsatzsteuer), die Frage, ob du E-Rechnungen ausstellen musst, und die
+        Aufbewahrung. Das gilt auch für deine Steuern und deine Buchhaltung. Vorlagen und Berechnungen in LUNAXORA sind
+        Hilfen.</li>
+      <li><strong>Deine Kunden:</strong> Für die Daten deiner Kunden brauchst du eine Rechtsgrundlage und informierst
+        sie über die Verarbeitung (dafür kannst du unsere Standard-Datenschutzerklärung für Kunden nutzen). Bitten um
+        eine Bewertung und andere werbliche E-Mails schickst du nur, wenn die Empfänger eingewilligt haben oder es das
+        Gesetz anders erlaubt. Die E-Mail-Funktion ist für deine geschäftliche Korrespondenz da, nicht für Massen- oder
+        Werbemails.</li>
+      <li><strong>Dein Team:</strong> Als Inhaber eines Teams hältst du die Regeln des Arbeits- und Datenschutzrechts
+        gegenüber deinen Teammitgliedern ein – zum Beispiel informierst du sie über die Verarbeitung ihrer Daten,
+        vergibst Rechte für Abwesenheitsgründe nur, wo nötig, und prüfst, ob du Arbeitszeiten auf andere Weise erfassen
+        musst.</li>
+      <li><strong>Kein Missbrauch:</strong> Du greifst LUNAXORA nicht an, überlastest es nicht, schleust keine
+        Schadsoftware ein und umgehst keine Grenzen (Kontingente, Gerätegrenzen, Tarifgrenzen, Begrenzungen gegen
+        Missbrauch). Automatisierte Zugriffe – etwa durch Bots oder Scraping – sind nur über die Funktionen erlaubt, die
+        LUNAXORA dafür anbietet.</li>
+      <li>Du darfst die App nicht zurückentwickeln, dekompilieren oder disassemblieren, soweit das Gesetz es nicht
+        ausdrücklich erlaubt (§§ 69d, 69e UrhG). Du darfst LUNAXORA nicht weiterverkaufen, vermieten oder Personen
+        außerhalb deines Teams zur Verfügung stellen.</li>
+      <li>Exportiere wichtige Daten regelmäßig, vor allem Unterlagen, die du aufbewahren musst.</li>
+      <li><strong>Nutzungsrechte:</strong> Deine Inhalte bleiben deine. Du räumst uns nur die Rechte ein, die wir
+        brauchen, um sie für dich zu speichern, zu verarbeiten und zu übermitteln, auch über unsere Dienstleister. Wir
+        räumen dir für die Dauer des Vertrags das einfache, nicht übertragbare Recht ein, LUNAXORA im Rahmen deines
+        Tarifs zu nutzen.</li>
+    </ol>
+
+    <h2 id="p9">§ 9 Daten und Auftragsverarbeitung</h2>
+    <ol class="paras">
+      <li>Wie wir mit deinen Daten umgehen, steht in der <a href="datenschutz.html">Datenschutzerklärung</a>.</li>
+      <li>Verarbeitest du in LUNAXORA personenbezogene Daten anderer Menschen – etwa deiner Kunden oder deines Teams –,
+        bist du dafür verantwortlich und wir sind dein Auftragsverarbeiter. Dafür gilt unser
+        <a href="avv.html">Vertrag zur Auftragsverarbeitung (AVV)</a>. Er wird mit der Annahme dieser AGB Teil deines
+        Vertrags.</li>
+      <li>Du kannst deine Daten jederzeit exportieren, zum Beispiel als Steuer-Export (ZIP), als CSV-Datei
+        (Arbeitsstunden) und als PDF (Angebote, Rechnungen, Wochenplan). Bist du Verbraucher, stellen wir dir nach dem
+        Ende des Vertrags auf Wunsch die Inhalte, die du bereitgestellt oder erstellt hast, unentgeltlich in einem
+        gängigen Format zur Verfügung (§ 327p BGB).</li>
+      <li>Wir nutzen deine Inhalte nicht für Werbung und verkaufen sie nicht.</li>
+    </ol>
+
+    <h2 id="p10">§ 10 Verfügbarkeit und Änderungen der App</h2>
+    <ol class="paras">
+      <li>Wir bemühen uns, dass LUNAXORA möglichst immer erreichbar ist. Eine bestimmte Verfügbarkeit sagen wir nicht
+        zu. Unterbrechungen sind möglich, etwa durch Wartung, Updates, technische Störungen oder Ausfälle bei
+        Dienstleistern und im Internet, auf die wir keinen Einfluss haben. Geplante Wartungen legen wir möglichst in
+        ruhige Zeiten.</li>
+      <li>Wir stellen dir die Updates bereit, die nötig sind, damit LUNAXORA vertragsgemäß funktioniert. Installiere sie
+        bitte zeitnah; ältere Versionen der App können irgendwann nicht mehr funktionieren.</li>
+      <li>Wir entwickeln LUNAXORA weiter und dürfen die App ändern, wenn es dafür einen triftigen Grund gibt – zum
+        Beispiel technische Entwicklungen, Sicherheit, neue gesetzliche Vorgaben, Änderungen bei Dienstleistern oder neue
+        Funktionen –, wenn die Änderung für dich zumutbar ist und dir keine zusätzlichen Kosten entstehen.</li>
+      <li><strong>Für Verbraucher</strong> gilt zusätzlich § 327r BGB: Wir informieren dich klar und verständlich über
+        die Änderung. Beeinträchtigt eine Änderung deinen Zugang zu LUNAXORA oder die Nutzbarkeit mehr als nur
+        unerheblich, informieren wir dich rechtzeitig vorher in Textform über die Merkmale und den Zeitpunkt der
+        Änderung und über deine Rechte. Du kannst den Vertrag dann innerhalb von 30 Tagen nach der Information bzw. nach
+        der Änderung, je nachdem, was später ist, unentgeltlich beenden. Bereits Bezahltes für die Zeit danach erstatten
+        wir anteilig.</li>
+      <li>Funktionen, die auf Diensten anderer beruhen – etwa TikTok, App Stores oder Kalender-Anbieter –, können
+        eingeschränkt sein, wenn diese Anbieter ihre Dienste oder Schnittstellen ändern. Für die Dienste dieser Anbieter
+        sind wir nicht verantwortlich.</li>
+    </ol>
+
+    <h2 id="p11">§ 11 Haftung</h2>
+    <ol class="paras">
+      <li>Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit, bei der Verletzung von Leben, Körper oder
+        Gesundheit, nach dem Produkthaftungsgesetz, bei arglistig verschwiegenen Mängeln und soweit wir eine Garantie
+        übernommen haben.</li>
+      <li>Bei leichter Fahrlässigkeit haften wir nur, wenn wir eine wesentliche Vertragspflicht verletzen – also eine
+        Pflicht, die die ordnungsgemäße Durchführung des Vertrags erst möglich macht und auf deren Einhaltung du
+        regelmäßig vertrauen darfst. Unsere Haftung ist dann auf den vertragstypischen, bei Vertragsschluss
+        vorhersehbaren Schaden begrenzt.</li>
+      <li>Außer in den Fällen von Absatz 1 haften wir für den Verlust von Daten nur in Höhe des Aufwands, der nötig
+        gewesen wäre, um die Daten wiederherzustellen, wenn du sie regelmäßig und dem Risiko angemessen gesichert bzw.
+        exportiert hättest.</li>
+      <li>Im Übrigen ist unsere Haftung ausgeschlossen. Die Absätze 1 bis 3 gelten auch für die persönliche Haftung
+        unserer Gesellschafter, Mitarbeitenden und Erfüllungsgehilfen.</li>
+      <li>Für Mängel unserer Leistungen gelten im Übrigen die gesetzlichen Vorschriften, für Verbraucher insbesondere
+        die §§ 327 ff. BGB.</li>
+    </ol>
+
+    <h2 id="p12">§ 12 Freistellung (nur Unternehmer)</h2>
+    <p>Bist du Unternehmer, stellst du uns von Ansprüchen Dritter frei, die diese gegen uns erheben, weil du LUNAXORA
+      rechtswidrig nutzt oder gegen diese AGB verstößt – zum Beispiel durch Inhalte, die Rechte anderer verletzen, oder
+      durch E-Mails ohne die nötige Einwilligung. Das umfasst auch angemessene Kosten der Rechtsverteidigung. Das gilt
+      nicht, wenn du den Verstoß nicht zu vertreten hast.</p>
+
+    <h2 id="p13">§ 13 Vertragsende und Kontolöschung</h2>
+    <ol class="paras">
+      <li>Das Ende eines bezahlten Abos beendet nicht dein Konto; es läuft als Gratis weiter (§ 5 Abs. 4).</li>
+      <li>Du kannst die Nutzung jederzeit beenden und dein Konto löschen lassen. Schreib uns dazu an
+        <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> oder wähle auf
+        <a href="https://lunaxora.de/kuendigen/">lunaxora.de/kuendigen/</a> „Mein ganzes LUNAXORA-Konto“. Eine
+        Löschfunktion direkt in der App folgt. Ein laufendes bezahltes Abo endet nach § 5. Löschen wir das Konto auf
+        deinen Wunsch schon vorher, erstatten wir den Rest des bezahlten Zeitraums nicht, soweit § 5 Abs. 3 oder das
+        Gesetz nichts anderes vorsehen.</li>
+      <li>Wir können den Vertrag über die kostenlose Nutzung mit einer Frist von einem Monat und ein bezahltes Abo zum
+        Ende eines Abrechnungszeitraums, mit einer Frist von mindestens einem Monat, in Textform kündigen. Bis dahin
+        kannst du deine Daten exportieren.</li>
+      <li>Lade vor der Löschung herunter, was du behalten oder aufbewahren musst. Nach der Löschung löschen wir deine
+        Daten spätestens nach 30 Tagen, soweit wir nicht gesetzlich zur Aufbewahrung verpflichtet sind (zum Beispiel
+        unsere Rechnungen an dich). Löscht der Inhaber eines Teams sein Konto, werden auch die Daten des Teams gelöscht
+        und die Teammitglieder verlieren den Zugang.</li>
+    </ol>
+
+    <h2 id="p14">§ 14 Änderungen dieser AGB</h2>
+    <ol class="paras">
+      <li><strong>Für Unternehmer:</strong> Wir dürfen diese AGB aus einem triftigen Grund ändern, etwa wegen neuer
+        Funktionen, technischer Entwicklungen oder neuer gesetzlicher Vorgaben. Die Änderungen schicken wir dir
+        mindestens sechs Wochen vor ihrem Inkrafttreten in Textform. Widersprichst du nicht innerhalb von sechs Wochen
+        nach Zugang, gelten sie als angenommen; darauf weisen wir dich in der Mitteilung besonders hin. Widersprichst du,
+        gelten die bisherigen AGB weiter; beide Seiten können den Vertrag dann nach § 5 bzw. § 13 kündigen. Die
+        Hauptleistungen und die Preise ändern wir auf diesem Weg nicht.</li>
+      <li><strong>Für Verbraucher:</strong> Änderungen dieser AGB gelten nur, wenn du ihnen zustimmst, zum Beispiel in
+        der App. Stimmst du nicht zu, gelten die bisherigen AGB weiter; unser Kündigungsrecht nach § 13 Abs. 3 bleibt
+        unberührt.</li>
+      <li>Änderungen an der App selbst richten sich nach § 10.</li>
+    </ol>
+
+    <h2 id="p15">§ 15 Streitbeilegung</h2>
+    <p>Wir sind weder verpflichtet noch bereit, an einem Streitbeilegungsverfahren vor einer
+      Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG). Wenn etwas nicht passt, schreib uns einfach an
+      <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> – wir suchen gemeinsam mit dir eine Lösung.</p>
+
+    <h2 id="p16">§ 16 Schlussbestimmungen</h2>
+    <ol class="paras">
+      <li>Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts (CISG). Bist du
+        Verbraucher, behältst du den Schutz der zwingenden Vorschriften des Staates, in dem du deinen gewöhnlichen
+        Aufenthalt hast.</li>
+      <li>Bist du Kaufmann, eine juristische Person des öffentlichen Rechts oder ein öffentlich-rechtliches
+        Sondervermögen, ist Gerichtsstand für alle Streitigkeiten aus diesem Vertrag Arnsberg.</li>
+      <li>Sollte eine Bestimmung dieser AGB unwirksam sein oder werden, bleibt der Vertrag im Übrigen wirksam. An die
+        Stelle der unwirksamen Bestimmung treten die gesetzlichen Vorschriften.</li>
+    </ol>
+
+    <h2 id="anlage">Anlage: Muster-Widerrufsformular</h2>
+    <div class="box form">
+      <p class="small">(Wenn du den Vertrag widerrufen willst, dann fülle bitte dieses Formular aus und sende es
+        zurück.)</p>
+      <p>– An LUNAXORA GbR, Pascal Pape und Tom Grau, Zu den Gärten 60, 59755 Arnsberg,
+        E-Mail: kontakt@lunaxora.de:</p>
+      <p>– Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden
+        Waren (*)/die Erbringung der folgenden Dienstleistung (*):</p>
+      <p>______________________________________________</p>
+      <p>– Bestellt am (*)/erhalten am (*): ____________________</p>
+      <p>– Name des/der Verbraucher(s): ____________________</p>
+      <p>– Anschrift des/der Verbraucher(s): ____________________</p>
+      <p>– Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier): ____________________</p>
+      <p>– Datum: ____________________</p>
+      <p class="small">(*) Unzutreffendes streichen.</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>Stand: 23. November 2026</p>
+    <nav aria-label="Rechtliches">
+      <a href="datenschutz.html">Datenschutz</a>
+      <a href="avv.html">Auftragsverarbeitung (AVV)</a>
+      <a href="https://lunaxora.de/impressum.html">Impressum</a>
+      <a href="https://lunaxora.de/kuendigen/">Verträge hier kündigen</a>
+      <a href="https://lunaxora.de/kuendigen/?widerrufen">Vertrag widerrufen</a>
+    </nav>
+  </footer>
+</body>
+</html>

@@ -2,17 +2,23 @@ import { router } from 'expo-router';
 import {
   Bell,
   Building2,
+  CircleX,
   CreditCard,
+  FileText,
   GraduationCap,
+  Landmark,
   Layers,
   Palette,
+  RotateCcw,
+  Scale,
+  ShieldCheck,
   Smartphone,
   UserRound,
   Users,
   Volume2,
 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/layout/screen';
 import { Reveal } from '@/components/motion/reveal';
@@ -25,6 +31,7 @@ import { AccountSwitcher } from '@/features/accounts/account-switcher';
 import { useCompanies } from '@/features/companies/company-provider';
 import { missingSellerFields, sellerName } from '@/features/documents/document-logic';
 import { useDocuments } from '@/features/documents/documents-provider';
+import { LEGAL_URLS, cancelPageUrl } from '@/features/legal/legal-logic';
 import { industryLabel, stageLabel } from '@/features/onboarding/options';
 import { hasTeamPlan, planLabel, quotaText } from '@/features/plan/plan-logic';
 import { usePlan } from '@/features/plan/plan-provider';
@@ -39,7 +46,9 @@ import { useProfile } from '@/providers/profile-provider';
 
 /**
  * Profil: kompakt als Liste – je Thema eine Zeile mit kurzem Stand, Details auf eigenen Seiten
- * (Angaben, Abo, Geräte, Firma, Firmen, Team, Design, Benachrichtigungen, Einführungen).
+ * (Angaben, Abo, Geräte, Firma, Firmen, Team, Design, Benachrichtigungen, Einführungen),
+ * dazu Rechtliches (AGB, Datenschutz, AV-Vertrag, Impressum, „Verträge hier kündigen“ nach § 312k BGB,
+ * „Vertrag widerrufen“ nach § 356a BGB).
  */
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -183,6 +192,39 @@ export default function ProfileScreen() {
             value={`Gesehen: ${seen} von ${total}${tutorial.off ? ' · automatisch aus' : ''}`}
             onPress={() => router.push('/profil/einfuehrungen')}
           />
+        </SettingsGroup>
+      </Reveal>
+
+      <Reveal delay={270}>
+        <SettingsGroup title="Rechtliches">
+          <SettingsRow
+            icon={CircleX}
+            label="Verträge hier kündigen"
+            value="Abo online kündigen, mit Bestätigung per E-Mail"
+            onPress={() => void Linking.openURL(cancelPageUrl(user?.email, profile?.display_name))}
+            testID="profile-cancel"
+          />
+          <SettingsRow
+            icon={RotateCcw}
+            label="Vertrag widerrufen"
+            value="Innerhalb von 14 Tagen nach Abschluss, als Verbraucher"
+            onPress={() => void Linking.openURL(cancelPageUrl(user?.email, profile?.display_name, 'widerrufen'))}
+            testID="profile-withdraw"
+          />
+          <SettingsRow icon={Scale} label="AGB" value="Nutzungsbedingungen von LUNAXORA" onPress={() => void Linking.openURL(LEGAL_URLS.agb)} />
+          <SettingsRow
+            icon={ShieldCheck}
+            label="Datenschutz"
+            value="Welche Daten wir wofür verarbeiten"
+            onPress={() => void Linking.openURL(LEGAL_URLS.datenschutz)}
+          />
+          <SettingsRow
+            icon={FileText}
+            label="AV-Vertrag"
+            value="Für die Daten deiner Kunden und deines Teams"
+            onPress={() => void Linking.openURL(LEGAL_URLS.avv)}
+          />
+          <SettingsRow icon={Landmark} label="Impressum" value="LUNAXORA GbR, Arnsberg" onPress={() => void Linking.openURL(LEGAL_URLS.impressum)} />
         </SettingsGroup>
       </Reveal>
 

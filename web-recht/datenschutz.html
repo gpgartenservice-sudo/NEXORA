@@ -1,0 +1,505 @@
+<!doctype html>
+<!--
+  LUNAXORA – Datenschutzerklärung für die App (veröffentlicht unter https://lunaxora.de/App/datenschutz.html)
+  Eine einzige Datei, nur Inline-CSS, keine externen Schriften, Skripte oder Tracker.
+  Ändert sich etwas an Dienstleistern oder Datenflüssen, auch avv.html (Anlage 2) anpassen.
+  Muster, keine Rechtsberatung.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Datenschutzerklärung der LUNAXORA GbR für die App LUNAXORA: welche Daten wir verarbeiten, wofür, bei welchen Dienstleistern und welche Rechte du hast.">
+  <link rel="canonical" href="https://lunaxora.de/App/datenschutz.html">
+  <title>Datenschutzerklärung – App LUNAXORA</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0E0E0F;
+      --surface-2: #151517;
+      --border: #232326;
+      --text: #FFFFFF;
+      --muted: #8E8E93;
+      --accent: #2FE39A;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    main {
+      width: 100%;
+      max-width: 760px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } main { padding: 20px; } }
+    h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 22px 0 2px; font-size: 17px; line-height: 1.3; scroll-margin-top: 16px; }
+    h3 { margin: 8px 0 0; font-size: 15px; }
+    p { margin: 0; }
+    ul, ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+    a { color: var(--text); text-decoration-color: rgba(47, 227, 154, 0.7); text-underline-offset: 2px; }
+    a:hover { color: var(--accent); }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .lead { color: var(--muted); }
+    .small { color: var(--muted); font-size: 13px; }
+    .back { font-size: 14px; }
+    .back a { color: var(--muted); text-decoration: none; }
+    .back a:hover { color: var(--accent); }
+    .box { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .box.strong { border-color: rgba(47, 227, 154, 0.55); background: rgba(47, 227, 154, 0.08); }
+    .name { font-weight: 700; }
+    .toc { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; }
+    .toc p { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .toc ol { display: block; columns: 2; column-gap: 28px; font-size: 14px; }
+    .toc li { margin-bottom: 3px; break-inside: avoid; }
+    .toc a { text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    @media (max-width: 560px) { .toc ol { columns: 1; } }
+    .table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
+    tr:last-child td { border-bottom: none; }
+    footer { width: 100%; max-width: 760px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    footer a { color: var(--muted); }
+    @media print {
+      :root { --bg: #fff; --surface: #fff; --surface-2: #fff; --border: #ccc; --text: #000; --muted: #444; }
+      body { padding: 0; }
+      main { border: none; padding: 0; max-width: none; }
+      .back, .toc, footer nav { display: none; }
+    }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .table-wrap table { min-width: 520px; }
+    .form p { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="back"><a href="https://lunaxora.de/">← lunaxora.de</a></p>
+    <h1>Datenschutzerklärung für die App LUNAXORA</h1>
+    <p class="lead">Hier steht, welche Daten wir verarbeiten, wenn du LUNAXORA nutzt – auf dem iPhone, auf Android, als
+      Mac-App oder im Browser –, wofür wir sie brauchen, wer sie außerdem bekommt und welche Rechte du hast.</p>
+
+    <nav class="toc" aria-label="Inhalt">
+      <p>Inhalt</p>
+      <ol>
+        <li><a href="#s1">Wer verantwortlich ist</a></li>
+        <li><a href="#s2">Das Wichtigste in Kürze</a></li>
+        <li><a href="#s3">Wofür diese Erklärung gilt</a></li>
+        <li><a href="#s4">Konto, Anmeldung und Geräte</a></li>
+        <li><a href="#s5">Deine Inhalte in der App</a></li>
+        <li><a href="#s6">Team-Funktionen</a></li>
+        <li><a href="#s7">Luna – die KI-Assistentin</a></li>
+        <li><a href="#s8">E-Mails aus LUNAXORA</a></li>
+        <li><a href="#s9">Online-Angebote, Kundenformular, Kalender-Abo</a></li>
+        <li><a href="#s10">Push-Mitteilungen</a></li>
+        <li><a href="#s11">Wetter</a></li>
+        <li><a href="#s12">TikTok-Verbindung</a></li>
+        <li><a href="#s13">Abo, Zahlung, Testphase, Gutscheine</a></li>
+        <li><a href="#s14">Kündigung, Widerruf und Support</a></li>
+        <li><a href="#s15">Daten auf deinem Gerät</a></li>
+        <li><a href="#s16">Sicherheit</a></li>
+        <li><a href="#s17">Empfänger im Überblick</a></li>
+        <li><a href="#s18">Länder außerhalb der EU</a></li>
+        <li><a href="#s19">Speicherdauer und Löschung</a></li>
+        <li><a href="#s20">Deine Rechte</a></li>
+        <li><a href="#s21">Musst du Daten angeben?</a></li>
+        <li><a href="#s22">Keine automatisierten Entscheidungen</a></li>
+        <li><a href="#s23">Änderungen</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="s1">1. Wer verantwortlich ist</h2>
+    <div class="box">
+      <p class="name">LUNAXORA GbR</p>
+      <p>vertreten durch die Gesellschafter Pascal Pape und Tom Grau</p>
+      <p>Zu den Gärten 60, 59755 Arnsberg</p>
+      <p>E-Mail: <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> · Telefon: 0176 55968938</p>
+    </div>
+    <p>Im Folgenden heißt das „wir“. Einen Datenschutzbeauftragten haben wir nicht benannt, weil wir dazu bei unserer
+      Größe gesetzlich nicht verpflichtet sind. Fragen zum Datenschutz beantworten wir dir direkt – eine kurze
+      E-Mail an <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> genügt.</p>
+
+    <h2 id="s2">2. Das Wichtigste in Kürze</h2>
+    <ul>
+      <li>Wir verarbeiten deine Daten, damit LUNAXORA funktioniert. Wir nutzen sie nicht für Werbung und verkaufen sie
+        nicht.</li>
+      <li>Kein Tracking, keine Analyse-Tools, keine Werbung, kein Programm, das Abstürze automatisch an uns meldet.</li>
+      <li>Deine Daten liegen in einer Datenbank auf Servern in Frankfurt am Main (EU).</li>
+      <li>Luna ist eine KI. Wenn du sie nutzt, gehen Daten an KI-Anbieter in den USA (Abschnitt 7).</li>
+      <li>Für die Daten deiner Kunden und deines Teams bist du verantwortlich. Wir verarbeiten sie nur in deinem
+        Auftrag (<a href="avv.html">AVV</a>).</li>
+    </ul>
+
+    <h2 id="s3">3. Wofür diese Erklärung gilt</h2>
+    <p>Diese Erklärung gilt für die App LUNAXORA – iPhone, Android, Mac-App und Web-Version – mit allen Funktionen.
+      Dabei haben wir zwei Rollen:</p>
+    <ul>
+      <li><strong>Wir sind verantwortlich</strong> für die Daten zu deinem Konto und zu deiner Nutzung: Anmeldung,
+        Geräte, Tarif und Zahlung, Nutzungszähler, Sicherheit, Kündigung und Support.</li>
+      <li><strong>Du bist verantwortlich</strong> für die Daten anderer Menschen, die du in LUNAXORA einträgst oder
+        die über LUNAXORA zu dir kommen – zum Beispiel von Kunden, Interessenten und Teammitgliedern. Diese Daten
+        verarbeiten wir nur in deinem Auftrag und nach deinen Weisungen (Art. 28 DSGVO). Die Einzelheiten regelt der
+        <a href="avv.html">Vertrag zur Auftragsverarbeitung (AVV)</a>.</li>
+    </ul>
+    <p>Für die Website lunaxora.de selbst – zum Beispiel die Warteliste und den Aufruf der Seiten unter lunaxora.de,
+      auch dieser hier – gilt die eigene <a href="https://lunaxora.de/datenschutz.html">Datenschutzerklärung der
+      Website</a>. Wir wiederholen sie hier nicht.</p>
+    <p>Deine Kundinnen und Kunden, die dir über das Kundenformular oder ein Online-Angebot Daten schicken, informiert
+      eine eigene Standard-Datenschutzerklärung unter
+      <a href="https://lunaxora.de/Kunde/datenschutz.html">lunaxora.de/Kunde/datenschutz.html</a>. Darin bist du als
+      Verantwortlicher genannt.</p>
+
+    <h2 id="s4">4. Konto, Anmeldung und Geräte</h2>
+    <ul>
+      <li><strong>Anmeldedaten:</strong> E-Mail-Adresse und Passwort. Die Anmeldung läuft über unseren Dienstleister
+        Supabase. Dein Passwort wird dort nur als Hash-Wert gespeichert, nie im Klartext – wir sehen es nie. Codes zur
+        Anmeldung (Bestätigung deiner E-Mail-Adresse, neues Passwort) verschickt der Login-Dienst von Supabase.</li>
+      <li><strong>Profil und Firma:</strong> dein Name und die Angaben zu deiner Firma, die auf Angeboten und Rechnungen
+        stehen sollen – zum Beispiel Firmenname, Inhaber, Anschrift, Telefon, E-Mail, Website, Steuernummer oder
+        USt-IdNr., Bankverbindung und Logo. Führst du mehrere Firmen in einem Konto, gilt das für jede Firma.</li>
+      <li><strong>Tarif und Nutzung:</strong> dein Tarif, Beginn und Ende der Testphase, eingelöste Gutscheine und wie
+        viel du von den monatlichen Kontingenten verbraucht hast (Luna-Nachrichten, gelesene Belege,
+        Vorlese-Antworten).</li>
+      <li><strong>Geräte:</strong> Damit die Gerätegrenze deines Tarifs funktioniert, speichern wir je Gerät eine
+        zufällige Kennung, die die App selbst erzeugt, einen lesbaren Gerätenamen, die Art des Geräts (Handy oder
+        Computer) und wann es zuletzt aktiv war.</li>
+      <li><strong>Technische Zugriffsdaten:</strong> Bei jeder Verbindung mit unseren Servern fallen technisch bedingt
+        Daten an, etwa IP-Adresse, Zeitpunkt und aufgerufene Funktion. Unsere Dienstleister speichern sie kurzzeitig
+        in Protokollen, damit Betrieb und Sicherheit gewährleistet sind.</li>
+    </ul>
+    <p>Rechtsgrundlage ist der Nutzungsvertrag mit dir (Art. 6 Abs. 1 lit. b DSGVO). Die technischen Zugriffsdaten
+      verarbeiten wir zum Schutz unserer Systeme vor Angriffen und Störungen (berechtigtes Interesse,
+      Art. 6 Abs. 1 lit. f DSGVO).</p>
+
+    <h2 id="s5">5. Deine Inhalte in der App</h2>
+    <p>Alles, was du in LUNAXORA einträgst, speichern wir in deinem Konto, damit es dir auf deinen Geräten zur
+      Verfügung steht. Je nachdem, was du nutzt, gehören dazu:</p>
+    <ul>
+      <li>Kunden, Aufträge, Termine, To-dos, Ziele und dein Fortschritt im Gründer-Fahrplan</li>
+      <li>Angebote und Rechnungen (als PDF mit deinem Logo), Zahlungserinnerungen und Mahnungen</li>
+      <li>Finanzen und Ausgaben, Steuer-Topf, Kleinunternehmer-Grenze, Einkommensnachweis und der Steuer-Export als
+        ZIP-Datei</li>
+      <li>Belege als Foto oder PDF – sie liegen in einem privaten Speicher, der nicht öffentlich abrufbar ist</li>
+      <li>Social-Media-Planung (zum Beispiel geplante Beiträge und Hashtags) und Lagerbestand</li>
+    </ul>
+    <p>Wir nutzen diese Inhalte nur, um dir die Funktionen bereitzustellen (Art. 6 Abs. 1 lit. b DSGVO). Wir schauen
+      nicht in deine Inhalte. Zugriff nehmen wir nur, wenn es für den Betrieb, zum Beheben eines Fehlers oder für deine
+      Support-Anfrage nötig ist. Stehen in deinen Inhalten Daten anderer Personen, verarbeiten wir sie als dein
+      Auftragsverarbeiter (Abschnitt 3).</p>
+    <p><strong>Kostenkontrolle:</strong> Für jedes Konto zählen wir, wie viele KI-Tokens Luna verbraucht, wie viele
+      Zeichen vorgelesen und wie viele Sekunden Sprache in Text umgewandelt wurden. Das sind reine Mengenangaben ohne
+      Inhalte. Wir brauchen sie, um die Kontingente deines Tarifs zu zählen und unsere Kosten im Blick zu behalten
+      (Art. 6 Abs. 1 lit. b und lit. f DSGVO).</p>
+    <p><strong>Schutz vor Missbrauch:</strong> Manche Funktionen sind begrenzt, damit niemand sie missbraucht – etwa
+      das Einlösen von Gutscheinen und Einladungscodes und der E-Mail-Versand (in der Testphase strenger). Dafür
+      speichern wir für kurze Zeit, wann ein Konto diese Funktionen genutzt hat (Art. 6 Abs. 1 lit. f DSGVO).</p>
+
+    <h2 id="s6">6. Team-Funktionen</h2>
+    <p>In den Tarifen Business und Teams – und zum Ausprobieren in der Testphase – kannst du andere Personen in dein
+      Team holen. Dabei verarbeiten wir:</p>
+    <ul>
+      <li><strong>Einladung und Login:</strong> Jede Person hat ein eigenes Login. Eingeladen wird mit einem
+        Einladungscode (12 Zeichen, 14 Tage gültig).</li>
+      <li><strong>Rolle und Rechte:</strong> Inhaber, Mitgründer oder Mitarbeiter. Welche Bereiche eine Rolle sieht,
+        lässt sich je Rolle einstellen. Mitarbeiter sehen standardmäßig keine Finanzen und keine Preise.</li>
+      <li><strong>Team-Chats:</strong> Nachrichten in den Chats „Alle“ und „Leitung“ und in Direktnachrichten, mit
+        Absender und Zeitpunkt, und bis wohin jemand gelesen hat.</li>
+      <li><strong>Arbeitsplan:</strong> Einsätze mit Ort bzw. Adresse, Zeitraum (auch über mehrere Tage), eingeteilten
+        Personen, Teamleiter und verknüpftem Auftrag. Der Wochenplan kann als PDF an alle im Team gehen.</li>
+      <li><strong>Aufgaben:</strong> To-dos, die einer Person zugewiesen sind.</li>
+      <li><strong>Arbeitsstunden:</strong> Stunden, die Teammitglieder selbst von Hand eintragen. Der Inhaber kann sie
+        als CSV-Datei für die Lohnabrechnung exportieren. LUNAXORA macht keine Lohnabrechnung und ist keine
+        Stempeluhr.</li>
+      <li><strong>Abwesenheiten:</strong> Anträge auf Urlaub oder frei mit Genehmigung und Krankmeldungen. Bei einer
+        Krankmeldung wird nur die Tatsache „krank“ gespeichert, nie eine Diagnose. Kolleginnen und Kollegen sehen nur
+        „abwesend“; den Grund sehen nur Personen, die das Recht dazu haben.</li>
+    </ul>
+    <p><strong>Wer verantwortlich ist:</strong> Für diese Daten ist die Firma verantwortlich, die das Team führt –
+      also der Inhaber des Kontos, zum Beispiel als Arbeitgeber. Wir verarbeiten sie in ihrem Auftrag
+      (<a href="avv.html">AVV</a>). Eine Krankmeldung ist ein Gesundheitsdatum und damit besonders geschützt
+      (Art. 9 DSGVO). Die Firma verarbeitet sie für Zwecke des Beschäftigungsverhältnisses
+      (Art. 9 Abs. 2 lit. b DSGVO in Verbindung mit § 26 Abs. 3 BDSG). Als Teammitglied wendest du dich mit Fragen zu
+      diesen Daten am besten an deine Firma.</p>
+    <p>Für dein eigenes Login als Teammitglied (E-Mail-Adresse, Passwort, Geräte) sind wir verantwortlich.
+      Rechtsgrundlage ist der Nutzungsvertrag (Art. 6 Abs. 1 lit. b DSGVO).</p>
+
+    <h2 id="s7">7. Luna – die KI-Assistentin</h2>
+    <div class="box strong">
+      <p><strong>Luna ist eine KI, kein Mensch.</strong> Ihre Antworten erzeugt ein KI-Sprachmodell (Claude von
+        Anthropic). Die Stimme, mit der Luna vorliest, ist künstlich erzeugt.</p>
+    </div>
+    <p>Du kannst Luna schreiben oder mit ihr sprechen. Nur wenn du Luna nutzt, passiert Folgendes:</p>
+    <ul>
+      <li><strong>Text an Anthropic PBC (USA):</strong> deine Nachricht, der bisherige Gesprächsverlauf und eine kurze
+        Übersicht aus deinem Konto, damit Luna dir sinnvoll helfen kann. Die Übersicht enthält Kundennamen (ohne
+        Telefonnummer und E-Mail-Adresse), Aufträge, Rechnungsnummern und Beträge, Finanzzahlen, anstehende Termine
+        mit Ort – bei Kundenterminen die Adresse des Kunden – sowie offene To-dos und Ziele.</li>
+      <li><strong>Belege an Anthropic:</strong> Soll Luna einen Beleg lesen, geht das Foto bzw. PDF an Anthropic.</li>
+      <li><strong>Sprache an Groq, Inc. (USA):</strong> Wenn du mit Luna sprichst, wandelt Groq deine Aufnahme in Text
+        um. Wir speichern die Aufnahme nicht.</li>
+      <li><strong>Vorlesen über ElevenLabs (Eleven Labs Inc., USA):</strong> Soll Luna ihre Antwort vorlesen, erzeugt
+        ElevenLabs aus dem Antworttext die Sprache.</li>
+    </ul>
+    <p>Diese Anbieter verarbeiten die Daten in unserem Auftrag. Den Gesprächsverlauf speichern wir nicht auf unseren
+      Servern; die App schickt die letzten Nachrichten bei jeder Anfrage mit. Was Luna für dich anlegt – zum Beispiel
+      einen Termin –, wird ganz normal in deinem Konto gespeichert.</p>
+    <p><strong>Was Luna selbst tut und wann sie fragt:</strong> Einfache Einträge – Termine, Aufträge, Ausgaben,
+      Angebote und eigene To-dos – legt Luna direkt an. Vor Rechnungen, neuen Kunden, Änderungen an Firmen-, Bank- oder
+      Kundendaten, Beträgen, dem Löschen und vor Team-Aktionen fragt sie dich und wartet auf deine Bestätigung. Luna
+      kann sich irren – prüf die Ergebnisse. Steuer- oder Rechtsberatung gibt Luna nicht.</p>
+    <p><strong>Zähler:</strong> Wie viele Nachrichten, Belege und Vorlese-Antworten du im Monat genutzt hast, zählen
+      wir für die Kontingente deines Tarifs. Dazu kommen die Mengenangaben zur Kostenkontrolle aus Abschnitt 5 – ohne
+      Inhalte.</p>
+    <p>Rechtsgrundlage ist der Nutzungsvertrag (Art. 6 Abs. 1 lit. b DSGVO); Luna nutzt du nur, wenn du es möchtest.
+      Stehen in den übermittelten Daten Angaben zu deinen Kunden oder deinem Team, verarbeiten wir sie in deinem
+      Auftrag (<a href="avv.html">AVV</a>). Bitte gib Luna keine Gesundheitsdaten oder andere besonders sensible
+      Angaben, die sie für deine Aufgabe nicht braucht.</p>
+
+    <h2 id="s8">8. E-Mails aus LUNAXORA</h2>
+    <p>E-Mails, die du aus LUNAXORA verschickst – zum Beispiel Angebote, Rechnungen, Zahlungserinnerungen, Mahnungen,
+      Links zum Kundenformular und Bestätigungen zur Online-Annahme eines Angebots –, und unsere E-Mails an dich (etwa
+      zur Testphase oder zu einer Kündigung) laufen über den Mailserver der webgo GmbH in Hamburg. Bei E-Mails an
+      deine Kunden steht der Name deiner Firma als Absender; Antworten gehen an deine eigene E-Mail-Adresse.</p>
+    <p>Zu jeder E-Mail, die aus der App verschickt wird, speichern wir ein Versandprotokoll mit Empfänger, Betreff und
+      Zeitpunkt. So siehst du, was wann rausging, und wir können Missbrauch erkennen. Rechtsgrundlage:
+      Art. 6 Abs. 1 lit. b DSGVO, für das Protokoll zusätzlich lit. f. Für die Daten deiner Kunden in diesen E-Mails
+      gilt der <a href="avv.html">AVV</a>.</p>
+
+    <h2 id="s9">9. Online-Angebote, Kundenformular und Kalender-Abo</h2>
+    <ul>
+      <li><strong>Angebote online annehmen:</strong> Für jedes Angebot, das du online freigibst, erzeugt die App einen
+        geheimen Link mit einer langen Zufallskennung auf lunaxora.de/Angebot/. Wer den Link hat, kann das Angebot
+        ansehen und annehmen oder ablehnen. Wir speichern in deinem Konto Name, Zeitpunkt und gegebenenfalls die
+        Nachricht deines Kunden. Privatkunden bekommen nach der Annahme eine Bestätigung per E-Mail (§ 312f BGB) und
+        können online widerrufen; auch das wird mit Zeitpunkt gespeichert.</li>
+      <li><strong>Kundenformular:</strong> Über einen Link auf lunaxora.de/Kunde/ tragen deine Kunden ihre Kontaktdaten
+        selbst ein. Die Daten landen in deiner Kundenliste. Für deine Kunden gilt die Datenschutzerklärung unter
+        lunaxora.de/Kunde/datenschutz.html – oder deine eigene, wenn du in der App einen Link dazu hinterlegt hast.</li>
+      <li><strong>Kalender-Abo:</strong> Auf Wunsch erzeugt die App eine geheime Kalender-Adresse (ICS). Dein
+        Kalenderprogramm bzw. dein Kalender-Anbieter, zum Beispiel Apple oder Google, ruft darüber regelmäßig deine
+        Termine ab. Das Abo enthält Termine und Auftragstermine von 90 Tagen zurück bis ein Jahr voraus – mit Titel,
+        Zeit, Ort bzw. Kundenadresse, Notizen und Kundenname, bei Aufträgen auch der Telefonnummer des Kunden. Wer die
+        Adresse kennt, kann diese Termine sehen. Gib sie also nicht weiter. In der App kannst du den Link erneuern oder
+        das Abo beenden. Was dein Kalender-Anbieter mit den Daten macht, regelt dessen Datenschutzerklärung.</li>
+    </ul>
+    <p>Rechtsgrundlage ist der Nutzungsvertrag (Art. 6 Abs. 1 lit. b DSGVO). Für die Daten deiner Kunden gilt der
+      <a href="avv.html">AVV</a>.</p>
+
+    <h2 id="s10">10. Push-Mitteilungen</h2>
+    <p>Push-Mitteilungen bekommst du nur, wenn du sie in deinem Gerät erlaubst. Sie gehen an deine eigenen Geräte –
+      zum Beispiel „Angebot angenommen“ mit Angebotsnummer und Kundenname. Dafür speichern wir ein Push-Token deines
+      Geräts. Zugestellt werden die Mitteilungen über den Dienst Expo (650 Industries, Inc., USA) und von dort über den
+      Apple Push Notification service (Apple) bzw. Firebase Cloud Messaging (Google). Abschalten kannst du sie jederzeit
+      in den Einstellungen deines Geräts. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO nach deiner Erlaubnis im
+      Gerät.</p>
+
+    <h2 id="s11">11. Wetter</h2>
+    <p>Zu deinen Terminen zeigt LUNAXORA das Wetter. Dafür fragt die App direkt von deinem Gerät aus beim Dienst
+      Open-Meteo (open-meteo.com) an: Sie schickt den Ort deiner eigenen Firmenadresse (bei deutscher Postleitzahl mit
+      dem Länderkürzel DE) an die Ortssuche und die gefundenen Koordinaten an die Wettervorhersage. Dabei sieht
+      Open-Meteo die IP-Adresse deines Geräts. Ein Konto oder einen Schlüssel gibt es dafür nicht, Kundenadressen werden
+      nicht übermittelt. Das letzte Ergebnis merkt sich die App auf deinem Gerät. Rechtsgrundlage:
+      Art. 6 Abs. 1 lit. b DSGVO (Funktion der App).</p>
+
+    <h2 id="s12">12. TikTok-Verbindung</h2>
+    <p>Wenn du dein TikTok-Konto verbindest, meldest du dich bei TikTok an und erlaubst LUNAXORA den Zugriff (OAuth).
+      Die Zugangsschlüssel (Tokens) speichern wir auf unseren Servern, nicht in der App. Damit rufen wir die Statistiken
+      deiner Beiträge ab und zeigen sie dir in der App. LUNAXORA veröffentlicht nichts in deinem Namen. Du kannst die
+      Verbindung in der App trennen; dann löschen wir die Zugangsschlüssel. Rechtsgrundlage:
+      Art. 6 Abs. 1 lit. b DSGVO – die Verbindung richtest du selbst ein. Für TikTok (TikTok Technology Limited,
+      Irland) gilt dessen eigene <a href="https://www.tiktok.com/legal/privacy-policy-eea" rel="noopener noreferrer">Datenschutzerklärung</a>.</p>
+
+    <h2 id="s13">13. Abo, Zahlung, Testphase und Gutscheine</h2>
+    <ul>
+      <li><strong>Zahlung über Stripe:</strong> Ein Abo schließt du im Browser oder in der Mac-App über Stripe ab
+        (Stripe Payments Europe, Ltd., Irland). Deine Zahlungsdaten, etwa die Kartennummer, gibst du direkt bei Stripe
+        ein – wir sehen sie nicht. Stripe ist für diese Zahlungsdaten selbst verantwortlich
+        (<a href="https://stripe.com/de/privacy" rel="noopener noreferrer">Datenschutz bei Stripe</a>). Wir speichern
+        nur deine Stripe-Kunden- und Abo-Kennung, den Status deines Abos, das Ende des bezahlten Zeitraums und deine
+        bezahlten Rechnungen für unsere Umsatzübersicht.</li>
+      <li><strong>Käufe im App Store oder bei Google Play</strong> (später): Dann wickeln Apple bzw. Google die Zahlung
+        in eigener Verantwortung ab. Wir erhalten die Angaben, die wir brauchen, um dein Abo freizuschalten, zum
+        Beispiel Tarif und Laufzeit.</li>
+      <li><strong>Testphase:</strong> Für die 14-tägige Testphase speichern wir Beginn und Ende. Zahlungsdaten brauchen
+        wir dafür nicht.</li>
+      <li><strong>Gutscheine:</strong> Löst du einen Gutscheincode ein, speichern wir, welcher Code für dein Konto
+        eingelöst wurde und was er freischaltet.</li>
+    </ul>
+    <p>Rechtsgrundlagen: der Vertrag mit dir (Art. 6 Abs. 1 lit. b DSGVO) und die gesetzlichen Aufbewahrungspflichten
+      für unsere Rechnungen und Buchungsbelege (Art. 6 Abs. 1 lit. c DSGVO in Verbindung mit § 147 AO und
+      § 257 HGB).</p>
+
+    <h2 id="s14">14. Kündigung, Widerruf und Support</h2>
+    <p><strong>Kündigung:</strong> Kündigst du über <a href="https://lunaxora.de/kuendigen/">lunaxora.de/kuendigen/</a>
+      oder in der App, verarbeiten wir deine Angaben: Name, E-Mail-Adresse, Firma (freiwillig), welchen Vertrag du
+      kündigst (Abo, zusätzliche Firma oder ganzes Konto), ob ordentlich oder fristlos – dann mit Grund – und zu welchem
+      Zeitpunkt. Wir ordnen die Kündigung deinem Konto zu (Tarif, Ende des bezahlten Zeitraums) und schicken dir sofort
+      eine Eingangsbestätigung an die angegebene E-Mail-Adresse, mit Kopie an uns. Rechtsgrundlage:
+      Art. 6 Abs. 1 lit. b und lit. c DSGVO in Verbindung mit § 312k BGB. Die Kündigung und die Bestätigung bewahren
+      wir als Nachweis auf, solange daraus noch Ansprüche geltend gemacht werden können.</p>
+    <p><strong>Widerruf:</strong> Widerrufst du einen Vertrag über
+      <a href="https://lunaxora.de/kuendigen/?widerrufen">lunaxora.de/kuendigen/?widerrufen</a> oder in der App
+      („Vertrag widerrufen“), verarbeiten wir Name, E-Mail-Adresse, Firma (freiwillig) und welchen Vertrag du widerrufst,
+      ordnen den Widerruf deinem Konto zu und schicken dir sofort eine Eingangsbestätigung, mit Kopie an uns.
+      Rechtsgrundlage: Art. 6 Abs. 1 lit. b und lit. c DSGVO in Verbindung mit §§ 355, 356a BGB. Aufbewahrung wie bei
+      der Kündigung.</p>
+    <p><strong>Support:</strong> Schreibst du uns, nutzen wir deine Angaben, um deine Anfrage zu beantworten
+      (Art. 6 Abs. 1 lit. b DSGVO, sonst lit. f). Wir löschen die Nachricht, wenn sie erledigt ist und wir sie nicht
+      mehr als Nachweis oder wegen einer Aufbewahrungspflicht brauchen.</p>
+
+    <h2 id="s15">15. Daten auf deinem Gerät</h2>
+    <p>Einiges speichert die App nur auf deinem Gerät – im Speicher der App bzw. im Speicher deines Browsers:</p>
+    <ul>
+      <li>deine Anmeldung, damit du angemeldet bleibst – nutzt du mehrere Konten auf einem Gerät, die Anmeldungen
+        dieser Konten</li>
+      <li>die zufällige Gerätekennung aus Abschnitt 4</li>
+      <li>Design und Einstellungen, zum Beispiel zu Mitteilungen und Tönen, und das zuletzt geladene Wetter</li>
+      <li>nach einem Absturz den Fehlertext. Du kannst ihn kopieren und uns schicken, wenn du möchtest. Automatisch
+        übertragen wird nichts.</li>
+    </ul>
+    <p>Diese Speicherung ist für die Funktionen nötig, die du ausdrücklich nutzt (§ 25 Abs. 2 Nr. 2 TDDDG). Cookies
+      oder ähnliche Techniken für Tracking oder Werbung verwenden wir nicht.</p>
+
+    <h2 id="s16">16. Sicherheit</h2>
+    <ul>
+      <li>Alle Verbindungen sind verschlüsselt (HTTPS/TLS).</li>
+      <li>Regeln direkt in der Datenbank (Row Level Security) sorgen dafür, dass jede Firma nur ihre eigenen Daten
+        sieht und im Team jede Person nur die Bereiche, die ihre Rolle erlaubt. Das prüft die Datenbank selbst, nicht
+        nur die App.</li>
+      <li>Belege liegen in einem privaten Speicher.</li>
+      <li>Geheime Server-Schlüssel stecken nur in den Server-Funktionen, nie in der App.</li>
+      <li>Angebots-Links und Kalender-Adressen enthalten lange Zufallskennungen. Einladungscodes haben 12 Zeichen und
+        gelten 14 Tage.</li>
+      <li>Die Seiten für deine Kunden senden Sicherheits-Header und werden nicht zwischengespeichert.</li>
+      <li>Passwörter verwaltet Supabase Auth; sie werden nur als Hash-Wert gespeichert.</li>
+      <li>Gutscheine, Einladungscodes und E-Mail-Versand sind gegen Missbrauch begrenzt.</li>
+    </ul>
+
+    <h2 id="s17">17. Empfänger im Überblick</h2>
+    <div class="table">
+      <div class="table-wrap"><table>
+        <thead>
+          <tr><th scope="col">Empfänger</th><th scope="col">Wofür</th><th scope="col">Ort / Rolle</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Supabase Inc. (USA)</td><td>Datenbank, Login, Dateispeicher, Server-Funktionen</td><td>Server in Frankfurt am Main (EU); Auftragsverarbeiter</td></tr>
+          <tr><td>webgo GmbH (Hamburg)</td><td>Seiten unter lunaxora.de, Versand der E-Mails</td><td>Deutschland; Auftragsverarbeiter</td></tr>
+          <tr><td>Anthropic PBC (USA)</td><td>Luna: Texte und Belege</td><td>USA; nur wenn du Luna nutzt; Auftragsverarbeiter</td></tr>
+          <tr><td>Groq, Inc. (USA)</td><td>Spracherkennung für Luna</td><td>USA; nur bei Spracheingabe; Auftragsverarbeiter</td></tr>
+          <tr><td>Eleven Labs Inc. (USA)</td><td>Vorlesen der Antworten von Luna</td><td>USA; nur beim Vorlesen; Auftragsverarbeiter</td></tr>
+          <tr><td>650 Industries, Inc. – Expo (USA), Zustellung über Apple bzw. Google</td><td>Push-Mitteilungen an deine eigenen Geräte</td><td>USA; nur mit deiner Erlaubnis im Gerät; Auftragsverarbeiter</td></tr>
+          <tr><td>Stripe Payments Europe, Ltd. (Irland)</td><td>Zahlung deines Abos</td><td>eigene Verantwortung</td></tr>
+          <tr><td>Apple, Google</td><td>App Stores; später Käufe in der App</td><td>eigene Verantwortung</td></tr>
+          <tr><td>Open-Meteo</td><td>Wetter, Anfrage direkt von deinem Gerät</td><td>nur Ort deiner Firmenadresse und IP-Adresse</td></tr>
+          <tr><td>TikTok Technology Limited (Irland)</td><td>Statistiken deiner Beiträge</td><td>nur wenn du TikTok verbindest; eigene Verantwortung</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <p>Lädst du die App aus dem App Store oder von Google Play, verarbeiten Apple bzw. Google dabei Daten in eigener
+      Verantwortung. Darüber hinaus geben wir Daten nur weiter, wenn wir gesetzlich dazu verpflichtet sind, zum
+      Beispiel gegenüber dem Finanzamt. Wir verkaufen keine Daten, nutzen keine Analyse- oder Werbedienste und keine
+      Programme zur automatischen Absturzmeldung.</p>
+
+    <h2 id="s18">18. Übermittlung in Länder außerhalb der EU</h2>
+    <p>Einige der genannten Dienstleister haben ihren Sitz in den USA. Soweit dabei Daten in die USA übermittelt
+      werden oder ein Zugriff von dort möglich ist, geschieht das auf Grundlage des Angemessenheitsbeschlusses der
+      EU-Kommission zum EU-US Data Privacy Framework, soweit der Anbieter danach zertifiziert ist, und im Übrigen auf
+      Grundlage von EU-Standardvertragsklauseln (Art. 45 und 46 DSGVO).</p>
+
+    <h2 id="s19">19. Speicherdauer und Löschung</h2>
+    <ul>
+      <li><strong>Konto und Inhalte:</strong> so lange, wie dein Konto besteht. Endet ein bezahltes Abo, läuft dein
+        Konto als Gratis weiter und deine Daten bleiben erhalten.</li>
+      <li><strong>Konto löschen:</strong> Du kannst dein Konto jederzeit löschen lassen. Schreib uns dazu an
+        <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> oder wähle auf
+        <a href="https://lunaxora.de/kuendigen/">lunaxora.de/kuendigen/</a> „Mein ganzes LUNAXORA-Konto“. Eine
+        Löschfunktion direkt in der App folgt. Nachdem du die Löschung bestätigt hast, löschen wir dein Konto und deine
+        Inhalte, spätestens nach 30 Tagen. Lade vorher herunter, was du selbst aufbewahren musst – zum Beispiel deine
+        Rechnungen (Export als PDF, ZIP oder CSV).</li>
+      <li><strong>Aufbewahrungspflichten:</strong> Was wir aus steuer- und handelsrechtlichen Gründen aufbewahren
+        müssen – vor allem unsere Rechnungen an dich und die Buchungsbelege dazu (8 Jahre) sowie Geschäftsbriefe
+        (6 Jahre), jeweils ab dem Ende des Kalenderjahres –, bleibt bis zum Ende der Frist gespeichert und wird nur
+        noch dafür verwendet.</li>
+      <li><strong>Sprachaufnahmen</strong> für Luna speichern wir nicht. <strong>Technische Protokolle</strong> unserer
+        Dienstleister werden nach kurzer Zeit gelöscht. <strong>Einträge zum Missbrauchsschutz</strong> behalten wir
+        nur, solange die Begrenzung sie braucht.</li>
+      <li><strong>Teammitglieder:</strong> Verlässt du ein Team, entscheidet die Firma über die Daten, die im Team
+        entstanden sind (zum Beispiel Arbeitsstunden), im Rahmen ihrer eigenen Pflichten.</li>
+    </ul>
+
+    <h2 id="s20">20. Deine Rechte</h2>
+    <ul>
+      <li>Auskunft über die Daten, die wir über dich gespeichert haben (Art. 15 DSGVO)</li>
+      <li>Berichtigung falscher Daten (Art. 16 DSGVO)</li>
+      <li>Löschung (Art. 17 DSGVO), soweit keine Aufbewahrungspflicht entgegensteht</li>
+      <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+      <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+      <li>Widerruf einer Einwilligung mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO), falls du uns eine erteilt
+        hast. Push-Mitteilungen kannst du außerdem jederzeit im Gerät abschalten und die TikTok-Verbindung in der App
+        trennen.</li>
+      <li>Beschwerde bei einer Datenschutz-Aufsichtsbehörde (Art. 77 DSGVO). Für uns zuständig ist die Landesbeauftragte
+        für Datenschutz und Informationsfreiheit Nordrhein-Westfalen (LDI NRW) in Düsseldorf,
+        <a href="https://www.ldi.nrw.de" rel="noopener noreferrer">ldi.nrw.de</a>. Du kannst dich auch an die Behörde
+        in deinem Bundesland wenden.</li>
+    </ul>
+    <div class="box strong">
+      <p><strong>Widerspruchsrecht (Art. 21 DSGVO):</strong> Soweit wir Daten auf Grundlage unseres berechtigten
+        Interesses verarbeiten (Art. 6 Abs. 1 lit. f DSGVO), kannst du dem aus Gründen, die sich aus deiner besonderen
+        Situation ergeben, jederzeit widersprechen. Wir verarbeiten die Daten dann nicht mehr, es sei denn, wir können
+        zwingende schutzwürdige Gründe nachweisen, die deine Interessen überwiegen, oder die Verarbeitung dient der
+        Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen.</p>
+    </div>
+    <p>Für all das genügt eine formlose Nachricht an <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a>.
+      Fragen deine Kunden oder Teammitglieder nach Daten in deinem Konto, bist du ihr Ansprechpartner – wir helfen dir
+      dabei.</p>
+
+    <h2 id="s21">21. Musst du Daten angeben?</h2>
+    <p>Für ein Konto brauchen wir deine E-Mail-Adresse und ein Passwort. Ohne Firmenname und Anschrift kann die App
+      keine Angebote und Rechnungen erstellen, ohne Zahlung über Stripe (oder später über den Store) gibt es kein
+      bezahltes Abo. Alles andere ist freiwillig; dann stehen nur die entsprechenden Funktionen nicht zur
+      Verfügung.</p>
+
+    <h2 id="s22">22. Keine automatisierten Entscheidungen</h2>
+    <p>Wir treffen keine Entscheidungen, die ausschließlich auf einer automatisierten Verarbeitung beruhen und dir
+      gegenüber rechtliche Wirkung entfalten oder dich ähnlich erheblich beeinträchtigen (Art. 22 DSGVO). Luna macht
+      Vorschläge und legt Einträge an – was gilt, entscheidest du.</p>
+
+    <h2 id="s23">23. Änderungen</h2>
+    <p>Wir passen diese Datenschutzerklärung an, wenn sich die App, unsere Dienstleister oder die Rechtslage ändern.
+      Es gilt die Fassung, die hier veröffentlicht ist. Über wesentliche Änderungen informieren wir dich in der App
+      oder per E-Mail.</p>
+  </main>
+
+  <footer>
+    <p>Stand: 23. November 2026</p>
+    <nav aria-label="Rechtliches">
+      <a href="agb.html">AGB</a>
+      <a href="avv.html">Auftragsverarbeitung (AVV)</a>
+      <a href="https://lunaxora.de/impressum.html">Impressum</a>
+      <a href="https://lunaxora.de/kuendigen/">Verträge hier kündigen</a>
+      <a href="https://lunaxora.de/kuendigen/?widerrufen">Vertrag widerrufen</a>
+    </nav>
+  </footer>
+</body>
+</html>

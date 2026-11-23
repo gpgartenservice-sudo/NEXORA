@@ -1,0 +1,455 @@
+<!doctype html>
+<!--
+  LUNAXORA – „Verträge hier kündigen“ (Kündigungsbutton nach § 312k BGB)
+
+  Liegt auf https://lunaxora.de/kuendigen/ und ist ohne Anmeldung erreichbar
+  (Link im Fuß der Homepage, in der App unter Profil > Abo und Profil > Rechtliches).
+  Ablauf: Angaben ausfüllen -> „Jetzt kündigen“ -> Datenbank-Funktion contract_cancel
+  (supabase/migrations/20261205090000_kuendigung.sql) -> Funktion "mail"
+  (kind "cancellation") schickt sofort die Eingangsbestätigung. Danach zeigt die
+  Seite die Kündigung mit Datum und Uhrzeit zum Speichern oder Drucken.
+
+  Mit ?widerrufen ist dieselbe Seite die Widerrufsfunktion nach § 356a BGB
+  („Vertrag widerrufen“ -> „Widerruf bestätigen“, kind 'widerruf'): für Verbraucher,
+  14 Tage ab Vertragsschluss. Link: https://lunaxora.de/kuendigen/?widerrufen
+
+  Die App öffnet die Seite mit der E-Mail im Fragment (#email=…&src=app), damit
+  sie nie in Server-Protokollen landet; die Seite löscht das Fragment sofort.
+
+  %%SUPABASE_URL%% und %%SUPABASE_KEY%% setzt scripts/web-hochladen.sh kuendigen
+  aus der .env ein (öffentliche Daten, kein Geheimnis). Fertige Datei: dist-kuendigen/.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Verträge hier kündigen: Dein LUNAXORA-Abo online kündigen, ohne Anmeldung, mit sofortiger Bestätigung per E-Mail.">
+  <title>Verträge hier kündigen – LUNAXORA</title>
+  <style>
+    :root {
+      --accent: #2FE39A;
+      --ink: #111214;
+      --muted: #5C6066;
+      --line: #E4E6E9;
+      --page: #F4F5F7;
+      --error: #C0392B;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.47 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } .card { padding: 18px; } }
+    h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 0; font-size: 16px; }
+    p { margin: 0; }
+    a { color: var(--ink); }
+    .brand { font-weight: 800; letter-spacing: 2px; font-size: 14px; color: var(--ink); text-decoration: none; }
+    .small { color: var(--muted); font-size: 13px; line-height: 1.46; }
+    form { display: flex; flex-direction: column; gap: 18px; }
+    fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    legend { font-weight: 700; font-size: 15px; padding: 0; margin-bottom: 6px; }
+    label.field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+    input[type="text"], input[type="email"], input[type="date"], textarea {
+      width: 100%;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+      min-height: 46px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .choice { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+    .choice input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--ink); flex: none; }
+    .choice span { display: flex; flex-direction: column; gap: 2px; }
+    .choice small { color: var(--muted); font-size: 13px; }
+    .choice:has(input:checked) { border-color: var(--ink); }
+    .hint { border: 1px solid var(--line); background: #F7F8F9; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    .box { border: 1px solid rgba(47, 227, 154, 0.6); background: rgba(47, 227, 154, 0.12); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .box-title { font-size: 17px; font-weight: 700; }
+    dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; }
+    dt { color: var(--muted); font-size: 13px; font-weight: 600; padding-top: 1px; }
+    dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+    @media (max-width: 480px) { dl { grid-template-columns: 1fr; gap: 2px; } dd { margin-bottom: 8px; } }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    button {
+      flex: 1 1 auto;
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px 20px;
+      cursor: pointer;
+      min-height: 48px;
+    }
+    button.dark { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; font-size: 16px; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .problem { color: var(--error); font-size: 14px; }
+    [hidden] { display: none !important; }
+    .footer { display: flex; flex-wrap: wrap; gap: 8px 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .footer a { font-size: 14px; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .card { border: 0; padding: 0; }
+      .actions, .footer, .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <a class="brand" href="https://lunaxora.de/">LUNAXORA</a>
+
+    <!-- Schritt 1: Angaben -->
+    <section id="step-form" aria-labelledby="title-form">
+      <form id="form" novalidate>
+        <div>
+          <h1 id="title-form">Verträge hier kündigen</h1>
+        </div>
+        <p id="intro">Hier kündigst du dein Abo bei LUNAXORA, ohne Anmeldung. Du bekommst sofort eine Bestätigung per E-Mail.</p>
+        <p class="small" id="switch"></p>
+
+        <fieldset>
+          <legend id="who-legend">Wer kündigt?</legend>
+          <label class="field">Vor- und Nachname
+            <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required>
+          </label>
+          <label class="field">E-Mail-Adresse, mit der du bei LUNAXORA angemeldet bist
+            <input type="email" id="email" name="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <p class="small">An diese Adresse schicken wir die Bestätigung. Daran erkennen wir auch dein Konto.</p>
+          <label class="field">Firma (freiwillig)
+            <input type="text" id="company" name="company" autocomplete="organization" maxlength="120">
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend id="contract-legend">Welchen Vertrag kündigst du?</legend>
+          <label class="choice"><input type="radio" name="contract" value="abo" checked>
+            <span>LUNAXORA-Abo<small>Pro, Business oder Teams. Danach geht es mit dem kostenlosen Tarif Gratis weiter, deine Daten bleiben.</small></span></label>
+          <label class="choice"><input type="radio" name="contract" value="zusatzfirma">
+            <span>Zusätzliche Firma<small>Nur die gebuchte weitere Firma (9,99 € im Monat). Dein Abo läuft weiter.</small></span></label>
+          <label class="choice" id="contract-konto"><input type="radio" name="contract" value="konto">
+            <span>Mein ganzes LUNAXORA-Konto<small>Abo beenden und danach Konto und Daten löschen lassen.</small></span></label>
+        </fieldset>
+
+        <fieldset id="kind-field">
+          <legend>Wie kündigst du?</legend>
+          <label class="choice"><input type="radio" name="kind" value="ordentlich" checked>
+            <span>Ordentliche Kündigung<small>Das Abo endet zum Ende des bezahlten Zeitraums.</small></span></label>
+          <label class="choice"><input type="radio" name="kind" value="ausserordentlich">
+            <span>Außerordentliche (fristlose) Kündigung<small>Nur aus wichtigem Grund. Bitte nenne den Grund.</small></span></label>
+          <label class="field" id="reason-field" hidden>Grund für die fristlose Kündigung
+            <textarea id="reason" name="reason" maxlength="1000"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset id="when-field">
+          <legend>Zu wann soll der Vertrag enden?</legend>
+          <label class="choice"><input type="radio" name="when" value="next" checked>
+            <span>Zum nächstmöglichen Zeitpunkt</span></label>
+          <label class="choice"><input type="radio" name="when" value="date">
+            <span>Zu einem bestimmten Datum</span></label>
+          <label class="field" id="date-field" hidden>Gewünschtes Datum
+            <input type="date" id="wished" name="wished">
+          </label>
+        </fieldset>
+
+        <div class="hint" id="statement" hidden>
+          <strong>Deine Erklärung</strong>
+          <span id="statement-text"></span>
+        </div>
+
+        <div class="hint" id="store-hint">
+          <strong>Abo über den App Store oder Google Play?</strong>
+          <span>Solche Abos kann nur der Store beenden: auf dem iPhone unter Einstellungen &gt; dein Name &gt; Abonnements, bei Android in Google Play unter Profil &gt; Zahlungen und Abos &gt; Abos. Du kannst trotzdem hier kündigen, dann sagen wir dir in der Bestätigung genau, was zu tun ist.</span>
+        </div>
+
+        <p class="problem" id="problem" role="alert" hidden></p>
+        <div class="actions">
+          <button type="submit" class="dark" id="submit">Jetzt kündigen</button>
+        </div>
+        <p class="small" id="submit-note">Mit „Jetzt kündigen“ schickst du die Kündigung verbindlich ab. Was mit deinen Angaben passiert, steht in der <a href="https://lunaxora.de/App/datenschutz.html">Datenschutzerklärung</a>.</p>
+      </form>
+    </section>
+
+    <!-- Schritt 2: Bestätigung zum Speichern -->
+    <section id="step-done" hidden aria-labelledby="title-done">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="box" role="status">
+          <p class="box-title" id="title-done">Deine Kündigung ist eingegangen</p>
+          <p id="received"></p>
+        </div>
+        <p id="mail-state"></p>
+        <h2 id="summary-title">Deine Kündigung</h2>
+        <dl id="summary"></dl>
+        <p class="small" id="done-note">Speichere oder drucke diese Seite als Nachweis. Wann dein Vertrag genau endet, steht in der Bestätigung per E-Mail.</p>
+        <div class="actions">
+          <button type="button" id="save">Als Datei speichern</button>
+          <button type="button" id="print">Drucken oder als PDF sichern</button>
+        </div>
+      </div>
+    </section>
+
+    <nav class="footer" aria-label="Rechtliches">
+      <a href="https://lunaxora.de/impressum.html">Impressum</a>
+      <a href="https://lunaxora.de/App/datenschutz.html">Datenschutz</a>
+      <a href="https://lunaxora.de/App/agb.html">AGB</a>
+      <a href="https://lunaxora.de/">lunaxora.de</a>
+    </nav>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+      var SUPABASE_URL = '%%SUPABASE_URL%%';
+      var SUPABASE_KEY = '%%SUPABASE_KEY%%';
+
+      var $ = function (id) { return document.getElementById(id); };
+      var form = $('form');
+      var source = 'web';
+      // Widerrufsfunktion (§ 356a BGB) statt Kündigung?
+      var WITHDRAW = /(^|[?&])widerrufen(=|&|$)/.test(location.search.slice(1));
+
+      var CONTRACTS = {
+        abo: 'LUNAXORA-Abo (Pro, Business oder Teams)',
+        zusatzfirma: 'Zusätzliche Firma im Konto',
+        konto: 'Mein ganzes LUNAXORA-Konto (Abo und Konto)'
+      };
+      var ERRORS = {
+        invalid_name: 'Bitte gib deinen Vor- und Nachnamen an.',
+        invalid_email: 'Bitte prüfe deine E-Mail-Adresse.',
+        invalid_company: 'Der Firmenname ist zu lang.',
+        invalid_contract: 'Bitte wähle den Vertrag aus.',
+        invalid_kind: 'Bitte wähle die Art der Kündigung aus.',
+        missing_reason: 'Bitte nenne den Grund für die fristlose Kündigung.',
+        invalid_reason: 'Der Grund ist zu lang (höchstens 1.000 Zeichen).',
+        invalid_date: 'Bitte wähle ein Datum ab heute.',
+        too_many: WITHDRAW ? 'Gerade kamen zu viele Anfragen an. Bitte versuch es in einer Stunde noch einmal oder widerrufe per E-Mail an kontakt@lunaxora.de.' : 'Gerade kamen zu viele Kündigungen an. Bitte versuch es in einer Stunde noch einmal oder schreib an kontakt@lunaxora.de.'
+      };
+
+      // Vorbelegung aus der App: #email=…&name=…&src=app (Fragment geht nie an den Server)
+      try {
+        var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+        if (hash.get('email')) $('email').value = hash.get('email').slice(0, 254);
+        if (hash.get('name')) $('name').value = hash.get('name').slice(0, 100);
+        if (hash.get('src') === 'app') source = 'app';
+        if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+      } catch (e) { /* ohne Vorbelegung */ }
+
+      var today = new Date();
+      var iso = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+      $('wished').min = iso(today);
+      $('wished').max = iso(new Date(today.getTime() + 730 * 864e5));
+
+      function statementText(contract) {
+        return 'Hiermit widerrufe ich den von mir abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung: ' + CONTRACTS[contract];
+      }
+      if (WITHDRAW) {
+        document.title = 'Vertrag widerrufen – LUNAXORA';
+        $('title-form').textContent = 'Vertrag widerrufen';
+        $('intro').textContent = 'Als Verbraucher kannst du einen Vertrag mit LUNAXORA innerhalb von 14 Tagen nach Abschluss ohne Angabe von Gründen widerrufen. Ohne Anmeldung, du bekommst sofort eine Eingangsbestätigung per E-Mail.';
+        $('switch').innerHTML = 'Du willst dein Abo nur beenden? <a href="./">Verträge hier kündigen</a>';
+        $('who-legend').textContent = 'Wer widerruft?';
+        $('contract-legend').textContent = 'Welchen Vertrag widerrufst du?';
+        $('contract-konto').hidden = true;
+        $('store-hint').lastElementChild.textContent = 'Solche Käufe widerrufst du beim Store: bei Apple unter reportaproblem.apple.com, bei Google in Google Play unter Profil > Zahlungen und Abos. Du kannst trotzdem hier widerrufen, dann sagen wir dir in der Bestätigung genau, was zu tun ist.';
+        $('kind-field').hidden = true;
+        $('statement').hidden = false;
+        $('submit').textContent = 'Widerruf bestätigen';
+        $('submit-note').firstChild.textContent = 'Mit „Widerruf bestätigen“ schickst du den Widerruf ab. Was mit deinen Angaben passiert, steht in der ';
+        $('summary-title').textContent = 'Dein Widerruf';
+        $('title-done').textContent = 'Dein Widerruf ist eingegangen';
+        $('done-note').textContent = 'Speichere oder drucke diese Seite als Nachweis. Wie es weitergeht, steht in der Bestätigung per E-Mail.';
+      } else {
+        $('switch').innerHTML = 'Erst vor Kurzem abgeschlossen? Als Verbraucher kannst du innerhalb von 14 Tagen auch <a href="?widerrufen">den Vertrag widerrufen</a>.';
+      }
+      var submitLabel = $('submit').textContent;
+
+      var value = function (name) { var el = form.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; };
+      function sync() {
+        if (WITHDRAW) {
+          $('when-field').hidden = true;
+          $('statement-text').textContent = '„' + statementText(value('contract')) + '“';
+          return;
+        }
+        var fristlos = value('kind') === 'ausserordentlich';
+        $('reason-field').hidden = !fristlos;
+        $('when-field').hidden = fristlos;
+        $('date-field').hidden = fristlos || value('when') !== 'date';
+      }
+      form.addEventListener('change', sync);
+      sync();
+
+      function problem(text) {
+        $('problem').textContent = text || '';
+        $('problem').hidden = !text;
+      }
+
+      function dateDe(isoDate) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate || '');
+        return m ? m[3] + '.' + m[2] + '.' + m[1] : '';
+      }
+      function dayTimeDe(ts) {
+        var d = new Date(ts);
+        var day = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });
+        var time = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return day + ' um ' + time + ' Uhr';
+      }
+
+      async function post(path, body) {
+        var res = await fetch(SUPABASE_URL + path, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = null;
+        try { data = await res.json(); } catch (e) { data = null; }
+        return { ok: res.ok, status: res.status, data: data };
+      }
+
+      async function sendMail(token) {
+        for (var i = 0; i < 3; i++) {
+          try {
+            var r = await post('/functions/v1/mail', { kind: 'cancellation', token: token });
+            if (r.ok) return true;
+            if (r.status === 409 && r.data && r.data.error === 'already_sent') return true;
+            if (r.status >= 400 && r.status < 500 && r.status !== 429) return false;
+          } catch (e) { /* nochmal */ }
+          await new Promise(function (ok) { setTimeout(ok, 1500 * (i + 1)); });
+        }
+        return false;
+      }
+
+      var lines = [];
+      function show(entered, receivedAt, mailed) {
+        $('received').textContent = 'Eingegangen am ' + dayTimeDe(receivedAt) + ' (deutsche Zeit).';
+        $('mail-state').textContent = mailed
+          ? 'Die Bestätigung ist unterwegs an ' + entered.email + '. Schau auch im Spam-Ordner nach.'
+          : 'Deine Kündigung ist eingegangen. Die Bestätigung per E-Mail konnte gerade nicht verschickt werden, wir schicken sie dir nach. Speichere bitte diese Seite als Nachweis.';
+        lines = [
+          ['Eingang', dayTimeDe(receivedAt)],
+          ['Name', entered.name],
+          ['E-Mail', entered.email]
+        ];
+        if (entered.company) lines.push(['Firma', entered.company]);
+        lines.push(['Vertrag', CONTRACTS[entered.contract]]);
+        if (entered.kind === 'widerruf') {
+          lines.push(['Erklärung', '„' + statementText(entered.contract) + '“']);
+        } else {
+          lines.push(['Art', entered.kind === 'ausserordentlich' ? 'Außerordentliche (fristlose) Kündigung' : 'Ordentliche Kündigung']);
+          if (entered.reason) lines.push(['Grund', entered.reason]);
+          lines.push(['Zeitpunkt', entered.kind === 'ausserordentlich' ? 'Sofort (fristlos)' : entered.wished ? 'Zum ' + dateDe(entered.wished) : 'Zum nächstmöglichen Zeitpunkt']);
+        }
+        lines.push(['Vertragspartner', 'LUNAXORA GbR, Zu den Gärten 60, 59755 Arnsberg, kontakt@lunaxora.de']);
+        var dl = $('summary');
+        dl.textContent = '';
+        lines.forEach(function (l) {
+          var dt = document.createElement('dt'); dt.textContent = l[0];
+          var dd = document.createElement('dd'); dd.textContent = l[1];
+          dl.appendChild(dt); dl.appendChild(dd);
+        });
+        $('step-form').hidden = true;
+        $('step-done').hidden = false;
+        window.scrollTo(0, 0);
+        $('title-done').setAttribute('tabindex', '-1');
+        $('title-done').focus();
+      }
+
+      $('print').addEventListener('click', function () { window.print(); });
+      $('save').addEventListener('click', function () {
+        var text = (WITHDRAW ? 'Widerruf bei LUNAXORA' : 'Kündigung bei LUNAXORA') + '\n\n' + lines.map(function (l) { return l[0] + ': ' + l[1]; }).join('\n') + '\n';
+        var url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = WITHDRAW ? 'Widerruf-LUNAXORA.txt' : 'Kuendigung-LUNAXORA.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      });
+
+      var busy = false;
+      form.addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        if (busy) return;
+        problem('');
+        var entered = {
+          name: $('name').value.trim(),
+          email: $('email').value.trim(),
+          company: $('company').value.trim(),
+          contract: value('contract'),
+          kind: WITHDRAW ? 'widerruf' : value('kind'),
+          reason: $('reason').value.trim(),
+          wished: value('when') === 'date' ? $('wished').value : ''
+        };
+        if (entered.kind !== 'ausserordentlich') entered.reason = '';
+        if (entered.kind === 'ausserordentlich') entered.wished = '';
+        if (entered.name.length < 2) return problem(ERRORS.invalid_name), $('name').focus();
+        if (!/^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]{2,}$/.test(entered.email)) return problem(ERRORS.invalid_email), $('email').focus();
+        if (entered.kind === 'ausserordentlich' && entered.reason.length < 3) return problem(ERRORS.missing_reason), $('reason').focus();
+        if (entered.kind === 'widerruf') { entered.reason = ''; entered.wished = ''; }
+        if (value('when') === 'date' && entered.kind === 'ordentlich' && !entered.wished) return problem('Bitte wähle das Datum aus.'), $('wished').focus();
+
+        busy = true;
+        $('submit').disabled = true;
+        $('submit').textContent = 'Wird abgeschickt …';
+        if (WITHDRAW && entered.contract === 'konto') entered.contract = 'abo';
+        try {
+          var r = await post('/rest/v1/rpc/contract_cancel', {
+            p_name: entered.name,
+            p_email: entered.email,
+            p_contract: entered.contract,
+            p_kind: entered.kind,
+            p_reason: entered.reason || null,
+            p_wished_on: entered.wished || null,
+            p_company: entered.company || null,
+            p_source: source
+          });
+          if (!r.ok || !r.data || r.data.error || !r.data.token) {
+            var code = r.data && r.data.error;
+            problem(ERRORS[code] || (WITHDRAW
+              ? 'Das hat gerade nicht geklappt. Bitte versuch es noch einmal oder widerrufe per E-Mail an kontakt@lunaxora.de.'
+              : 'Das hat gerade nicht geklappt. Bitte versuch es noch einmal oder kündige per E-Mail an kontakt@lunaxora.de.'));
+            return;
+          }
+          var mailed = await sendMail(r.data.token);
+          show(entered, r.data.received_at, mailed);
+        } catch (e) {
+          problem('Keine Verbindung. Bitte prüfe dein Internet und versuch es noch einmal, oder schreib an kontakt@lunaxora.de.');
+        } finally {
+          busy = false;
+          $('submit').disabled = false;
+          $('submit').textContent = submitLabel;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

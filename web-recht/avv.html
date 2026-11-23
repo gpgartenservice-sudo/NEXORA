@@ -1,0 +1,379 @@
+<!doctype html>
+<!--
+  LUNAXORA – Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO (veröffentlicht unter https://lunaxora.de/App/avv.html)
+  Eine einzige Datei, nur Inline-CSS, keine externen Schriften, Skripte oder Tracker.
+  Ändert sich ein Unterauftragsverarbeiter (Anlage 2): Nutzer 4 Wochen vorher informieren (§ 9) und
+  datenschutz.html (Abschnitt 17) mit anpassen.
+  Muster, keine Rechtsberatung.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Vertrag zur Auftragsverarbeitung (AVV) nach Art. 28 DSGVO zwischen Nutzern der App LUNAXORA und der LUNAXORA GbR, mit technischen und organisatorischen Maßnahmen und Unterauftragsverarbeitern.">
+  <link rel="canonical" href="https://lunaxora.de/App/avv.html">
+  <title>Auftragsverarbeitung (AVV) – App LUNAXORA</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0E0E0F;
+      --surface-2: #151517;
+      --border: #232326;
+      --text: #FFFFFF;
+      --muted: #8E8E93;
+      --accent: #2FE39A;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      min-height: 100vh;
+    }
+    main {
+      width: 100%;
+      max-width: 760px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { body { padding: 16px; } main { padding: 20px; } }
+    h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.4px; }
+    h2 { margin: 22px 0 2px; font-size: 17px; line-height: 1.3; scroll-margin-top: 16px; }
+    h3 { margin: 10px 0 0; font-size: 15px; }
+    p { margin: 0; }
+    ul, ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+    a { color: var(--text); text-decoration-color: rgba(47, 227, 154, 0.7); text-underline-offset: 2px; }
+    a:hover { color: var(--accent); }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .lead { color: var(--muted); }
+    .small { color: var(--muted); font-size: 13px; }
+    .back { font-size: 14px; }
+    .back a { color: var(--muted); text-decoration: none; }
+    .back a:hover { color: var(--accent); }
+    .box { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .box.strong { border-color: rgba(47, 227, 154, 0.55); background: rgba(47, 227, 154, 0.08); }
+    .name { font-weight: 700; }
+    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 560px) { .parties { grid-template-columns: 1fr; } }
+    .paras { list-style: none; counter-reset: absatz; padding-left: 32px; gap: 6px; }
+    .paras > li { counter-increment: absatz; position: relative; }
+    .paras > li::before { content: "(" counter(absatz) ")"; position: absolute; left: -32px; color: var(--muted); }
+    .paras ul { margin-top: 4px; }
+    .toc { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 14px 16px; }
+    .toc p { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .toc ol { display: block; columns: 2; column-gap: 28px; font-size: 14px; list-style: none; padding-left: 0; }
+    .toc li { margin-bottom: 3px; break-inside: avoid; }
+    .toc a { text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    @media (max-width: 560px) { .toc ol { columns: 1; } }
+    .table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
+    tr:last-child td { border-bottom: none; }
+    footer { width: 100%; max-width: 760px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    footer a { color: var(--muted); }
+    @media print {
+      :root { --bg: #fff; --surface: #fff; --surface-2: #fff; --border: #ccc; --text: #000; --muted: #444; }
+      body { padding: 0; }
+      main { border: none; padding: 0; max-width: none; }
+      .back, .toc, footer nav { display: none; }
+    }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .table-wrap table { min-width: 520px; }
+    .form p { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="back"><a href="https://lunaxora.de/">← lunaxora.de</a></p>
+    <h1>Vertrag zur Auftragsverarbeitung (AVV) nach Art. 28 DSGVO</h1>
+    <p class="lead">für die Nutzung der App LUNAXORA</p>
+
+    <div class="parties">
+      <div class="box">
+        <p class="small">Verantwortlicher („Auftraggeber“)</p>
+        <p>Du als Nutzerin oder Nutzer von LUNAXORA – genauer: die Person bzw. Firma, die das LUNAXORA-Konto führt, im
+          Team der Inhaber des Kontos. Im Folgenden „du“.</p>
+      </div>
+      <div class="box">
+        <p class="small">Auftragsverarbeiter</p>
+        <p class="name">LUNAXORA GbR</p>
+        <p>vertreten durch die Gesellschafter Pascal Pape und Tom Grau, Zu den Gärten 60, 59755 Arnsberg,
+          <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a>, Telefon 0176 55968938. Im Folgenden „wir“.</p>
+      </div>
+    </div>
+    <div class="box strong">
+      <p><strong>Wie dieser Vertrag zustande kommt:</strong> Du schließt ihn ab, indem du bei der Registrierung die
+        <a href="agb.html">AGB</a> akzeptierst. Er ist Teil deines Nutzungsvertrags (§ 9 AGB) und in elektronischer
+        Form geschlossen (Art. 28 Abs. 9 DSGVO). Er gilt nur, soweit du in LUNAXORA personenbezogene Daten anderer
+        Menschen verarbeitest – zum Beispiel deiner Kunden oder deines Teams. Für die Daten zu deinem eigenen Konto sind
+        wir selbst verantwortlich; dafür gilt die <a href="datenschutz.html">Datenschutzerklärung</a>.</p>
+    </div>
+
+    <nav class="toc" aria-label="Inhalt">
+      <p>Inhalt</p>
+      <ol>
+        <li><a href="#a1">§ 1 Gegenstand und Dauer</a></li>
+        <li><a href="#a2">§ 2 Art und Zweck der Verarbeitung</a></li>
+        <li><a href="#a3">§ 3 Arten der Daten</a></li>
+        <li><a href="#a4">§ 4 Betroffene Personen</a></li>
+        <li><a href="#a5">§ 5 Deine Verantwortung</a></li>
+        <li><a href="#a6">§ 6 Weisungen</a></li>
+        <li><a href="#a7">§ 7 Vertraulichkeit</a></li>
+        <li><a href="#a8">§ 8 Sicherheit der Verarbeitung</a></li>
+        <li><a href="#a9">§ 9 Unterauftragsverarbeiter</a></li>
+        <li><a href="#a10">§ 10 Unterstützung</a></li>
+        <li><a href="#a11">§ 11 Datenschutzverletzungen</a></li>
+        <li><a href="#a12">§ 12 Löschung und Rückgabe</a></li>
+        <li><a href="#a13">§ 13 Nachweise und Kontrollen</a></li>
+        <li><a href="#a14">§ 14 Haftung</a></li>
+        <li><a href="#a15">§ 15 Schlussbestimmungen</a></li>
+        <li><a href="#anlage1">Anlage 1: Technische und organisatorische Maßnahmen</a></li>
+        <li><a href="#anlage2">Anlage 2: Unterauftragsverarbeiter</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="a1">§ 1 Gegenstand und Dauer</h2>
+    <ol class="paras">
+      <li>Gegenstand ist die Bereitstellung der App LUNAXORA nach den <a href="agb.html">AGB</a>. Dabei verarbeiten wir
+        personenbezogene Daten, für die du verantwortlich bist, in deinem Auftrag.</li>
+      <li>Der Vertrag läuft so lange wie dein Nutzungsvertrag, auch im Tarif Gratis. Unsere Pflichten zu Vertraulichkeit,
+        Löschung und Sicherheit gelten darüber hinaus, solange wir noch Daten aus deinem Konto haben.</li>
+    </ol>
+
+    <h2 id="a2">§ 2 Art und Zweck der Verarbeitung</h2>
+    <ol class="paras">
+      <li><strong>Art:</strong> Erheben (etwa über das Kundenformular oder die Online-Annahme von Angeboten), Speichern,
+        Ordnen, Anzeigen, Abfragen, Übermitteln (zum Beispiel beim Versand von E-Mails, über Angebots-Links und das
+        Kalender-Abo), Erstellen von PDFs und Exporten sowie Löschen.</li>
+      <li><strong>Zweck:</strong> Wir verarbeiten die Daten nur, um dir die Funktionen von LUNAXORA bereitzustellen:
+        Kunden und Aufträge, Termine, Angebote und Rechnungen, Zahlungserinnerungen und Mahnungen, Belege und Finanzen,
+        E-Mail-Versand mit Versandprotokoll, Online-Annahme und -Widerruf von Angeboten, Kundenformular, Kalender-Abo,
+        Team-Funktionen, Push-Mitteilungen an deine eigenen Geräte und – nur wenn du sie nutzt – die KI-Assistentin
+        Luna.</li>
+      <li>Für eigene Zwecke nutzen wir die Daten nicht. Ausgenommen sind reine Mengenangaben ohne Inhalte, mit denen wir
+        Kontingente und Kosten zählen.</li>
+      <li>Die Daten werden in der EU verarbeitet (Server in Frankfurt am Main). Eine Übermittlung in Länder außerhalb der
+        EU erfolgt nur über die Unterauftragsverarbeiter in Anlage 2 und nur unter den Voraussetzungen der
+        Art. 44 ff. DSGVO.</li>
+    </ol>
+
+    <h2 id="a3">§ 3 Arten der Daten</h2>
+    <ul>
+      <li>Kontaktdaten von Kunden und ihren Ansprechpartnern: Name, Firma, Anschrift, E-Mail-Adresse, Telefonnummer</li>
+      <li>Aufträge, Angebote, Rechnungen, Preise, Zahlungsstand, Zahlungserinnerungen und Mahnungen</li>
+      <li>Termine einschließlich Ort bzw. Adresse, Notizen</li>
+      <li>Belege (Fotos und PDFs) und Ausgaben, soweit darin Personen genannt sind</li>
+      <li>Versandprotokoll der E-Mails: Empfänger, Betreff, Zeitpunkt</li>
+      <li>Daten zur Online-Annahme, Ablehnung und zum Widerruf von Angeboten: Name, Zeitpunkt, gegebenenfalls
+        Nachricht</li>
+      <li>Daten von Teammitgliedern: Name, E-Mail-Adresse, Rolle und Rechte, Einsätze im Arbeitsplan, zugewiesene
+        Aufgaben, Nachrichten in Team-Chats, selbst eingetragene Arbeitsstunden, Anträge auf Urlaub oder frei</li>
+      <li><strong>Besondere Kategorie (Art. 9 DSGVO):</strong> Krankmeldungen von Teammitgliedern – gespeichert wird nur
+        die Tatsache „krank“, keine Diagnose</li>
+    </ul>
+
+    <h2 id="a4">§ 4 Kategorien betroffener Personen</h2>
+    <ul>
+      <li>deine Kunden und deren Ansprechpartner</li>
+      <li>Interessenten, die bei dir anfragen oder ein Angebot erhalten</li>
+      <li>Mitglieder deines Teams, zum Beispiel Beschäftigte und Mitgründer</li>
+      <li>Geschäftspartner wie Lieferanten, soweit sie in Belegen oder Ausgaben genannt sind</li>
+    </ul>
+
+    <h2 id="a5">§ 5 Deine Verantwortung</h2>
+    <ol class="paras">
+      <li>Du bist dafür verantwortlich, dass die Verarbeitung rechtmäßig ist: dass du eine Rechtsgrundlage hast, die
+        betroffenen Personen informierst und ihre Rechte wahrst.</li>
+      <li>Als Arbeitgeber bist du auch für die Daten deines Teams verantwortlich. Krankmeldungen verarbeitest du für
+        Zwecke des Beschäftigungsverhältnisses (Art. 9 Abs. 2 lit. b DSGVO in Verbindung mit § 26 Abs. 3 BDSG). Du legst
+        fest, welche Rollen den Grund einer Abwesenheit sehen.</li>
+      <li>Trag keine besonders sensiblen Daten ein, die du für deine Arbeit nicht brauchst – zum Beispiel Diagnosen in
+        Notizen.</li>
+    </ol>
+
+    <h2 id="a6">§ 6 Weisungen</h2>
+    <ol class="paras">
+      <li>Wir verarbeiten die Daten nur auf deine dokumentierte Weisung. Deine Weisungen ergeben sich aus den AGB, diesem
+        Vertrag und daraus, wie du die Funktionen und Einstellungen der App nutzt. Weitere Weisungen kannst du uns per
+        E-Mail an <a href="mailto:kontakt@lunaxora.de">kontakt@lunaxora.de</a> geben.</li>
+      <li>Müssen wir Daten nach dem Recht der EU oder eines Mitgliedstaats anders verarbeiten, teilen wir dir das vorher
+        mit, sofern das Recht uns das nicht verbietet.</li>
+      <li>Halten wir eine Weisung für rechtswidrig, sagen wir dir das sofort. Wir dürfen die Ausführung aussetzen, bis du
+        sie bestätigt oder geändert hast.</li>
+    </ol>
+
+    <h2 id="a7">§ 7 Vertraulichkeit</h2>
+    <p>Zugriff auf deine Daten haben bei uns nur die beiden Gesellschafter. Sie sind zur Vertraulichkeit verpflichtet.
+      Ziehen wir weitere Personen hinzu, verpflichten wir sie vorher ebenso zur Vertraulichkeit und geben ihnen nur den
+      Zugriff, den sie für ihre Aufgabe brauchen.</p>
+
+    <h2 id="a8">§ 8 Sicherheit der Verarbeitung</h2>
+    <p>Wir treffen die technischen und organisatorischen Maßnahmen nach Art. 32 DSGVO, die in
+      <a href="#anlage1">Anlage 1</a> beschrieben sind. Wir dürfen sie weiterentwickeln, solange das Schutzniveau nicht
+      sinkt.</p>
+
+    <h2 id="a9">§ 9 Unterauftragsverarbeiter</h2>
+    <ol class="paras">
+      <li>Du erlaubst uns allgemein, Unterauftragsverarbeiter einzusetzen. Die aktuellen stehen in
+        <a href="#anlage2">Anlage 2</a>.</li>
+      <li>Wollen wir einen Unterauftragsverarbeiter hinzufügen oder ersetzen, informieren wir dich mindestens vier Wochen
+        vorher per E-Mail oder in der App. Du kannst aus wichtigen datenschutzrechtlichen Gründen widersprechen. Finden
+        wir keine Lösung, kannst du den Vertrag zu dem Zeitpunkt kündigen, zu dem die Änderung wirksam wird.</li>
+      <li>Wir verpflichten jeden Unterauftragsverarbeiter vertraglich auf die Datenschutzpflichten dieses Vertrags
+        (Art. 28 Abs. 4 DSGVO). Für ihn haften wir dir gegenüber wie für uns selbst.</li>
+      <li>Keine Unterauftragsverarbeiter sind Anbieter, die Daten in eigener Verantwortung verarbeiten oder die du
+        selbst einbindest – etwa Stripe (Zahlung deines Abos), Apple und Google als App Stores, TikTok, wenn du dein
+        Konto verbindest, dein Kalender-Anbieter beim Kalender-Abo und Open-Meteo, das für das Wetter nur den Ort deiner
+        eigenen Firmenadresse erhält.</li>
+    </ol>
+
+    <h2 id="a10">§ 10 Unterstützung bei Betroffenenrechten und Pflichten</h2>
+    <ol class="paras">
+      <li>Die meisten Anfragen betroffener Personen kannst du direkt in der App erledigen: Daten ansehen, berichtigen,
+        löschen und exportieren. Wo das nicht reicht, helfen wir dir (Art. 12 bis 22 DSGVO).</li>
+      <li>Wendet sich eine betroffene Person direkt an uns, leiten wir die Anfrage an dich weiter und antworten nicht
+        selbst, außer du bittest uns darum.</li>
+      <li>Wir unterstützen dich auch bei der Sicherheit der Verarbeitung, bei Meldungen von Datenschutzverletzungen, bei
+        einer Datenschutz-Folgenabschätzung und bei einer Konsultation der Aufsichtsbehörde (Art. 32 bis 36 DSGVO),
+        soweit es um unsere Verarbeitung geht.</li>
+    </ol>
+
+    <h2 id="a11">§ 11 Meldung von Datenschutzverletzungen</h2>
+    <p>Bemerken wir eine Verletzung des Schutzes deiner Daten, informieren wir dich unverzüglich, per E-Mail an die
+      Adresse deines Kontos. Wir teilen dir mit, was wir wissen – soweit verfügbar Art der Verletzung, betroffene
+      Daten und Personen, wahrscheinliche Folgen und unsere Gegenmaßnahmen (Art. 33 Abs. 3 DSGVO) – und ergänzen das,
+      sobald wir mehr wissen. Wir unterstützen dich bei Meldungen an die Aufsichtsbehörde und an betroffene
+      Personen.</p>
+
+    <h2 id="a12">§ 12 Löschung und Rückgabe</h2>
+    <ol class="paras">
+      <li>Vor dem Ende des Vertrags kannst du deine Daten exportieren, zum Beispiel als ZIP, CSV oder PDF.</li>
+      <li>Nach dem Ende des Vertrags löschen wir deine Daten spätestens nach 30 Tagen, soweit nicht eine gesetzliche
+        Pflicht zur Speicherung besteht (Art. 28 Abs. 3 lit. g DSGVO).</li>
+      <li>Daten, die du während der Laufzeit in der App löschst, werden auch bei uns gelöscht.</li>
+    </ol>
+
+    <h2 id="a13">§ 13 Nachweise und Kontrollen</h2>
+    <ol class="paras">
+      <li>Auf Anfrage geben wir dir alle Informationen, die du brauchst, um die Einhaltung dieses Vertrags
+        nachzuweisen.</li>
+      <li>Du kannst Kontrollen durchführen oder durch eine zur Verschwiegenheit verpflichtete prüfende Person durchführen
+        lassen – nach rechtzeitiger Ankündigung, während der üblichen Geschäftszeiten, ohne den Betrieb zu stören und auf
+        deine Kosten. Das geht höchstens einmal im Jahr, außer es gab eine Datenschutzverletzung oder es gibt konkrete
+        Anhaltspunkte für einen Verstoß.</li>
+      <li>Bei unseren Unterauftragsverarbeitern genügen in der Regel deren Nachweise, etwa die Berichte und Zertifikate,
+        die sie bereitstellen.</li>
+    </ol>
+
+    <h2 id="a14">§ 14 Haftung</h2>
+    <p>Für die Haftung gegenüber betroffenen Personen gilt Art. 82 DSGVO. Im Verhältnis zwischen dir und uns gilt die
+      Haftungsregelung der <a href="agb.html">AGB</a> (§ 11), soweit Art. 82 DSGVO nichts anderes bestimmt.</p>
+
+    <h2 id="a15">§ 15 Schlussbestimmungen</h2>
+    <ol class="paras">
+      <li>Bei Widersprüchen zwischen diesem Vertrag und den AGB geht dieser Vertrag in Fragen des Datenschutzes vor.</li>
+      <li>Für Änderungen dieses Vertrags gilt § 14 der AGB entsprechend. Änderungen bei den Unterauftragsverarbeitern
+        richten sich nach § 9.</li>
+      <li>Es gilt deutsches Recht. Ist eine Bestimmung unwirksam, bleibt der Vertrag im Übrigen wirksam.</li>
+    </ol>
+
+    <h2 id="anlage1">Anlage 1: Technische und organisatorische Maßnahmen (Art. 32 DSGVO)</h2>
+
+    <h3>1. Vertraulichkeit</h3>
+    <ul>
+      <li><strong>Zutritt:</strong> Wir betreiben keine eigenen Server. Die Daten liegen in Rechenzentren unserer
+        Dienstleister (Supabase: Frankfurt am Main; webgo: Deutschland), die die Räume physisch sichern.</li>
+      <li><strong>Zugang:</strong> Die Anmeldung in der App läuft über Supabase Auth; Passwörter werden nur als Hash-Wert
+        gespeichert, wir sehen sie nie. Zugänge zu den Dienstleister-Konten sind mit starken Passwörtern und, wo
+        angeboten, Zwei-Faktor-Anmeldung geschützt. Administrativen Zugang haben nur die beiden Gesellschafter.</li>
+      <li><strong>Zugriff:</strong> Regeln direkt in der Datenbank (Row Level Security) sorgen dafür, dass jede Firma nur
+        ihre eigenen Daten sieht und im Team jede Person nur die Bereiche, die ihre Rolle erlaubt. Das setzt die
+        Datenbank selbst durch, nicht nur die App. Belege liegen in einem privaten Speicher. Geheime Server-Schlüssel
+        stecken nur in den Server-Funktionen, nie in der App. Auf Produktivdaten greifen wir nur zu, soweit es für
+        Support oder Betrieb nötig ist.</li>
+      <li><strong>Trennung:</strong> Die Daten jeder Firma sind durch die Datenbankregeln voneinander getrennt – auch
+        mehrere Firmen in einem Konto.</li>
+      <li><strong>Datensparsamkeit:</strong> Luna erhält Kundennamen ohne Telefonnummer und E-Mail-Adresse.
+        Krankmeldungen enthalten keine Diagnose; Kolleginnen und Kollegen sehen nur „abwesend“. Mitarbeiter sehen
+        standardmäßig keine Finanzen und keine Preise. Sprachaufnahmen speichern wir nicht.</li>
+    </ul>
+
+    <h3>2. Integrität</h3>
+    <ul>
+      <li><strong>Weitergabe:</strong> Alle Verbindungen sind verschlüsselt (HTTPS/TLS), auch die Verbindung zum
+        Mailserver. Angebots-Links und Kalender-Adressen enthalten lange Zufallskennungen. Einladungscodes haben
+        12 Zeichen und gelten 14 Tage. Die Seiten für deine Kunden senden Sicherheits-Header und werden nicht
+        zwischengespeichert. E-Mails aus der App gehen an höchstens drei Empfänger und enthalten als Anhang nur PDFs.</li>
+      <li><strong>Eingabe:</strong> Ein Versandprotokoll hält zu jeder E-Mail Empfänger, Betreff und Zeitpunkt fest.
+        Annahme, Ablehnung und Widerruf von Angeboten werden mit Zeitpunkt gespeichert. Datensätze tragen den Zeitpunkt
+        ihrer Erstellung.</li>
+    </ul>
+
+    <h3>3. Verfügbarkeit und Belastbarkeit</h3>
+    <ul>
+      <li>Betrieb bei professionellen Dienstleistern in Rechenzentren in der EU.</li>
+      <li>Begrenzungen gegen Missbrauch und Überlastung beim Einlösen von Gutscheinen und Einladungscodes und beim
+        E-Mail-Versand (in der Testphase strenger).</li>
+      <li>Exportfunktionen (ZIP, CSV, PDF), mit denen du jederzeit eigene Kopien anlegen kannst.</li>
+    </ul>
+
+    <h3>4. Regelmäßige Überprüfung</h3>
+    <ul>
+      <li>Wir prüfen die Sicherheitsregeln, wenn wir die App ändern, und überprüfen App und Datenbankregeln regelmäßig,
+        zuletzt umfassend im November 2026.</li>
+      <li>Unterauftragsverarbeiter wählen wir sorgfältig aus und verpflichten sie nach Art. 28 DSGVO.</li>
+      <li>Datenschutzfreundliche Voreinstellungen: Funktionen, die Daten an Dritte geben – Luna, TikTok, Kalender-Abo,
+        Push-Mitteilungen –, sind nur aktiv, wenn du sie nutzt bzw. einschaltest.</li>
+    </ul>
+
+    <h2 id="anlage2">Anlage 2: Unterauftragsverarbeiter</h2>
+    <div class="table">
+      <div class="table-wrap"><table>
+        <thead>
+          <tr><th scope="col">Unterauftragsverarbeiter</th><th scope="col">Leistung</th><th scope="col">Ort der Verarbeitung</th><th scope="col">Wann</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Supabase Inc., USA</td><td>Datenbank, Login, Dateispeicher, Server-Funktionen</td><td>Frankfurt am Main, EU (AWS-Region eu-central-1)</td><td>immer</td></tr>
+          <tr><td>webgo GmbH, Hamburg</td><td>Hosting der Seiten unter lunaxora.de (Angebot, Kunde, Kündigung, Rechtstexte), Versand der E-Mails (SMTP)</td><td>Deutschland</td><td>immer</td></tr>
+          <tr><td>Anthropic PBC, USA</td><td>KI-Verarbeitung für Luna (Modell Claude), Lesen von Belegen</td><td>USA</td><td>nur wenn Luna genutzt wird</td></tr>
+          <tr><td>Groq, Inc., USA</td><td>Spracherkennung (Sprache zu Text)</td><td>USA</td><td>nur bei Spracheingabe</td></tr>
+          <tr><td>Eleven Labs Inc., USA</td><td>Sprachausgabe (Vorlesen der Antworten)</td><td>USA</td><td>nur beim Vorlesen</td></tr>
+          <tr><td>650 Industries, Inc. (Expo), USA</td><td>Push-Mitteilungen an deine eigenen Geräte, Zustellung über Apple Push Notification service bzw. Firebase Cloud Messaging</td><td>USA</td><td>nur wenn Push-Mitteilungen erlaubt sind</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <p>Bei Supabase ist ein Zugriff aus den USA möglich. Übermittlungen in die USA erfolgen auf Grundlage des
+      Angemessenheitsbeschlusses der EU-Kommission zum EU-US Data Privacy Framework, soweit der Anbieter danach
+      zertifiziert ist, und im Übrigen auf Grundlage von EU-Standardvertragsklauseln (Art. 45 und 46 DSGVO).</p>
+  </main>
+
+  <footer>
+    <p>Stand: 23. November 2026</p>
+    <nav aria-label="Rechtliches">
+      <a href="datenschutz.html">Datenschutz</a>
+      <a href="agb.html">AGB</a>
+      <a href="https://lunaxora.de/impressum.html">Impressum</a>
+      <a href="https://lunaxora.de/kuendigen/">Verträge hier kündigen</a>
+      <a href="https://lunaxora.de/kuendigen/?widerrufen">Vertrag widerrufen</a>
+    </nav>
+  </footer>
+</body>
+</html>

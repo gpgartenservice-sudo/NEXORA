@@ -6,6 +6,10 @@
 #  Aufruf (im Projektordner):   bash scripts/web-hochladen.sh
 #  Kundenseite (Datenschutz-Link, Ordner "Kunde"):
 #                               bash scripts/web-hochladen.sh kunde
+#  Kündigungsbutton „Verträge hier kündigen“ (Ordner "kuendigen"):
+#                               bash scripts/web-hochladen.sh kuendigen
+#  Datenschutz, AGB und AV-Vertrag der App (Ordner "App"):
+#                               bash scripts/web-hochladen.sh recht
 #
 #  - Nimmt web-angebot/index.html, setzt die öffentliche Supabase-Adresse und
 #    den Publishable Key aus der .env ein und legt das Ergebnis in
@@ -55,7 +59,15 @@ case "${1:-angebot}" in
         # Formular + Standard-Datenschutzerklärung
         SRC="web-kunde"; DIST="dist-kunde"; SUB="Kunde"; FILES="index.html datenschutz.html .htaccess"
         TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/Kunde/" ;;
-    *) red "Unbekannte Seite \"$1\" – erlaubt: angebot (Standard) oder kunde"; exit 1 ;;
+    kuendigen)
+        # Kündigungsbutton nach § 312k BGB (Datenbank: 20261205090000_kuendigung.sql)
+        SRC="web-kuendigen"; DIST="dist-kuendigen"; SUB="kuendigen"; FILES="index.html .htaccess"
+        TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/kuendigen/" ;;
+    recht)
+        # Rechtstexte der App (ohne Platzhalter, werden nur kopiert)
+        SRC="web-recht"; DIST="dist-recht"; SUB="App"; FILES="datenschutz.html agb.html avv.html"
+        TEST_URL="$(printf '%s' "$WEB_URL" | sed -E 's|^(https://[^/]+).*|\1|')/App/datenschutz.html" ;;
+    *) red "Unbekannte Seite \"$1\" – erlaubt: angebot (Standard), kunde, kuendigen oder recht"; exit 1 ;;
 esac
 
 mkdir -p "$DIST"
